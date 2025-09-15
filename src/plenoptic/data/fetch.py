@@ -41,7 +41,7 @@ REGISTRY = {
     "load_image_test.tar.gz": "8a2b92dc0d442695c45b1e908ef0a04cae35c5f21b774a93b9fc6b675423b526",  # noqa: E501
     "berardino_onoff.pt": "2174a40005489b9c94acc91213b2f6d57a75f262caf118cb1980658eadbfd047",  # noqa: E501
     "berardino_vgg16.pt": "5e0d10f4a367244879cd8a61c453992370ab801db1f66e10caa1ee2ecfab8ca4",  # noqa: E501
-    "ps_regression.tar.gz": "e8ca82528498a1ee9202a24e89ce327c8cbea951a8c3d6c5514cb8607bbba8a7",  # noqa: E501
+    "ps_regression.tar.gz": "8419f2df2ab9856e5a2f698afff73e4cab76faf65818c3c334f0141078a40914",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/{}/download"

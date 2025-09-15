@@ -1,5 +1,7 @@
 import os
 
+import einops
+import numpy as np
 import pytest
 import torch
 
@@ -235,3 +237,26 @@ def model(request):
 @pytest.fixture(scope="package")
 def model2(request):
     return get_model(request.param)
+
+
+def check_loss_saved_synth(
+    losses, saved_synth, target_iter, objective_function, store_progress
+):
+    assert len(saved_synth) == np.ceil(target_iter / store_progress) + 1, (
+        "Didn't end up with enough saved synth after first synth!"
+    )
+    assert len(losses) == target_iter + 1, (
+        "Didn't end up with enough losses after first synth!"
+    )
+    if store_progress is True:
+        losses = losses
+    elif (target_iter % store_progress) == 0:
+        losses = losses[::store_progress]
+    else:
+        # then we need to add on the loss from the current synth object.
+        losses = einops.pack([losses[::store_progress], losses[-1]], "*")[0]
+    assert len(losses) == len(saved_synth), "wrong length!"
+    for synth_loss, saved in zip(losses.to(DEVICE), saved_synth):
+        loss = objective_function(saved.to(DEVICE)).squeeze()
+        if not torch.equal(loss, synth_loss):
+            raise ValueError("saved_synth and loss are misaligned!")

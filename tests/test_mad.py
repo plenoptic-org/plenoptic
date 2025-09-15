@@ -1,13 +1,13 @@
 import inspect
+import math
 import os.path as op
 from contextlib import nullcontext as does_not_raise
 
-import numpy as np
 import pytest
 import torch
 
 import plenoptic as po
-from conftest import DEVICE
+from conftest import DEVICE, check_loss_saved_synth
 
 
 def rgb_mse(*args):
@@ -804,33 +804,136 @@ class TestMAD:
         if store_progress == 3:
             max_iter = 6
         mad.synthesize(max_iter=max_iter, store_progress=store_progress)
-        assert len(mad.saved_mad_image) == np.ceil(max_iter / store_progress), (
-            "Didn't end up with enough saved mad after first synth!"
-        )
-        assert len(mad.losses) == max_iter, (
-            "Didn't end up with enough losses after first synth!"
-        )
-        # these have a +1 because we calculate them during initialization as
-        # well (so we know our starting point).
-        assert len(mad.optimized_metric_loss) == max_iter + 1, (
-            "Didn't end up with enough optimized metric losses after first synth!"
-        )
-        assert len(mad.reference_metric_loss) == max_iter + 1, (
-            "Didn't end up with enough reference metric losses after first synth!"
+        check_loss_saved_synth(
+            mad.losses,
+            mad.saved_mad_image,
+            max_iter,
+            mad.objective_function,
+            store_progress,
         )
         mad.synthesize(max_iter=max_iter, store_progress=store_progress)
-        assert len(mad.saved_mad_image) == np.ceil(2 * max_iter / store_progress), (
-            "Didn't end up with enough saved mad after second synth!"
+        check_loss_saved_synth(
+            mad.losses,
+            mad.saved_mad_image,
+            2 * max_iter,
+            mad.objective_function,
+            store_progress,
         )
-        assert len(mad.losses) == 2 * max_iter, (
-            "Didn't end up with enough losses after second synth!"
+
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_save_mad_empty(self, einstein_img):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
-        assert len(mad.optimized_metric_loss) == 2 * max_iter + 1, (
-            "Didn't end up with enough optimized metric losses after second synth!"
+        torch.equal(mad.saved_mad_image, torch.empty(0))
+        mad.synthesize(max_iter=3)
+        torch.equal(mad.saved_mad_image, mad.mad_image.to("cpu"))
+
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_mad_empty_loss(self, einstein_img):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
-        assert len(mad.reference_metric_loss) == 2 * max_iter + 1, (
-            "Didn't end up with enough reference metric losses after second synth!"
+        assert mad.objective_function().numel() == 0
+        torch.equal(mad.losses, torch.empty(0))
+        mad.setup()
+        assert isinstance(mad.objective_function(), torch.Tensor)
+        assert mad.losses.numel() > 0
+        mad.synthesize(max_iter=2)
+        assert isinstance(mad.objective_function(), torch.Tensor)
+        assert mad.losses.numel() > 0
+
+    @pytest.mark.parametrize("iteration", [None, 0, -2, -3, 2, 1, 6, -7])
+    @pytest.mark.parametrize("store_progress", [True, False, 2])
+    @pytest.mark.parametrize("iteration_selection", ["floor", "ceiling", "round"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_mad_get_progress(
+        self, einstein_img, iteration, store_progress, iteration_selection
+    ):
+        mad = po.synth.MADCompetition(
+            einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
+        mad.synthesize(max_iter=5, store_progress=store_progress)
+        if iteration_selection == "floor":
+            func = math.floor
+        elif iteration_selection == "ceiling":
+            func = math.ceil
+        else:
+            func = round
+        expected_dict = {}
+        if iteration is None:
+            expected_dict["losses"] = mad.losses[-1]
+            expected_dict.update(
+                {
+                    "iteration": 5,
+                    "gradient_norm": None,
+                    "pixel_change_norm": None,
+                    "reference_metric_loss": mad.reference_metric_loss[-1],
+                    "optimized_metric_loss": mad.optimized_metric_loss[-1],
+                }
+            )
+            if store_progress:
+                expected_dict.update(
+                    {
+                        "saved_mad_image": mad.mad_image.to("cpu"),
+                        "store_progress_iteration": 5,
+                    }
+                )
+        elif iteration not in [6, -7]:
+            expected_dict["losses"] = mad.losses[iteration]
+            if iteration < 0:
+                # add one to account for loss and these attributes being off by one
+                expected_dict.update(
+                    {
+                        "iteration": 6 + iteration,
+                        "gradient_norm": mad.gradient_norm[iteration + 1],
+                        "pixel_change_norm": mad.pixel_change_norm[iteration + 1],
+                        "reference_metric_loss": mad.reference_metric_loss[iteration],
+                        "optimized_metric_loss": mad.optimized_metric_loss[iteration],
+                    }
+                )
+                if store_progress:
+                    iter = func((6 + iteration) / store_progress)
+                    expected_dict.update(
+                        {
+                            "saved_mad_image": mad.saved_mad_image[iter],
+                            "store_progress_iteration": iter * store_progress,
+                        }
+                    )
+            else:
+                expected_dict.update(
+                    {
+                        "iteration": iteration,
+                        "gradient_norm": mad.gradient_norm[iteration],
+                        "pixel_change_norm": mad.pixel_change_norm[iteration],
+                        "reference_metric_loss": mad.reference_metric_loss[iteration],
+                        "optimized_metric_loss": mad.optimized_metric_loss[iteration],
+                    }
+                )
+                if store_progress:
+                    iter = func(iteration / store_progress)
+                    expected_dict.update(
+                        {
+                            "saved_mad_image": mad.saved_mad_image[iter],
+                            "store_progress_iteration": iter * store_progress,
+                        }
+                    )
+        if iteration in [6, -7]:
+            expectation = pytest.raises(IndexError, match=".*out of bounds with.*")
+        elif store_progress == 2 and iteration in [1, -3]:
+            expectation = pytest.warns(
+                UserWarning, match="loss iteration and iteration"
+            )
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            progress = mad.get_progress(iteration, iteration_selection)
+            assert progress.keys() == expected_dict.keys()
+            for k, v in progress.items():
+                if isinstance(v, torch.Tensor):
+                    assert torch.equal(v, expected_dict[k]), f"{k} not as expected!"
+                else:
+                    assert v == expected_dict[k], f"{k} not as expected!"
 
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_continue(self, einstein_img):
@@ -883,10 +986,13 @@ class TestMAD:
         mad = po.synth.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=0.1
         )
+        # losses[-1] corresponds to the *current* loss (of mad.mad_image), not the loss
+        # from the most recent iteration. so losses[-2] is the loss of the last
+        # synthesis iteration.
         mad.synthesize(max_iter=15, stop_criterion=1e-3, stop_iters_to_check=5)
-        assert abs(mad.losses[-5] - mad.losses[-1]) < 1e-3, (
+        assert abs(mad.losses[-6] - mad.losses[-2]) < 1e-3, (
             "Didn't stop when hit criterion!"
         )
-        assert abs(mad.losses[-6] - mad.losses[-2]) > 1e-3, (
+        assert abs(mad.losses[-7] - mad.losses[-3]) > 1e-3, (
             "Stopped after hit criterion!"
         )
