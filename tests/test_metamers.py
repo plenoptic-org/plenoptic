@@ -954,6 +954,9 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["naive.Identity", "PortillaSimoncelli"], indirect=True
     )
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
     def test_map_location(self, curie_img, model, tmp_path):
         if hasattr(model, "scales"):
             met = po.synth.MetamerCTF(curie_img, model)
@@ -979,6 +982,9 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["naive.Identity", "PortillaSimoncelli"], indirect=True
     )
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
     def test_to_midsynth(self, curie_img, model):
         if hasattr(model, "scales"):
             met = po.synth.MetamerCTF(curie_img, model)
@@ -1003,6 +1009,9 @@ class TestMetamers:
     )
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
     @pytest.mark.filterwarnings("ignore:Unable to call model.to:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
     def test_to(self, curie_img, model, to_type):
         if hasattr(model, "scales"):
             met = po.synth.MetamerCTF(curie_img, model)
