@@ -951,9 +951,14 @@ class TestMetamers:
             raise ValueError("Didn't set scheduler to None!")
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
-    @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
+    @pytest.mark.parametrize(
+        "model", ["naive.Identity", "PortillaSimoncelli"], indirect=True
+    )
     def test_map_location(self, curie_img, model, tmp_path):
-        met = po.synth.Metamer(curie_img, model)
+        if hasattr(model, "scales"):
+            met = po.synth.MetamerCTF(curie_img, model)
+        else:
+            met = po.synth.Metamer(curie_img, model)
         met.synthesize(max_iter=4, store_progress=True)
         met.save(op.join(tmp_path, "test_metamer_map_location.pt"))
         # calling load with map_location effectively switches everything
@@ -970,13 +975,39 @@ class TestMetamers:
         # reset model device for other tests
         model.to(DEVICE)
 
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     @pytest.mark.parametrize(
-        "model", ["naive.Identity", "NonModule", "frontend.OnOff.nograd"], indirect=True
+        "model", ["naive.Identity", "PortillaSimoncelli"], indirect=True
+    )
+    def test_to_midsynth(self, curie_img, model):
+        if hasattr(model, "scales"):
+            met = po.synth.MetamerCTF(curie_img, model)
+        else:
+            met = po.synth.Metamer(curie_img, model)
+        met.synthesize(max_iter=4, store_progress=2)
+        assert met.metamer.device.type == "cuda"
+        assert met.image.device.type == "cuda"
+        met.to("cpu")
+        met.synthesize(max_iter=4, store_progress=2)
+        assert met.metamer.device.type == "cpu"
+        assert met.image.device.type == "cpu"
+        met.to("cuda")
+        met.synthesize(max_iter=4, store_progress=2)
+        assert met.metamer.device.type == "cuda"
+        assert met.image.device.type == "cuda"
+
+    @pytest.mark.parametrize(
+        "model",
+        ["naive.Identity", "NonModule", "frontend.OnOff.nograd", "PortillaSimoncelli"],
+        indirect=True,
     )
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
     @pytest.mark.filterwarnings("ignore:Unable to call model.to:UserWarning")
     def test_to(self, curie_img, model, to_type):
-        met = po.synth.Metamer(curie_img, model)
+        if hasattr(model, "scales"):
+            met = po.synth.MetamerCTF(curie_img, model)
+        else:
+            met = po.synth.Metamer(curie_img, model)
         met.synthesize(max_iter=5)
         if to_type == "dtype":
             met.to(torch.float16)
