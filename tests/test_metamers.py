@@ -967,7 +967,10 @@ class TestMetamers:
         # calling load with map_location effectively switches everything
         # over to that device
         model.to("cpu")
-        met_copy = po.synth.Metamer(curie_img.to("cpu"), model)
+        if hasattr(model, "scales"):
+            met_copy = po.synth.MetamerCTF(curie_img.to("cpu"), model)
+        else:
+            met_copy = po.synth.Metamer(curie_img.to("cpu"), model)
         met_copy.load(
             op.join(tmp_path, "test_metamer_map_location.pt"),
             map_location="cpu",
@@ -1004,7 +1007,12 @@ class TestMetamers:
 
     @pytest.mark.parametrize(
         "model",
-        ["naive.Identity", "NonModule", "frontend.OnOff.nograd", "PortillaSimoncelli"],
+        [
+            "naive.Identity",
+            "NonModule",
+            "frontend.OnOff.nograd",
+            "frontend.OnOff.nograd.ctf",
+        ],
         indirect=True,
     )
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
