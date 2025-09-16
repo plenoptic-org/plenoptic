@@ -971,9 +971,11 @@ class TestMetamers:
             met_copy = po.synth.MetamerCTF(curie_img.to("cpu"), model)
         else:
             met_copy = po.synth.Metamer(curie_img.to("cpu"), model)
+        # end up with slightly different outputs on gpu vs cpu
         met_copy.load(
             op.join(tmp_path, "test_metamer_map_location.pt"),
             map_location="cpu",
+            tensor_equality_atol=1e-6,
         )
         assert met_copy.metamer.device.type == "cpu"
         assert met_copy.image.device.type == "cpu"
