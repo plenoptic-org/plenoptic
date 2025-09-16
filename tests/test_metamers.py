@@ -1027,9 +1027,9 @@ class TestMetamers:
             met = po.synth.Metamer(curie_img, model)
         met.synthesize(max_iter=5)
         if to_type == "dtype":
-            met.to(torch.float16)
-            assert met.image.dtype == torch.float16
-            assert met.metamer.dtype == torch.float16
+            met.to(torch.float64)
+            assert met.image.dtype == torch.float64
+            assert met.metamer.dtype == torch.float64
         # can only run this one if we're on a device with CPU and GPU.
         elif to_type == "device" and DEVICE.type != "cpu":
             met.to("cpu")
