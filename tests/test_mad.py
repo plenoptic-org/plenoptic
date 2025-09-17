@@ -767,6 +767,27 @@ class TestMAD:
         assert mad_copy.mad_image.device.type == "cpu"
         mad_copy.synthesize(max_iter=4, store_progress=True)
 
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
+    def test_to_midsynth(self, curie_img):
+        mad = po.synth.MADCompetition(
+            curie_img,
+            po.metric.mse,
+            po.tools.optim.l2_norm,
+            "min",
+            metric_tradeoff_lambda=1,
+        )
+        mad.synthesize(max_iter=4, store_progress=2)
+        assert mad.image.device.type == "cuda"
+        assert mad.mad_image.device.type == "cuda"
+        mad.to("cpu")
+        mad.synthesize(max_iter=4, store_progress=2)
+        assert mad.image.device.type == "cpu"
+        assert mad.mad_image.device.type == "cpu"
+        mad.to("cuda")
+        mad.synthesize(max_iter=4, store_progress=2)
+        assert mad.image.device.type == "cuda"
+        assert mad.mad_image.device.type == "cuda"
+
     # MAD can accept multiple images on the batch dimension, but the metrics
     # must return a single number. This means, effectively, that we can do
     # synthesis for e.g., video metrics, but that we cannot synthesize several

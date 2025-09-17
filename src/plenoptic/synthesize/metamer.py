@@ -1239,6 +1239,53 @@ class MetamerCTF(Metamer):
         loss_conv = loss_convergence(self, stop_criterion, stop_iters_to_check)
         return loss_conv and coarse_to_fine_enough(self, i, ctf_iters_to_check)
 
+    def to(self, *args: Any, **kwargs: Any):
+        r"""
+        Move and/or cast the parameters and buffers.
+
+        This can be called as
+
+        .. function:: to(device=None, dtype=None, non_blocking=False)
+
+        .. function:: to(dtype, non_blocking=False)
+
+        .. function:: to(tensor, non_blocking=False)
+
+        Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
+        floating point desired :attr:`dtype` s. In addition, this method will
+        only cast the floating point parameters and buffers to :attr:`dtype`
+        (if given). The integral parameters and buffers will be moved
+        :attr:`device`, if that is given, but with dtypes unchanged. When
+        :attr:`non_blocking` is set, it tries to convert/move asynchronously
+        with respect to the host if possible, e.g., moving CPU Tensors with
+        pinned memory to CUDA devices.
+
+        See :meth:`torch.nn.Module.to` for examples.
+
+        .. note::
+            This method modifies the module in-place.
+
+        Parameters
+        ----------
+        device : torch.device
+            The desired device of the parameters and buffers in this module.
+        dtype : torch.dtype
+            The desired floating point type of the floating point parameters and
+            buffers in this module.
+        tensor : torch.Tensor
+            Tensor whose dtype and device are the desired dtype and device for
+            all parameters and buffers in this module.
+        """  # numpydoc ignore=PR01,PR02
+        super().to(*args, **kwargs)
+        # if synthesize has been called at least once and we have not finished moving
+        # through all scales, _ctf_target_representation will be a Tensor which get
+        # passed to objective_function at some point. thus, need to make sure it's also
+        # updated.
+        if self._ctf_target_representation is not None:
+            self._ctf_target_representation = self._ctf_target_representation.to(
+                *args, **kwargs
+            )
+
     def load(
         self,
         file_path: str,
