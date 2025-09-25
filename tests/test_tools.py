@@ -103,12 +103,16 @@ class TestData:
         with pytest.raises(ValueError, match="When paths argument is"):
             imgs = po.load_images(imgs, sorted_key=lambda x: x.name[1])
 
-    # this deprecation warning is triggered during a call to pkg_resources from imageio,
-    # but only happens if either sphinxcontrib-apidoc or sphinxcontrib-jsmath is also in
-    # your environment (they will be if your environment includes sphinx, which also
-    # gets installed by numpydoc).
+    # these two warnings are triggered during a call to pkg_resources from imageio. The
+    # first one only happens if either sphinxcontrib-apidoc or sphinxcontrib-jsmath is
+    # also in your environment (they will be if your environment includes sphinx, which
+    # also gets installed by numpydoc). hopefully, should be fixed:
+    # https://github.com/imageio/imageio/issues/1137
     @pytest.mark.filterwarnings(
         "ignore:Deprecated call to `pkg_resources:DeprecationWarning"
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:pkg_resources is deprecated as an API:UserWarning"
     )
     def test_load_images_some_non_image(self):
         test_dir = fetch_data("load_image_test.tar.gz")
