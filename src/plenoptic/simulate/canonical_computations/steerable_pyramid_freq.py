@@ -370,6 +370,12 @@ class SteerablePyramidFreq(nn.Module):
         into subbands corresponding to different orientations and scales (i.e., spatial
         frequencies).
 
+        .. versionchanged:: 1.4
+           The returned ``pyr_coeffs`` dictionary's keys are now either strings
+           specifying the residual or integers specifying the scale. The non-residual
+           coefficients are now 5d tensors of shape (batch, channel, num_orientations,
+           height, width).
+
         Parameters
         ----------
         image
@@ -1061,7 +1067,9 @@ class SteerablePyramidFreq(nn.Module):
         .. versionchanged:: 1.4
            The returned ``resteered_coeffs`` dictionary now only contains the new
            angles, as opposed to concatenating the new angles onto those found in
-           the input ``pyr_coeffs``.
+           the input ``pyr_coeffs``. Like the input ``pyr_coeffs``, the dictionary
+           keys are now integers specifying the scale and the coefficients are
+           5d tensors of shape (batch, channel, angles, height, width).
 
         Parameters
         ----------
