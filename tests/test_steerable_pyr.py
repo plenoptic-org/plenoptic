@@ -302,7 +302,90 @@ class TestSteerablePyramid:
             pyr_tensor, pyr_info = spyr.convert_pyr_to_tensor(
                 pyr_coeff_dict, split_complex=val
             )
+            i = 0
+            for key, v in pyr_coeff_dict.items():
+                if isinstance(key, str):
+                    assert torch.equal(pyr_tensor[:, i].real, v[:, 0])
+                    i += 1
+                elif val:
+                    for k in range(spyr.num_orientations):
+                        assert torch.equal(pyr_tensor[:, i + k * 2], v[:, 0, k].real)
+                        assert torch.equal(
+                            pyr_tensor[:, i + k * 2 + 1], v[:, 0, k].imag
+                        )
+                    i += 2 * spyr.num_orientations
+                else:
+                    for k in range(spyr.num_orientations):
+                        assert torch.equal(pyr_tensor[:, i + k], v[:, 0, k])
+                    i += spyr.num_orientations
             pyr_coeff_dict2 = spyr.convert_tensor_to_pyr(pyr_tensor, *pyr_info)
+            check_pyr_coeffs(pyr_coeff_dict, pyr_coeff_dict2, rtol, atol)
+
+    @pytest.mark.parametrize(
+        "scales",
+        [
+            [0],
+            [1],
+            [0, 1, 2],
+            [2],
+            None,
+            ["residual_highpass", "residual_lowpass"],
+            ["residual_highpass", 0, 1, "residual_lowpass"],
+        ],
+    )
+    @pytest.mark.parametrize(
+        "spyr_multi",
+        [
+            f"{h}-{o}-{c}-False-False"
+            for h, o, c in product([3, 4, 5], [1, 2, 3], [True, False])
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-False-False"
+            for h in [3, 4, 5]
+        ],
+        indirect=True,
+    )
+    def test_pyr_to_tensor_multichannel(
+        self, multichannel_img, spyr_multi, scales, rtol=1e-12, atol=1e-12
+    ):
+        pyr_coeff_dict = spyr_multi.forward(multichannel_img, scales=scales)
+        split_complex = [True, False] if spyr_multi.is_complex else [False]
+
+        for val in split_complex:
+            pyr_tensor, pyr_info = spyr_multi.convert_pyr_to_tensor(
+                pyr_coeff_dict, split_complex=val
+            )
+            # number of channels in pyr_tensor that correspond to each input channel
+            chan_len = pyr_tensor.shape[1] // multichannel_img.shape[1]
+            for chan in range(multichannel_img.shape[1]):
+                i = 0
+                for key, v in pyr_coeff_dict.items():
+                    if isinstance(key, str):
+                        j = 1
+                        assert torch.equal(
+                            pyr_tensor[:, i + chan_len * chan].real, v[:, chan]
+                        )
+                    elif val:
+                        j = spyr_multi.num_orientations
+                        for k in range(j):
+                            assert torch.equal(
+                                pyr_tensor[:, i + k * 2 + chan_len * chan],
+                                v[:, chan, k].real,
+                            )
+                            assert torch.equal(
+                                pyr_tensor[:, i + k * 2 + 1 + chan_len * chan],
+                                v[:, chan, k].imag,
+                            )
+                        j *= 2
+                    else:
+                        j = spyr_multi.num_orientations
+                        for k in range(j):
+                            assert torch.equal(
+                                pyr_tensor[:, i + k + chan_len * chan], v[:, chan, k]
+                            )
+                    i += j
+            pyr_coeff_dict2 = spyr_multi.convert_tensor_to_pyr(pyr_tensor, *pyr_info)
             check_pyr_coeffs(pyr_coeff_dict, pyr_coeff_dict2, rtol, atol)
 
     @pytest.mark.parametrize(

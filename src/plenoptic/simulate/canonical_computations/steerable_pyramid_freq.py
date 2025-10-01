@@ -7,13 +7,13 @@ Fourier domain.
 
 import warnings
 from collections import OrderedDict
-from typing import Literal, Any
+from typing import Literal
 
+import einops
 import numpy as np
 import torch
 import torch.fft as fft
 import torch.nn as nn
-from einops import rearrange
 from numpy.typing import NDArray
 from scipy.special import factorial
 from torch import Tensor
@@ -243,7 +243,7 @@ class SteerablePyramidFreq(nn.Module):
         lo0mask = interpolate1d(self.log_rad, self.YIrcos, self.Xrcos)
         hi0mask = interpolate1d(self.log_rad, self.Yrcos, self.Xrcos)
         self.register_buffer(
-            "lo0mask", rearrange(torch.as_tensor(lo0mask), "h w -> 1 1 1 h w")
+            "lo0mask", einops.rearrange(torch.as_tensor(lo0mask), "h w -> 1 1 1 h w")
         )
         self.register_buffer("hi0mask", torch.as_tensor(hi0mask).unsqueeze(0))
 
@@ -312,7 +312,10 @@ class SteerablePyramidFreq(nn.Module):
                 anglemasks.append(torch.as_tensor(anglemask).unsqueeze(0))
                 anglemasks_recon.append(torch.as_tensor(anglemask_recon).unsqueeze(0))
 
-            self.register_buffer(f"_anglemasks_scale_{i}", torch.cat(anglemasks))
+            self.register_buffer(
+                f"_anglemasks_scale_{i}",
+                einops.rearrange(anglemasks, "o 1 h w -> 1 1 o h w"),
+            )
             self.register_buffer(
                 f"_anglemasks_recon_scale_{i}", torch.cat(anglemasks_recon)
             )
@@ -444,13 +447,30 @@ class SteerablePyramidFreq(nn.Module):
         # input to the next scale is the low-pass filtered component. after this
         # multiplication, lodft will be shape (batch, channel, orientations, height,
         # width)
-        lodft = imdft * self.lo0mask
+        lodft = einops.einsum(imdft, self.lo0mask, "b c h w, b c o h w -> b c o h w")
 
         for i in range(self.num_scales):
             if i in scales:
                 # high-pass mask is selected based on the current scale
                 himask = getattr(self, f"_himasks_scale_{i}")
-                band = self._compute_band_gpu(lodft, i)
+                mask = getattr(self, f"_anglemasks_scale_{i}") * himask
+                # compute filter output at each orientation
+
+                # band pass filtering is done in the fourier space as multiplying
+                #  by the fft of a gaussian derivative.
+                # The oriented dft is computed as a product of the fft of the
+                # low-passed component, the precomputed anglemask (specifies
+                # orientation), and the precomputed hipass mask (creating a bandpass
+                # filter) the complex_const variable comes from the Fourier
+                # transform of a gaussian derivative.
+                # Based on the order of the gaussian, this constant changes.
+
+                banddft = self._complex_const_forward * lodft * mask
+                # fft output is then shifted to center frequencies
+                band = fft.ifftshift(banddft, dim=(-2, -1))
+                # ifft is applied to recover the filtered representation in spatial
+                # domain
+                band = fft.ifft2(band, dim=(-2, -1), norm=self.fft_norm)
 
                 # for real pyramid, take the real component of the complex band
                 if not self.is_complex:
@@ -498,28 +518,6 @@ class SteerablePyramidFreq(nn.Module):
 
         return pyr_coeffs
 
-    def _compute_band_gpu(self, lodft, scale_n):
-        # high-pass mask is selected based on the current scale
-        himask = getattr(self, f"_himasks_scale_{scale_n}")
-        mask = getattr(self, f"_anglemasks_scale_{scale_n}") * himask
-        # compute filter output at each orientation
-
-        # band pass filtering is done in the fourier space as multiplying
-        #  by the fft of a gaussian derivative.
-        # The oriented dft is computed as a product of the fft of the
-        # low-passed component, the precomputed anglemask (specifies
-        # orientation), and the precomputed hipass mask (creating a bandpass
-        # filter) the complex_const variable comes from the Fourier
-        # transform of a gaussian derivative.
-        # Based on the order of the gaussian, this constant changes.
-
-        banddft = self._complex_const_forward * lodft * mask
-        # fft output is then shifted to center frequencies
-        band = fft.ifftshift(banddft, dim=(-2, -1))
-        # ifft is applied to recover the filtered representation in spatial
-        # domain
-        return fft.ifft2(band, dim=(-2, -1), norm=self.fft_norm)
-
     @staticmethod
     def convert_pyr_to_tensor(
         pyr_coeffs: OrderedDict, split_complex: bool = False
@@ -549,7 +547,7 @@ class SteerablePyramidFreq(nn.Module):
         split_complex
             Indicates whether the output should split complex bands into
             real/imag channels or keep them as a single channel. This should be
-            True if you intend to use a convolutional layer on top of the
+            ``True`` if you intend to use a convolutional layer on top of the
             output.
 
         Returns
@@ -598,34 +596,9 @@ class SteerablePyramidFreq(nn.Module):
           <PyrFigure ...>
         """
         pyr_keys = list(pyr_coeffs.keys())
-        test_band = pyr_coeffs[pyr_keys[0]]
-        num_channels = test_band.size(1)
-        coeff_list = []
-        for ch in range(num_channels):
-            coeff_list_resid = []
-            coeff_list_bands = []
-            for k in pyr_keys:
-                coeffs = pyr_coeffs[k][:, ch : (ch + 1), ...]
-                if "residual" in k:
-                    coeff_list_resid.append(coeffs)
-                else:
-                    if (coeffs.dtype in complex_types) and split_complex:
-                        coeff_list_bands.extend([coeffs.real, coeffs.imag])
-                    else:
-                        coeff_list_bands.append(coeffs)
-
-            if "residual_highpass" in pyr_coeffs:
-                coeff_list_bands.insert(0, coeff_list_resid[0])
-                if "residual_lowpass" in pyr_coeffs:
-                    coeff_list_bands.append(coeff_list_resid[1])
-            elif "residual_lowpass" in pyr_coeffs:
-                coeff_list_bands.append(coeff_list_resid[0])
-
-            coeff_list.extend(coeff_list_bands)
-
+        num_channels = pyr_coeffs[pyr_keys[0]].size(1)
         try:
-            pyr_tensor = torch.cat(coeff_list, dim=1)
-            pyr_info = tuple([num_channels, split_complex, pyr_keys])
+            packed, pack_info = einops.pack(list(pyr_coeffs.values()), "b c * h w")
         except RuntimeError:
             raise RuntimeError(
                 "feature maps could not be concatenated into tensor. Check that you"
@@ -633,20 +606,50 @@ class SteerablePyramidFreq(nn.Module):
                 "This is done with the 'downsample=False' argument for the pyramid"
             )
 
-        return pyr_tensor, pyr_info
+        # if the second half of this is False, then pyr_coeffs only contains residuals
+        if split_complex and not all([isinstance(k, str) for k in pyr_keys]):
+            start_idx = 0
+            end_idx = None
+            if "residual_highpass" in pyr_keys:
+                start_idx = 1
+            if "residual_lowpass" in pyr_keys:
+                end_idx = -1
+            complex_coeffs = packed[:, :, start_idx:end_idx]
+            try:
+                separated = einops.rearrange(
+                    [complex_coeffs.real, complex_coeffs.imag],
+                    "complex b c o h w -> b c (o complex) h w",
+                )
+            except RuntimeError:
+                raise RuntimeError(
+                    "split_complex=True but coefficient tensors are real-valued! "
+                    "Either set split_complex=False or regenerate the coefficients "
+                    "with a complex pyramid."
+                )
+            to_pack = []
+            if "residual_highpass" in pyr_keys:
+                to_pack.append(packed[:, :, 0].real)
+            to_pack.append(separated)
+            if "residual_lowpass" in pyr_keys:
+                to_pack.append(packed[:, :, -1].real)
+            packed, split_complex = einops.pack(to_pack, "b c * h w")
+
+        pyr_info = (num_channels, pyr_keys, pack_info, split_complex)
+        return einops.rearrange(packed, "b c o h w -> b (c o) h w"), pyr_info
 
     @staticmethod
     def convert_tensor_to_pyr(
         pyr_tensor: Tensor,
         num_channels: int,
-        split_complex: bool,
         pyr_keys: list[KEYS_TYPE],
+        pack_info: list[torch.Size],
+        split_complex_pack_info: list[torch.Size] | bool,
     ) -> OrderedDict:
         r"""
         Convert pyramid coefficient tensor to dictionary format.
 
-        ``num_channels``, ``split_complex``, and ``pyr_keys`` are elements of
-        the ``pyr_info`` tuple returned by ``convert_pyr_to_tensor``. You
+        The arguments other than ``pyr_tensor`` are elements of the
+        ``pyr_info`` tuple returned by :func:`convert_pyr_to_tensor`. You
         should always unpack the arguments for this function from that
         ``pyr_info`` tuple. See Examples section below.
 
@@ -657,11 +660,14 @@ class SteerablePyramidFreq(nn.Module):
         num_channels
             Number of channels in the original input tensor the pyramid was
             created for (i.e. if the input was an RGB image, this would be 3).
-        split_complex
-            Whether the ``pyr_tensor`` was created with complex channels split
-            or not (if the pyramid was a complex pyramid).
         pyr_keys
-            Tuple containing the list of keys for the original pyramid dictionary.
+            Keys from the original pyramid dictionary.
+        pack_info
+            List of sizes of the fifth dimension for each coefficient (i.e., the number
+            of orientations) used to pack/unpack the tensors.
+        split_complex_pack_info
+            If :func:`convert_pyr_to_tensor` was called with ``split_complex=True``,
+            another list of sizes used to pack/unpack the tensors. Else, ``False``.
 
         Returns
         -------
@@ -677,40 +683,57 @@ class SteerablePyramidFreq(nn.Module):
         --------
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], downsample=False)
+        >>> spyr = po.simul.SteerablePyramidFreq(
+        ...     img.shape[-2:], downsample=False, is_complex=True
+        ... )
         >>> coeffs = spyr(img)
         >>> coeffs_tensor, pyr_info = spyr.convert_pyr_to_tensor(coeffs)
+        >>> coeffs_tensor.shape
+        torch.Size([1, 26, 256, 256])
+        >>> coeffs_tensor.dtype
+        torch.complex64
+        >>> new_coeffs = spyr.convert_tensor_to_pyr(coeffs_tensor, *pyr_info)
+        >>> all([torch.equal(v, new_coeffs[k]) for k, v in coeffs.items()])
+        True
+        >>> coeffs_tensor, pyr_info = spyr.convert_pyr_to_tensor(
+        ...     coeffs, split_complex=True
+        ... )
+        >>> coeffs_tensor.shape
+        torch.Size([1, 50, 256, 256])
+        >>> coeffs_tensor.dtype
+        torch.float32
         >>> new_coeffs = spyr.convert_tensor_to_pyr(coeffs_tensor, *pyr_info)
         >>> all([torch.equal(v, new_coeffs[k]) for k, v in coeffs.items()])
         True
         """
-        pyr_coeffs = OrderedDict()
-        i = 0
-        for ch in range(num_channels):
-            for k in pyr_keys:
-                if "residual" in k:
-                    # residuals are real-valued, the complex part is all 0
-                    band = pyr_tensor[:, i, ...].unsqueeze(1).real
-                    i += 1
-                else:
-                    if split_complex:
-                        band = torch.view_as_complex(
-                            rearrange(
-                                pyr_tensor[:, i : i + 2, ...],
-                                "b c h w -> b h w c",
-                            )
-                            .unsqueeze(1)
-                            .contiguous()
-                        )
-                        i += 2
-                    else:
-                        band = pyr_tensor[:, i, ...].unsqueeze(1)
-                        i += 1
-                if k not in pyr_coeffs:
-                    pyr_coeffs[k] = band
-                else:
-                    pyr_coeffs[k] = torch.cat([pyr_coeffs[k], band], dim=1)
-
+        # this function just undoes the einops calls in convert_pyr_to_tensor
+        unpacked = einops.rearrange(
+            pyr_tensor, "b (c o) h w -> b c o h w", c=num_channels
+        )
+        if not isinstance(split_complex_pack_info, bool):
+            unpacked = einops.unpack(unpacked, split_complex_pack_info, "b c * h w")
+            if "residual_highpass" in pyr_keys:
+                complex_coeffs = unpacked[1]
+                complex_pack_info = pack_info[1:]
+            else:
+                complex_coeffs = unpacked[0]
+                complex_pack_info = pack_info
+            if "residual_lowpass" in pyr_keys:
+                complex_pack_info = complex_pack_info[:-1]
+            bands = einops.rearrange(
+                complex_coeffs, "b c (o complex) h w -> b c o h w complex", complex=2
+            ).contiguous()
+            bands = torch.view_as_complex(bands)
+            bands = einops.unpack(bands, complex_pack_info, "b c * h w")
+            coeffs = []
+            if "residual_highpass" in pyr_keys:
+                coeffs.append(unpacked[0])
+            coeffs.extend(bands)
+            if "residual_lowpass" in pyr_keys:
+                coeffs.append(unpacked[-1])
+        else:
+            coeffs = einops.unpack(unpacked, pack_info, "b c * h w")
+        pyr_coeffs = OrderedDict({k: v for k, v in zip(pyr_keys, coeffs)})
         return pyr_coeffs
 
     def _recon_levels_check(
