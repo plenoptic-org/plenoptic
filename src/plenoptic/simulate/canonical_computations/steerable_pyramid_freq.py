@@ -23,7 +23,6 @@ from ...tools.signal import interpolate1d, raised_cosine, steer
 complex_types = [torch.cdouble, torch.cfloat]
 
 SCALES_TYPE = int | Literal["residual_lowpass", "residual_highpass"]
-KEYS_TYPE = tuple[int, int] | Literal["residual_lowpass", "residual_highpass"]
 
 
 class SteerablePyramidFreq(nn.Module):
@@ -88,9 +87,13 @@ class SteerablePyramidFreq(nn.Module):
     ----------
     image_shape : tuple
         Shape of input image.
-    pyr_size : dict
-        Dictionary containing the sizes of the pyramid coefficients. Keys are
-        ``(level, band)`` tuples and values are tuples.
+    pyr_size : OrderedDict
+        Dictionary containing the height and width of the pyramid coefficients. Keys are
+        the same as those in ``pyr_coeffs`` returned by :meth:`forward`, in order:
+        ``"residual_highpass"``, the integers from ``0`` to (the initialization
+        argument) ``order``, and ``"residual_lowpass"``. The values are 2-tuples of
+        ints. While the dictionary is initialized with the object, the values are not
+        set until the first time :meth:`forward` is called.
     fft_norm : str
         The way the ffts are normalized, see :func:`torch.fft.fft2` for more details.
     is_complex : bool
@@ -260,7 +263,7 @@ class SteerablePyramidFreq(nn.Module):
             + list(range(self.num_scales))[::-1]
             + ["residual_highpass"]
         )
-        self.pyr_size = OrderedDict({k: () for k in self.scales})
+        self.pyr_size = OrderedDict({k: () for k in self.scales[::-1]})
 
         # we create these copies because they will be modified in the
         # following loops
@@ -357,7 +360,7 @@ class SteerablePyramidFreq(nn.Module):
 
     def forward(
         self,
-        x: Tensor,
+        image: Tensor,
         scales: list[SCALES_TYPE] | None = None,
     ) -> OrderedDict:
         r"""
@@ -369,7 +372,7 @@ class SteerablePyramidFreq(nn.Module):
 
         Parameters
         ----------
-        x
+        image
             A tensor containing the image to analyze. We want to operate
             on this in the pytorch-y way, so we want it to be 4d (batch,
             channel, height, width).
@@ -384,18 +387,17 @@ class SteerablePyramidFreq(nn.Module):
 
         Returns
         -------
-        representation
+        pyr_coeffs
             Pyramid coefficients. These will be stored in an ordered dictionary with
-            keys that are ``"residual_highpass"``, ``"residual_lowpass"``, or tuples of
-            form ``(scale, orientation)``, where ``scale`` runs from ``0`` to
-            ``self.num_scales-1`` and ``orientation`` runs from 0 to ``self.order``.
-            Coefficients have shape ``(*x.shape[:2], x.shape[2] / 2**scale, x.shape[3] /
-            2**scale)``, with the ``"residual_highpass"`` height and width matching that
-            of ``x``, and ``"residual_lowpass"`` having height and width ``(x.shape[2] /
-            2**self.num_scales, x.shape[3] / 2**self.num_scales)``. They are ordered
-            from fine to coarse: ``"residual_highpass", (scale=0, orientation=0),
-            (scale=0, orientation=1), ..., (scale=num_scales-1, orientation=order),
-            "residual_lowpass"``.
+            keys that are, in order: ``"residual_highpass"``, the integers from ``0`` to
+            (the initialization argument) ``order``, and ``"residual_lowpass"``.
+            Coefficients have shape ``(*image.shape[:2], self.num_orientations,
+            image.shape[2] / 2**scale, image.shape[3] / 2**scale)``, with the
+            ``"residual_highpass"`` height and width matching that of ``image``, and
+            ``"residual_lowpass"`` having height and width ``(image.shape[2] /
+            2**self.num_scales, image.shape[3] / 2**self.num_scales)``. They are
+            ordered from fine to coarse: ``"residual_highpass", 0, 1, ...,
+            num_scales-1, "residual_lowpass"``.
 
         Raises
         ------
@@ -414,9 +416,9 @@ class SteerablePyramidFreq(nn.Module):
           >>> po.pyrshow(spyr(img))
           <PyrFigure ...>
         """
-        if self.image_shape != x.shape[-2:]:
+        if self.image_shape != image.shape[-2:]:
             raise ValueError(
-                f"Input tensor height/width {tuple(x.shape[-2:])} does not match "
+                f"Input tensor height/width {tuple(image.shape[-2:])} does not match "
                 f"image_shape set at initialization {tuple(self.image_shape)}. "
                 "Either resize the input or re-initialize this model."
             )
@@ -429,11 +431,11 @@ class SteerablePyramidFreq(nn.Module):
                 "Scales must be within 0 and num_scales-1"
             )
 
-        # x is a torch tensor batch of images of size (batch, channel, height,
+        # image is a torch tensor batch of images of size (batch, channel, height,
         # width)
-        assert len(x.shape) == 4, "Input must be batch of images of shape BxCxHxW"
+        assert len(image.shape) == 4, "Input must be batch of images of shape BxCxHxW"
 
-        imdft = fft.fft2(x, dim=(-2, -1), norm=self.fft_norm)
+        imdft = fft.fft2(image, dim=(-2, -1), norm=self.fft_norm)
         imdft = fft.fftshift(imdft, dim=(-2, -1))
 
         if "residual_highpass" in scales:
@@ -521,7 +523,7 @@ class SteerablePyramidFreq(nn.Module):
     @staticmethod
     def convert_pyr_to_tensor(
         pyr_coeffs: OrderedDict, split_complex: bool = False
-    ) -> tuple[Tensor, tuple[int, bool, list[KEYS_TYPE]]]:
+    ) -> tuple[Tensor, tuple[int, bool, list[SCALES_TYPE]]]:
         r"""
         Convert coefficient dictionary to a tensor.
 
@@ -533,7 +535,7 @@ class SteerablePyramidFreq(nn.Module):
         ``pyr_tensor[:, 18:36, ...]`` will contain the responses for channel 2). In
         the case of a complex, multichannel pyramid with ``split_complex=True``,
         the real/imaginary bands will be intereleaved so that they appear as
-        pairs with neighboring indices in the channel dimension of the tensor
+        pairs with neighboring indices in the channel dimension of the tensor.
         (Note: the residual bands are always real so they will only ever have a
         single band even when ``split_complex=True``.)
 
@@ -641,7 +643,7 @@ class SteerablePyramidFreq(nn.Module):
     def convert_tensor_to_pyr(
         pyr_tensor: Tensor,
         num_channels: int,
-        pyr_keys: list[KEYS_TYPE],
+        pyr_keys: list[SCALES_TYPE],
         pack_info: list[torch.Size],
         split_complex_pack_info: list[torch.Size] | bool,
     ) -> OrderedDict:
@@ -649,7 +651,7 @@ class SteerablePyramidFreq(nn.Module):
         Convert pyramid coefficient tensor to dictionary format.
 
         The arguments other than ``pyr_tensor`` are elements of the
-        ``pyr_info`` tuple returned by :func:`convert_pyr_to_tensor`. You
+        ``pyr_info`` tuple returned by :meth:`convert_pyr_to_tensor`. You
         should always unpack the arguments for this function from that
         ``pyr_info`` tuple. See Examples section below.
 
@@ -666,13 +668,13 @@ class SteerablePyramidFreq(nn.Module):
             List of sizes of the fifth dimension for each coefficient (i.e., the number
             of orientations) used to pack/unpack the tensors.
         split_complex_pack_info
-            If :func:`convert_pyr_to_tensor` was called with ``split_complex=True``,
+            If :meth:`convert_pyr_to_tensor` was called with ``split_complex=True``,
             another list of sizes used to pack/unpack the tensors. Else, ``False``.
 
         Returns
         -------
         pyr_coeffs
-            Pyramid coefficients in dictionary format.
+            Pyramid coefficients in dictionary format as returned by :meth:`forward`.
 
         See Also
         --------
@@ -1064,7 +1066,7 @@ class SteerablePyramidFreq(nn.Module):
         Parameters
         ----------
         pyr_coeffs
-            The pyramid coefficients to steer, as returned by :func:`forward`.
+            The pyramid coefficients to steer, as returned by :meth:`forward`.
         angles
             List of angles (in radians) to steer the pyramid coefficients to.
         even_phase
