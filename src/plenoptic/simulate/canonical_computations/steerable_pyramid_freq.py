@@ -742,6 +742,10 @@ class SteerablePyramidFreq(nn.Module):
         else:
             coeffs = einops.unpack(unpacked, pack_info, "b c * h w")
         pyr_coeffs = OrderedDict({k: v for k, v in zip(pyr_keys, coeffs)})
+        # make sure these are real-valued
+        for k in ["residual_lowpass", "residual_highpass"]:
+            if k in pyr_coeffs:
+                pyr_coeffs[k] = pyr_coeffs[k].real
         return pyr_coeffs
 
     def _recon_levels_check(
