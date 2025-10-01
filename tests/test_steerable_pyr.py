@@ -41,8 +41,46 @@ def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
     coeff2: second dictionary of pyramid coefficients
     Both coeffs must obviously have the same number of scales, orientations etc.
     """
+    # The keys of the coefficients from plenoptic and pyrtools differ now: pyrtool's
+    # keys are tuples indexing both the scale and orientation, while plenoptic's keys
+    # are int indexing the scale (and then the coefficients have an extra dimension for
+    # the orientations). the following functions convert back and forth between the two,
+    # for testing purposes
 
+    def pyrtools_to_plenoptic(pyr_coeffs, plen_coeffs):
+        keys = [k for k in plen_coeffs if not isinstance(k, str)]
+        n_ori = plen_coeffs[keys[0]].shape[2]
+        coeffs = {
+            k: np.stack([pyr_coeffs[(k, i)] for i in range(n_ori)], axis=0).squeeze()
+            for k in keys
+        }
+        for k in ["residual_highpass", "residual_lowpass"]:
+            coeffs[k] = pyr_coeffs[k]
+        return coeffs
+
+    def plenoptic_to_pyrtools(plen_coeffs, pyr_coeffs):
+        keys = [k for k in plen_coeffs if not isinstance(k, str)]
+        n_ori = plen_coeffs[keys[0]].shape[2]
+        coeffs = {(k, i): plen_coeffs[k][:, :, i] for i in range(n_ori) for k in keys}
+        for k in ["residual_highpass", "residual_lowpass"]:
+            coeffs[k] = plen_coeffs[k]
+        return coeffs
+
+    # three possibilities: coeff_1 comes from pyrtools
+    if any([isinstance(k, tuple) for k in coeff_1]):
+        coeff_1_to_2 = pyrtools_to_plenoptic
+    # ... coeff_2 comes from pyrtools
+    elif any([isinstance(k, tuple) for k in coeff_2]):
+        coeff_1_to_2 = plenoptic_to_pyrtools
+    # ... or both come from plenoptic, in which case we don't have to do anything
+    else:
+
+        def coeff_1_to_2(coeffs_1, coeffs_2):
+            return coeffs_1
+
+    coeff_1 = coeff_1_to_2(coeff_1, coeff_2)
     for k in coeff_1:
+        print(k, coeff_1[k].shape, coeff_2[k].shape)
         if torch.is_tensor(coeff_1[k]):
             coeff_1_np = to_numpy(coeff_1[k].squeeze())
         else:
@@ -253,8 +291,8 @@ class TestSteerablePyramid:
     def test_not_downsample(self, img, spyr):
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
-        # height has k[0]==0)
-        height = max([k[0] for k in pyr_coeffs if isinstance(k[0], int)]) + 1
+        # height has k==0)
+        height = max([k for k in pyr_coeffs if isinstance(k, int)]) + 1
         # couldn't come up with a way to get this with fixtures, so we
         # instantiate it each time.
         spyr_not_downsample = po.simul.SteerablePyramidFreq(
@@ -438,8 +476,8 @@ class TestSteerablePyramid:
     def test_torch_vs_numpy_pyr(self, img, spyr):
         torch_spc = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
-        # height has k[0]==0)
-        height = max([k[0] for k in torch_spc if isinstance(k[0], int)]) + 1
+        # height has k==0)
+        height = max([k for k in torch_spc if isinstance(k, int)]) + 1
         pyrtools_sp = pt.pyramids.SteerablePyramidFreq(
             to_numpy(img.squeeze()),
             height=height,
@@ -496,8 +534,8 @@ class TestSteerablePyramid:
     def test_partial_recon(self, img, spyr):
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
-        # height has k[0]==0)
-        height = max([k[0] for k in pyr_coeffs if isinstance(k[0], int)]) + 1
+        # height has k==0)
+        height = max([k for k in pyr_coeffs if isinstance(k, int)]) + 1
         pt_spyr = pt.pyramids.SteerablePyramidFreq(
             to_numpy(img.squeeze()),
             height=height,
@@ -529,8 +567,8 @@ class TestSteerablePyramid:
         # may as well include it just in case
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
-        # height has k[0]==0)
-        height = max([k[0] for k in pyr_coeffs if isinstance(k[0], int)]) + 1
+        # height has k==0)
+        height = max([k for k in pyr_coeffs if isinstance(k, int)]) + 1
         pt_pyr = pt.pyramids.SteerablePyramidFreq(
             to_numpy(img.squeeze()),
             height=height,
