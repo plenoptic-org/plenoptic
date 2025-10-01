@@ -529,7 +529,9 @@ class SteerablePyramidFreq(nn.Module):
     @staticmethod
     def convert_pyr_to_tensor(
         pyr_coeffs: OrderedDict, split_complex: bool = False
-    ) -> tuple[Tensor, tuple[int, bool, list[SCALES_TYPE]]]:
+    ) -> tuple[
+        Tensor, tuple[int, list[SCALES_TYPE], list[torch.Size], list[torch.Size] | bool]
+    ]:
         r"""
         Convert coefficient dictionary to a tensor.
 
@@ -568,8 +570,9 @@ class SteerablePyramidFreq(nn.Module):
             of scale 0's orientations, then scale 1's, etc.).
         pyr_info
             Information required to recreate the dictionary, containing the
-            number of channels, if split_complex was used in this function
-            call, and the list of pyramid keys for the dictionary.
+            number of channels, the list of pyramid keys for the dictionary,
+            info on how to unpack the coefficients, and info on how ``split_complex``
+            was used.
 
         Raises
         ------
