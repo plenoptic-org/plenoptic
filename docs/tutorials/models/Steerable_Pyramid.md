@@ -26,6 +26,7 @@ Here we will specifically focus on the specifics of the torch version and how it
 
 ```{code-cell} ipython3
 import contextlib
+import itertools
 import os
 
 import matplotlib.pyplot as plt
@@ -96,15 +97,12 @@ pyr_coeffs = pyr.forward(empty_image)
 # insert a 1 in the center of each coefficient...
 for k, v in pyr.pyr_size.items():
     mid = (v[0] // 2, v[1] // 2)
-    pyr_coeffs[k][0, 0, mid[0], mid[1]] = 1
+    pyr_coeffs[k][..., mid[0], mid[1]] = 1
 
 # ... and then reconstruct this dummy image to visualize the filter.
 reconList = []
-for k in pyr_coeffs:
-    # we ignore the residual_highpass and residual_lowpass, since we're focusing on the
-    # filters here
-    if isinstance(k, tuple):
-        reconList.append(pyr.recon_pyr(pyr_coeffs, [k[0]], [k[1]]))
+for scale, ori in itertools.product(range(pyr.num_scales), range(pyr.num_orientations)):
+    reconList.append(pyr.recon_pyr(pyr_coeffs, [scale], [ori]))
 
 po.imshow(reconList, col_wrap=order + 1, vrange="indep1", zoom=2);
 ```
@@ -225,10 +223,7 @@ class PaddedCroppedSteerPyr(torch.nn.Module):
         coeffs = self.pyr(padded_x)
         to_return = {}
         for k, v in coeffs.items():
-            if isinstance(k, str):
-                to_return[k] = self.croppers[k](v)
-            else:
-                to_return[k] = self.croppers[k[0]](v)
+            to_return[k] = self.croppers[k](v)
         return to_return
 ```
 
@@ -287,9 +282,7 @@ pyr_fixed = SteerablePyramidFreq(
     downsample=False,
     tight_frame=True,
 ).to(DEVICE)
-pyr_coeffs_fixed, pyr_info = pyr_fixed.convert_pyr_to_tensor(
-    pyr_fixed(im_batch), split_complex=False
-)
+pyr_coeffs_fixed, pyr_info = pyr_fixed.convert_pyr_to_tensor(pyr_fixed(im_batch))
 # we can also split the complex coefficients into real and imaginary parts as
 # separate channels.
 pyr_coeffs_split, _ = pyr_fixed.convert_pyr_to_tensor(
