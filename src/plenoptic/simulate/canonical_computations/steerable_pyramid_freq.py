@@ -1056,10 +1056,15 @@ class SteerablePyramidFreq(nn.Module):
         This allows you to have filters that have the Gaussian derivative order
         specified in construction, but arbitrary angles or number of orientations.
 
+        .. versionchanged:: 1.4
+           The returned ``resteered_coeffs`` dictionary now only contains the new
+           angles, as opposed to concatenating the new angles onto those found in
+           the input ``pyr_coeffs``.
+
         Parameters
         ----------
         pyr_coeffs
-            The pyramid coefficients to steer.
+            The pyramid coefficients to steer, as returned by :func:`forward`.
         angles
             List of angles (in radians) to steer the pyramid coefficients to.
         even_phase
@@ -1071,9 +1076,10 @@ class SteerablePyramidFreq(nn.Module):
         resteered_coeffs
             Dictionary of re-steered pyramid coefficients. will have the same
             number of scales as the original pyramid (though it will not
-            contain the residual highpass or lowpass). like ``pyr_coeffs``, keys
-            are 2-tuples of ints indexing the scale and orientation, but now
-            we're indexing ``angles`` instead of ``self.num_orientations``.
+            contain the residual highpass or lowpass). Like the input ``pyr_coeffs``,
+            keys are ints indexing the scale and values are tensors of shape (batch,
+            channel, orientations, height, width), but now orientations index ``angles``
+            instead of ``self.num_orientations``.
         resteering_weights :
             Dictionary of weights used to re-steer the pyramid coefficients.
             will have the same keys as ``resteered_coeffs``.
@@ -1084,44 +1090,39 @@ class SteerablePyramidFreq(nn.Module):
         .. plot::
 
             >>> import plenoptic as po
-            >>> import numpy as np
             >>> import torch
             >>> img = po.data.einstein()
             >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], height=3)
             >>> coeffs = spyr(img)
             >>> resteered_coeffs, resteering_weights = spyr.steer_coeffs(
-            ...     coeffs, torch.linspace(0, 2 * np.pi, 64)
+            ...     coeffs, torch.linspace(0, 2 * torch.pi, 64)
             ... )
-            >>> resteered_coeffs = torch.stack(
-            ...     [resteered_coeffs[(2, i + 4)] for i in range(64)], axis=2
-            ... )
-            >>> ani = po.animshow(resteered_coeffs, repeat=True, framerate=6, zoom=4)
+            >>> ani = po.animshow(resteered_coeffs[2], repeat=True, framerate=6, zoom=4)
             >>> # Save the video (here we're saving it as a .gif), and open it.
             >>> ani.save("resteered_coeffs.gif")
 
         .. image:: resteered_coeffs.gif
         """
-        assert pyr_coeffs[(0, 0)].dtype not in complex_types, (
+        assert pyr_coeffs[0].dtype not in complex_types, (
             "steering only implemented for real coefficients"
         )
         resteered_coeffs = {}
         resteering_weights = {}
         num_scales = self.num_scales
-        num_orientations = self.num_orientations
         for i in range(num_scales):
-            basis = torch.cat(
-                [
-                    pyr_coeffs[(i, j)].squeeze().unsqueeze(-1)
-                    for j in range(num_orientations)
-                ],
-                dim=-1,
-            )
+            # put orientation on the last dimension
+            basis = einops.rearrange(pyr_coeffs[i], "b c o h w -> b c h w o")
 
+            res, steervect = [], []
             for j, a in enumerate(angles):
-                res, steervect = steer(basis, a, even_phase=even_phase)
-                resteering_weights[(i, j)] = steervect
-                resteered_coeffs[(i, num_orientations + j)] = res.reshape(
-                    pyr_coeffs[(i, 0)].shape
-                )
+                r, s = steer(basis, a, even_phase=even_phase)
+                res.append(r)
+                steervect.append(s)
+            # when called like above, the output of steer always has a singleton
+            # dimension at the end corresponding to the single angle it was steered to
+            resteered_coeffs[i] = einops.rearrange(
+                res, "o b c h w dummy -> b c (o dummy) h w"
+            )
+            resteering_weights[i] = torch.stack(steervect, dim=-1)
 
         return resteered_coeffs, resteering_weights

@@ -257,22 +257,13 @@ pyr = SteerablePyramidFreq(height=3, image_shape=[256, 256], order=3, twidth=1).
 )
 coeffs = pyr(im_batch)
 
+resteered_coeffs, _ = pyr.steer_coeffs(coeffs, torch.linspace(0, 2 * torch.pi, 64))
 # play around with different scales! Coarser scales tend to make the steering a bit
 # more obvious.
 target_scale = 2
-N_steer = 64
-M = torch.zeros(1, 1, N_steer, 256 // 2**target_scale, 256 // 2**target_scale)
-for i, steering_offset in enumerate(np.linspace(0, 1, N_steer)):
-    steer_angle = steering_offset * 2 * np.pi
-    steered_coeffs, steering_weights = pyr.steer_coeffs(
-        coeffs, [steer_angle]
-    )  # (the steering coefficients are also returned by pyr.steer_coeffs
-    # steered_coeffs_ij = oig_coeffs_ij @ steering_weights)
-    M[0, 0, i] = steered_coeffs[(target_scale, 4)][
-        0, 0
-    ]  # we are always looking at the same band, but the steering angle changes
-
-po.animshow(M, framerate=6, repeat=True, zoom=2**target_scale)
+po.animshow(
+    resteered_coeffs[target_scale], framerate=6, repeat=True, zoom=2**target_scale
+)
 ```
 
 ## Example Application: Frontend for Convolutional Neural Network
