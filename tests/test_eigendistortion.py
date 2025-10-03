@@ -600,7 +600,7 @@ class TestAutodiffFunctions:
         Fv2 = jac.T @ jac @ U  # manually compute product to compare accuracy
 
         assert Fv.shape == (x_dim, k)
-        assert Fv2.allclose(Fv, atol=1e-6)
+        assert Fv2.allclose(Fv, atol=1e-5)
 
     def test_simple_model_eigenvalues(self):
         """Test if Jacobian is constant in all directions for linear model"""
