@@ -507,6 +507,7 @@ class TestSteerablePyramid:
             downsample=spyr.downsample,
             tight_frame=spyr.tight_frame,
         )
+        spyr_copy.to(DEVICE)
         np.testing.assert_array_equal(recon, to_numpy(spyr_copy.recon_pyr(pyr_coeffs)))
 
     @pytest.mark.parametrize(
