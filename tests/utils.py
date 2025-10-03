@@ -167,7 +167,11 @@ def visualize_ps_regression(in_path: str, out_path: str):
     fig, axes = plt.subplots(
         1, 3, figsize=(27, 5), gridspec_kw={"width_ratios": [1, 1, 3.1]}
     )
-    po.imshow(met, ax=axes[0])
+    if "ps_mask" in in_path:
+        title = "Ignore the center here -- synthesis doesn't involve it"
+    else:
+        title = ""
+    po.imshow(met, ax=axes[0], title=title)
     axes[0].xaxis.set_visible(False)
     axes[0].yaxis.set_visible(False)
     axes[1].semilogy(losses)
