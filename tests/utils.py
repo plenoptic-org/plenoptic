@@ -3,6 +3,7 @@
 import pathlib
 import re
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pyrtools as pt
 import torch
@@ -152,3 +153,24 @@ def update_ps_scales(save_path):
                 key = f"scale-{scale}_ori-{ori}_width-{width}"
                 output[key] = ps._representation_scales
     np.savez(save_path, **output)
+
+
+def visualize_ps_regression(in_path: str, out_path: str):
+    """
+    Plot the output of one of the PortillaSimoncelli regression tests.
+    """
+    model = po.simul.PortillaSimoncelli((256, 256))
+    regression_out = torch.load(in_path, map_location="cpu")
+    image = regression_out["_image"]
+    met = regression_out["_metamer"]
+    losses = regression_out["_losses"]
+    fig, axes = plt.subplots(
+        1, 3, figsize=(27, 5), gridspec_kw={"width_ratios": [1, 1, 3.1]}
+    )
+    po.imshow(met, ax=axes[0])
+    axes[0].xaxis.set_visible(False)
+    axes[0].yaxis.set_visible(False)
+    axes[1].semilogy(losses)
+    model.plot_representation(model(image) - model(met), ax=axes[-1], ylim=False)
+    fig.savefig(out_path, bbox_inches="tight")
+    plt.close(fig)
