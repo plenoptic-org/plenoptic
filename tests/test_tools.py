@@ -328,8 +328,8 @@ class TestSignal:
 
         pyr = po.simul.SteerablePyramidFreq(X.shape[-2:], is_complex=True)
         pyr_coeffs = pyr(X)
-        a = pyr_coeffs[(3, 2)]
-        b = pyr_coeffs[(2, 2)]
+        a = pyr_coeffs[3][:, :, 2]
+        b = pyr_coeffs[2][:, :, 2]
         a = po.tools.expand(a, 2) / 4
         a = po.tools.modulate_phase(a, 2)
 
