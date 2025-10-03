@@ -11,7 +11,8 @@ from ...tools.conv import blur_downsample, upsample_blur
 
 
 def rectangular_to_polar_dict(
-    coeff_dict: dict, residuals: bool = False
+    coeff_dict: dict,
+    residuals: bool = False,
 ) -> tuple[dict, dict]:
     """
     Return the complex modulus and the phase of each complex tensor in a dictionary.
@@ -62,9 +63,10 @@ def rectangular_to_polar_dict(
     """
     energy = {}
     state = {}
+
     for key in coeff_dict:
         # ignore residuals
-        if isinstance(key, tuple) or not key.startswith("residual"):
+        if not isinstance(key, str) or not key.startswith("residual"):
             energy[key], state[key] = signal.rectangular_to_polar(coeff_dict[key])
 
     if residuals:
@@ -131,9 +133,10 @@ def polar_to_rectangular_dict(
         <PyrFigure size ...>
     """
     coeff_dict = {}
+
     for key in energy:
         # ignore residuals here
-        if isinstance(key, tuple) or not key.startswith("residual"):
+        if not isinstance(key, str) or not key.startswith("residual"):
             coeff_dict[key] = signal.polar_to_rectangular(energy[key], state[key])
 
     if "residual_lowpass" in energy:
@@ -208,7 +211,9 @@ def local_gain_control(
 
 
 def local_gain_release(
-    norm: torch.Tensor, direction: torch.Tensor, epsilon: float = 1e-8
+    norm: torch.Tensor,
+    direction: torch.Tensor,
+    epsilon: float = 1e-8,
 ) -> torch.Tensor:
     """
     Spatially local gain release.
@@ -271,7 +276,8 @@ def local_gain_release(
 
 
 def local_gain_control_dict(
-    coeff_dict: dict, residuals: bool = True
+    coeff_dict: dict,
+    residuals: bool = True,
 ) -> tuple[dict, dict]:
     """
     Spatially local gain control, for each element in a dictionary.
@@ -295,6 +301,11 @@ def local_gain_control_dict(
     state
         The dictionary of :class:`torch.Tensor` containing the local phase of
         ``x``.
+
+    Raises
+    ------
+    ValueError
+        If the tensors contained within ``coeff_dict`` do not have 4 or 5 dimensions.
 
     See Also
     --------
@@ -326,9 +337,20 @@ def local_gain_control_dict(
     energy = {}
     state = {}
 
+    func = None
     for key in coeff_dict:
-        if isinstance(key, tuple) or not key.startswith("residual"):
-            energy[key], state[key] = local_gain_control(coeff_dict[key])
+        if not isinstance(key, str) or not key.startswith("residual"):
+            # determine whether we need to vmap or not, and assume that's the same for
+            # all tensors.
+            if func is None:
+                if coeff_dict[key].ndim == 5:
+                    func = torch.vmap(local_gain_control, in_dims=2, out_dims=2)
+                elif coeff_dict[key].ndim == 4:
+                    func = local_gain_control
+                else:
+                    raise ValueError("Tensor must have 4 or 5 dimensions!")
+
+            energy[key], state[key] = func(coeff_dict[key])
 
     if residuals:
         energy["residual_lowpass"] = coeff_dict["residual_lowpass"]
@@ -337,7 +359,11 @@ def local_gain_control_dict(
     return energy, state
 
 
-def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -> dict:
+def local_gain_release_dict(
+    energy: dict,
+    state: dict,
+    residuals: bool = True,
+) -> dict:
     """
     Spatially local gain release, for each element in a dictionary.
 
@@ -360,6 +386,12 @@ def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -
     -------
     coeff_dict
         A dictionary containing tensors of shape (batch, channel, height, width).
+
+    Raises
+    ------
+    ValueError
+        If the tensors contained within ``energy`` and ``state`` do not have 4 or 5
+        dimensions.
 
     See Also
     --------
@@ -390,9 +422,20 @@ def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -
     """
     coeff_dict = {}
 
+    func = None
     for key in energy:
-        if isinstance(key, tuple) or not key.startswith("residual"):
-            coeff_dict[key] = local_gain_release(energy[key], state[key])
+        if not isinstance(key, str) or not key.startswith("residual"):
+            # determine whether we need to vmap or not, and assume that's the same for
+            # all tensors.
+            if func is None:
+                if energy[key].ndim == 5:
+                    func = torch.vmap(local_gain_release, in_dims=2, out_dims=2)
+                elif energy[key].ndim == 4:
+                    func = local_gain_release
+                else:
+                    raise ValueError("Tensor must have 4 or 5 dimensions!")
+
+            coeff_dict[key] = func(energy[key], state[key])
 
     if residuals:
         coeff_dict["residual_lowpass"] = energy["residual_lowpass"]
