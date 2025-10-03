@@ -65,6 +65,42 @@ class Synthesis(abc.ABC):
         r"""Synthesize something."""  # numpydoc ignore=ES01
         pass
 
+    def _parse_save_io_attr_name(
+        self, input_names: tuple[str]
+    ) -> tuple[list[torch.Tensor], list[str]]:
+        """
+        Parse names of save_io_attrs, allowing for more complex behavior.
+
+        The strings specified in ``input_names`` must either be the names of this
+        object's attributes or of the form ``x * name``, where ``x`` is a float and
+        ``name`` is a string as above, in which case we multiply that attribute by
+        ``x``.
+
+        Parameters
+        ----------
+        input_names
+            The second element from the tuple ``save_io_attrs`` input to
+            :func:`save`.
+
+        Returns
+        -------
+        tensors
+            The tensors to pass to the corresponding ``save_io_attr``.
+        input_names_test
+            List of strings of attributes that we ensure we save.
+        """
+        tensors = []
+        input_names_test = []
+        for t in input_names:
+            t = t.split("*")
+            if len(t) == 2:
+                tensors.append(float(t[0].strip()) * getattr(self, t[1].strip()))
+                input_names_test.append(t[1].strip())
+            else:
+                tensors.append(getattr(self, t[0]))
+                input_names_test.append(t[0])
+        return tensors, input_names_test
+
     def save(
         self,
         file_path: str,
@@ -124,12 +160,12 @@ class Synthesis(abc.ABC):
         for k, input_names in save_io_attrs:
             attr = getattr(self, k)
             name = _get_name(attr)
-            tensors = [getattr(self, t) for t in input_names]
+            tensors, input_names_test = self._parse_save_io_attr_name(input_names)
             save_dict[k] = (name, input_names, attr(*tensors))
-            if any([n not in save_dict for n in input_names]):
+            if any([n not in save_dict for n in input_names_test]):
                 raise ValueError(
                     "input_name must be included in save dictionary, "
-                    f"but got {input_names}!"
+                    f"but got {input_names_test}!"
                 )
         for k in save_state_dict_attrs:
             attr = getattr(self, k)
@@ -332,7 +368,7 @@ class Synthesis(abc.ABC):
         for k, input_names in check_io_attributes:
             # same as above
             display_k = k[1:] if k.startswith("_") else k
-            tensors = [tmp_dict[t] for t in tmp_dict[k][1]]
+            tensors, _ = self._parse_save_io_attr_name(input_names)
             init_name = _get_name(getattr(self, k))
             saved_name = tmp_dict[k][0]
             init_loss = getattr(self, k)(*tensors)
