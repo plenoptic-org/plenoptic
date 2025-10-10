@@ -1,7 +1,13 @@
 """Tools related to optimization, such as objective functions."""
 # numpydoc ignore=ES01
 
-from typing import Any
+# to avoid circular import error:
+# https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from ..simulate.models import PortillaSimoncelli
 
 import numpy as np
 import torch
@@ -159,3 +165,84 @@ def penalize_range(
     below_min = torch.clip(synth_img - allowed_range[0], max=0).pow(2).sum()
     above_max = torch.clip(synth_img - allowed_range[1], min=0).pow(2).sum()
     return below_min + above_max
+
+
+def portilla_simoncelli_loss_factory(
+    model: "PortillaSimoncelli",
+    image: Tensor,
+    minmax_weight: float = 0,
+    highpass_weight: float = 100,
+) -> Callable[[Tensor, Tensor], Tensor]:
+    """
+    Create the loss function required for ``PortillaSimoncelli`` metamer synthesis.
+
+    This loss factory returns a callable which should be used as the ``loss_function``
+    when initializing :class:`~plenoptic.synthesize.metamer.Metamer` for synthesizing
+    metamers with the
+    :class:`~plenoptic.simulate.portilla_simoncelli.PortillaSimoncelli` model. It
+    reweights the model's representation of the images' min/max pixel values and the
+    variance of the highpass residuals before computing the L2-norm.
+
+    To understand how the returned loss works and see how to write your own loss
+    factory, see the documentation (INSERT LINK).
+
+    Parameters
+    ----------
+    model
+        An instantiated
+        :class:`~plenoptic.simulate.portilla_simoncelli.PortillaSimoncelli` model.
+    image
+        The target image for metamer synthesis, or an image with the same shape, dtype,
+        and device.
+    minmax_weight
+        How to reweight the images' min/max for optimization purposes. It is recommended
+        to set this to 0, and to allow the range penalty to match that property.
+    highpass_weight
+        How to reweight the variance of the highpass residuals in the model
+        representation. It is recommended to set this around 100: too low and they will
+        not be matched precisely enough, too high and the other statistics will not be
+        well-matched.
+
+    Returns
+    -------
+    loss_func
+        A callable to use as your loss function for ``PortillaSimoncelli`` metamer
+        synthesis.
+
+    Examples
+    --------
+    Create the loss function.
+
+    >>> import plenoptic as po
+    >>> import torch
+    >>> po.tools.set_seed(0)
+    >>> img = po.data.einstein()
+    >>> img2 = torch.rand_like(img)
+    >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
+    >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
+    >>> loss(model(img), img2)
+    tensor(31.9155)
+    >>> po.tools.optim.l2_norm(model(img), img2)
+    tensor(31.5433)
+
+    Use the loss function for metamer synthesis. See documentation (INSERT LINK)
+    for more details.
+
+    >>> import plenoptic as po
+    >>> img = po.data.einstein()
+    >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
+    >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
+    >>> met = po.synth.Metamer(model, img, loss_function=loss)
+    """
+    weights = model.convert_to_dict(torch.ones_like(model(image)))
+    # reweight the pixel min/max and the variance of the highpass residuals, since
+    # they're weird.
+    weights["pixel_statistics"][..., -2:] = minmax_weight
+    k = "var_highpass_residual"
+    weights[k] = highpass_weight * torch.ones_like(weights[k])
+    weights = model.convert_to_tensor(weights)
+
+    def loss(x: Tensor, y: Tensor) -> Tensor:  # numpydoc ignore=GL08
+        return l2_norm(weights * x, weights * y)
+
+    return loss
