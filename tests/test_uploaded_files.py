@@ -718,11 +718,12 @@ class TestTutorialNotebooks:
             print(np.random.get_state())
             img = torch.cat(
                 [
-                    self.get_specific_img(*ps_images, fn[0]),
-                    self.get_specific_img(*ps_images, fn[1]),
-                ]
+                    self.get_specific_img(*ps_images, fn[0])[..., 128:],
+                    self.get_specific_img(*ps_images, fn[1])[..., :128],
+                ],
+                -1,
             ).to(DEVICE2)
-            model = PortillaSimoncelliMixture(img.shape[-2:])
+            model = po.simul.PortillaSimoncelli(img.shape[-2:])
             model.to(DEVICE2).to(torch.float64)
             loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
             met = po.synth.Metamer(img, model, loss_function=loss)
