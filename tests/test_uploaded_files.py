@@ -281,6 +281,14 @@ class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
         magnitude_means = [mag.mean((-2, -1)) for mag in magnitude_pyr_coeffs]
         return einops.pack([stats, *magnitude_means], "b c *")[0]
 
+    # overwriting this method is necessary for the loss factory to work
+    def convert_to_tensor(self, representation_dict: OrderedDict) -> torch.Tensor:
+        """Convert dictionary of statistics to a tensor."""
+        rep = super().convert_to_tensor(representation_dict)
+        return torch.cat(
+            [rep, representation_dict["magnitude_means"].flatten(-2, -1)], -1
+        )
+
     # overwriting these following two methods allows us to use the plot_representation
     # method with the modified model, making examining it easier.
     def convert_to_dict(self, representation_tensor: torch.Tensor) -> OrderedDict:
@@ -558,7 +566,9 @@ class TestTutorialNotebooks:
             )
             model.to(DEVICE).to(torch.float64)
             met = po.synth.Metamer(img, model, loss_function=loss)
-            with pytest.raises(ValueError, match="Saved and initialized model output"):
+            with pytest.raises(
+                ValueError, match="Saved and initialized loss_function output"
+            ):
                 met.load(tmp_path / "test_ps_remove_fail.pt", map_location=DEVICE)
 
         @pytest.mark.parametrize(
