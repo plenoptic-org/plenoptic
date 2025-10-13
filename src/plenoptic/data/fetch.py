@@ -44,7 +44,7 @@ REGISTRY = {
     "ps_regression.tar.gz": "8419f2df2ab9856e5a2f698afff73e4cab76faf65818c3c334f0141078a40914",  # noqa: E501
 }
 
-OSF_TEMPLATE = "https://osf.io/{}/download"
+OSF_TEMPLATE = "https://osf.io/download/{}"
 # these are all from the OSF project at https://osf.io/ts37w/.
 REGISTRY_URLS = {
     "plenoptic-test-files.tar.gz": OSF_TEMPLATE.format("q9kn8"),
