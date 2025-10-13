@@ -320,7 +320,6 @@ class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
 @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only do this on cuda")
 class TestDoctest:
     def test_eigendistortion(self, einstein_img_double):
-        torch.use_deterministic_algorithms(True)
         po.tools.set_seed(0)
         os.makedirs("uploaded_files", exist_ok=True)
         torch.save(
@@ -355,7 +354,6 @@ class TestDoctest:
 class TestTutorialNotebooks:
     class TestDemoEigendistortion:
         def test_berardino_onoff(self, parrot_square_double):
-            torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             os.makedirs("uploaded_files", exist_ok=True)
             torch.save(
@@ -401,7 +399,6 @@ class TestTutorialNotebooks:
                 """standardize the image for vgg16"""
                 return (img_tensor - img_tensor.mean()) / img_tensor.std()
 
-            torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             os.makedirs("uploaded_files", exist_ok=True)
             torch.save(
@@ -491,7 +488,6 @@ class TestTutorialNotebooks:
         def test_ps_basic_synthesis(
             self, ps_images, fn, einstein_img_double, ps_regression
         ):
-            torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             torch.save(
                 torch.random.get_rng_state(),
@@ -616,7 +612,6 @@ class TestTutorialNotebooks:
         )
         @pytest.mark.parametrize("remove_bool", [True, False])
         def test_ps_remove(self, ps_images, fn, stats, remove_bool, ps_regression):
-            torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             torch.save(
                 torch.random.get_rng_state(),
@@ -657,7 +652,6 @@ class TestTutorialNotebooks:
 
         @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
         def test_ps_mask(self, ps_images, ps_regression):
-            torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             torch.save(
                 torch.random.get_rng_state(),
@@ -709,7 +703,6 @@ class TestTutorialNotebooks:
             ],
         )
         def test_ps_mixture(self, ps_images, fn, ps_regression):
-            torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             torch.save(
                 torch.random.get_rng_state(),
@@ -753,7 +746,6 @@ class TestTutorialNotebooks:
 
         @pytest.mark.parametrize("mag_bool", [True, False])
         def test_ps_mag_means(self, ps_images, mag_bool, ps_regression):
-            torch.use_deterministic_algorithms(True)
             po.tools.set_seed(100)
             torch.save(
                 torch.random.get_rng_state(),
