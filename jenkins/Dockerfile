@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.8.0-cuda12.6-cudnn9-runtime
+FROM pytorch/pytorch:2.9.0-cuda12.6-cudnn9-runtime
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
