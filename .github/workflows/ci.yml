@@ -27,6 +27,8 @@ jobs:
         recent_version=$(pip index versions torch | grep -oE "torch \([0-9\.]*?" | sed 's/torch (//g')
         if [[ $docker_version != $recent_version ]]; then
             echo "PYTORCH VERSION CHANGED, update jenkins/Dockerfile";
+            echo "Docker: $docker_version";
+            echo "PyPI: $recent_version";
             exit 1;
         fi
   notebooks_cpu:
