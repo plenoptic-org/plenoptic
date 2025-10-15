@@ -115,12 +115,51 @@ class TestNonLinearities:
             diff = y[key] - y_hat[key]
             assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-5
 
-    def test_local_gain_control(self):
-        x = torch.randn((10, 1, 256, 256), device=DEVICE)
+    @pytest.mark.parametrize("ndim", [4, 5])
+    def test_local_gain_control(self, ndim):
+        if ndim == 4:
+            shape = [10, 1, 256, 256]
+        elif ndim == 5:
+            shape = [10, 1, 1, 256, 256]
+        x = torch.randn(shape, device=DEVICE)
         norm, direction = po.simul.non_linearities.local_gain_control(x)
         x_hat = po.simul.non_linearities.local_gain_release(norm, direction)
         diff = x - x_hat
         assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-4
+
+    def test_local_gain_control_spyr(self, basic_stim):
+        spr = po.simul.SteerablePyramidFreq(
+            basic_stim.shape[-2:],
+            height=5,
+            order=1,
+            is_complex=False,
+            tight_frame=True,
+        ).to(DEVICE)
+        x = spr(basic_stim)
+        norm, direction = po.simul.non_linearities.local_gain_control(x[0])
+        x_hat = po.simul.non_linearities.local_gain_release(norm, direction)
+        diff = x[0] - x_hat
+        assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-4
+
+    @pytest.mark.parametrize("ndim", [3, 6])
+    def test_local_gain_release_fail(self, ndim):
+        if ndim == 3:
+            shape = [2, 10, 256, 256]
+        elif ndim == 6:
+            shape = [2, 10, 1, 1, 1, 256, 256]
+        x, y = torch.randn(shape, device=DEVICE)
+        with pytest.raises(ValueError, match="Tensor must have 4 or 5"):
+            norm, direction = po.simul.non_linearities.local_gain_release(x, y)
+
+    @pytest.mark.parametrize("ndim", [3, 6])
+    def test_local_gain_control_fail(self, ndim):
+        if ndim == 3:
+            shape = [10, 256, 256]
+        elif ndim == 6:
+            shape = [10, 1, 1, 1, 256, 256]
+        x = torch.randn(shape, device=DEVICE)
+        with pytest.raises(ValueError, match="Tensor must have 4 or 5"):
+            norm, direction = po.simul.non_linearities.local_gain_control(x)
 
     def test_local_gain_control_dict(self, basic_stim):
         spr = po.simul.SteerablePyramidFreq(
