@@ -44,7 +44,7 @@ REGISTRY = {
     "ps_regression.tar.gz": "96521d408448b8606989c9d56892c27921ab03fa860e15cbaf98ab980d2e91a9",  # noqa: E501
 }
 
-OSF_TEMPLATE = "https://osf.io/{}/download"
+OSF_TEMPLATE = "https://osf.io/download/{}"
 # these are all from the OSF project at https://osf.io/ts37w/.
 REGISTRY_URLS = {
     "plenoptic-test-files.tar.gz": OSF_TEMPLATE.format("q9kn8"),
@@ -75,7 +75,7 @@ REGISTRY_URLS = {
     "load_image_test.tar.gz": OSF_TEMPLATE.format("avpzq"),
     "berardino_onoff.pt": OSF_TEMPLATE.format("uqfa8"),
     "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b"),
-    "ps_regression.tar.gz": OSF_TEMPLATE.format("7t4fj"),
+    "ps_regression.tar.gz": OSF_TEMPLATE.format("7t4fj/?revision=8"),
 }
 
 #: List of files that can be downloaded using :func:`fetch_data`

@@ -44,11 +44,11 @@ The object you have loaded is a dictionary with strings as keys. Once you've loa
 
 Prior to plenoptic 1.2, we were saving python functions and pytorch optimization objects. This was incompatible with a breaking change made to {func}`torch.load` in `pytorch` version 2.6. Unfortunately, there is no way to make an object saved prior to 1.2 compatible with later `plenoptic` releases; see [](compat) for how to extract the outputs of your synthesis.
 
-### FutureWarning in load in plenoptic 1.4
+### FutureWarning in load in plenoptic 1.3.1
 
-A small change was made to the {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` and {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` APIs in `plenoptic` 1.4. You will be able to load {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` and {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` objects saved with version 1.2 and 1.3 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
+A small change was made to the {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` and {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` APIs in `plenoptic` 1.3.1. You will be able to load {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` and {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` objects saved with version 1.2 and 1.3 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
 
-In order to make an object compatible with future releases, you can either load it in with `plenoptic` 1.4 and re-save it, or do the following:
+In order to make an object compatible with future releases, you can either load it in with `plenoptic` 1.3.1 re-save it, or do the following:
 
 ```python
 import torch

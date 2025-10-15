@@ -262,15 +262,15 @@ class Synthesis(abc.ABC):
         # all attributes set at initialization should be present in the saved dictionary
         init_not_save = set(vars(self)) - set(tmp_dict)
         if len(init_not_save):
-            # in PR #370 (release 1.4), added _current_loss attribute, which we'll
+            # in PR #370 (release 1.3.1), added _current_loss attribute, which we'll
             # handle for now, but warn about.
             if init_not_save == {"_current_loss"}:
                 tmp_dict["_current_loss"] = None
                 warnings.warn(
-                    "The saved object was saved with plenoptic 1.3 or earlier and will "
-                    "not be compatible with future releases. Save this object with "
-                    "current version of plenoptic or see the 'Reproducibility and "
-                    "Compatibility' page of the documentation for how to make the "
+                    "The saved object was saved with plenoptic 1.3.0 or earlier and "
+                    "will not be compatible with future releases. Save this object "
+                    "with current version of plenoptic or see the 'Reproducibility "
+                    "and Compatibility' page of the documentation for how to make the "
                     "saved object futureproof and avoid this warning.",
                     category=FutureWarning,
                 )
