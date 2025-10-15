@@ -8,6 +8,7 @@ RUN apt-get update && \
       curl \
       jq "ffmpeg" \
       pandoc \
+      make \
       && \
     apt-get autoremove --purge -y && \
     apt-get autoclean -y && \
