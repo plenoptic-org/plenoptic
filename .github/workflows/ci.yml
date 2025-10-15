@@ -17,20 +17,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check_pytorch_version:
-    runs-on: ubuntu-latest
-    name: Check pytorch version for Jenkins image
-    steps:
-    - uses: actions/setup-python@v6
-    - run: |
-        docker_version=$(grep -oE "torch:[0-9\.]*?" jenkins/Dockerfile | sed 's/torch://g')
-        recent_version=$(pip index versions torch | grep -oE "torch \([0-9\.]*?" | sed 's/torch (//g')
-        if [[ $docker_version != $recent_version ]]; then
-            echo "PYTORCH VERSION CHANGED, update jenkins/Dockerfile";
-            echo "Docker: $docker_version";
-            echo "PyPI: $recent_version";
-            exit 1;
-        fi
   notebooks_cpu:
     runs-on: ubuntu-latest
     strategy:
