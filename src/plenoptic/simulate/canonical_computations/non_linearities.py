@@ -287,7 +287,8 @@ def local_gain_control_dict(
     Parameters
     ----------
     coeff_dict
-        A dictionary containing tensors of shape (batch, channel, height, width).
+        A dictionary containing tensors of shape (batch, channel, height, width)
+        or (batch, channel, angle, height, width).
     residuals
         An option to carry around residuals in the energy dict.
         Note that the transformation is not applied to the residuals,
@@ -297,10 +298,10 @@ def local_gain_control_dict(
     -------
     energy
         The dictionary of :class:`torch.Tensor` containing the local energy of
-        ``x``.
+        ``x``. Tensor shapes match those found in ``coeff_dict``.
     state
         The dictionary of :class:`torch.Tensor` containing the local phase of
-        ``x``.
+        ``x``. Tensor shapes match those found in ``coeff_dict``.
 
     Raises
     ------
@@ -373,7 +374,8 @@ def local_gain_release_dict(
     ----------
     energy
         The dictionary of :class:`torch.Tensor` containing the local energy of
-        ``x``.
+        ``x``, with shape (batch, channel, height, width) or (batch, channel,
+        angle, height, width).
     state
         The dictionary of :class:`torch.Tensor` containing the local phase of
         ``x``.
@@ -385,7 +387,8 @@ def local_gain_release_dict(
     Returns
     -------
     coeff_dict
-        A dictionary containing tensors of shape (batch, channel, height, width).
+        A dictionary containing the "gain released" tensors, with shapes matching
+        those found in ``energy``.
 
     Raises
     ------
