@@ -176,51 +176,6 @@ class PortillaSimoncelliMask(po.simul.PortillaSimoncelli):
         return self.target * self.mask + image * (~self.mask)
 
 
-class PortillaSimoncelliMixture(po.simul.PortillaSimoncelli):
-    r"""Extend the PortillaSimoncelli model to mix two different images
-
-    Parameters
-    ----------
-    im_shape: int
-        the size of the images being processed by the model
-
-    """
-
-    def __init__(
-        self,
-        im_shape,
-    ):
-        super().__init__(im_shape, n_scales=4, n_orientations=4, spatial_corr_width=9)
-
-    def forward(self, images, scales=None):
-        r"""Average Texture Statistics representations of two image
-
-        Parameters
-        ----------
-        images : torch.Tensor
-            A 4d tensor containing one or two images to analyze, with shape (i,
-            channel, height, width), i in {1,2}.
-        scales : list, optional
-            Which scales to include in the returned representation. If an empty
-            list (the default), we include all scales. Otherwise, can contain
-            subset of values present in this model's scales attribute.
-
-        Returns
-        -------
-        representation_tensor: torch.Tensor
-            3d tensor of shape (batch, channel, stats) containing the measured
-            texture statistics.
-
-        """
-        if images.shape[0] == 2:
-            # need the images to be 4d, so we use the "1 element slice"
-            stats0 = super().forward(images[:1], scales=scales)
-            stats1 = super().forward(images[1:2], scales=scales)
-            return (stats0 + stats1) / 2
-        else:
-            return super().forward(images, scales=scales)
-
-
 class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
     r"""Include the magnitude means in the PS texture representation.
 
