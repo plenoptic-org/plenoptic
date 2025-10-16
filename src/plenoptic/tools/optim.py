@@ -235,11 +235,13 @@ def portilla_simoncelli_loss_factory(
     >>> met = po.synth.Metamer(model, img, loss_function=loss)
     """
     weights = model.convert_to_dict(torch.ones_like(model(image)))
-    # reweight the pixel min/max and the variance of the highpass residuals, since
-    # they're weird.
-    weights["pixel_statistics"][..., -2:] = minmax_weight
+    if "pixel_statistics" in weights:
+        # reweight the pixel min/max and the variance of the highpass residuals, since
+        # they're weird.
+        weights["pixel_statistics"][..., -2:] = minmax_weight
     k = "var_highpass_residual"
-    weights[k] = highpass_weight * torch.ones_like(weights[k])
+    if k in weights:
+        weights[k] = highpass_weight * torch.ones_like(weights[k])
     weights = model.convert_to_tensor(weights)
 
     def loss(x: Tensor, y: Tensor) -> Tensor:  # numpydoc ignore=GL08

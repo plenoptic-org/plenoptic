@@ -116,6 +116,7 @@ tutorials/intro/*
 :titlesonly: true
 
 tutorials/models/*
+tutorials/models/portilla_simoncelli/ps_index
 :::
 
 :::{toctree}
