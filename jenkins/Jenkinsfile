@@ -3,7 +3,7 @@ pipeline {
   options {
     disableConcurrentBuilds(abortPrevious: true)
     buildDiscarder(logRotator(numToKeepStr: '8', daysToKeepStr: '20'))
-    timeout(time: 2, unit: 'HOURS')
+    timeout(time: 3, unit: 'HOURS')
   }
   triggers {
     cron '@weekly'
