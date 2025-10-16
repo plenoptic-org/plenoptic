@@ -3,7 +3,7 @@ pipeline {
   options {
     disableConcurrentBuilds(abortPrevious: true)
     buildDiscarder(logRotator(numToKeepStr: '8', daysToKeepStr: '20'))
-    timeout(time: 2, unit: 'HOURS')
+    timeout(time: 3, unit: 'HOURS')
   }
   triggers {
     cron '@weekly'
@@ -28,19 +28,17 @@ pipeline {
           }
           steps {
             sh 'python3.11 -m venv --system-site-packages $HOME'
-            lock(resource: 'plenoptic_build_slot_limit') {
-              sh '''#!/bin/bash -ex
-              source $HOME/bin/activate
-              # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
-              pip install -U pip setuptools
-              pip install -U .[test]
-              mkdir -p uploaded_files/
-              pip freeze
-              nvidia-smi
-              python3.11 -c "import torch; print(torch.cuda.current_device())"
-              RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n 8
-             '''
-            }
+            sh '''#!/bin/bash -ex
+            source $HOME/bin/activate
+            # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
+            pip install -U pip setuptools
+            pip install -U .[test]
+            mkdir -p uploaded_files/
+            pip freeze
+            nvidia-smi
+            python3.11 -c "import torch; print(torch.cuda.current_device())"
+            RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n 8
+            '''
           }
           post {
             always {
@@ -66,19 +64,17 @@ pipeline {
           }
           steps {
             sh 'python3.11 -m venv --system-site-packages $HOME'
-            lock(resource: 'plenoptic_build_slot_limit') {
-              sh '''#!/bin/bash -ex
-              source $HOME/bin/activate
-              # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
-              pip install -U pip setuptools
-              pip install .[test]
-              mkdir -p uploaded_files/
-              pip freeze
-              nvidia-smi
-              python3.11 -c "import torch; print(torch.cuda.current_device())"
-              RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n 8
-              '''
-            }
+            sh '''#!/bin/bash -ex
+            source $HOME/bin/activate
+            # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
+            pip install -U pip setuptools
+            pip install .[test]
+            mkdir -p uploaded_files/
+            pip freeze
+            nvidia-smi
+            python3.11 -c "import torch; print(torch.cuda.current_device())"
+            RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n 8
+            '''
           }
           post {
             always {
