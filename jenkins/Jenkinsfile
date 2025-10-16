@@ -27,9 +27,6 @@ pipeline {
             OMP_NUM_THREADS = 4
           }
           steps {
-            dir("$HOME") {
-              deleteDir()
-            }
             sh 'python3.11 -m venv --system-site-packages $HOME'
             sh '''#!/bin/bash -ex
             source $HOME/bin/activate
@@ -46,6 +43,9 @@ pipeline {
           post {
             always {
               archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
+              dir("$HOME") {
+                deleteDir()
+              }
             }
           }
         }
@@ -66,9 +66,6 @@ pipeline {
             OMP_NUM_THREADS = 4
           }
           steps {
-            dir("$HOME") {
-              deleteDir()
-            }
             sh 'python3.11 -m venv --system-site-packages $HOME'
             sh '''#!/bin/bash -ex
             source $HOME/bin/activate
@@ -85,6 +82,9 @@ pipeline {
           post {
             always {
               archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
+              dir("$HOME") {
+                deleteDir()
+              }
             }
           }
         }
@@ -110,9 +110,6 @@ pipeline {
             ISSUE_NUM = "${env.BRANCH_NAME.replace('PR-', '')}"
           }
           steps {
-            dir("$HOME") {
-              deleteDir()
-            }
             sh 'python3.11 -m venv --system-site-packages $HOME'
             sh '''#!/bin/bash -ex
               # make sure we have the git tags, since we need that to correctly version plenoptic
@@ -174,6 +171,13 @@ pipeline {
                 fi
               '''
                 }
+              }
+            }
+          }
+          post {
+            always {
+              dir("$HOME") {
+                deleteDir()
               }
             }
           }
