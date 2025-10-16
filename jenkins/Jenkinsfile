@@ -27,6 +27,9 @@ pipeline {
             OMP_NUM_THREADS = 4
           }
           steps {
+            dir("$HOME") {
+              deleteDir()
+            }
             sh 'python3.11 -m venv --system-site-packages $HOME'
             sh '''#!/bin/bash -ex
             source $HOME/bin/activate
@@ -63,6 +66,9 @@ pipeline {
             OMP_NUM_THREADS = 4
           }
           steps {
+            dir("$HOME") {
+              deleteDir()
+            }
             sh 'python3.11 -m venv --system-site-packages $HOME'
             sh '''#!/bin/bash -ex
             source $HOME/bin/activate
@@ -104,6 +110,9 @@ pipeline {
             ISSUE_NUM = "${env.BRANCH_NAME.replace('PR-', '')}"
           }
           steps {
+            dir("$HOME") {
+              deleteDir()
+            }
             sh 'python3.11 -m venv --system-site-packages $HOME'
             sh '''#!/bin/bash -ex
               # make sure we have the git tags, since we need that to correctly version plenoptic

@@ -9,7 +9,6 @@ RUN apt-get update && \
       jq "ffmpeg" \
       pandoc \
       make \
-      libssl-dev \
       && \
     apt-get autoremove --purge -y && \
     apt-get autoclean -y && \
