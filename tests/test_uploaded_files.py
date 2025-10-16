@@ -99,10 +99,21 @@ class PortillaSimoncelliRemove(po.simul.PortillaSimoncelli):
         stats_vec = super().forward(image)
         # convert to dict so it's easy to zero out the keys we don't care about
         stats_dict = self.convert_to_dict(stats_vec)
-        for k in self.remove_keys:
-            stats_dict.pop(k)
-        # then convert back to tensor and return
-        return self.convert_to_tensor(stats_dict)
+        for kk in self.remove_keys:
+            # we zero out the stats (instead of removing them) because removing them
+            # makes it difficult to keep track of which stats belong to which scale
+            # (which is necessary for coarse-to-fine synthesis) -- see discussion above.
+            if isinstance(stats_dict[kk], OrderedDict):
+                for key, val in stats_dict[kk].items():
+                    stats_dict[kk][key] *= 0
+            else:
+                stats_dict[kk] *= 0
+        # then convert back to tensor and remove any scales we don't want
+        # (for coarse-to-fine)  -- see discussion above.
+        stats_vec = self.convert_to_tensor(stats_dict)
+        if scales is not None:
+            stats_vec = self.remove_scales(stats_vec, scales)
+        return stats_vec
 
 
 class PortillaSimoncelliMask(po.simul.PortillaSimoncelli):
@@ -233,8 +244,9 @@ class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
             [rep, representation_dict["magnitude_means"].flatten(-2, -1)], -1
         )
 
-    # overwriting these following two methods allows us to use the plot_representation
-    # method with the modified model, making examining it easier.
+    # overwriting this method is necessary for the loss factory to work. overwriting
+    # this and the following method allows us to use the plot_representation method with
+    # the modified model, making examining it easier.
     def convert_to_dict(self, representation_tensor: torch.Tensor) -> OrderedDict:
         """Convert tensor of stats to dictionary."""
         n_mag_means = self.n_scales * self.n_orientations
