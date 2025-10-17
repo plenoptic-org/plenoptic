@@ -26,6 +26,10 @@ In a list, describe the changes you made. This should be more granular than the 
 > - small change to synthesis to be compatible with new API
 > - while implementing this, a new version of torch was released, which required a small update to perceptual_distance.py
 
+**Benchmarking**
+
+If your test involves improvements to the efficiency of any part of the code base, please include some benchmarking results, to show the performance before (i.e., in the `main` branch) and after. See [PR #377](https://github.com/plenoptic-org/plenoptic/pull/377) for an example.
+
 **Checklist**
 
 Affirm that you have done the following:

@@ -48,7 +48,7 @@ Prior to plenoptic 1.2, we were saving python functions and pytorch optimization
 
 A small change was made to the {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` and {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` APIs in `plenoptic` 1.3.1. You will be able to load {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` and {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` objects saved with version 1.2 and 1.3 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
 
-In order to make an object compatible with future releases, you can either load it in with `plenoptic` 1.3.1 re-save it, or do the following:
+In order to make an object compatible with future releases, you can either load it in with `plenoptic` 1.3.1 and re-save it, or do the following:
 
 ```python
 import torch

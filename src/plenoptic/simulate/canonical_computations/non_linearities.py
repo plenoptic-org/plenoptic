@@ -11,7 +11,8 @@ from ...tools.conv import blur_downsample, upsample_blur
 
 
 def rectangular_to_polar_dict(
-    coeff_dict: dict, residuals: bool = False
+    coeff_dict: dict,
+    residuals: bool = False,
 ) -> tuple[dict, dict]:
     """
     Return the complex modulus and the phase of each complex tensor in a dictionary.
@@ -62,9 +63,10 @@ def rectangular_to_polar_dict(
     """
     energy = {}
     state = {}
+
     for key in coeff_dict:
         # ignore residuals
-        if isinstance(key, tuple) or not key.startswith("residual"):
+        if not isinstance(key, str) or not key.startswith("residual"):
             energy[key], state[key] = signal.rectangular_to_polar(coeff_dict[key])
 
     if residuals:
@@ -131,9 +133,10 @@ def polar_to_rectangular_dict(
         <PyrFigure size ...>
     """
     coeff_dict = {}
+
     for key in energy:
         # ignore residuals here
-        if isinstance(key, tuple) or not key.startswith("residual"):
+        if not isinstance(key, str) or not key.startswith("residual"):
             coeff_dict[key] = signal.polar_to_rectangular(energy[key], state[key])
 
     if "residual_lowpass" in energy:
@@ -154,7 +157,8 @@ def local_gain_control(
     Parameters
     ----------
     x
-        Tensor of shape (batch, channel, height, width).
+        Tensor of shape (batch, channel, height, width) or
+        (batch, channel, angle, height, width).
     epsilon
         Small constant to avoid division by zero.
 
@@ -162,10 +166,17 @@ def local_gain_control(
     -------
     norm
         The local energy of ``x``, shape (batch, channel, height/2,
-        width/2).
+        width/2) or (batch, channel, angle, height/2, width/2), depending on
+        dimensionality of ``x``.
     direction
         The local phase of ``x`` (a.k.a. local unit vector, or local
-        state), shape (batch, channel, height, width).
+        state), shape (batch, channel, height, width) or (batch, channel,
+        angle, height, width), depending on dimensionality of ``x``.
+
+    Raises
+    ------
+    ValueError
+        If ``x`` does not have 4 or 5 dimensions.
 
     See Also
     --------
@@ -200,15 +211,28 @@ def local_gain_control(
     # these could be parameters, but no use case so far
     p = 2.0
 
-    norm = blur_downsample(torch.abs(x**p)).pow(1 / p)
-    odd = torch.as_tensor(x.shape)[2:4] % 2
-    direction = x / (upsample_blur(norm, odd) + epsilon)
+    def _local_gain_control(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Compute gain control in helper function we can vmap."""  # noqa: DOC201
+        # numpydoc ignore=ES01,PR01,RT01
+        norm = blur_downsample(torch.abs(x**p)).pow(1 / p)
+        odd = torch.as_tensor(x.shape)[-2:] % 2
+        direction = x / (upsample_blur(norm, odd) + epsilon)
+        return norm, direction
 
-    return norm, direction
+    if x.ndim == 5:
+        func = torch.vmap(_local_gain_control, in_dims=2, out_dims=2)
+    elif x.ndim == 4:
+        func = _local_gain_control
+    else:
+        raise ValueError("Tensor must have 4 or 5 dimensions!")
+
+    return func(x)
 
 
 def local_gain_release(
-    norm: torch.Tensor, direction: torch.Tensor, epsilon: float = 1e-8
+    norm: torch.Tensor,
+    direction: torch.Tensor,
+    epsilon: float = 1e-8,
 ) -> torch.Tensor:
     """
     Spatially local gain release.
@@ -219,17 +243,24 @@ def local_gain_release(
     ----------
     norm
         The local energy of a tensor, with shape (batch, channel, height/2,
-        width/2).
+        width/2) or (batch, channel, angle, height/2, width/2).
     direction
         The local phase of a tensor (a.k.a. local unit vector, or local state),
-        with shape (batch, channel, height, width).
+        with shape (batch, channel, height, width) or (batch, channel,
+        angle, height, width).
     epsilon
         Small constant to avoid division by zero.
 
     Returns
     -------
     x
-        Tensor of shape (batch, channel, height, width).
+        Tensor of shape (batch, channel, height, width) or (batch, channel,
+        angle, height, width), depending on input tensor dimensionality.
+
+    Raises
+    ------
+    ValueError
+        If input tensors do not have 4 or 5 dimensions.
 
     See Also
     --------
@@ -265,13 +296,28 @@ def local_gain_release(
         ... )
         <PyrFigure size ...>
     """
-    odd = torch.as_tensor(direction.shape)[2:4] % 2
-    x = direction * (upsample_blur(norm, odd) + epsilon)
-    return x
+
+    def _local_gain_release(
+        direction: torch.Tensor, norm: torch.Tensor
+    ) -> torch.Tensor:
+        """Compute gain release in helper function we can vmap."""  # noqa: DOC201
+        # numpydoc ignore=ES01,PR01,RT01
+        odd = torch.as_tensor(direction.shape)[-2:] % 2
+        return direction * (upsample_blur(norm, odd) + epsilon)
+
+    if direction.ndim == 5:
+        func = torch.vmap(_local_gain_release, in_dims=2, out_dims=2)
+    elif direction.ndim == 4:
+        func = _local_gain_release
+    else:
+        raise ValueError("Tensor must have 4 or 5 dimensions!")
+
+    return func(direction, norm)
 
 
 def local_gain_control_dict(
-    coeff_dict: dict, residuals: bool = True
+    coeff_dict: dict,
+    residuals: bool = True,
 ) -> tuple[dict, dict]:
     """
     Spatially local gain control, for each element in a dictionary.
@@ -281,7 +327,8 @@ def local_gain_control_dict(
     Parameters
     ----------
     coeff_dict
-        A dictionary containing tensors of shape (batch, channel, height, width).
+        A dictionary containing tensors of shape (batch, channel, height, width)
+        or (batch, channel, angle, height, width).
     residuals
         An option to carry around residuals in the energy dict.
         Note that the transformation is not applied to the residuals,
@@ -291,10 +338,15 @@ def local_gain_control_dict(
     -------
     energy
         The dictionary of :class:`torch.Tensor` containing the local energy of
-        ``x``.
+        ``x``. Tensor shapes match those found in ``coeff_dict``.
     state
         The dictionary of :class:`torch.Tensor` containing the local phase of
-        ``x``.
+        ``x``. Tensor shapes match those found in ``coeff_dict``.
+
+    Raises
+    ------
+    ValueError
+        If the tensors contained within ``coeff_dict`` do not have 4 or 5 dimensions.
 
     See Also
     --------
@@ -327,7 +379,7 @@ def local_gain_control_dict(
     state = {}
 
     for key in coeff_dict:
-        if isinstance(key, tuple) or not key.startswith("residual"):
+        if not isinstance(key, str) or not key.startswith("residual"):
             energy[key], state[key] = local_gain_control(coeff_dict[key])
 
     if residuals:
@@ -337,7 +389,11 @@ def local_gain_control_dict(
     return energy, state
 
 
-def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -> dict:
+def local_gain_release_dict(
+    energy: dict,
+    state: dict,
+    residuals: bool = True,
+) -> dict:
     """
     Spatially local gain release, for each element in a dictionary.
 
@@ -347,7 +403,8 @@ def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -
     ----------
     energy
         The dictionary of :class:`torch.Tensor` containing the local energy of
-        ``x``.
+        ``x``, with shape (batch, channel, height, width) or (batch, channel,
+        angle, height, width).
     state
         The dictionary of :class:`torch.Tensor` containing the local phase of
         ``x``.
@@ -359,7 +416,14 @@ def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -
     Returns
     -------
     coeff_dict
-        A dictionary containing tensors of shape (batch, channel, height, width).
+        A dictionary containing the "gain released" tensors, with shapes matching
+        those found in ``energy``.
+
+    Raises
+    ------
+    ValueError
+        If the tensors contained within ``energy`` and ``state`` do not have 4 or 5
+        dimensions.
 
     See Also
     --------
@@ -391,7 +455,7 @@ def local_gain_release_dict(energy: dict, state: dict, residuals: bool = True) -
     coeff_dict = {}
 
     for key in energy:
-        if isinstance(key, tuple) or not key.startswith("residual"):
+        if not isinstance(key, str) or not key.startswith("residual"):
             coeff_dict[key] = local_gain_release(energy[key], state[key])
 
     if residuals:

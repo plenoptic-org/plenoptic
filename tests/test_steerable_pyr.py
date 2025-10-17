@@ -41,8 +41,46 @@ def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
     coeff2: second dictionary of pyramid coefficients
     Both coeffs must obviously have the same number of scales, orientations etc.
     """
+    # The keys of the coefficients from plenoptic and pyrtools differ now: pyrtool's
+    # keys are tuples indexing both the scale and orientation, while plenoptic's keys
+    # are int indexing the scale (and then the coefficients have an extra dimension for
+    # the orientations). the following functions convert back and forth between the two,
+    # for testing purposes
 
+    def pyrtools_to_plenoptic(pyr_coeffs, plen_coeffs):
+        keys = [k for k in plen_coeffs if not isinstance(k, str)]
+        n_ori = plen_coeffs[keys[0]].shape[2]
+        coeffs = {
+            k: np.stack([pyr_coeffs[(k, i)] for i in range(n_ori)], axis=0).squeeze()
+            for k in keys
+        }
+        for k in ["residual_highpass", "residual_lowpass"]:
+            coeffs[k] = pyr_coeffs[k]
+        return coeffs
+
+    def plenoptic_to_pyrtools(plen_coeffs, pyr_coeffs):
+        keys = [k for k in plen_coeffs if not isinstance(k, str)]
+        n_ori = plen_coeffs[keys[0]].shape[2]
+        coeffs = {(k, i): plen_coeffs[k][:, :, i] for i in range(n_ori) for k in keys}
+        for k in ["residual_highpass", "residual_lowpass"]:
+            coeffs[k] = plen_coeffs[k]
+        return coeffs
+
+    # three possibilities: coeff_1 comes from pyrtools
+    if any([isinstance(k, tuple) for k in coeff_1]):
+        coeff_1_to_2 = pyrtools_to_plenoptic
+    # ... coeff_2 comes from pyrtools
+    elif any([isinstance(k, tuple) for k in coeff_2]):
+        coeff_1_to_2 = plenoptic_to_pyrtools
+    # ... or both come from plenoptic, in which case we don't have to do anything
+    else:
+
+        def coeff_1_to_2(coeffs_1, coeffs_2):
+            return coeffs_1
+
+    coeff_1 = coeff_1_to_2(coeff_1, coeff_2)
     for k in coeff_1:
+        print(k, coeff_1[k].shape, coeff_2[k].shape)
         if torch.is_tensor(coeff_1[k]):
             coeff_1_np = to_numpy(coeff_1[k].squeeze())
         else:
@@ -253,8 +291,8 @@ class TestSteerablePyramid:
     def test_not_downsample(self, img, spyr):
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
-        # height has k[0]==0)
-        height = max([k[0] for k in pyr_coeffs if isinstance(k[0], int)]) + 1
+        # height has k==0)
+        height = max([k for k in pyr_coeffs if isinstance(k, int)]) + 1
         # couldn't come up with a way to get this with fixtures, so we
         # instantiate it each time.
         spyr_not_downsample = po.simul.SteerablePyramidFreq(
@@ -302,7 +340,90 @@ class TestSteerablePyramid:
             pyr_tensor, pyr_info = spyr.convert_pyr_to_tensor(
                 pyr_coeff_dict, split_complex=val
             )
+            i = 0
+            for key, v in pyr_coeff_dict.items():
+                if isinstance(key, str):
+                    assert torch.equal(pyr_tensor[:, i].real, v[:, 0])
+                    i += 1
+                elif val:
+                    for k in range(spyr.num_orientations):
+                        assert torch.equal(pyr_tensor[:, i + k * 2], v[:, 0, k].real)
+                        assert torch.equal(
+                            pyr_tensor[:, i + k * 2 + 1], v[:, 0, k].imag
+                        )
+                    i += 2 * spyr.num_orientations
+                else:
+                    for k in range(spyr.num_orientations):
+                        assert torch.equal(pyr_tensor[:, i + k], v[:, 0, k])
+                    i += spyr.num_orientations
             pyr_coeff_dict2 = spyr.convert_tensor_to_pyr(pyr_tensor, *pyr_info)
+            check_pyr_coeffs(pyr_coeff_dict, pyr_coeff_dict2, rtol, atol)
+
+    @pytest.mark.parametrize(
+        "scales",
+        [
+            [0],
+            [1],
+            [0, 1, 2],
+            [2],
+            None,
+            ["residual_highpass", "residual_lowpass"],
+            ["residual_highpass", 0, 1, "residual_lowpass"],
+        ],
+    )
+    @pytest.mark.parametrize(
+        "spyr_multi",
+        [
+            f"{h}-{o}-{c}-False-False"
+            for h, o, c in product([3, 4, 5], [1, 2, 3], [True, False])
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-False-False"
+            for h in [3, 4, 5]
+        ],
+        indirect=True,
+    )
+    def test_pyr_to_tensor_multichannel(
+        self, multichannel_img, spyr_multi, scales, rtol=1e-12, atol=1e-12
+    ):
+        pyr_coeff_dict = spyr_multi.forward(multichannel_img, scales=scales)
+        split_complex = [True, False] if spyr_multi.is_complex else [False]
+
+        for val in split_complex:
+            pyr_tensor, pyr_info = spyr_multi.convert_pyr_to_tensor(
+                pyr_coeff_dict, split_complex=val
+            )
+            # number of channels in pyr_tensor that correspond to each input channel
+            chan_len = pyr_tensor.shape[1] // multichannel_img.shape[1]
+            for chan in range(multichannel_img.shape[1]):
+                i = 0
+                for key, v in pyr_coeff_dict.items():
+                    if isinstance(key, str):
+                        j = 1
+                        assert torch.equal(
+                            pyr_tensor[:, i + chan_len * chan].real, v[:, chan]
+                        )
+                    elif val:
+                        j = spyr_multi.num_orientations
+                        for k in range(j):
+                            assert torch.equal(
+                                pyr_tensor[:, i + k * 2 + chan_len * chan],
+                                v[:, chan, k].real,
+                            )
+                            assert torch.equal(
+                                pyr_tensor[:, i + k * 2 + 1 + chan_len * chan],
+                                v[:, chan, k].imag,
+                            )
+                        j *= 2
+                    else:
+                        j = spyr_multi.num_orientations
+                        for k in range(j):
+                            assert torch.equal(
+                                pyr_tensor[:, i + k + chan_len * chan], v[:, chan, k]
+                            )
+                    i += j
+            pyr_coeff_dict2 = spyr_multi.convert_tensor_to_pyr(pyr_tensor, *pyr_info)
             check_pyr_coeffs(pyr_coeff_dict, pyr_coeff_dict2, rtol, atol)
 
     @pytest.mark.parametrize(
@@ -355,8 +476,8 @@ class TestSteerablePyramid:
     def test_torch_vs_numpy_pyr(self, img, spyr):
         torch_spc = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
-        # height has k[0]==0)
-        height = max([k[0] for k in torch_spc if isinstance(k[0], int)]) + 1
+        # height has k==0)
+        height = max([k for k in torch_spc if isinstance(k, int)]) + 1
         pyrtools_sp = pt.pyramids.SteerablePyramidFreq(
             to_numpy(img.squeeze()),
             height=height,
@@ -375,6 +496,19 @@ class TestSteerablePyramid:
         pyr_coeffs = spyr.forward(img)
         recon = to_numpy(spyr.recon_pyr(pyr_coeffs))
         np.testing.assert_allclose(recon, to_numpy(img), rtol=1e-4, atol=1e-4)
+        recon = to_numpy(spyr.recon_pyr(pyr_coeffs))
+        # should be able to reconstruct from corresponding coefficients if we haven't
+        # called forward yet
+        spyr_copy = po.simul.SteerablePyramidFreq(
+            img.shape[-2:],
+            spyr.num_scales,
+            spyr.order,
+            is_complex=spyr.is_complex,
+            downsample=spyr.downsample,
+            tight_frame=spyr.tight_frame,
+        )
+        spyr_copy.to(DEVICE)
+        np.testing.assert_array_equal(recon, to_numpy(spyr_copy.recon_pyr(pyr_coeffs)))
 
     @pytest.mark.parametrize(
         "spyr_multi",
@@ -401,8 +535,8 @@ class TestSteerablePyramid:
     def test_partial_recon(self, img, spyr):
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
-        # height has k[0]==0)
-        height = max([k[0] for k in pyr_coeffs if isinstance(k[0], int)]) + 1
+        # height has k==0)
+        height = max([k for k in pyr_coeffs if isinstance(k, int)]) + 1
         pt_spyr = pt.pyramids.SteerablePyramidFreq(
             to_numpy(img.squeeze()),
             height=height,
@@ -434,8 +568,8 @@ class TestSteerablePyramid:
         # may as well include it just in case
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
-        # height has k[0]==0)
-        height = max([k[0] for k in pyr_coeffs if isinstance(k[0], int)]) + 1
+        # height has k==0)
+        height = max([k for k in pyr_coeffs if isinstance(k, int)]) + 1
         pt_pyr = pt.pyramids.SteerablePyramidFreq(
             to_numpy(img.squeeze()),
             height=height,
@@ -473,10 +607,8 @@ class TestSteerablePyramid:
                 )
 
         # recon_pyr should always fail
-        with pytest.raises(Exception):
-            spyr.recon_pyr()
-        with pytest.raises(Exception):
-            spyr.recon_pyr(scales)
+        with pytest.raises(ValueError, match="scale.* not in pyr_coeffs"):
+            spyr.recon_pyr(reduced_pyr_coeffs)
 
     @pytest.mark.parametrize("height", range(-1, 8))
     def test_height_values(self, img, height):

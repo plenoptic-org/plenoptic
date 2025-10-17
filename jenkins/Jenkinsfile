@@ -43,6 +43,9 @@ pipeline {
           post {
             always {
               archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
+              dir("$HOME") {
+                deleteDir()
+              }
             }
           }
         }
@@ -79,6 +82,9 @@ pipeline {
           post {
             always {
               archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
+              dir("$HOME") {
+                deleteDir()
+              }
             }
           }
         }
@@ -165,6 +171,13 @@ pipeline {
                 fi
               '''
                 }
+              }
+            }
+          }
+          post {
+            always {
+              dir("$HOME") {
+                deleteDir()
               }
             }
           }
