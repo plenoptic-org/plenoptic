@@ -29,7 +29,7 @@ Download this notebook: **{nb-download}`ps_extensions.ipynb`**!
 :::
 
 (ps-extensions)=
-# Portilla-Simoncelli model extensions
+# More than just texture metamers
 
 This notebook shows several uses of the Portilla-Simoncelli model metamer synthesis beyond just creating more textures: extrapolating an image and creating mixtures of two textures.
 
@@ -212,10 +212,9 @@ po.imshow(
 
 (See figure 20 of {cite:alp}`Portilla2000-param-textur`.)
 
-```{rst}
-.. versionchanged:: 1.4
+:::{versionchanged} 1.4
    In previous versions of this notebook, we averaged together the Portilla-Simoncelli representation of two images to create a "mixture". Now, we do as was done in the paper.
-```
+:::
 
 Here we explore creating a texture that is "in between" two textures. We compute the target for these mixtures by calculating the statistics on a single input image that consisted of half of each of two texture images pasted together. This leads to an "oil and water" appearance in the resulting texture metamer, which appeared to have patches from each image. Note that, in all the other examples shown in these notebooks, we knew there exists *at least one* natural texture image whose output matches our optimization target: the image we started with. For these mixtures, that is no longer the case.
 
