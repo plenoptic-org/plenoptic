@@ -4,7 +4,7 @@ The following notebooks introduce the Portilla-Simoncelli texture model, as firs
 
 If you are unfamiliar with the model, I recommended reading the first two notebooks and then reading the notebooks that catch your interest.
 
-If you are familiar with the model and its [matlab implementation](https://github.com/LabForComputationalVision/textureSynth), start with [](ps-basic-synthesis) and check out [](ps-matlab-difference) to see how to use the model in plenoptic and the differences between the two implementations.
+If you are familiar with the model and its [matlab implementation](https://github.com/LabForComputationalVision/textureSynth), start with [](ps-basic-synth) and check out [](ps-mat-diffs) to see how to use the model in plenoptic and the differences between the two implementations.
 
 If you are planning on synthesizing Portilla-Simoncelli texture metamers for your own research, please read [](ps-optimization) and [](ps-limitations).
 
