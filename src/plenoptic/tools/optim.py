@@ -184,7 +184,7 @@ def portilla_simoncelli_loss_factory(
     variance of the highpass residuals before computing the L2-norm.
 
     To understand how the returned loss works and see how to write your own loss
-    factory, see the documentation (INSERT LINK).
+    factory, see :ref:`ps-optimization`.
 
     Parameters
     ----------
@@ -225,8 +225,7 @@ def portilla_simoncelli_loss_factory(
     >>> po.tools.optim.l2_norm(model(img), img2)
     tensor(31.5433)
 
-    Use the loss function for metamer synthesis. See documentation (INSERT LINK)
-    for more details.
+    Use the loss function for metamer synthesis.
 
     >>> import plenoptic as po
     >>> img = po.data.einstein()
