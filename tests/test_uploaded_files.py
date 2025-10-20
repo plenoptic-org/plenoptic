@@ -482,11 +482,12 @@ class TestTutorialNotebooks:
             met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save(f"uploaded_files/ps_basic_synthesis_{fig_name}.pt")
             met_up = po.synth.Metamer(img, model, loss_function=loss)
-            met_up.load(
-                ps_regression / f"ps_basic_synthesis_{fig_name}.pt",
-                tensor_equality_atol=1e-7,
-                map_location=DEVICE,
-            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    ps_regression / f"ps_basic_synthesis_{fig_name}.pt",
+                    tensor_equality_atol=1e-7,
+                    map_location=DEVICE,
+                )
             compare_metamers(met, met_up)
 
         # make sure we fail if save load with different stats removed
@@ -598,11 +599,12 @@ class TestTutorialNotebooks:
             met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save(f"uploaded_files/ps_remove_{fn}_remove-{remove_bool}.pt")
             met_up = po.synth.Metamer(img, model, loss_function=loss)
-            met_up.load(
-                ps_regression / f"ps_remove_{fn}_remove-{remove_bool}.pt",
-                tensor_equality_atol=1e-7,
-                map_location=DEVICE2,
-            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    ps_regression / f"ps_remove_{fn}_remove-{remove_bool}.pt",
+                    tensor_equality_atol=1e-7,
+                    map_location=DEVICE2,
+                )
             compare_metamers(met, met_up)
 
         @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
@@ -638,11 +640,12 @@ class TestTutorialNotebooks:
             met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save("uploaded_files/ps_mask.pt")
             met_up = po.synth.Metamer(img, model, loss_function=loss)
-            met_up.load(
-                ps_regression / "ps_mask.pt",
-                tensor_equality_atol=1e-7,
-                map_location=DEVICE2,
-            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    ps_regression / "ps_mask.pt",
+                    tensor_equality_atol=1e-7,
+                    map_location=DEVICE2,
+                )
             compare_metamers(met, met_up)
 
         @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
@@ -692,11 +695,12 @@ class TestTutorialNotebooks:
             met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save(f"uploaded_files/ps_mixture_{'-'.join(fn)}.pt")
             met_up = po.synth.Metamer(img, model, loss_function=loss)
-            met_up.load(
-                ps_regression / f"ps_mixture_{'-'.join(fn)}.pt",
-                tensor_equality_atol=1e-7,
-                map_location=DEVICE2,
-            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    ps_regression / f"ps_mixture_{'-'.join(fn)}.pt",
+                    tensor_equality_atol=1e-7,
+                    map_location=DEVICE2,
+                )
             compare_metamers(met, met_up)
 
         @pytest.mark.parametrize("mag_bool", [True, False])
@@ -734,9 +738,10 @@ class TestTutorialNotebooks:
             met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save(f"uploaded_files/ps_mag_means-{mag_bool}.pt")
             met_up = po.synth.Metamer(img, model, loss_function=loss)
-            met_up.load(
-                ps_regression / f"ps_mag_means-{mag_bool}.pt",
-                tensor_equality_atol=1e-7,
-                map_location=DEVICE2,
-            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    ps_regression / f"ps_mag_means-{mag_bool}.pt",
+                    tensor_equality_atol=1e-7,
+                    map_location=DEVICE2,
+                )
             compare_metamers(met, met_up)
