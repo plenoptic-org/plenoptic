@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Check pytorch version for Jenkins image
     steps:
+    - uses: actions/checkout@v5
     - uses: actions/setup-python@v6
     - run: |
         docker_version=$(grep -oE "torch:[0-9\.]*?" jenkins/Dockerfile | sed 's/torch://g')
