@@ -407,7 +407,7 @@ class TestTutorialNotebooks:
             return fetch_data("ps_regression.tar.gz")
 
         @pytest.mark.parametrize(
-            "fn",
+            "fig_name",
             [
                 "fig4a",
                 "fig12a",
@@ -442,24 +442,23 @@ class TestTutorialNotebooks:
             ],
         )
         def test_ps_basic_synthesis(
-            self, ps_images, fn, einstein_img_double, ps_regression
+            self, ps_images, fig_name, einstein_img_double, ps_regression
         ):
             po.tools.set_seed(0)
             torch.save(
                 torch.random.get_rng_state(),
-                f"uploaded_files/torch_rng_state_ps_basic_{fn}.pt",
+                f"uploaded_files/torch_rng_state_ps_basic_{fig_name}.pt",
             )
             print(np.random.get_state())
-            if fn.startswith("fig"):
-                img = self.get_specific_img(*ps_images, fn)
-            elif fn == "einstein":
+            if fig_name.startswith("fig"):
+                img = self.get_specific_img(*ps_images, fig_name)
+            elif fig_name == "einstein":
                 img = einstein_img_double
             # this is a sawtooth grating, with 4 scales the steerable pyramid's
             # residual lowpass is uniform and thus correlation between it and
             # the coarsest scale is all NaNs (i.e., the last scale of
             # auto_correlation_reconstructed is all NaNs)
-            n_scales = 3 if fn == "fig12b" else 4
-            n_iters = 150 if fn in ["fig12a", "fig12b"] else 100
+            n_scales = 3 if fig_name == "fig12b" else 4
             model = po.simul.PortillaSimoncelli(img.shape[-2:], n_scales=n_scales)
             model.to(DEVICE)
             loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
@@ -472,17 +471,19 @@ class TestTutorialNotebooks:
                 "lr": 1,
             }
             met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
-            init_state_dict = met.optimizer.state_dict()
+            # add _lint_ignore so that our linter knows to ignore it
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+            n_iters = 150 if fig_name in ["fig12a", "fig12b"] else 100
             met.synthesize(max_iter=n_iters)
             # LBFGS's state dict takes a decent amount of memory (it has two keys that
             # are lists of length history_size, where each element is a tensor with the
             # same number of pixels as img), so we reset it for saving purposes -- it's
             # not useful for testing
-            met.optimizer.load_state_dict(init_state_dict)
-            met.save(f"uploaded_files/ps_basic_synthesis_{fn}.pt")
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save(f"uploaded_files/ps_basic_synthesis_{fig_name}.pt")
             met_up = po.synth.Metamer(img, model, loss_function=loss)
             met_up.load(
-                ps_regression / f"ps_basic_synthesis_{fn}.pt",
+                ps_regression / f"ps_basic_synthesis_{fig_name}.pt",
                 tensor_equality_atol=1e-7,
                 map_location=DEVICE,
             )
@@ -590,13 +591,13 @@ class TestTutorialNotebooks:
                 "lr": 1,
             }
             met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
-            init_state_dict = met.optimizer.state_dict()
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
             met.synthesize(max_iter=100)
             # LBFGS's state dict takes a decent amount of memory (it has two keys that
             # are lists of length history_size, where each element is a tensor with the
             # same number of pixels as img), so we reset it for saving purposes -- it's
             # not useful for testing
-            met.optimizer.load_state_dict(init_state_dict)
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save(f"uploaded_files/ps_remove_{fn}_remove-{remove_bool}.pt")
             met_up = po.synth.Metamer(img, model, loss_function=loss)
             met_up.load(
@@ -630,13 +631,13 @@ class TestTutorialNotebooks:
                 "lr": 1,
             }
             met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
-            init_state_dict = met.optimizer.state_dict()
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
             met.synthesize(max_iter=100)
             # LBFGS's state dict takes a decent amount of memory (it has two keys that
             # are lists of length history_size, where each element is a tensor with the
             # same number of pixels as img), so we reset it for saving purposes -- it's
             # not useful for testing
-            met.optimizer.load_state_dict(init_state_dict)
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save("uploaded_files/ps_mask.pt")
             met_up = po.synth.Metamer(img, model, loss_function=loss)
             met_up.load(
@@ -684,13 +685,13 @@ class TestTutorialNotebooks:
                 "lr": 1,
             }
             met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
-            init_state_dict = met.optimizer.state_dict()
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
             met.synthesize(max_iter=100)
             # LBFGS's state dict takes a decent amount of memory (it has two keys that
             # are lists of length history_size, where each element is a tensor with the
             # same number of pixels as img), so we reset it for saving purposes -- it's
             # not useful for testing
-            met.optimizer.load_state_dict(init_state_dict)
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save(f"uploaded_files/ps_mixture_{'-'.join(fn)}.pt")
             met_up = po.synth.Metamer(img, model, loss_function=loss)
             met_up.load(
@@ -726,13 +727,13 @@ class TestTutorialNotebooks:
                 "lr": 1,
             }
             met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
-            init_state_dict = met.optimizer.state_dict()
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
             met.synthesize(max_iter=100)
             # LBFGS's state dict takes a decent amount of memory (it has two keys that
             # are lists of length history_size, where each element is a tensor with the
             # same number of pixels as img), so we reset it for saving purposes -- it's
             # not useful for testing
-            met.optimizer.load_state_dict(init_state_dict)
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save(f"uploaded_files/ps_mag_means-{mag_bool}.pt")
             met_up = po.synth.Metamer(img, model, loss_function=loss)
             met_up.load(

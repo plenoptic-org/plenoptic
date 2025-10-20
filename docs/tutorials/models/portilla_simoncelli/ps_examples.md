@@ -115,8 +115,8 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVICE)
 :::{admonition} How to run this synthesis manually
 :class: dropdown note
 
+<!-- TestPortillaSimoncelli.test_ps_basic_synthesis -->
 ```{code-block} python
-:name: test_ps_basic_synthesis
 opt_kwargs = {
     "max_iter": 10,
     "max_eval": 10,
@@ -125,7 +125,8 @@ opt_kwargs = {
     "lr": 1,
 }
 met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
-met.synthesize(max_iter=100)
+n_iters = 150 if fig_name in ["fig12a", "fig12b"] else 100
+met.synthesize(max_iter=n_iters)
 ```
 :::
 
@@ -167,8 +168,8 @@ met_left.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVI
 :::{admonition} How to run this synthesis manually
 :class: dropdown note
 
+<!-- TestPortillaSimoncelli.test_ps_basic_synthesis[met_left:met] -->
 ```{code-block} python
-:name: test_ps_basic_synthesis
 opt_kwargs = {
     "max_iter": 10,
     "max_eval": 10,
@@ -177,7 +178,8 @@ opt_kwargs = {
     "lr": 1,
 }
 met_left.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
-met_left.synthesize(max_iter=100)
+n_iters = 150 if fig_name in ["fig12a", "fig12b"] else 100
+met_left.synthesize(max_iter=n_iters)
 ```
 :::
 
@@ -199,8 +201,8 @@ met_right.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEV
 :::{admonition} How to run this synthesis manually
 :class: dropdown note
 
+<!-- TestPortillaSimoncelli.test_ps_basic_synthesis[met_right:met] -->
 ```{code-block} python
-:name: test_ps_basic_synthesis
 opt_kwargs = {
     "max_iter": 10,
     "max_eval": 10,
@@ -209,7 +211,8 @@ opt_kwargs = {
     "lr": 1,
 }
 met_right.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
-met_right.synthesize(max_iter=100)
+n_iters = 150 if fig_name in ["fig12a", "fig12b"] else 100
+met_right.synthesize(max_iter=n_iters)
 ```
 :::
 
@@ -259,8 +262,8 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVICE)
 :::{admonition} How to run this synthesis manually
 :class: dropdown note
 
+<!-- TestPortillaSimoncelli.test_ps_basic_synthesis -->
 ```{code-block} python
-:name: test_ps_basic_synthesis
 opt_kwargs = {
     "max_iter": 10,
     "max_eval": 10,
@@ -269,7 +272,8 @@ opt_kwargs = {
     "lr": 1,
 }
 met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
-met.synthesize(max_iter=100)
+n_iters = 150 if fig_name in ["fig12a", "fig12b"] else 100
+met.synthesize(max_iter=n_iters)
 ```
 :::
 
@@ -306,8 +310,8 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVICE)
 :::{admonition} How to run this synthesis manually
 :class: dropdown note
 
+<!-- TestPortillaSimoncelli.test_ps_basic_synthesis -->
 ```{code-block} python
-:name: test_ps_basic_synthesis
 opt_kwargs = {
     "max_iter": 10,
     "max_eval": 10,
@@ -316,7 +320,8 @@ opt_kwargs = {
     "lr": 1,
 }
 met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
-met.synthesize(max_iter=100)
+n_iters = 150 if fig_name in ["fig12a", "fig12b"] else 100
+met.synthesize(max_iter=n_iters)
 ```
 :::
 
@@ -353,8 +358,8 @@ met.load(CACHE_DIR / f"ps_basic_synthesis_{fig_name}.pt", map_location=DEVICE)
 :::{admonition} How to run this synthesis manually
 :class: dropdown note
 
+<!-- TestPortillaSimoncelli.test_ps_basic_synthesis -->
 ```{code-block} python
-:name: test_ps_basic_synthesis
 opt_kwargs = {
     "max_iter": 10,
     "max_eval": 10,
@@ -363,7 +368,8 @@ opt_kwargs = {
     "lr": 1,
 }
 met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
-met.synthesize(max_iter=100)
+n_iters = 150 if fig_name in ["fig12a", "fig12b"] else 100
+met.synthesize(max_iter=n_iters)
 ```
 :::
 

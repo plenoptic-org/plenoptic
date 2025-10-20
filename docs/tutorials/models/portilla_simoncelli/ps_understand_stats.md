@@ -217,8 +217,8 @@ met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt", map_location
 :::{admonition} How to run these syntheses manually
 :class: dropdown note
 
+<!-- TestPortillaSimoncelli.test_ps_remove -->
 ```{code-block} python
-:name: test_ps_remove
 opt_kwargs = {
     "max_iter": 10,
     "max_eval": 10,
@@ -300,8 +300,8 @@ met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt", map_location
 :::{admonition} How to run these syntheses manually
 :class: dropdown note
 
+<!-- TestPortillaSimoncelli.test_ps_remove -->
 ```{code-block} python
-:name: test_ps_remove
 opt_kwargs = {
     "max_iter": 10,
     "max_eval": 10,
@@ -400,8 +400,8 @@ met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt", map_location
 :::{admonition} How to run these syntheses manually
 :class: dropdown note
 
+<!-- TestPortillaSimoncelli.test_ps_remove -->
 ```{code-block} python
-:name: test_ps_remove
 opt_kwargs = {
     "max_iter": 10,
     "max_eval": 10,
@@ -488,8 +488,8 @@ met_remove.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-True.pt", map_location
 :::{admonition} How to run these syntheses manually
 :class: dropdown note
 
+<!-- TestPortillaSimoncelli.test_ps_remove -->
 ```{code-block} python
-:name: test_ps_remove
 opt_kwargs = {
     "max_iter": 10,
     "max_eval": 10,

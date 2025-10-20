@@ -186,8 +186,8 @@ met.load(CACHE_DIR / "ps_mask.pt", map_location=DEVICE)
 :::{admonition} How to run this synthesis manually
 :class: dropdown note
 
+<!-- TestPortillaSimoncelli.test_ps_mask -->
 ```{code-block} python
-:name: test_ps_mask
 opt_kwargs = {
     "max_iter": 10,
     "max_eval": 10,
@@ -241,8 +241,8 @@ met.load(CACHE_DIR / f"ps_mixture_{'-'.join(fig_names)}.pt", map_location=DEVICE
 :::{admonition} How to run this synthesis manually
 :class: dropdown note
 
+<!-- TestPortillaSimoncelli.test_ps_mixture -->
 ```{code-block} python
-:name: test_ps_mixture
 opt_kwargs = {
     "max_iter": 10,
     "max_eval": 10,

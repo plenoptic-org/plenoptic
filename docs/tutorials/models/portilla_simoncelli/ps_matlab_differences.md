@@ -332,8 +332,8 @@ met_mag_means.load(CACHE_DIR / "ps_mag_means-True.pt", map_location=DEVICE)
 :::{admonition} How to run this synthesis manually
 :class: dropdown note
 
+<!-- TestPortillaSimoncelli.test_ps_mag_means -->
 ```{code-block} python
-:name: test_ps_mask
 opt_kwargs = {
     "max_iter": 10,
     "max_eval": 10,
