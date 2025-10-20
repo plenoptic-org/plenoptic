@@ -220,9 +220,9 @@ def portilla_simoncelli_loss_factory(
     >>> img2 = torch.rand_like(img)
     >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
     >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
-    >>> loss(model(img), img2)
+    >>> loss(model(img), model(img2))
     tensor(31.9155)
-    >>> po.tools.optim.l2_norm(model(img), img2)
+    >>> po.tools.optim.l2_norm(model(img), model(img2))
     tensor(31.5433)
 
     Use the loss function for metamer synthesis.
@@ -231,7 +231,7 @@ def portilla_simoncelli_loss_factory(
     >>> img = po.data.einstein()
     >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
     >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
-    >>> met = po.synth.Metamer(model, img, loss_function=loss)
+    >>> met = po.synth.Metamer(img, model, loss_function=loss)
     """
     weights = model.convert_to_dict(torch.ones_like(model(image)))
     if "pixel_statistics" in weights:
