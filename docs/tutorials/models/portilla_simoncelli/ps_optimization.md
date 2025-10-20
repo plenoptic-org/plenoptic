@@ -32,7 +32,7 @@ In our experiments, using LBFGS results in lower loss for a given duration of sy
 
 LBFGS has many keyword arguments that users are able to tweak. From our experiments, we found that the following dictionary performs best:
 
-```{python}
+```{code-block} python
 opt_kwargs = {
     "max_iter": 10,
     "max_eval": 10,
@@ -66,7 +66,7 @@ We use a similar trick to remove the image's minimum and maximum from the loss, 
 
 To see what this looks like, here is how you could create the custom loss function directly:
 
-```{python}
+```{code-block} python
 import plenoptic as po
 import torch
 
