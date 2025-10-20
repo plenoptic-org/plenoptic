@@ -519,9 +519,7 @@ class TestTutorialNotebooks:
             )
             model.to(DEVICE).to(torch.float64)
             met = po.synth.Metamer(img, model, loss_function=loss)
-            with pytest.raises(
-                ValueError, match="Saved and initialized loss_function output"
-            ):
+            with pytest.raises(ValueError, match="Saved and initialized model output"):
                 met.load(tmp_path / "test_ps_remove_fail.pt", map_location=DEVICE)
 
         @pytest.mark.parametrize(
