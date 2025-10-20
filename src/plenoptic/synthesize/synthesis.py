@@ -335,7 +335,7 @@ class Synthesis(abc.ABC):
         for k, input_names in check_io_attributes:
             # same as above
             display_k = k[1:] if k.startswith("_") else k
-            tensors, _ = _parse_save_io_attr_name(vars(self), input_names)
+            tensors, _ = _parse_save_io_attr_name(tmp_dict, input_names)
             init_name = _get_name(getattr(self, k))
             saved_name = tmp_dict[k][0]
             init_loss = getattr(self, k)(*tensors)
