@@ -804,6 +804,21 @@ class TestOptim:
         img[..., 0, :] = -1
         assert po.tools.optim.penalize_range(img).item() == 4
 
+    @pytest.mark.parametrize("n_scales", [2, 3, 4])
+    @pytest.mark.parametrize("n_ori", [2, 3, 4])
+    def test_ps_loss_factory(self, n_scales, n_ori, einstein_img):
+        model = po.simul.PortillaSimoncelli(einstein_img.shape[-2:], n_scales, n_ori)
+        loss = po.tools.optim.portilla_simoncelli_loss_factory(model, einstein_img)
+        assert loss(model(einstein_img), model(torch.rand_like(einstein_img))) > 0
+        assert loss(model(einstein_img), model(einstein_img)) == 0
+        model = po.simul.PortillaSimoncelli(einstein_img.shape[-2:], 4, 5)
+        # loss only works with a specific model output shape, and that will change based
+        # on the number of scales and orientations
+        with pytest.raises(
+            RuntimeError, match=r"The size of tensor a \([0-9]+\) must match"
+        ):
+            loss(model(einstein_img), model(einstein_img))
+
 
 class TestPolarImages:
     def test_polar_angle_clockwise(self):
