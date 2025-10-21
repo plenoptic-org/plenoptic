@@ -114,6 +114,9 @@ class TestData:
     @pytest.mark.filterwarnings(
         "ignore:pkg_resources is deprecated as an API:UserWarning"
     )
+    @pytest.mark.filterwarnings(
+        "ignore:pkg_resources is deprecated as an API:DeprecationWarning"
+    )
     def test_load_images_some_non_image(self):
         test_dir = fetch_data("load_image_test.tar.gz")
         warn = pytest.warns(UserWarning, match="Unable to load in file")
