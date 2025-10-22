@@ -808,10 +808,12 @@ class TestOptim:
     @pytest.mark.parametrize("n_ori", [2, 3, 4])
     def test_ps_loss_factory(self, n_scales, n_ori, einstein_img):
         model = po.simul.PortillaSimoncelli(einstein_img.shape[-2:], n_scales, n_ori)
+        model.to(DEVICE)
         loss = po.tools.optim.portilla_simoncelli_loss_factory(model, einstein_img)
         assert loss(model(einstein_img), model(torch.rand_like(einstein_img))) > 0
         assert loss(model(einstein_img), model(einstein_img)) == 0
         model = po.simul.PortillaSimoncelli(einstein_img.shape[-2:], 4, 5)
+        model.to(DEVICE)
         # loss only works with a specific model output shape, and that will change based
         # on the number of scales and orientations
         with pytest.raises(
