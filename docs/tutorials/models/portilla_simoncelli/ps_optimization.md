@@ -57,6 +57,22 @@ Finally, as with all iterative optimization procedures, we must decide how long 
 
 If you are interested, more details about the experiments that lead to the above recommendations can be found in [Issue #365](https://github.com/plenoptic-org/plenoptic/issues/365).
 
+(threads)=
+## Threads and CPU efficiency
+
+PyTorch allows users to control the number of [threads](https://en.wikipedia.org/wiki/Thread_(computing)) used for parallelism on the CPU. By default, pytorch seems to be greedy, grabbing more threads than are helpful, especially if you are running several less memory-intensive jobs (like Portilla-Simoncelli metamer synthesis) at once. This problem is exacerbated when using the LBFGS optimizer.
+
+Thus, we have found that CPU-only performance can be increased by about three times when doing the following to restrict the number of threads:
+
+- Put {func}`torch.set_num_threads(1) <torch.set_num_threads>` at the top of your script.
+- Set the `OMP_NUM_THREADS` environment variable to 1 (this controls the number of threads available to [OpenMP]((https://docs.pytorch.org/tutorials/recipes/recipes/tuning_guide.html#utilize-openmp))). This can be done on the command-line by prepending `OMP_NUM_THREADS=1` before calling python (or ipython or jupyter or however you run your scripts), e.g., `OMP_NUM_THREADS=1 python my_awesome_script.py` or by adding the following at the top of your script:
+    ```{code-block} python
+    import os
+    os.environ["OMP_NUM_THREADS"] = 1
+    ```
+
+In practice, you are encouraged to experiment with the two above settings to find the best configuration for your problem.
+
 (ps-loss-function)=
 ## Custom loss function
 
