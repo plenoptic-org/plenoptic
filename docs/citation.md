@@ -4,7 +4,7 @@
 
 If you use `plenoptic` in a published academic article or presentation, please cite both the code by the DOI as well as the current publication, {cite:alp}`Duong2023-plenop`. You can use the following:
 
-- Code: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151131.svg)](https://doi.org/10.5281/zenodo.10151131)
+- Code: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151130.svg)](https://doi.org/10.5281/zenodo.10151130)
 
 - Paper:
 
