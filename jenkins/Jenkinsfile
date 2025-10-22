@@ -102,7 +102,7 @@ pipeline {
           }
           environment {
             HOME = pwd(tmp:false)
-            OMP_NUM_THREADS = 1
+            OMP_NUM_THREADS = 4
             PROJECT_NAME = ""
             GITHUB_PATH = "plenoptic-org/plenoptic"
             GITHUB_TOKEN = credentials("plenoptic-docs-gh-pr-write")
