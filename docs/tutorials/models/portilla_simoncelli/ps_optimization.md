@@ -19,6 +19,8 @@ For the texture model, good metamer synthesis also means that, when your target 
 
 In an ideal world, these criteria would be identical to "has a low loss value". However, the Portilla-Simoncelli texture statistics are not all of equal perceptual importance: the **variance of the highpass residuals**, for example, is related to the presence of high frequencies in the image, where are present in the white noise samples used to initialize metamer synthesis, but which are largely absent from natural images. This statistic only makes a small contribution to the overall loss, but is very important to metamer perceptual quality, which is important for the results laid out in this notebook.
 
+And note, as discussed in [](ps-limitations), this model was developed to align with human perception **only for textures**. Matching the Portilla-Simoncelli model output on a non-texture image will almost certainly not meet the first two desiderata in the list above.
+
 :::
 
 ## Optimizer configuration
