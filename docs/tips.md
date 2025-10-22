@@ -27,6 +27,8 @@ For all of the above, if synthesis has not found a good solution, you may need t
 
 See [Issue #365](https://github.com/plenoptic-org/plenoptic/issues/365) for an example of how we worked through finding a good optimization configuration for the {class}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` model.
 
+In that investigation, we found that the {class}`~torch.optim.LBFGS` optimizer performs very well, finding good solutions in a relatively short amount of time. We have not had the opportunity to investigate this optimizer in other problems, but we recommend giving it a try.
+
 Additionally, it may be helpful to visualize the progression of synthesis, using each synthesis method's `animate` <!-- skip-lint --> or `plot_synthesis_status` <!-- skip-lint --> helper functions (e.g., {func}`metamer.animate <plenoptic.synthesize.metamer.animate>`, {func}`metamer.plot_synthesis_status <plenoptic.synthesize.metamer.plot_synthesis_status>`).
 
 (tips-model-tweak)=
