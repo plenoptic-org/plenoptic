@@ -444,6 +444,7 @@ fig, _ = model.plot_representation(
 fig.suptitle("Full statistics");
 ```
 
+(ps-cross-scale)=
 ## Cross-scale Phase Statistics
 
 In this section, we'll replicate examples of synthesis failures with the following statistics removed:
