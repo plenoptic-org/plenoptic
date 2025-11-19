@@ -179,7 +179,7 @@ def portilla_simoncelli_loss_factory(
     This loss factory returns a callable which should be used as the ``loss_function``
     when initializing :class:`~plenoptic.synthesize.metamer.Metamer` for synthesizing
     metamers with the
-    :class:`~plenoptic.simulate.portilla_simoncelli.PortillaSimoncelli` model. It
+    :class:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` model. It
     reweights the model's representation of the images' min/max pixel values and the
     variance of the highpass residuals before computing the L2-norm.
 
@@ -190,7 +190,8 @@ def portilla_simoncelli_loss_factory(
     ----------
     model
         An instantiated
-        :class:`~plenoptic.simulate.portilla_simoncelli.PortillaSimoncelli` model.
+        :class:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli`
+        model.
     image
         The target image for metamer synthesis, or an image with the same shape, dtype,
         and device.
