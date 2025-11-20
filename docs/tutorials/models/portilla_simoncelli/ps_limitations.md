@@ -85,8 +85,8 @@ class NaNProofPS(po.simul.PortillaSimoncelli):
         return rep
 
 
-model = NaNProofPS(square.shape[-2:])
-print(ps(square).isnan().sum())
+nan_proof_ps = NaNProofPS(square.shape[-2:])
+print(nan_proof_ps(square).isnan().sum())
 ```
 
 And one can then use the model with {class}`~plenoptic.synthesize.metamer.Metamer` as normal.
