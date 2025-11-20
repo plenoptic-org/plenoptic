@@ -14,7 +14,16 @@ kernelspec:
 ```{code-cell} ipython3
 :tags: [hide-input]
 
+import warnings
+
 import pooch
+
+# don't need to show warning about setting up optimizer
+warnings.filterwarnings(
+    "ignore",
+    message="You will need to call setup() to instantiate optimizer",
+    category=UserWarning,
+)
 
 # don't have pooch output messages about downloading or untarring
 logger = pooch.get_logger()
