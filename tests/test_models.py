@@ -1280,36 +1280,6 @@ class TestPortillaSimoncelli:
         ):
             ps.convert_to_dict(rep[..., :-10])
 
-    @pytest.mark.parametrize("model", ["PortillaSimoncelli"], indirect=True)
-    def test_nan(self, model):
-        img = pt.synthetic_images.square_wave((256, 256), 32)
-        img = po.tools.rescale(torch.from_numpy(img).unsqueeze(0).unsqueeze(0))
-        img = img.to(DEVICE)
-        assert model(img).isnan().sum() > 0
-        met = po.synth.Metamer(img, model)
-        with pytest.raises(
-            ValueError, match="Found a NaN in loss during optimization."
-        ):
-            met.synthesize(2)
-
-    def test_nan_drop(self):
-        img = pt.synthetic_images.square_wave((256, 256), 32)
-        img = po.tools.rescale(torch.from_numpy(img).unsqueeze(0).unsqueeze(0))
-        img = img.to(DEVICE)
-
-        class NaNProofPS(po.simul.PortillaSimoncelli):
-            def forward(self, *args, **kwargs):
-                rep = super().forward(*args, **kwargs)
-                rep[torch.isnan(rep)] = 0
-                rep[torch.isinf(rep)] = 0
-                return rep
-
-        model = NaNProofPS(img.shape[-2:])
-        model.to(DEVICE)
-        assert model(img).isnan().sum() == 0
-        met = po.synth.Metamer(img, model)
-        met.synthesize(30)
-
 
 class TestFilters:
     @pytest.mark.parametrize(

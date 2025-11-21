@@ -42,54 +42,13 @@ Download this notebook: **{nb-download}`ps_limitations.ipynb`**!
 
 ## Use limitations
 
-### Image size
+The Portilla-Simoncelli model only operates on images whose height and width can be divided by 2 `n_scales` <!-- skip-lint --> times (where `n_scales` <!-- skip-lint --> is one of the initialization arguments for {class}`~plenoptic.simulate.models.PortillaSimoncelli`). This is because one of the model's statistics is [cross-scale correlations](ps-cross-scale). Under the hood, the Portilla-Simoncelli model is built on top of the [steerable pyramid](ps-steer-pyr), which recursively downsamples the input image by a factor of 2 to generate its multiscale representation. In order to compute the cross-scale correlations, we upsample the representation at one scale (using {func}`~plenoptic.tools.signal.expand`) to get a tensor at the same resolution as the representation at the next scale, so we can compute the correlations. This means that we must be able to up and downsample the image by 2 and get images of matching size. For example, if we start with an image of size `(1, 1, 255, 255)`, downsampling by a factor of 2 we will produce an image of size `(1, 1, 128, 128)`; subsequently upsampling will give us an image of size `(1, 1, 256, 256)`, which is different from our initial image!
 
-The Portilla-Simoncelli model only operates on images whose height and width can be divided by 2 `n_scales` <!-- skip-lint --> times (where `n_scales` <!-- skip-lint --> is one of the initialization arguments for {class}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli`). This is because one of the model's statistics is [cross-scale correlations](ps-cross-scale). Under the hood, the Portilla-Simoncelli model is built on top of the [steerable pyramid](ps-steer-pyr), which recursively downsamples the input image by a factor of 2 to generate its multiscale representation. In order to compute the cross-scale correlations, we upsample the representation at one scale (using {func}`~plenoptic.tools.signal.expand`) to get a tensor at the same resolution as the representation at the next scale, so we can compute the correlations. This means that we must be able to up and downsample the image by 2 and get images of matching size. For example, if we start with an image of size `(1, 1, 255, 255)`, downsampling by a factor of 2 we will produce an image of size `(1, 1, 128, 128)`; subsequently upsampling will give us an image of size `(1, 1, 256, 256)`, which is different from our initial image!
-
-To avoid this issue, you should use images whose size can be divided by 2 the requisite number of times. If your image has a size where this is not possible, you can do one of the following before passing your image to {class}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli`:
+To avoid this issue, you should use images whose size can be divided by 2 the requisite number of times. If your image has a size where this is not possible, you can do one of the following before passing your image to {class}`~plenoptic.simulate.models.PortillaSimoncelli`:
 - Crop the image (e.g., using {func}`plenoptic.tools.signal.center_crop`).
 - Pad the image (e.g., using {func}`torch.nn.functional.pad`).
 - Upsample the image (e.g., using {func}`torch.nn.functional.interpolate`).
 - Downsample the image (e.g., using {func}`torch.nn.functional.interpolate`).
-
-### NaNs and Infinity
-
-While rare, it is possible for the Portilla-Simoncelli model to return `torch.nan` or `torch.inf` values. This happens when using a perfectly periodic image such that the outputs of the [steerable pyramid](ps-steer-pyr) are uniformly zero for a given scale and orientation. The following shows an example square wave that results in this behavior:
-
-```{code-cell} ipython3
-import pyrtools as pt
-import torch
-
-import plenoptic as po
-
-square = (
-    torch.from_numpy(pt.synthetic_images.square_wave((256, 256), 32))
-    .unsqueeze(0)
-    .unsqueeze(0)
-)
-ps = po.simul.PortillaSimoncelli(square.shape[-2:])
-
-print(ps(square).isnan().sum())
-```
-
-While potentially surprising, this behavior is correct: if the steerable pyramid coefficients are zero at a given scale and orientation, the corresponding cross-correlations are undefined, and thus `torch.nan`. One can find `torch.inf` in analogous situations (we have observed them with a checkerboard pattern, for example); dividing `torch.tensor(0) / torch.tensor(0) == torch.nan`, while `torch.tensor(1e-30) / torch.tensor(0) == torch.inf`.
-
-Regardless, trying to do e.g., metamer synthesis with the above image will result in an error. To avoid this problem, one can subclass {class}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` to set all infinite and NaN values to 0, which will allow synthesis to proceed:
-
-```{code-cell} ipython3
-class NaNProofPS(po.simul.PortillaSimoncelli):
-    def forward(self, *args, **kwargs):
-        rep = super().forward(*args, **kwargs)
-        rep[torch.isnan(rep)] = 0
-        rep[torch.isinf(rep)] = 0
-        return rep
-
-
-model = NaNProofPS(square.shape[-2:])
-print(ps(square).isnan().sum())
-```
-
-And one can then use the model with {class}`~plenoptic.synthesize.metamer.Metamer` as normal.
 
 ## Synthesis limitations
 
