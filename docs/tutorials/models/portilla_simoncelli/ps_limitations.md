@@ -40,7 +40,7 @@ Download this notebook: **{nb-download}`ps_limitations.ipynb`**!
 (ps-limitations)=
 # Portilla-Simoncelli Model Limitations
 
-## Use limitations
+## Usage limitations
 
 The Portilla-Simoncelli model only operates on images whose height and width can be divided by 2 `n_scales` <!-- skip-lint --> times (where `n_scales` <!-- skip-lint --> is one of the initialization arguments for {class}`~plenoptic.simulate.models.PortillaSimoncelli`). This is because one of the model's statistics is [cross-scale correlations](ps-cross-scale). Under the hood, the Portilla-Simoncelli model is built on top of the [steerable pyramid](ps-steer-pyr), which recursively downsamples the input image by a factor of 2 to generate its multiscale representation. In order to compute the cross-scale correlations, we upsample the representation at one scale (using {func}`~plenoptic.tools.signal.expand`) to get a tensor at the same resolution as the representation at the next scale, so we can compute the correlations. This means that we must be able to up and downsample the image by 2 and get images of matching size. For example, if we start with an image of size `(1, 1, 255, 255)`, downsampling by a factor of 2 we will produce an image of size `(1, 1, 128, 128)`; subsequently upsampling will give us an image of size `(1, 1, 256, 256)`, which is different from our initial image!
 
