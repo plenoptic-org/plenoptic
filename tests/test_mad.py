@@ -438,6 +438,50 @@ class TestMAD:
                 )
             mad.load(op.join(tmp_path, "test_mad_load_metric_change.pt"))
 
+    @pytest.mark.parametrize("penalty_behav", ["dtype", "shape", "name"])
+    def test_load_penalty_change(self, einstein_img, penalty_behav, tmp_path):
+        def base_penalty(x):
+            return po.tools.regularization.penalize_range(x, allowed_range=(0.2, 0.8))
+
+        mad = po.synth.MADCompetition(
+            einstein_img,
+            po.metric.mse,
+            po.tools.optim.l2_norm,
+            "min",
+            metric_tradeoff_lambda=1,
+            penalty_lambda=0.1,
+            penalty_function=base_penalty,
+        )
+        mad.synthesize(max_iter=4, store_progress=True)
+        mad.save(op.join(tmp_path, "test_mad_load_penalty_change.pt"))
+
+        def new_penalty(x):
+            penalty = po.tools.regularization.penalize_range(x, allowed_range=(0.2, 0.8))
+            if penalty_behav == "dtype":
+                return penalty.to(torch.float64)
+            if penalty_behav == "shape":
+                return torch.stack([penalty, penalty])
+            return penalty
+
+        if penalty_behav == "name":
+            expectation = "Saved and initialized penalty_function have different names"
+        else:
+            expectation = (
+                "Saved and initialized penalty_function output have different"
+                f" {penalty_behav}"
+            )
+        mad = po.synth.MADCompetition(
+            einstein_img,
+            po.metric.mse,
+            po.tools.optim.l2_norm,
+            "min",
+            metric_tradeoff_lambda=1,
+            penalty_lambda=0.1,
+            penalty_function=new_penalty,
+        )
+        with pytest.raises(ValueError, match=expectation):
+            mad.load(op.join(tmp_path, "test_mad_load_penalty_change.pt"))
+
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
