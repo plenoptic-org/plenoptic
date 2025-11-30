@@ -569,7 +569,7 @@ class TestMetamers:
         met.synthesize(5)
         met.save(op.join(tmp_path, "test_metamer_load_tol.pt"))
         met = po.synth.Metamer(
-            einstein_img + 1e-7 * torch.rand_like(einstein_img),
+            (1 - 1e-7) * einstein_img + 1e-7 * torch.rand_like(einstein_img),
             model,
         )
         with pytest.raises(ValueError, match="Saved and initialized attribute image"):

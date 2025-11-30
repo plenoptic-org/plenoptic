@@ -608,7 +608,7 @@ class TestMAD:
         mad.synthesize(5)
         mad.save(op.join(tmp_path, "test_mad_load_tol.pt"))
         mad = po.synth.MADCompetition(
-            einstein_img + 1e-7 * torch.rand_like(einstein_img),
+            (1 - 1e-7) * einstein_img + 1e-7 * torch.rand_like(einstein_img),
             po.metric.mse,
             lambda *args: 1 - po.metric.ssim(*args),
             "min",
