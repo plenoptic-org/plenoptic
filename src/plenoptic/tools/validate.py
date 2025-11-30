@@ -17,6 +17,7 @@ from torch import Tensor
 def validate_input(
     input_tensor: Tensor,
     no_batch: bool = False,
+    allowed_range: tuple[float, float] | None = None,
 ):
     """
     Determine whether ``input_tensor`` can be used for synthesis.
@@ -28,8 +29,10 @@ def validate_input(
     - If ``no_batch`` is ``True``, check whether ``input_tensor.shape[0] == 1`` or
       ``input_tensor.ndimension()==1`` (``ValueError``).
 
-    Additionally, if input_tensor is not 4d, or it is not in the range (0, 1),
-    raises a ``UserWarning``.
+    - If ``allowed_range`` is not ``None``, check whether all values of
+      ``input_tensor`` lie within the specified range (``ValueError``).
+
+    Additionally, if input_tensor is not 4d, raises a ``UserWarning``.
 
     Parameters
     ----------
@@ -38,6 +41,9 @@ def validate_input(
     no_batch
         If ``True``, raise a ValueError if the batch dimension of ``input_tensor``
         is greater than 1.
+    allowed_range
+        If not ``None``, ensure that all values of ``input_tensor`` lie within
+        allowed_range.
 
     Raises
     ------
@@ -50,7 +56,6 @@ def validate_input(
     -----
     UserWarning
         If ``input_tensor`` is not 4d.
-        If the elements of ``input_tensor`` are not in the range (0, 1).
 
     Examples
     --------
@@ -63,7 +68,9 @@ def validate_input(
 
     >>> import plenoptic as po
     >>> img = po.data.einstein()
-    >>> po.tools.validate.validate_input(img)  # doctest: +ELLIPSIS
+    >>> po.tools.validate.validate_input(
+    ...     img, allowed_range=(0, 0.5)
+    ... )  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: input_tensor range ...
     """
@@ -93,10 +100,20 @@ def validate_input(
         # numpy raises ValueError when operands cannot be broadcast together,
         # so it seems reasonable here
         raise ValueError("input_tensor batch dimension must be 1.")
-    if (input_tensor.min() < 0 or input_tensor.max() > 1):
-        warnings.warn(
-            "Input tensor values are not in the range (0, 1)."
-        )
+    if allowed_range is not None:
+        if allowed_range[0] >= allowed_range[1]:
+            raise ValueError(
+                "allowed_range[0] must be strictly less than"
+                f" allowed_range[1], but got {allowed_range}"
+            )
+        if (
+            input_tensor.min() < allowed_range[0]
+            or input_tensor.max() > allowed_range[1]
+        ):
+            raise ValueError(
+                f"input_tensor range must lie within {allowed_range}, but got"
+                f" {(input_tensor.min().item(), input_tensor.max().item())}"
+            )
 
 
 def validate_model(

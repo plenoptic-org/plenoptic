@@ -559,22 +559,32 @@ class TestValidate:
         [
             (
                 "min",
-                pytest.warns(UserWarning, match="Input tensor values are not in the range")
+                pytest.raises(ValueError, match="input_tensor range must lie within"),
             ),
             (
                 "max",
-                pytest.warns(UserWarning, match="Input tensor values are not in the range")
+                pytest.raises(ValueError, match="input_tensor range must lie within"),
+            ),
+            (
+                "range",
+                pytest.raises(
+                    ValueError,
+                    match=r"allowed_range\[0\] must be strictly less",
+                ),
             ),
         ],
     )
-    def test_input_range(self, minmax, expectation):
+    def test_input_allowed_range(self, minmax, expectation):
         img = torch.rand(1, 1, 16, 16)
+        allowed_range = (0, 1)
         if minmax == "min":
             img -= 1
         elif minmax == "max":
             img += 1
+        elif minmax == "range":
+            allowed_range = (1, 0)
         with expectation:
-            po.tools.validate.validate_input(img)
+            po.tools.validate.validate_input(img, allowed_range=allowed_range)
 
     @pytest.mark.parametrize("model", ["frontend.OnOff"], indirect=True)
     def test_model_learnable(self, model):
@@ -780,7 +790,7 @@ class TestValidate:
         po.tools.validate.validate_model(model, device=DEVICE)
 
 
-class TestRegularization:
+class TestOptim:
     def test_penalize_range_above(self):
         img = 0.5 * torch.ones((1, 1, 4, 4))
         img[..., 0, :] = 2
