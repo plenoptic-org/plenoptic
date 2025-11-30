@@ -441,7 +441,7 @@ class TestMAD:
     @pytest.mark.parametrize("penalty_behav", ["dtype", "shape", "name"])
     def test_load_penalty_change(self, einstein_img, penalty_behav, tmp_path):
         def base_penalty(x):
-            return po.tools.regularization.penalize_range(x, allowed_range=(0.2, 0.8))
+            return po.tools.regularization.penalize_range(x)
 
         mad = po.synth.MADCompetition(
             einstein_img,
@@ -456,7 +456,7 @@ class TestMAD:
         mad.save(op.join(tmp_path, "test_mad_load_penalty_change.pt"))
 
         def new_penalty(x):
-            penalty = po.tools.regularization.penalize_range(x, allowed_range=(0.2, 0.8))
+            penalty = base_penalty(x)
             if penalty_behav == "dtype":
                 return penalty.to(torch.float64)
             if penalty_behav == "shape":

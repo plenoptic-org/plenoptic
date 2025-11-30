@@ -66,8 +66,7 @@ class Metamer(OptimizedSynthesis):
         penalty_lambda: float = 0.1,
     ):
         super().__init__(
-          penalty_function=penalty_function,
-          penalty_lambda=penalty_lambda
+            penalty_function=penalty_function, penalty_lambda=penalty_lambda
         )
         validate_input(image, allowed_range=(0, 1))
         validate_model(

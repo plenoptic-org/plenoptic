@@ -14,11 +14,14 @@ from conftest import DEVICE, check_loss_saved_synth
 def custom_loss(x1, x2):
     return (x1 - x2).sum()
 
+
 def custom_penalty(x1):
     return po.tools.regularization.penalize_range(x1, allowed_range=(0.2, 0.8))
 
+
 def custom_penalty2(x1):
     return po.tools.regularization.penalize_range(x1, allowed_range=(0.3, 0.7))
+
 
 class TestMetamers:
     @pytest.mark.parametrize(

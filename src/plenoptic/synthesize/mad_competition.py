@@ -18,7 +18,7 @@ from pyrtools.tools.display import make_figure as pt_make_figure
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from ..tools import data, display, optim, regularization
+from ..tools import data, display, regularization
 from ..tools.convergence import loss_convergence
 from ..tools.validate import validate_input, validate_metric
 from .synthesis import OptimizedSynthesis
@@ -84,8 +84,7 @@ class MADCompetition(OptimizedSynthesis):
         penalty_lambda: float = 0.1,
     ):
         super().__init__(
-          penalty_function=penalty_function,
-          penalty_lambda=penalty_lambda
+            penalty_function=penalty_function, penalty_lambda=penalty_lambda
         )
         validate_input(image, allowed_range=(0, 1))
         validate_metric(
