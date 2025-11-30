@@ -14,15 +14,21 @@ from conftest import DEVICE, check_loss_saved_synth
 def custom_loss(x1, x2):
     return (x1 - x2).sum()
 
+def custom_penalty(x1):
+    return po.tools.regularization.penalize_range(x1, allowed_range=(0.2, 0.8))
+
+def custom_penalty2(x1):
+    return po.tools.regularization.penalize_range(x1, allowed_range=(0.3, 0.7))
 
 class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
     @pytest.mark.parametrize("loss_func", ["mse", "l2", "custom"])
+    @pytest.mark.parametrize("penalty_function", ["range", "custom"])
     @pytest.mark.parametrize(
         "fail",
-        [False, "img", "model", "loss", "penalty_lambda", "dtype"],
+        [False, "img", "model", "loss", "penalty", "penalty_lambda", "dtype"],
     )
     @pytest.mark.parametrize("penalty_lambda", [0.1, 0])
     def test_save_load(
@@ -32,6 +38,7 @@ class TestMetamers:
         loss_func,
         fail,
         penalty_lambda,
+        penalty_function,
         tmp_path,
     ):
         if loss_func == "mse":
@@ -40,11 +47,16 @@ class TestMetamers:
             loss = po.tools.optim.l2_norm
         elif loss_func == "custom":
             loss = custom_loss
+        if penalty_function == "range":
+            penalty = po.tools.regularization.penalize_range
+        elif penalty_function == "custom":
+            penalty = custom_penalty
         met = po.synth.Metamer(
             einstein_img,
             model,
             loss_function=loss,
             penalty_lambda=penalty_lambda,
+            penalty_function=penalty,
         )
         met.synthesize(max_iter=4, store_progress=True)
         met.save(op.join(tmp_path, "test_metamer_save_load.pt"))
@@ -72,6 +84,15 @@ class TestMetamers:
                         "values"
                     ),
                 )
+            elif fail == "penalty":
+                penalty = custom_penalty2
+                expectation = pytest.raises(
+                    ValueError,
+                    match=(
+                        "Saved and initialized penalty_function output have different"
+                        " values"
+                    ),
+                )
             elif fail == "penalty_lambda":
                 penalty_lambda = 0.5
                 expectation = pytest.raises(
@@ -95,6 +116,7 @@ class TestMetamers:
                 model,
                 loss_function=loss,
                 penalty_lambda=penalty_lambda,
+                penalty_function=penalty,
             )
             with expectation:
                 met_copy.load(
@@ -107,6 +129,7 @@ class TestMetamers:
                 model,
                 loss_function=loss,
                 penalty_lambda=penalty_lambda,
+                penalty_function=penalty,
             )
             met_copy.load(
                 op.join(tmp_path, "test_metamer_save_load.pt"),
