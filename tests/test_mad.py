@@ -24,6 +24,14 @@ def dis_ssim(*args):
     return (1 - po.metric.ssim(*args)).mean()
 
 
+def custom_penalty(x1):
+    return po.tools.regularization.penalize_range(x1, allowed_range=(0.2, 0.8))
+
+
+def custom_penalty2(x1):
+    return po.tools.regularization.penalize_range(x1, allowed_range=(0.3, 0.7))
+
+
 class ModuleMetric(torch.nn.Module):
     def __init__(self):
         super().__init__()
@@ -69,17 +77,19 @@ class TestMAD:
             "metric2",
             "target",
             "tradeoff",
+            "penalty",
             "penalty_lambda",
         ],
     )
     @pytest.mark.parametrize("penalty_lambda", [0.1, 0])
     @pytest.mark.parametrize("rgb", [False, True])
+    @pytest.mark.parametrize("penalty_function", ["range", "custom"])
     @pytest.mark.filterwarnings(
         "ignore:SSIM was designed for grayscale images:UserWarning"
     )
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_save_load(
-        self, curie_img, fail, penalty_lambda, rgb, tmp_path
+        self, curie_img, fail, penalty_lambda, rgb, penalty_function, tmp_path
     ):
         # this works with either rgb or grayscale images
         metric = rgb_mse
@@ -90,6 +100,10 @@ class TestMAD:
             metric2 = dis_ssim
         target = "min"
         tradeoff = 1
+        if penalty_function == "range":
+            penalty = po.tools.regularization.penalize_range
+        elif penalty_function == "custom":
+            penalty = custom_penalty
         mad = po.synth.MADCompetition(
             curie_img,
             metric,
@@ -97,6 +111,7 @@ class TestMAD:
             target,
             metric_tradeoff_lambda=tradeoff,
             penalty_lambda=penalty_lambda,
+            penalty_function=penalty,
         )
         mad.synthesize(max_iter=4, store_progress=True)
         mad.save(op.join(tmp_path, "test_mad_save_load.pt"))
@@ -143,6 +158,15 @@ class TestMAD:
                         "Saved and initialized metric_tradeoff_lambda are different"
                     ),
                 )
+            elif fail == "penalty":
+                penalty = custom_penalty2
+                expectation = pytest.raises(
+                    ValueError,
+                    match=(
+                        "Saved and initialized penalty_function output have different"
+                        " values"
+                    ),
+                )
             elif fail == "penalty_lambda":
                 penalty_lambda = 0.5
                 expectation = pytest.raises(
@@ -156,6 +180,7 @@ class TestMAD:
                 target,
                 metric_tradeoff_lambda=tradeoff,
                 penalty_lambda=penalty_lambda,
+                penalty_function=penalty,
             )
             with expectation:
                 mad_copy.load(
@@ -170,6 +195,7 @@ class TestMAD:
                 target,
                 metric_tradeoff_lambda=tradeoff,
                 penalty_lambda=penalty_lambda,
+                penalty_function=penalty,
             )
             mad_copy.load(
                 op.join(tmp_path, "test_mad_save_load.pt"), map_location=DEVICE
