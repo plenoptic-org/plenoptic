@@ -48,8 +48,8 @@ def penalize_range(
     >>> po.tools.remove_grad(model)
     >>> # Make function penalizing values outside (-1, 1)
     >>> custom_range = functools.partial(
-    >>>   po.tools.penalize_range, allowed_range=(-1, 1)
-    >>> )
+    ...   po.tools.penalize_range, allowed_range=(-1, 1)
+    ... )
     >>> met = po.synth.Metamer(img, model, penalty_function=custom_range)
     >>> met.synthesize(10)
     """
