@@ -19,8 +19,8 @@ def penalize_range(
     quadratic penalty on any values outside the allowed_range.
     All values within the allowed_range have a penalty of 0.
 
-    To use as a `penalty_function` in synthesis methods,
-    `functools.partial` must be used to fix the `allowed_range`
+    To use as a ``penalty_function`` in synthesis methods,
+    ``functools.partial`` must be used to fix the ``allowed_range``
     (see Examples).
 
     Parameters
