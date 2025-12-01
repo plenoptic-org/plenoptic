@@ -329,7 +329,7 @@ class Metamer(OptimizedSynthesis):
             target_representation = self.target_representation
         metamer_representation = self.model(metamer, **analyze_kwargs)
         loss = self.loss_function(metamer_representation, target_representation)
-        penalty = self.penalty_function(self.metamer)
+        penalty = self.penalty_function(metamer)
         return loss + self.penalty_lambda * penalty
 
     def get_progress(
