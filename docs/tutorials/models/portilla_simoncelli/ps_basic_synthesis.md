@@ -112,7 +112,7 @@ for k, v in rep_dict.items():
     print(k, v.shape)
 ```
 
-    The statistics have also been reshaped so that e.g., the `auto_correlation_magnitude` representation has shape `(batch, channel, spatial_corr_width, spatial_corr_width, n_orientations, n_scales)`, which might make understanding the values easier.
+The statistics have also been reshaped so that e.g., the `auto_correlation_magnitude` representation has shape `(batch, channel, spatial_corr_width, spatial_corr_width, n_orientations, n_scales)`, which might make understanding the values easier.
 
 - {func}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.plot_representation` will plot a summarized version of the representation tensor
 
