@@ -224,12 +224,13 @@ def _groupwise_l2_norm_weights(
     Warns
     -----
     UserWarning
-        If ``model.convert_to_dict()`` does not return an ``OrderedDict``.
-        ``convert_to_dict`` and ``convert_to_tensor`` need to invert each other, which
-        means you should probably use an ``OrderedDict``, which guarantees that the
-        order of the keys is preserved, rather than a regular dictionary, which does
-        not. You can use :func:`~plenoptic.tools.validate.validate_convert_tensor_dict`
-        to heuristically check whether your model satisfies this constraint.
+        If ``model.convert_to_dict()`` does not return an
+        :class:`~collections.OrderedDict`. ``convert_to_dict`` and
+        ``convert_to_tensor`` need to invert each other, which means you should probably
+        use an :class:`~collections.OrderedDict`, which guarantees that the order of the
+        keys is preserved. You can use
+        :func:`~plenoptic.tools.validate.validate_convert_tensor_dict` to heuristically
+        check whether your model satisfies this constraint.
     """
     if reweighting_dict is None:
         reweighting_dict = {}
@@ -309,12 +310,13 @@ def groupwise_relative_l2_norm_factory(
     Warns
     -----
     UserWarning
-        If ``model.convert_to_dict()`` does not return an ``OrderedDict``.
-        ``convert_to_dict`` and ``convert_to_tensor`` need to invert each other, which
-        means you should probably use an ``OrderedDict``, which guarantees that the
-        order of the keys is preserved, rather than a regular dictionary, which does
-        not. You can use :func:`~plenoptic.tools.validate.validate_convert_tensor_dict`
-        to heuristically check whether your model satisfies this constraint.
+        If ``model.convert_to_dict()`` does not return an
+        :class:`~collections.OrderedDict`. ``convert_to_dict`` and
+        ``convert_to_tensor`` need to invert each other, which means you should probably
+        use an :class:`~collections.OrderedDict`, which guarantees that the order of the
+        keys is preserved. You can use
+        :func:`~plenoptic.tools.validate.validate_convert_tensor_dict` to heuristically
+        check whether your model satisfies this constraint.
 
     Examples
     --------
@@ -407,18 +409,18 @@ def portilla_simoncelli_loss_factory(
     when initializing :class:`~plenoptic.synthesize.metamer.Metamer` for synthesizing
     metamers with the
     :class:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` model. It
-    reweights the model's representation of the images' min/max pixel values and the
-    variance of the highpass residuals before computing the L2-norm.
+    zeroes the model's representation of the images' min/max pixel values and increases
+    the weight on the variance of the highpass residuals before computing the L2-norm.
 
-    The optional ``reweighting_dict`` argument allows users to tweak the
-    weights. If not ``None``, keys should be a subset of those found in the output of
-    ``model.convert_to_dict``, and whose values are Tensors (broadcastable to the shape
-    of the corresponding values in ``model.convert_to_dict`` output) which will be
-    multiplied by the corresponding group. Thus, a number greater than 1 will increase
-    its weight in the loss, a number less than 1 will decrease the weight, and 0 will
-    remove it from the calculation entirely. ``reweighting_dict`` takes precedence, so
-    e.g., if it includes a ``"pixel_statistics"`` key, that will dictate how min/max
-    pixel values are weighted.
+    The optional ``reweighting_dict`` argument allows users to tweak the weights. If not
+    ``None``, keys should be a subset of those found in the output of
+    :func:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.convert_to_dict`
+    and whose values are Tensors (broadcastable to the shape of the corresponding values
+    in ``convert_to_dict`` output) which will be multiplied by the corresponding
+    group. Thus, a number greater than 1 will increase its weight in the loss, a number
+    less than 1 will decrease the weight, and 0 will remove it from the calculation
+    entirely. ``reweighting_dict`` takes precedence, so e.g., if it includes a
+    ``"pixel_statistics"`` key, that will dictate how min/max pixel values are weighted.
 
     To understand how the returned loss works and see how to write your own loss
     factory, see :ref:`ps-optimization`.
@@ -472,7 +474,8 @@ def portilla_simoncelli_loss_factory(
     >>> met = po.synth.Metamer(img, model, loss_function=loss)
 
     Use ``reweighting_dict`` to increase weight on image pixel moments, while keeping
-    min/max out of the loss.
+    min/max out of the loss. The model includes 6 pixel stats (see :ref:`ps-model-stats`
+    for details)
 
     >>> import plenoptic as po
     >>> import torch
@@ -481,7 +484,6 @@ def portilla_simoncelli_loss_factory(
     >>> img2 = torch.rand_like(img)
     >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
     >>> rep = model.convert_to_dict(model(img))
-    >>> # the model includes 6 pixel stats (see :ref:`ps-model-stats` for details)
     >>> pixel_stats = torch.as_tensor([10, 10, 10, 10, 0, 0])
     >>> pixel_stats = pixel_stats * torch.ones_like(rep["pixel_statistics"])
     >>> reweighting_dict = {"pixel_statistics": pixel_stats}
