@@ -3,6 +3,8 @@
 
 # to avoid circular import error:
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
+import warnings
+from collections import OrderedDict
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -218,11 +220,29 @@ def _groupwise_l2_norm_weights(
     ValueError
         If ``reweighting_dict`` contains keys not found in the model representation
         (``model.convert_to_dict(model(image))``).
+
+    Warns
+    -----
+    UserWarning
+        If ``model.convert_to_dict()`` does not return an ``OrderedDict``.
+        ``convert_to_dict`` and ``convert_to_tensor`` need to invert each other, which
+        means you should probably use an ``OrderedDict``, which guarantees that the
+        order of the keys is preserved, rather than a regular dictionary, which does
+        not. You can use :func:`~plenoptic.tools.validate.validate_convert_tensor_dict`
+        to heuristically check whether your model satisfies this constraint.
     """
     if reweighting_dict is None:
         reweighting_dict = {}
     weights = {}
     rep = model.convert_to_dict(model(image))
+    if not isinstance(rep, OrderedDict):
+        warnings.warn(
+            "model.convert_to_dict did not return an OrderedDict. This might "
+            "not be a problem, but convert_to_dict and convert_to_tensor must"
+            " invert each other. Calling "
+            "plenoptic.tools.validate.validate_convert_tensor_dict(model)"
+            " will attempt to validate this constraint."
+        )
     if extra_keys := set(reweighting_dict.keys()) - set(rep.keys()):
         raise ValueError(
             "reweighting_dict contains keys not found in model representation!"
@@ -251,9 +271,9 @@ def groupwise_relative_l2_norm_factory(
 
     This requires that ``model`` has two methods, ``convert_to_dict`` and
     ``convert_to_tensor``, which convert the representation between a tensor (as
-    returned by ``forward``) and a dictionary. The dictionary representation should have
-    keys that define the different groups within the representation, and its values
-    should be tensors (of any shape).
+    returned by ``forward``) and an :class:`~collections.OrderedDict`. The dictionary
+    representation should have keys that define the different groups within the
+    representation, and its values should be tensors (of any shape).
 
     The optional ``reweighting_dict`` argument allows users to further tweak the
     weights, if necessary. If not ``None``, keys should be a subset of those found in
@@ -285,6 +305,16 @@ def groupwise_relative_l2_norm_factory(
     ValueError
         If ``reweighting_dict`` contains keys not found in the model representation
         (``model.convert_to_dict(model(image))``).
+
+    Warns
+    -----
+    UserWarning
+        If ``model.convert_to_dict()`` does not return an ``OrderedDict``.
+        ``convert_to_dict`` and ``convert_to_tensor`` need to invert each other, which
+        means you should probably use an ``OrderedDict``, which guarantees that the
+        order of the keys is preserved, rather than a regular dictionary, which does
+        not. You can use :func:`~plenoptic.tools.validate.validate_convert_tensor_dict`
+        to heuristically check whether your model satisfies this constraint.
 
     Examples
     --------

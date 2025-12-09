@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from contextlib import nullcontext as does_not_raise
 from math import pi
 
@@ -794,6 +795,28 @@ class TestValidate:
 
 
 class TestOptim:
+    @pytest.fixture()
+    def test_model(self):
+        class TestModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.kernel = torch.nn.Conv2d(1, 2, (5, 5), bias=False)
+                self.kernel.weight.detach_()
+
+            def forward(self, x):
+                return self.kernel(x)
+
+            def convert_to_dict(self, rep):
+                return OrderedDict({f"channel_{i}": rep[:, i] for i in range(2)})
+
+            def convert_to_tensor(self, rep_dict):
+                return torch.stack(list(rep_dict.values()), axis=1)
+
+        model = TestModel()
+        model.to(DEVICE)
+        model.eval()
+        return model
+
     def test_penalize_range_above(self):
         img = 0.5 * torch.ones((1, 1, 4, 4))
         img[..., 0, :] = 2
@@ -820,6 +843,65 @@ class TestOptim:
             RuntimeError, match=r"The size of tensor a \([0-9]+\) must match"
         ):
             loss(model(einstein_img), model(einstein_img))
+
+    @pytest.mark.parametrize("n_scales", [2, 3, 4])
+    @pytest.mark.parametrize("n_ori", [2, 3, 4])
+    @pytest.mark.parametrize("seed", range(3))
+    def test_ps_loss_factory_unnorm(self, n_scales, n_ori, seed):
+        # test that we can make this loss perform the same as L2-norm by setting
+        # reweighting_dict
+        po.tools.set_seed(seed)
+        img = torch.rand((1, 1, 256, 256), device=DEVICE)
+        model = po.simul.PortillaSimoncelli(img.shape[-2:], n_scales, n_ori)
+        model.to(DEVICE)
+        reweighting_dict = {"pixel_statistics": 1, "var_highpass_residual": 1}
+        loss = po.tools.optim.portilla_simoncelli_loss_factory(
+            model, img, reweighting_dict
+        )
+        comp = torch.rand_like(img)
+        custom_val = loss(model(img), model(comp))
+        l2_val = po.tools.optim.l2_norm(model(img), model(comp))
+        assert custom_val == l2_val
+
+    @pytest.mark.parametrize(
+        "model",
+        ["PortillaSimoncelli"],
+        indirect=True,
+    )
+    def test_ps_loss_factory_bad_dict(self, model):
+        img = torch.rand((1, 1, 256, 256), device=DEVICE)
+        reweighting_dict = {"pixel_statistic": 1}
+        with pytest.raises(ValueError, match="reweighting_dict contains key"):
+            po.tools.optim.portilla_simoncelli_loss_factory(
+                model, img, reweighting_dict
+            )
+
+    @pytest.mark.parametrize("seed", range(3))
+    def test_groupwise_l2_factory(self, test_model, seed):
+        po.tools.set_seed(seed)
+        img = torch.rand((1, 1, 256, 256), device=DEVICE)
+        comp = torch.rand_like(img)
+        loss = po.tools.optim.groupwise_relative_l2_norm_factory(test_model, img)
+        norm_img = test_model(img).pow(2).sum((-2, -1), keepdim=True).sqrt()
+        loss_val = loss(test_model(img), test_model(comp))
+        manual_val = (test_model(img) / norm_img) - (test_model(comp) / norm_img)
+        manual_val = manual_val.pow(2).sum().sqrt()
+        print(manual_val - loss_val)
+        torch.testing.assert_close(manual_val, loss_val)
+
+    def test_groupwise_l2_factory_synth(self, test_model):
+        img = torch.rand((1, 1, 32, 32), device=DEVICE)
+        loss = po.tools.optim.groupwise_relative_l2_norm_factory(test_model, img)
+        met = po.synth.Metamer(img, test_model, loss)
+        met.synthesize(5)
+
+    def test_groupwise_l2_factory_bad_dict(self, test_model):
+        img = torch.rand((1, 1, 32, 32), device=DEVICE)
+        reweighting_dict = {"channel": 1}
+        with pytest.raises(ValueError, match="reweighting_dict contains key"):
+            po.tools.optim.groupwise_relative_l2_norm_factory(
+                test_model, img, reweighting_dict
+            )
 
 
 class TestPolarImages:
