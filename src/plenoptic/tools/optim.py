@@ -167,11 +167,208 @@ def penalize_range(
     return below_min + above_max
 
 
+def _groupwise_l2_norm_weights(
+    model: torch.nn.Module,
+    image: Tensor,
+    reweighting_dict: dict[str, Tensor | float] | None = None,
+) -> dict[str, Tensor]:
+    r"""
+    Compute groupwise L2 norm, as a tensor for reweighting.
+
+    This function returns a tensor that can be used to perform a groupwise reweighting
+    of a model's representation. It is used by
+    :func:`~plenoptic.tools.optim.groupwise_relative_l2_norm_factory` and similar
+    functions, which normalize model representations so that all statistics are roughly
+    the same scale, which makes optimization easier.
+
+    This requires that ``model`` has a ``convert_to_dict`` method, which converts the
+    representation from a tensor (as returned by ``forward``) to a dictionary. The
+    dictionary representation should have keys that define the different groups within
+    the representation, and its values should be tensors (of any shape).
+
+    The optional ``reweighting_dict`` argument allows users to further tweak the
+    weights, if necessary. If not ``None``, keys should be a subset of those found in
+    the output of ``model.convert_to_dict``, and whose values are Tensors (broadcastable
+    to the shape of the corresponding values in ``model.convert_to_dict`` output) which
+    will be multiplied by the corresponding group *after* normalization. Thus, a number
+    greater than 1 will increase its weight in the loss, a number less than 1 will
+    decrease the weight, and 0 will remove it from the calculation entirely.
+
+    For an example of a compliant model, see the
+    :class:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` model.
+
+    Parameters
+    ----------
+    model
+        An instantiated model.
+    image
+        The target image for metamer synthesis.
+    reweighting_dict
+        Dictionary specifying further reweighting. See above for details.
+
+    Returns
+    -------
+    weights
+        Dictionary containing the L2 norm of each statistic group. Should probably be
+        passed to ``model.convert_to_tensor``, but left in this form in case any further
+        reweighting needs to be done (e.g., zeroing out some component).
+
+    Raises
+    ------
+    ValueError
+        If ``reweighting_dict`` contains keys not found in the model representation
+        (``model.convert_to_dict(model(image))``).
+    """
+    if reweighting_dict is None:
+        reweighting_dict = {}
+    weights = {}
+    rep = model.convert_to_dict(model(image))
+    if extra_keys := set(reweighting_dict.keys()) - set(rep.keys()):
+        raise ValueError(
+            "reweighting_dict contains keys not found in model representation!"
+            f" {extra_keys}"
+        )
+    for k, v in rep.items():
+        wt = torch.linalg.vector_norm(v[~v.isnan()], ord=2)
+        weights[k] = reweighting_dict.get(k, 1) * torch.ones_like(v) / wt
+    return weights
+
+
+def groupwise_relative_l2_norm_factory(
+    model: torch.nn.Module,
+    image: Tensor,
+    reweighting_dict: dict[str, Tensor | float] | None = None,
+) -> Callable[[Tensor, Tensor], Tensor]:
+    r"""
+    Create loss function that computes groupwise relative L2 norm for synthesis.
+
+    This loss factory returns a callable which should make optimization easier when
+    used as the ``loss_function`` when initializing
+    :class:`~plenoptic.synthesize.metamer.Metamer` for synthesizing metamers. The
+    resulting loss function will normalize each group within the representation by the
+    L2 norm of that group on ``image``, which should be the target image for that
+    synthesis.
+
+    This requires that ``model`` has two methods, ``convert_to_dict`` and
+    ``convert_to_tensor``, which convert the representation between a tensor (as
+    returned by ``forward``) and a dictionary. The dictionary representation should have
+    keys that define the different groups within the representation, and its values
+    should be tensors (of any shape).
+
+    The optional ``reweighting_dict`` argument allows users to further tweak the
+    weights, if necessary. If not ``None``, keys should be a subset of those found in
+    the output of ``model.convert_to_dict``, and whose values are Tensors (broadcastable
+    to the shape of the corresponding values in ``model.convert_to_dict`` output) which
+    will be multiplied by the corresponding group *after* normalization. Thus, a number
+    greater than 1 will increase its weight in the loss, a number less than 1 will
+    decrease the weight, and 0 will remove it from the calculation entirely.
+
+    For an example of a compliant model, see the
+    :class:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` model.
+
+    Parameters
+    ----------
+    model
+        An instantiated model.
+    image
+        The target image for metamer synthesis.
+    reweighting_dict
+        Dictionary specifying further reweighting. See above for details.
+
+    Returns
+    -------
+    loss_func
+        A callable to use as your loss function for metamer synthesis.
+
+    Raises
+    ------
+    ValueError
+        If ``reweighting_dict`` contains keys not found in the model representation
+        (``model.convert_to_dict(model(image))``).
+
+    Examples
+    --------
+    Create the loss function with a simple model.
+
+    >>> import plenoptic as po
+    >>> from collections import OrderedDict
+    >>> import torch
+    >>> po.tools.set_seed(0)
+    >>> class TestModel(torch.nn.Module):
+    ...     def __init__(self):
+    ...         super().__init__()
+    ...         self.kernel = torch.nn.Conv2d(1, 2, (5, 5), bias=False)
+    ...         self.kernel.weight.detach_()
+    ...
+    ...     def forward(self, x):
+    ...         return self.kernel(x)
+    ...
+    ...     def convert_to_dict(self, rep):
+    ...         return OrderedDict({f"channel_{i}": rep[:, i] for i in range(2)})
+    ...
+    ...     def convert_to_tensor(self, rep_dict):
+    ...         return torch.stack(list(rep_dict.values()), axis=1)
+    >>> img = po.data.einstein()
+    >>> img2 = torch.rand_like(img)
+    >>> model = TestModel()
+    >>> loss = po.tools.optim.groupwise_relative_l2_norm_factory(model, img)
+    >>> loss(model(img), model(img2))
+    tensor(0.6512)
+    >>> po.tools.optim.l2_norm(model(img), model(img2))
+    tensor(78.5674)
+
+    Use ``reweighting_dict`` to further tweak weighting.
+
+    >>> import plenoptic as po
+    >>> from collections import OrderedDict
+    >>> import torch
+    >>> po.tools.set_seed(0)
+    >>> class TestModel(torch.nn.Module):
+    ...     def __init__(self):
+    ...         super().__init__()
+    ...         self.kernel = torch.nn.Conv2d(1, 2, (5, 5), bias=False)
+    ...         self.kernel.weight.detach_()
+    ...
+    ...     def forward(self, x):
+    ...         return self.kernel(x)
+    ...
+    ...     def convert_to_dict(self, rep):
+    ...         return OrderedDict({f"channel_{i}": rep[:, i] for i in range(2)})
+    ...
+    ...     def convert_to_tensor(self, rep_dict):
+    ...         return torch.stack(list(rep_dict.values()), axis=1)
+    >>> img = po.data.einstein()
+    >>> img2 = torch.rand_like(img)
+    >>> model = TestModel()
+    >>> reweighting_dict = {"channel_0": 0.5}
+    >>> loss = po.tools.optim.groupwise_relative_l2_norm_factory(
+    ...     model, img, reweighting_dict
+    ... )
+    >>> loss(model(img), model(img2))
+    tensor(0.4822)
+    >>> # channel_0 is of shape (1, 256, 256)
+    >>> channel_0 = torch.ones_like(model.convert_to_dict(model(img))["channel_0"])
+    >>> channel_0[..., 128:] = 0
+    >>> reweighting_dict = {"channel_0": channel_0}
+    >>> loss = po.tools.optim.groupwise_relative_l2_norm_factory(
+    ...     model, img, reweighting_dict
+    ... )
+    >>> loss(model(img), model(img2))
+    tensor(0.5612)
+    """
+    weights = _groupwise_l2_norm_weights(model, image, reweighting_dict)
+    weights = model.convert_to_tensor(weights)
+
+    def loss(x: Tensor, y: Tensor) -> Tensor:  # numpydoc ignore=GL08
+        return l2_norm(weights * x, weights * y)
+
+    return loss
+
+
 def portilla_simoncelli_loss_factory(
     model: "PortillaSimoncelli",
     image: Tensor,
-    minmax_weight: float = 0,
-    highpass_weight: float = 100,
+    reweighting_dict: dict[str, Tensor | float] | None = None,
 ) -> Callable[[Tensor, Tensor], Tensor]:
     """
     Create the loss function required for ``PortillaSimoncelli`` metamer synthesis.
@@ -182,6 +379,16 @@ def portilla_simoncelli_loss_factory(
     :class:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` model. It
     reweights the model's representation of the images' min/max pixel values and the
     variance of the highpass residuals before computing the L2-norm.
+
+    The optional ``reweighting_dict`` argument allows users to tweak the
+    weights. If not ``None``, keys should be a subset of those found in the output of
+    ``model.convert_to_dict``, and whose values are Tensors (broadcastable to the shape
+    of the corresponding values in ``model.convert_to_dict`` output) which will be
+    multiplied by the corresponding group. Thus, a number greater than 1 will increase
+    its weight in the loss, a number less than 1 will decrease the weight, and 0 will
+    remove it from the calculation entirely. ``reweighting_dict`` takes precedence, so
+    e.g., if it includes a ``"pixel_statistics"`` key, that will dictate how min/max
+    pixel values are weighted.
 
     To understand how the returned loss works and see how to write your own loss
     factory, see :ref:`ps-optimization`.
@@ -195,20 +402,20 @@ def portilla_simoncelli_loss_factory(
     image
         The target image for metamer synthesis, or an image with the same shape, dtype,
         and device.
-    minmax_weight
-        How to reweight the images' min/max for optimization purposes. It is recommended
-        to set this to 0, and to allow the range penalty to match that property.
-    highpass_weight
-        How to reweight the variance of the highpass residuals in the model
-        representation. It is recommended to set this around 100: too low and they will
-        not be matched precisely enough, too high and the other statistics will not be
-        well-matched.
+    reweighting_dict
+        Dictionary specifying reweighting. See above for details.
 
     Returns
     -------
     loss_func
         A callable to use as your loss function for ``PortillaSimoncelli`` metamer
         synthesis.
+
+    Raises
+    ------
+    ValueError
+        If ``reweighting_dict`` contains keys not found in the model representation
+        (``model.convert_to_dict(model(image))``).
 
     Examples
     --------
@@ -233,15 +440,57 @@ def portilla_simoncelli_loss_factory(
     >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
     >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
     >>> met = po.synth.Metamer(img, model, loss_function=loss)
+
+    Use ``reweighting_dict`` to increase weight on image pixel moments, while keeping
+    min/max out of the loss.
+
+    >>> import plenoptic as po
+    >>> import torch
+    >>> po.tools.set_seed(0)
+    >>> img = po.data.einstein()
+    >>> img2 = torch.rand_like(img)
+    >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
+    >>> rep = model.convert_to_dict(model(img))
+    >>> # the model includes 6 pixel stats (see :ref:`ps-model-stats` for details)
+    >>> pixel_stats = torch.as_tensor([10, 10, 10, 10, 0, 0])
+    >>> pixel_stats = pixel_stats * torch.ones_like(rep["pixel_statistics"])
+    >>> reweighting_dict = {"pixel_statistics": pixel_stats}
+    >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(
+    ...     model, img, reweighting_dict
+    ... )
+    >>> loss(model(img), model(img2))
+    tensor(35.9753)
+
+    Use ``reweighting_dict`` to include min/max in the loss and increase the importance
+    of the variance of highpass residuals.
+
+    >>> import plenoptic as po
+    >>> import torch
+    >>> po.tools.set_seed(0)
+    >>> img = po.data.einstein()
+    >>> img2 = torch.rand_like(img)
+    >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
+    >>> reweighting_dict = {"pixel_statistics": 1, "magnitude_std": 100}
+    >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(
+    ...     model, img, reweighting_dict
+    ... )
+    >>> loss(model(img), model(img2))
+    tensor(251.5188)
     """
+    if reweighting_dict is None:
+        reweighting_dict = {}
     weights = model.convert_to_dict(torch.ones_like(model(image)))
-    if "pixel_statistics" in weights:
-        # reweight the pixel min/max and the variance of the highpass residuals, since
-        # they're weird.
-        weights["pixel_statistics"][..., -2:] = minmax_weight
-    k = "var_highpass_residual"
-    if k in weights:
-        weights[k] = highpass_weight * torch.ones_like(weights[k])
+    pixel_stats = torch.ones_like(weights["pixel_statistics"])
+    pixel_stats[..., -2:] = 0
+    reweighting_dict.setdefault("pixel_statistics", pixel_stats)
+    reweighting_dict.setdefault("var_highpass_residual", 100)
+    if extra_keys := set(reweighting_dict.keys()) - set(weights.keys()):
+        raise ValueError(
+            "reweighting_dict contains key(s) not found in model representation! "
+            f"{extra_keys}"
+        )
+    for k in weights:
+        weights[k] *= reweighting_dict.get(k, 1)
     weights = model.convert_to_tensor(weights)
 
     def loss(x: Tensor, y: Tensor) -> Tensor:  # numpydoc ignore=GL08
