@@ -335,6 +335,37 @@ class Synthesis(abc.ABC):
         for k, input_names in check_io_attributes:
             # same as above
             display_k = k[1:] if k.startswith("_") else k
+            if input_names != tmp_dict[k][1]:
+                # PR #381 (release 1.3.2) fixed how Metamer loss is computed for
+                # checking during save/load. previously, it used image and metamer,
+                # which is incorrect since loss is computed on model outputs, not
+                # inputs. that means we can't check loss, which we just raise a warning
+                # about for now.
+                if (
+                    input_names
+                    == ("_target_representation", "2 * _target_representation")
+                    and tmp_dict[k][1] == ("_image", "_metamer")
+                    and display_k == "loss_function"
+                ):
+                    warnings.warn(
+                        "The saved object was saved with plenoptic 1.3.1 or earlier and"
+                        " will not be compatible with future releases. We therefore "
+                        f"cannot check {display_k} is the same in initialized and saved"
+                        " objects. Save this object with current version of plenoptic "
+                        "to make the saved object futureproof and avoid this warning.",
+                        category=FutureWarning,
+                    )
+                    continue
+                else:
+                    # in general/the future, we want to raise a more informative error
+                    # message about this problem.
+                    raise ValueError(
+                        "Initialized and saved objects use different inputs to check "
+                        f"identity of {display_k}, unsure how to proceed! If you trust "
+                        "this object, see 'Reproducibility and Compatibility' page of "
+                        "the documentation for how to load it anyway."
+                        f"\nSaved: {tmp_dict[k][1]}\nInitialized: {input_names}"
+                    )
             tensors, _ = _parse_save_io_attr_name(tmp_dict, input_names)
             init_name = _get_name(getattr(self, k))
             saved_name = tmp_dict[k][0]
@@ -381,7 +412,11 @@ class Synthesis(abc.ABC):
             setattr(self, k, v)
         setup_attrs = []
         optim = tmp_dict.get("_optimizer", None)
-        if isinstance(optim, tuple) and optim[0] != _get_name(torch.optim.Adam):
+        if (
+            isinstance(optim, tuple)
+            and optim[0] is not None
+            and optim[0] != _get_name(torch.optim.Adam)
+        ):
             setup_attrs.append("optimizer")
         sched = tmp_dict.get("_scheduler", None)
         if isinstance(sched, tuple) and sched[0] is not None:
