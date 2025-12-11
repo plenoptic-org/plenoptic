@@ -112,7 +112,7 @@ def validate_input(
             warnings.warn(
                 f"input_tensor range is {input_range}, which is outside"
                 f" the tested range (0, 1). Synthesis should still work, but if"
-                 " you have any problems, please open an issue."
+                " you have any problems, please open an issue."
             )
 
 
