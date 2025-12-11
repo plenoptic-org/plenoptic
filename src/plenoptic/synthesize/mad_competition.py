@@ -86,7 +86,7 @@ class MADCompetition(OptimizedSynthesis):
         super().__init__(
             penalty_function=penalty_function, penalty_lambda=penalty_lambda
         )
-        validate_input(image, allowed_range=(0, 1))
+        validate_input(image, check_range=True)
         validate_metric(
             optimized_metric,
             image_shape=image.shape,
@@ -1039,7 +1039,7 @@ def plot_pixel_values(
     Plot histogram of pixel values of reference and MAD images.
 
     As a way to check the distributions of pixel intensities and see
-    if there's any values outside the allowed range.
+    if there's any values outside the preferred range.
 
     Parameters
     ----------
