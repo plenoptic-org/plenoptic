@@ -302,7 +302,7 @@ class Metamer(OptimizedSynthesis):
 
         This calls self.loss_function on
         ``self.model(metamer, **analyze_kwargs)`` and
-        ``target_representation`` and then adds the weighted range penalty
+        ``target_representation`` and then adds the weighted penalty
         on ``metamer``.
 
         Parameters
