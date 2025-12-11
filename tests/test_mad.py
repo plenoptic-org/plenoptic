@@ -1078,7 +1078,7 @@ class TestMAD:
     def test_warn_out_of_range_input(self, einstein_img):
         img = einstein_img + 1
         with pytest.warns(UserWarning, match="outside the tested range \\(0, 1\\)"):
-            mad = po.synth.MADCompetition(
+            po.synth.MADCompetition(
                 img,
                 po.metric.mse,
                 po.tools.optim.l2_norm,
