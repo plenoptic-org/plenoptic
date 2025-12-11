@@ -555,36 +555,33 @@ class TestValidate:
             po.tools.validate.validate_input(img, no_batch=True)
 
     @pytest.mark.parametrize(
-        "minmax,expectation",
+        "range_case,expectation",
         [
+            ("in-range", does_not_raise()),
             (
-                "min",
-                pytest.raises(ValueError, match="input_tensor range must lie within"),
+                "below",
+                pytest.warns(
+                    UserWarning,
+                    match="outside the tested range \\(0, 1\\)",
+                ),
             ),
             (
-                "max",
-                pytest.raises(ValueError, match="input_tensor range must lie within"),
-            ),
-            (
-                "range",
-                pytest.raises(
-                    ValueError,
-                    match=r"allowed_range\[0\] must be strictly less",
+                "above",
+                pytest.warns(
+                    UserWarning,
+                    match="outside the tested range \\(0, 1\\)",
                 ),
             ),
         ],
     )
-    def test_input_allowed_range(self, minmax, expectation):
+    def test_input_check_range(self, range_case, expectation):
         img = torch.rand(1, 1, 16, 16)
-        allowed_range = (0, 1)
-        if minmax == "min":
+        if range_case == "below":
             img -= 1
-        elif minmax == "max":
+        elif range_case == "above":
             img += 1
-        elif minmax == "range":
-            allowed_range = (1, 0)
         with expectation:
-            po.tools.validate.validate_input(img, allowed_range=allowed_range)
+            po.tools.validate.validate_input(img, check_range=True)
 
     @pytest.mark.parametrize("model", ["frontend.OnOff"], indirect=True)
     def test_model_learnable(self, model):
