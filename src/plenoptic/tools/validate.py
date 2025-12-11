@@ -17,7 +17,7 @@ from torch import Tensor
 def validate_input(
     input_tensor: Tensor,
     no_batch: bool = False,
-    check_range: bool = False,
+    check_range: bool = True,
 ):
     """
     Determine whether ``input_tensor`` can be used for synthesis.
@@ -29,8 +29,8 @@ def validate_input(
     - If ``no_batch`` is ``True``, check whether ``input_tensor.shape[0] == 1`` or
       ``input_tensor.ndimension()==1`` (``ValueError``).
 
-    - If ``allowed_range`` is not ``None``, check whether all values of
-      ``input_tensor`` lie within the specified range (``ValueError``).
+    - If ``check_range`` is ``True``, check whether all values of
+      ``input_tensor`` lie within the range ``(0, 1)`` (``UserWarning``).
 
     Additionally, if input_tensor is not 4d, raises a ``UserWarning``.
 
