@@ -71,7 +71,6 @@ def validate_input(
     >>> import plenoptic as po
     >>> img = po.data.einstein() * 5.0
     >>> po.tools.validate.validate_input(img, check_range=True)  # doctest: +ELLIPSIS
-    UserWarning: input_tensor range is ...
     """
     # validate dtype
     if input_tensor.dtype not in [
