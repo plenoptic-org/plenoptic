@@ -68,7 +68,7 @@ class Metamer(OptimizedSynthesis):
         super().__init__(
             penalty_function=penalty_function, penalty_lambda=penalty_lambda
         )
-        validate_input(image, check_range=True)
+        validate_input(image)
         validate_model(
             model,
             image_shape=image.shape,
@@ -193,7 +193,7 @@ class Metamer(OptimizedSynthesis):
                 metamer = torch.rand_like(self.image)
                 metamer = signal.rescale(metamer, 0, 1)
             else:
-                validate_input(initial_image, check_range=True)
+                validate_input(initial_image)
                 if initial_image.size() != self.image.size():
                     warnings.warn(
                         "initial_image and image are different sizes! This "

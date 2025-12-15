@@ -394,7 +394,7 @@ class PortillaSimoncelli(nn.Module):
         >>> representation_tensor.shape
         torch.Size([1, 1, 1046])
         """
-        validate_input(image, check_range=False)
+        validate_input(image)
 
         # pyr_dict is the dictionary of complex-valued tensors returned by the
         # steerable pyramid. pyr_coeffs is a list (length n_scales) of 5d

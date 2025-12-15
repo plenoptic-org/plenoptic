@@ -17,7 +17,6 @@ from torch import Tensor
 def validate_input(
     input_tensor: Tensor,
     no_batch: bool = False,
-    check_range: bool = True,
 ):
     """
     Determine whether ``input_tensor`` can be used for synthesis.
@@ -29,9 +28,6 @@ def validate_input(
     - If ``no_batch`` is ``True``, check whether ``input_tensor.shape[0] == 1`` or
       ``input_tensor.ndimension()==1`` (``ValueError``).
 
-    - If ``check_range`` is ``True``, check whether all values of
-      ``input_tensor`` lie within the range ``(0, 1)`` (``UserWarning``).
-
     Additionally, if input_tensor is not 4d, raises a ``UserWarning``.
 
     Parameters
@@ -41,9 +37,6 @@ def validate_input(
     no_batch
         If ``True``, raise a ValueError if the batch dimension of ``input_tensor``
         is greater than 1.
-    check_range
-        If ``True``, check whether all values of ``input_tensor`` lie within
-        (0,1), and raise UserWarning otherwise.
 
     Raises
     ------
@@ -56,8 +49,8 @@ def validate_input(
     Warns
     -----
     UserWarning
-        If ``input_tensor`` is not 4d, or if ``check_range`` is ``True``
-        and ``input_tensor`` has values outside (0, 1).
+        If ``input_tensor`` is not 4d, or if ``input_tensor`` has values
+        outside (0, 1).
 
     Examples
     --------
@@ -70,7 +63,7 @@ def validate_input(
 
     >>> import plenoptic as po
     >>> img = po.data.einstein() * 5.0
-    >>> po.tools.validate.validate_input(img, check_range=True)  # doctest: +ELLIPSIS
+    >>> po.tools.validate.validate_input(img)  # doctest: +ELLIPSIS
     """
     # validate dtype
     if input_tensor.dtype not in [
@@ -98,18 +91,17 @@ def validate_input(
         # numpy raises ValueError when operands cannot be broadcast together,
         # so it seems reasonable here
         raise ValueError("input_tensor batch dimension must be 1.")
-    if check_range:
-        allowed_range = (0.0, 1.0)
-        if (
-            input_tensor.min() < allowed_range[0]
-            or input_tensor.max() > allowed_range[1]
-        ):
-            input_range = (input_tensor.min().item(), input_tensor.max().item())
-            warnings.warn(
-                f"input_tensor range is {input_range}, which is outside"
-                f" the tested range (0, 1). Synthesis should still work, but if"
-                " you have any problems, please open an issue."
-            )
+    allowed_range = (0.0, 1.0)
+    if (
+        input_tensor.min() < allowed_range[0]
+        or input_tensor.max() > allowed_range[1]
+    ):
+        input_range = (input_tensor.min().item(), input_tensor.max().item())
+        warnings.warn(
+            f"input_tensor range is {input_range}, which is outside"
+            f" the tested range (0, 1). Synthesis should still work, but if"
+            " you have any problems, please open an issue."
+        )
 
 
 def validate_model(

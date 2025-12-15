@@ -86,7 +86,7 @@ class MADCompetition(OptimizedSynthesis):
         super().__init__(
             penalty_function=penalty_function, penalty_lambda=penalty_lambda
         )
-        validate_input(image, check_range=True)
+        validate_input(image)
         validate_metric(
             optimized_metric,
             image_shape=image.shape,
