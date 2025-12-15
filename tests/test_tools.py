@@ -581,7 +581,7 @@ class TestValidate:
         elif range_case == "above":
             img += 1
         with expectation:
-            po.tools.validate.validate_input(img, check_range=True)
+            po.tools.validate.validate_input(img)
 
     @pytest.mark.parametrize("model", ["frontend.OnOff"], indirect=True)
     def test_model_learnable(self, model):
