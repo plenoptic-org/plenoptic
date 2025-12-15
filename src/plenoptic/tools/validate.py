@@ -92,10 +92,7 @@ def validate_input(
         # so it seems reasonable here
         raise ValueError("input_tensor batch dimension must be 1.")
     allowed_range = (0.0, 1.0)
-    if (
-        input_tensor.min() < allowed_range[0]
-        or input_tensor.max() > allowed_range[1]
-    ):
+    if input_tensor.min() < allowed_range[0] or input_tensor.max() > allowed_range[1]:
         input_range = (input_tensor.min().item(), input_tensor.max().item())
         warnings.warn(
             f"input_tensor range is {input_range}, which is outside"
