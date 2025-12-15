@@ -110,6 +110,7 @@ po.imshow(reconList, col_wrap=order + 1, vrange="indep1", zoom=2);
 
 We can see that this pyramid is representing a 3 scale 4 orientation decomposition: each row represents a single scale, which we can see because each filter is the same size. As the filter increases in size, we describe the scale as getting "coarser", and its spatial frequency selectivity moves to lower and lower frequencies (conversely, smaller filters are operating at finer scales, with selectivity to higher spatial frequencies). In a given column, all filters have the same orientation: the first column is vertical, the third horizontal, and the other two diagonals.
 
+(steer-pyr-bands)=
 ### Visualizing Filter Responses (Wavelet Coefficients)
 Now let's see what the steerable pyramid representation for images look like.
 

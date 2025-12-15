@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.3
+    jupytext_version: 1.17.2
 kernelspec:
   display_name: plenoptic
   language: python
@@ -21,7 +21,7 @@ import pooch
 # don't need to show warning about setting up optimizer
 warnings.filterwarnings(
     "ignore",
-    message="You will need to call setup() to instantiate optimizer",
+    message="You will need to call setup",
     category=UserWarning,
 )
 
@@ -42,10 +42,13 @@ Download this notebook: **{nb-download}`ps_examples.ipynb`**!
 
 This notebook shows example metamers from several different classes of texture images. If you download the notebook, you can change the `fig_name` variable in each section to load further examples.
 
-:::{admonition} Reproducibility
-:class: warning
+:::{admonition} Reproducing the metamers in this notebook
+:class: warning dropdown
 
-Due to pytorch's limitations, we [cannot guarantee perfect reproducibility](reproduce). However, the steps shown below have, in our experience, reliably led to good model metamers synthesized in a reasonable length of time for a variety of images, and they are what we suggest. If you use follow these basic steps and **are not** able to successfully synthesize a good model metamer, please post on our [discussion board](https://github.com/plenoptic-org/plenoptic/discussions/) and we'll try to help!
+Due to pytorch's limitations, we [cannot guarantee perfect reproducibility](reproduce).
+However, we've found the setup shown in this notebook works reliably across different images and produce good metamers efficiently.
+
+If you use follow these basic steps and **are not** able to successfully synthesize a good `PortillaSimoncelli` <!-- skip-lint --> model metamer, please post on our [discussion board](https://github.com/plenoptic-org/plenoptic/discussions/) and we'll try to help!
 
 See [](ps-optimization) for more information about the specific decisions taken around optimization, including what "good" means.
 
@@ -78,10 +81,11 @@ plt.rcParams["figure.dpi"] = 72
 po.tools.set_seed(1)
 ```
 
-:::{attention}
-This notebook contains many metamers and, while any one synthesis operation does not take too long, all of them combined result in a lengthy notebook. Therefore, we have cached the result of most of these syntheses online and only download them for investigation in this notebook.
+:::{admonition} This notebook retrieves cached synthesis results
+:class: warning dropdown
+This notebook contains many metamers and, while any one synthesis operation does not take too long, all of them combined result in a lengthy notebook. Therefore, instead of performing synthesis in this notebook, we have cached the result of most of these syntheses online and only download them for investigation.
 
-Additionally, while you can normally call {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` again to pick up where we left out, the cached version of the results discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
+Additionally, while you can normally call {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` again to pick up where we left out, the cached version of the results shown here discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
 
 :::
 
@@ -149,11 +153,21 @@ po.imshow(
 
 ## Counterexample to the Julesz Conjecture
 
-The Julesz conjecture, originally from {cite:alp}`Julesz1962-visual-patter-discr`, states that "humans cannot distinguish between textures with identical second-order statistics" (second-order statistics include cross- and auto-correlations, see paper for details). Following up on this initial paper, [Julesz et al, 1978](https://link.springer.com/article/10.1007/BF00336998) and then [Yellot, 1993](https://opg.optica.org/josaa/abstract.cfm?uri=josaa-10-5-777) created images that served as counter-examples for this conjecture: pairs of images that had identical second-order statistics (they differed in their third- and higher-order statistics) but were readily distinguishable by humans. In figure 13 of {cite:alp}`Portilla2000-param-textur`, the authors show that the model is able to synthesize novel images based on these counterexamples that are *also* distinguishbale by humans, so the model does not confuse them either.
+The Julesz conjecture, originally from {cite:alp}`Julesz1962-visual-patter-discr`, states that "humans cannot distinguish between textures with identical second-order statistics" (second-order statistics include the cross- and auto-correlations included in the Portilla-Simoncelli model, see Julesz paper for details). Following up on this initial paper, [Julesz et al, 1978](https://link.springer.com/article/10.1007/BF00336998) and then [Yellot, 1993](https://opg.optica.org/josaa/abstract.cfm?uri=josaa-10-5-777) created images that served as counter-examples for this conjecture: pairs of images that had identical second-order statistics (they differed in their third- and higher-order statistics) but were readily distinguishable by humans. In figure 13 of {cite:alp}`Portilla2000-param-textur`, the authors show that the model is able to synthesize novel images based on these counterexamples that are *also* distinguishable by humans, so the model does not confuse them either.
+
+:::{admonition} What's a third-order statistic?
+:class: dropdown question
+
+{attribution="[Wikipedia: Higher-order statistics](https://en.wikipedia.org/wiki/Higher-order_statistics)"}
+> In statistics, the term higher-order statistics (HOS) refers to functions which use the third or higher power of a sample, as opposed to more conventional techniques of lower-order statistics, which use constant, linear, and quadratic terms (zeroth, first, and second powers). The third and higher moments, as used in the skewness and kurtosis, are examples of HOS, whereas the first and second moments, as used in the arithmetic mean (first), and variance (second) are examples of low-order statistics.
+
+:::
 
 (See figure 13 of {cite:alp}`Portilla2000-param-textur`.)
 
 Excerpt from paper: _"Figure 13 shows two pairs of counterexamples that have been used to refute the Julesz conjecture. \[13a and 13b were \] originally created by Julesz et al. (1978): they have identical third-order pixel statistics, but are easily discriminated by human observers. Our model succeeds, in that it can reproduce the visual appearance of either of these textures. In particular, we have seen that the strongest statistical difference arises in the magnitude correlation statistics. The rightmost pair were constructed by Yellott (1993), to have identical sample autocorrelation. Again, our model does not confuse these, and can reproduce the visual appearance of either one."_
+
+Thus, by being able to distinguish these pairs of images, this model is able to reproduce an important result from the literature of human texture discrimination.
 
 ```{code-cell} ipython3
 # Run on fig13a, fig13b, fig13c, fig13d to replicate examples in paper

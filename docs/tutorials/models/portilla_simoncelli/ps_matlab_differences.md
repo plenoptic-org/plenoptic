@@ -21,7 +21,7 @@ import pooch
 # don't need to show warning about setting up optimizer
 warnings.filterwarnings(
     "ignore",
-    message="You will need to call setup() to instantiate optimizer",
+    message="You will need to call setup",
     category=UserWarning,
 )
 
@@ -72,7 +72,8 @@ plt.rcParams["figure.dpi"] = 72
 po.tools.set_seed(1)
 ```
 
-:::{attention}
+:::{admonition} This notebook retrieves cached synthesis results
+:class: warning dropdown
 As with the other Portilla-Simoncelli notebooks, we have cached the results of synthesis online and only download them for investigation in this notebook.
 
 Additionally, while you can normally call {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` again to pick up where we left out, the cached version of the results discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
@@ -81,16 +82,22 @@ Additionally, while you can normally call {func}`~plenoptic.synthesize.metamer.M
 
 1. **Optimization**. The matlab implementation of texture synthesis is designed specifically for the texture model.  Gradient descent is performed on subsets of the texture statistics in a particular sequence (coarse-to-fine, etc.). The plenoptic implementation relies on the auto-differentiation and optimization tools available in pytorch.  We only define the forward model and then allow pytorch to handle the optimization.
 
-    Why does this matter? We have qualitatively reproduced the results but cannot guarantee exact reproducibility. This means that, in general, metamers synthesized by the two versions will differ, though we believe that the metamers synthesized by plenoptic are better (see [](ps-optimization) for more discussion).
+    Why does this matter? We have qualitatively reproduced the results but cannot guarantee exact reproducibility of synthesis from the matlab implementation. This means that, in general, metamers synthesized by the two versions will differ, though we believe that the metamers synthesized by plenoptic have a lower loss (see [](ps-optimization) for more discussion).
 
-    In particular, in order for synthesis to find good results, we use a custom loss function that reweights the model's output. This is described in more detail in the [](ps-optimization) notebook, but in short: we upweight the variance of the highpass residuals (which are matched very quickly with very high precision by the matlab algorithm) and remove the pixel minimum and maximum from the gradient computation (the min and max have very strange gradients and are better captured through the range penalty that is built into the {class}`~plenoptic.synthesize.metamer.Metamer` class).
+    In particular, in order for synthesis to find good results, we use a custom loss function that reweights the model's output. This is described in more detail in the [](ps-optimization) notebook, but in short: we upweight the variance of the highpass residuals and remove the pixel minimum and maximum from the gradient computation (this constraint is instead captured through the range penalty that is built into the {class}`~plenoptic.synthesize.metamer.Metamer` class).
 
-3. **Lack of redundant statistics**. As described in the next section, we output a different number of statistics than the Matlab implementation. The number of statistics returned in `plenoptic` matches the number of statistics reported in the paper, unlike the Matlab implementation. That is because the Matlab implementation included many redundant statistics, which were either exactly redundant (e.g., symmetric values in an auto-correlation matrix), placeholders (e.g., some 0s to make the shapes of the output work out), or not mentioned in the paper. The implementation included in `plenoptic` returns only the necessary statistics. See the next section for more details.
+3. **Lack of redundant statistics**. As described [below](ps-redundant-stats), we output a different number of statistics than the Matlab implementation. The number of statistics returned in `plenoptic` matches the number of statistics reported in the paper, unlike the Matlab implementation. That is because the Matlab implementation included many redundant statistics, which were either exactly redundant (e.g., symmetric values in an auto-correlation matrix), placeholders (e.g., some 0s to make the shapes of the output work out), or not mentioned in the paper. The implementation included in `plenoptic` returns only the necessary statistics.
 
-4. **True correlations**. In the [Matlab implementation of Portilla Simoncelli statistics](https://github.com/LabForComputationalVision/textureSynth), the auto-correlation, cross-scale and cross-orientation statistics are based on co-variance matrices.  When using `torch` to perform optimization, this makes convergence more difficult. We thus normalize each of these matrices, dividing the auto-correlation matrices by their center values (the variance) and the cross-correlation matrices by the square root of the product of the appropriate variances (so that we match [numpy.corrcoef](https://numpy.org/doc/stable/reference/generated/numpy.corrcoef.html)). This means that the center of the auto-correlations and the diagonals of `cross_orientation_correlation_magnitude` are always 1 and are thus excluded from the representation, as discussed above. We have thus added two new statistics, `std_reconstructed` and `magnitude_std` (the standard deviation of the reconstructed lowpass images and the standard deviation of the magnitudes of each steerable pyramid band), to compensate (see Note at end of cell). Note that the cross-scale correlations have no redundancies and do not have 1 along the diagonal. For the `cross_orientation_correlation_magnitude`, the value at $A_{i,j}$ is the correlation between the magnitudes at orientation $i$ and orientation $j$ at the *same* scale, so that $A_{i,i}$ is the correlation of a magnitude band with itself, i.e., $1$. However, for `cross_scale_correlation_magnitude`, the value at $A_{i,j}$ is the correlation between the magnitudes at orientation $i$ and orientation $j$ at *two adjacent scales*, and thus $A_{i,i}$ is *not* the correlation of a band with itself; it is thus informative.
+(ps-true-correlations)=
+4. **True correlations**. In the [Matlab implementation of Portilla Simoncelli statistics](https://github.com/LabForComputationalVision/textureSynth), the auto-correlation, cross-scale and cross-orientation statistics are based on co-variance matrices.  When using `torch` to perform optimization, this makes convergence more difficult. We thus normalize each of these matrices, dividing the auto-correlation matrices by their center values (the variance) and the cross-correlation matrices by the square root of the product of the appropriate variances (so that we match [numpy.corrcoef](https://numpy.org/doc/stable/reference/generated/numpy.corrcoef.html)). This means that the center of the auto-correlations and the diagonals of `cross_orientation_correlation_magnitude` are always 1 and are thus excluded from the representation, as discussed above. We have thus added two new statistics, `std_reconstructed` and `magnitude_std` (the standard deviation of the reconstructed lowpass images and the standard deviation of the magnitudes of each steerable pyramid band), to compensate. Note that the cross-scale correlations have no redundancies and do not have 1 along the diagonal. For the `cross_orientation_correlation_magnitude`, the value at $A_{i,j}$ is the correlation between the magnitudes at orientation $i$ and orientation $j$ at the *same* scale, so that $A_{i,i}$ is the correlation of a magnitude band with itself, i.e., $1$. However, for `cross_scale_correlation_magnitude`, the value at $A_{i,j}$ is the correlation between the magnitudes at orientation $i$ and orientation $j$ at *two adjacent scales*, and thus $A_{i,i}$ is *not* the correlation of a band with itself; it is thus informative.
 
-Note: We use standard deviations, instead of variances, because the value of the standard deviations lie within approximately the same range as the other values in the model's representation, which makes optimization work better.
+    :::{admonition} Why standard deviation and not variance?
+    :class: dropdown hint
 
+    We use standard deviations, instead of variances, because the value of the standard deviations lie within approximately the same range as the other values in the model's representation, which makes optimization work better.
+    :::
+
+(ps-redundant-stats)=
 ## Redundant statistics
 
 The original Portilla-Simoncelli paper presents formulas to obtain the number of statistics in each class from the model parameters `n_scales` <!-- skip-lint -->, `n_orientations` and `spatial_corr_width` (labeled in the original paper $N$, $K$, and $M$ respectively). The formulas indicate the following statistics for each class:
@@ -102,15 +109,18 @@ The original Portilla-Simoncelli paper presents formulas to obtain the number of
 
 In particular, the paper reads _"For our texture examples, we have made choices of N = 4, K = 4 and M = 7, resulting in a total of 710 parameters"_. However, the output of the Portilla-Simoncelli code in [Matlab](https://github.com/LabForComputationalVision/textureSynth) contains 1784 elements for these values of $N$, $K$ and $M$. The discrepancy is because the Matlab output includes redundant statistics, placeholder values, and statistics not used during synthesis. The `plenoptic` output on the other hand returns only the essential statistics, and its output is in agreement with the papers formulas.
 
-The redundant statistics that are removed by the `plenoptic` package but that are present in the Matlab code are as follows:
+1) **Auto-correlation reconstructed**: An auto-covariance matrix $A$ encodes the covariance of the elements in a signal and their neighbors. Indexing the central auto-covariance element as $A_{0,0}$, element $A_{i,j}$ contains the covariance of the signal with it's neighbor at a displacement $i,j$. Because auto-correlation matrices are [even functions](https://en.wikipedia.org/wiki/Autocorrelation#Symmetry_property), they have a symmetry where $A_{i,j}=A_{-i,-j}$ which means that every element except the central one ($A_{0,0}$, the variance) is duplicated. Thus, in an autocorrelation matrix of size $M \times M$, there are $\frac{M^2+1}{2}$ non-redundant elements (see this ratio appear in the  auto-correlation statistics formulas above). The Matlab code returns the full auto-covariance matrices, that is, $M^2$ instead of $\frac{M^2+1}{2}$ elements for each covariance matrix.
 
-1) **Auto-correlation reconstructed**: An auto-covariance matrix $A$ encodes the covariance of the elements in a signal and their neighbors. Indexing the central auto-covariance element as $A_{0,0}$, element $A_{i,j}$ contains the covariance of the signal with it's neighbor at a displacement $i,j$. Because auto-correlation matrices are [even functions](https://en.wikipedia.org/wiki/Autocorrelation#Symmetry_property), they have a symmetry where $A_{i,j}=A_{-i,-j}$ which means that every element except the central one ($A_{0,0}$, the variance) is duplicated (see Note at end of cell). Thus, in an autocorrelation matrix of size $M \times M$, there are $\frac{M^2+1}{2}$ non-redundant elements (see this ratio appear in the  auto-correlation statistics formulas above). The Matlab code returns the full auto-covariance matrices, that is, $M^2$ instead of $\frac{M^2+1}{2}$ elements for each covariance matrix.
+    :::{admonition} Intuition for redundancies
+    :class: dropdown hint
+
+    This can be understood by thinking of $A_{i,0}$, the autocorrelation of every pixel and the pixel $i$ to their right. Computing this auto-covariance involves adding together all the products $I_{x,y}*I_{x+i,y}$ for every x and y in the image. But this is equivalent to computing $A_{-i,0}$, because every pair of two neighbors $i$ to the right $I_{x,y}*I_{x+i,y}$ is also a pair of neighbors $i$ to the left, $I_{x+i,y}*I_{(x+i)-i,y}=I_{x+i,y}*I_{x,y}$. So, any opposite displacements around the central element in the auto-covariance matrix will have the same value.
+    :::
+
 2) **Auto-correlation magnitude**: Same symmetry and redundancies as 1).
 3) **Cross-orientation magnitude correlation**: Covariance matrices $C$ (size $K \times K$) have symmetry $C_{i,j} = C_{j,i}$ (each off-diagonal element is duplicated, i.e., [they're symmetric](https://en.wikipedia.org/wiki/Covariance_matrix#Basic_properties)). Thus, a $K \times K$ covariance matrix has $\frac{K(K+1)}{2}$ non-redundant elements. However, the diagonal elements of the cross-orientation correlations are variances, which are already contained in the central elements of the auto-correlation magnitude matrices. Thus, these covariances only hold $\frac{K(K-1)}{2}$ non-redundant elements (see this term in the formulas above). The Matlab code returns the full covariances (with $K^2$ elements) instead of the non-redundant ones. Also, the Matlab code returns an extra covariance matrix full of 0's not mentioned in the paper ($(N+1)$ matrices instead of $(N)$).
 4) **Cross-scale real correlation (phase statistics)**: Phase statistics contain the correlations between the $K$ real orientations at a scale with the $2K$ real and imaginary phase-doubled orientations at the following scale, making a total of $K \times 2K=2K^2$ statistics (see this term in the formulas above). However, the Matlab output has matrices of size $2K \times 2K$, where half of the matrices are filled with 0's. Also, the paper counts the $(N-1)$ pairs of adjacent scales, but the Matlab output includes $N$ matrices. The `plenoptic` output removes the 0's and the extra matrix.
-5) **Statistics not in paper**: The Matlab code outputs the mean magnitude of each band and cross-orientation real correlations, but these are not enumerated in the paper. These statistics are removed in `plenoptic`. See the next section for some more detail about the magnitude means.
-
-Note: This can be understood by thinking of $A_{i,0}$, the autocorrelation of every pixel and the pixel $i$ to their right. Computing this auto-covariance involves adding together all the products $I_{x,y}*I_{x+i,y}$ for every x and y in the image. But this is equivalent to computing $A_{-i,0}$, because every pair of two neighbors $i$ to the right $I_{x,y}*I_{x+i,y}$ is also a pair of neighbors $i$ to the left, $I_{x+i,y}*I_{(x+i)-i,y}=I_{x+i,y}*I_{x,y}$. So, any opposite displacements around the central element in the auto-covariance matrix will have the same value.
+5) **Statistics not in paper**: The Matlab code outputs the mean magnitude of each band and cross-orientation real correlations, but these are not enumerated in the paper. These statistics are removed in `plenoptic`. See [below](ps-mag-means) for some more detail about the magnitude means.
 
 As shown below, the output of `plenoptic` matches the number of statistics indicated in the paper:
 
@@ -128,16 +138,16 @@ stats = model(img)
 print(f"Stats for N=4, K=4, M=7: {stats[0].shape[1]} statistics")
 ```
 
-`plenoptic` allows to convert the tensor of statistics into a dictionary containing matrices, similar to the Matlab output. In this dictionary, the redundant statistics are indicated with `NaN`s. We print one of the auto-correlation matrices showing the redundant elements it contains:
+`plenoptic` allows users to convert the tensor of statistics into a dictionary containing matrices, similar to the Matlab output. In this dictionary, the redundant statistics are indicated with `NaN`s. We print one of the auto-correlation matrices showing the redundant elements it contains:
 
 ```{code-cell} ipython3
 stats_dict = model.convert_to_dict(stats)
-s = 1
-o = 2
-print(stats_dict["auto_correlation_magnitude"][0, 0, :, :, s, o])
+scale = 1
+ori = 2
+print(stats_dict["auto_correlation_magnitude"][0, 0, :, :, scale, ori])
 ```
 
-We see in the output above that both the upper triangular part of the matrix, and the diagonal elements from the center onwards are redundant, as indicated in the text above. Note that although the central element is not redundant in auto-covariance matrices, when the covariances are converted to correlations, the central element is 1, and so uninformative (see previous section for more information).
+We see in the output above that both the upper triangular part of the matrix, and the diagonal elements from the center onwards are redundant, as indicated in the text above. Note that although the central element is not redundant in auto-covariance matrices, when the covariances are converted to correlations, the central element is 1, and so uninformative (see [above](ps-true-correlations) for more information).
 
 We can count how many statistics are in this particular class:
 
@@ -211,14 +221,15 @@ phase_statistics_num = torch.sum(
 print(f"Phase statistics: {phase_statistics_num} parameters, compared to 96 in paper")
 ```
 
+(ps-mag-means)=
 ## Magnitude means
 
-The mean of each magnitude band are slightly different from the redundant statistics discussed in the previous section. Each of those statistics are exactly redundant, e.g., the center value of an autocorrelation matrix will always be 1. They thus cannot include any additional information. However, the magnitude means are only *approximately* redundant and thus could improve the texture representation. The authors excluded these values because they did not seem to be necessary: the magnitude means are constrained by the other statistics (though not perfectly), and thus including them does not improve the visual quality of the synthesized textures.
+The mean of each magnitude band are slightly different from the redundant statistics discussed in the previous section. Each of those statistics are exactly redundant, e.g., the center value of an autocorrelation matrix will always be 1. They thus cannot include any additional information. However, the magnitude means are not redundant in this manner and thus could improve the texture representation. The authors excluded these values because they did not seem to be necessary: the magnitude means are constrained by the other statistics (in particular, the standard deviations of the [magnitudes](ps-mag-corrs) and of the [reconstructed lowpass images](ps-coeff-corrs)), and thus including them does not improve the visual quality of the synthesized textures. We can thus think of them as "approximately" or "statistically" redundant.
 
 To demonstrate this, we will create a modified version of the `PortillaSimoncelli` <!-- skip-lint --> class which includes the magnitude means to demonstrate:
 
 1. Even without explicitly including them in the texture representation, they are still approximately matched between the original and synthesized texture images.
-2. Including them in the representation does not significantly change the quality of the synthesized texture.
+2. Including them in the representation does not significantly improve the perceptual quality of the synthesized texture.
 
 First, let's create the modified model:
 

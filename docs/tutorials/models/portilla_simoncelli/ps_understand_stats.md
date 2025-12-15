@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.3
+    jupytext_version: 1.17.2
 kernelspec:
   display_name: plenoptic
   language: python
@@ -21,7 +21,7 @@ import pooch
 # don't need to show warning about setting up optimizer
 warnings.filterwarnings(
     "ignore",
-    message="You will need to call setup() to instantiate optimizer",
+    message="You will need to call setup",
     category=UserWarning,
 )
 
@@ -43,15 +43,18 @@ Download this notebook: **{nb-download}`ps_understand_stats.ipynb`**!
 The Portilla-Simoncelli consists of a few different classes of statistics:
 
 - Marginal Statistics.  These include pixel statistics (mean, variance, skew, kurtosis, and range of the pixel values), as well as the skewness and kurtosis of the lowpass images computed at each level of the recursive pyramid decomposition.
-- Auto-Correlation Statistics.  These include the auto-correlation of the real-valued pyramid bands, as well as the auto-correlation of the magnitude of the pyramid bands, and the mean of the magnitude of the pyramid bands.
-- Cross-Correlation Statistics.  These include correlations across scale and across orientation bands of the pyramid (both for the real values of the pyramid and for the magnitude of the pyramid bands).
+- Auto-Correlation Statistics.  These include the auto-correlation of the real-valued [steerable pyramid bands](steer-pyr-bands), as well as the auto-correlation of the magnitude of the pyramid bands, and the mean of the magnitude of the pyramid bands.
+- Cross-Correlation Statistics.  These include correlations across scale and across orientation bands of the steerable pyramid (both for the real values of the pyramid and for the magnitude of the pyramid bands).
 
 The original paper uses synthesis to demonstrate the role of these different types of statistics.  They show that the statistics can be used to constrain a synthesis optimization to generate new examples of textures.  They also show that the absence of subsets of statistics results in synthesis failures.  Here we replicate those results.
 
-:::{admonition} Reproducibility
-:class: warning
+:::{admonition} Reproducing the metamers in this notebook
+:class: warning dropdown
 
-Due to pytorch's limitations, we [cannot guarantee perfect reproducibility](reproduce). However, the steps shown below have, in our experience, reliably led to good model metamers synthesized in a reasonable length of time for a variety of images, and they are what we suggest. If you use follow these basic steps and **are not** able to successfully synthesize a good model metamer, please post on our [discussion board](https://github.com/plenoptic-org/plenoptic/discussions/) and we'll try to help!
+Due to pytorch's limitations, we [cannot guarantee perfect reproducibility](reproduce).
+However, we've found the setup shown in this notebook works reliably across different images and produce good metamers efficiently.
+
+If you use follow these basic steps and **are not** able to successfully synthesize a good `PortillaSimoncelli` <!-- skip-lint --> model metamer, please post on our [discussion board](https://github.com/plenoptic-org/plenoptic/discussions/) and we'll try to help!
 
 See [](ps-optimization) for more information about the specific decisions taken around optimization, including what "good" means.
 
@@ -86,10 +89,11 @@ plt.rcParams["figure.dpi"] = 72
 po.tools.set_seed(1)
 ```
 
-:::{attention}
-This notebook contains many metamers and, while any one synthesis operation does not take too long, all of them combined result in a lengthy notebook. Therefore, we have cached the result of most of these syntheses online and only download them for investigation in this notebook.
+:::{admonition} This notebook retrieves cached synthesis results
+:class: warning dropdown
+This notebook contains many metamers and, while any one synthesis operation does not take too long, all of them combined result in a lengthy notebook. Therefore, instead of performing synthesis in this notebook, we have cached the result of most of these syntheses online and only download them for investigation.
 
-Additionally, while you can normally call {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` again to pick up where we left out, the cached version of the results discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
+Additionally, while you can normally call {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` again to pick up where we left out, the cached version of the results shown here discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
 
 :::
 
@@ -98,11 +102,9 @@ In order to do reproduce those results, we create a version of the Portilla Simo
 ```{code-cell} ipython3
 :tags: [hide-cell]
 
-#  The following class extends the PortillaSimoncelli model so that you can specify
+# The following class extends the PortillaSimoncelli model so that you can specify
 # which statistics you would like to remove.  We have created this model so that we
 # can examine the consequences of the absence of specific statistics.
-
-#  Be sure to run this cell.
 
 
 class PortillaSimoncelliRemove(po.simul.PortillaSimoncelli):
@@ -156,16 +158,16 @@ class PortillaSimoncelliRemove(po.simul.PortillaSimoncelli):
         # convert to dict so it's easy to zero out the keys we don't care about
         stats_dict = self.convert_to_dict(stats_vec)
         for kk in self.remove_keys:
-            # we zero out the stats (instead of removing them) because removing them
-            # makes it difficult to keep track of which stats belong to which scale
-            # (which is necessary for coarse-to-fine synthesis) -- see discussion above.
+            # we zero out the stats (instead of removing them) so that we can use all
+            # the various helper functions (plot_representation, convert_to_dict,
+            # convert_to_tensor) without any problems
             if isinstance(stats_dict[kk], OrderedDict):
                 for key, val in stats_dict[kk].items():
                     stats_dict[kk][key] *= 0
             else:
                 stats_dict[kk] *= 0
         # then convert back to tensor and remove any scales we don't want
-        # (for coarse-to-fine)  -- see discussion above.
+        # (for coarse-to-fine)
         stats_vec = self.convert_to_tensor(stats_dict)
         if scales is not None:
             stats_vec = self.remove_scales(stats_vec, scales)
@@ -262,6 +264,7 @@ po.synth.metamer.plot_pixel_values(met_remove, ax=fig.axes[4])
 fig.axes[4].set_title("Without marginal statistics")
 ```
 
+(ps-coeff-corrs)=
 ## Coefficient Correlations
 
 In this section, we'll replicate examples of synthesis failures with the following statistics removed:
@@ -339,7 +342,7 @@ po.imshow(
 );
 ```
 
-And we can double check the error plots to see the difference in their representations. The first figure shows the error for the metamer created without the correlation statistics (at right above), while the second shows the error for the metamer created with all statistics (center), and we can see that larger error in the first plot in the middle row in the first figure, especially the center plot, `auto_correlation_reconstructed`, since these statistics are unconstrained for the synthesis done by `met_remove`. (Note we have to use `model` <!-- skip-lint -->, not `model_remove` to create these plots, since `model_remove` doesn't contain them.)
+And we can double check the error plots to see the difference in their representations. The first figure shows the error for the metamer created without the correlation statistics (at right above), while the second shows the error for the metamer created with all statistics (center), and we can see that larger error in the first plot in the middle row in the first figure, especially the center plot, `auto_correlation_reconstructed`, since these statistics are unconstrained for the synthesis done by `met_remove`.
 
 ```{code-cell} ipython3
 fig, _ = model.plot_representation(
@@ -357,6 +360,7 @@ fig, _ = model.plot_representation(
 fig.suptitle("Full statistics")
 ```
 
+(ps-mag-corrs)=
 ## Magnitude Correlation
 
 In this section, we'll replicate examples of synthesis failures with the following statistics removed:

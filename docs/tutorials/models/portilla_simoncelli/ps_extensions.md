@@ -21,7 +21,7 @@ import pooch
 # don't need to show warning about setting up optimizer
 warnings.filterwarnings(
     "ignore",
-    message="You will need to call setup() to instantiate optimizer",
+    message="You will need to call setup",
     category=UserWarning,
 )
 
@@ -42,10 +42,13 @@ Download this notebook: **{nb-download}`ps_extensions.ipynb`**!
 
 This notebook shows several uses of the Portilla-Simoncelli model metamer synthesis beyond just creating more textures: extrapolating an image and creating mixtures of two textures.
 
-:::{admonition} Reproducibility
-:class: warning
+:::{admonition} Reproducing the metamers in this notebook
+:class: warning dropdown
 
-Due to pytorch's limitations, we [cannot guarantee perfect reproducibility](reproduce). However, the steps shown below have, in our experience, reliably led to good model metamers synthesized in a reasonable length of time for a variety of images, and they are what we suggest. If you use follow these basic steps and **are not** able to successfully synthesize a good model metamer, please post on our [discussion board](https://github.com/plenoptic-org/plenoptic/discussions/) and we'll try to help!
+Due to pytorch's limitations, we [cannot guarantee perfect reproducibility](reproduce).
+However, we've found the setup shown in this notebook works reliably across different images and produce good metamers efficiently.
+
+If you use follow these basic steps and **are not** able to successfully synthesize a good `PortillaSimoncelli` <!-- skip-lint --> model metamer, please post on our [discussion board](https://github.com/plenoptic-org/plenoptic/discussions/) and we'll try to help!
 
 See [](ps-optimization) for more information about the specific decisions taken around optimization, including what "good" means.
 
@@ -78,10 +81,11 @@ plt.rcParams["figure.dpi"] = 72
 po.tools.set_seed(1)
 ```
 
-:::{attention}
-This notebook contains many metamers and, while any one synthesis operation does not take too long, all of them combined result in a lengthy notebook. Therefore, we have cached the result of most of these syntheses online and only download them for investigation in this notebook.
+:::{admonition} This notebook retrieves cached synthesis results
+:class: warning dropdown
+This notebook contains many metamers and, while any one synthesis operation does not take too long, all of them combined result in a lengthy notebook. Therefore, instead of performing synthesis in this notebook, we have cached the result of most of these syntheses online and only download them for investigation.
 
-Additionally, while you can normally call {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` again to pick up where we left out, the cached version of the results discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
+Additionally, while you can normally call {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` again to pick up where we left out, the cached version of the results shown here discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
 
 :::
 

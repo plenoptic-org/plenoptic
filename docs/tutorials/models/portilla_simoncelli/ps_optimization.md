@@ -17,7 +17,7 @@ For the texture model, good metamer synthesis also means that, when your target 
 2. Belongs to the same perceptual texture class as the target.
 3. Is not identical to the original image.
 
-In an ideal world, these criteria would be identical to "has a low loss value". However, the Portilla-Simoncelli texture statistics are not all of equal perceptual importance: the **variance of the highpass residuals**, for example, is related to the presence of high frequencies in the image, where are present in the white noise samples used to initialize metamer synthesis, but which are largely absent from natural images. This statistic only makes a small contribution to the overall loss, but is very important to metamer perceptual quality, which is important for the results laid out in this notebook.
+In an ideal world, these criteria would be identical to "has a low loss value". However, the Portilla-Simoncelli texture statistics are not all of equal perceptual importance: the **variance of the highpass residuals**, for example, is related to the magnitude of high spatial frequencies in the image, where are much larger in the white noise samples used to initialize metamer synthesis than in natural images. This statistic only makes a small contribution to the overall loss, but is very important to metamer perceptual quality, which is important for the results laid out in this notebook.
 
 And note, as discussed in [](ps-limitations), this model was developed to align with human perception **only for textures**. Matching the Portilla-Simoncelli model output on a non-texture image will almost certainly not meet the first two desiderata in the list above.
 
@@ -32,7 +32,7 @@ By default, {class}`~plenoptic.synthesize.metamer.Metamer` uses the {class}`~tor
 
 In our experiments, using LBFGS results in lower loss for a given duration of synthesis time than using Adam or the original MATLAB code, across a variety of target images and initializations. Additionally, the loss continues to decrease beyond the point when the alternatives have started to converge.
 
-LBFGS has many keyword arguments that users are able to tweak. From our experiments, we found that the following dictionary performs best:
+LBFGS has many keyword arguments that users are able to tweak. From our experiments, we found that the following dictionary does a good job of balancing the tradeoff between reducing the loss as far as possible and overall synthesis duration:
 
 ```{code-block} python
 opt_kwargs = {
@@ -57,30 +57,14 @@ Finally, as with all iterative optimization procedures, we must decide how long 
 
 If you are interested, more details about the experiments that lead to the above recommendations can be found in [Issue #365](https://github.com/plenoptic-org/plenoptic/issues/365).
 
-(threads)=
-## Threads and CPU efficiency
-
-PyTorch allows users to control the number of [threads](https://en.wikipedia.org/wiki/Thread_(computing)) used for parallelism on the CPU. By default, pytorch seems to be greedy, grabbing more threads than are helpful, especially if you are running several less memory-intensive jobs (like Portilla-Simoncelli metamer synthesis) at once. This problem is exacerbated when using the LBFGS optimizer.
-
-Thus, we have found that CPU-only performance can be increased by about three times when doing the following to restrict the number of threads:
-
-- Put {func}`torch.set_num_threads(1) <torch.set_num_threads>` at the top of your script.
-- Set the `OMP_NUM_THREADS` environment variable to 1 (this controls the number of threads available to [OpenMP]((https://docs.pytorch.org/tutorials/recipes/recipes/tuning_guide.html#utilize-openmp))). This can be done on the command-line by prepending `OMP_NUM_THREADS=1` before calling python (or ipython or jupyter or however you run your scripts), e.g., `OMP_NUM_THREADS=1 python my_awesome_script.py` or by adding the following at the top of your script:
-    ```{code-block} python
-    import os
-    os.environ["OMP_NUM_THREADS"] = 1
-    ```
-
-In practice, you are encouraged to experiment with the two above settings to find the best configuration for your problem.
-
 (ps-loss-function)=
 ## Custom loss function
 
 When using the LBFGS optimizer configured as described above, plenoptic's Portilla-Simoncelli metamer synthesis has a lower loss in every component than the MATLAB implementation, with the notable exception of the variance of highpass residuals. The two synthesis implementations (as discussed in [](ps-mat-diffs)) are very different from each other: the MATLAB code does something akin to coordinate descent, where it optimizes each set of statistics separately, whereas the plenoptic code optimizes all of them together by trying to minimize the overall loss. This results in plenoptic weighting each statistic approximately equally and thus, implicitly, being considered equally important. They thus each have an approximately equal error at any given moment during synthesis, whereas the MATLAB code drops the error in the variance of the highpass residuals *incredibly* rapidly, matching it with much higher precision than the other statistics.
 
-In order to make plenoptic's synthesis perform similarly, we need to make this statistic more important than the others. We do this by using a custom loss function which reweights the representation of each image before computing the L2-norm of the difference these representations. We do this using the {func}`~plenoptic.tools.optim.portilla_simoncelli_loss_factory` function, which takes in an instance of the {class}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` model and an image, and returns a loss function. (This is necessary because the shape of the model output depends on the parameters used to initialize it.)
+In order to make plenoptic's synthesis perform similarly, we need to make this statistic more important than the others. We do this by using a custom loss function which reweights the representation of each image before computing the L2-norm of the difference these representations. We do this using a custom loss function which reweights the representation of each image before computing the L2-norm of the difference. See {func}`~plenoptic.tools.optim.portilla_simoncelli_loss_factory` for more details.
 
-We use a similar trick to remove the image's minimum and maximum from the loss, since their gradients are strangely behaved: when computing `torch.max(x, a)`, the gradient is 1 if `x>a` and 0 if `x<a` (and analogously for min). Thus, having many pixels outside the target range will overwhelm the gradient and changing the pixels by a small amount won't affect the gradient at all, making it a difficult problem in optimize. In practice, LBFGS gets stuck when there are many pixels outside the target range, and the range penalty whose behavior is determined by the initialization of  {class}`~plenoptic.synthesize.metamer.Metamer` accomplishes the same task.
+We use a similar trick to remove the image's minimum and maximum from the loss, since these non-differentiable functions make optimization unstable. The range penalty handles this constraint instead.
 
 To see what this looks like, here is how you could create the custom loss function directly:
 
@@ -104,11 +88,26 @@ met = po.synth.Metamer(image, model, loss_function=loss)
 
 This function makes use of the {func}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.convert_to_dict` and {func}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.convert_to_tensor` methods, which allow us to convert the Portilla-Simoncelli model representation from the standard vector form into a more structured dictionary form and vice versa.
 
-{func}`~plenoptic.tools.optim.portilla_simoncelli_loss_factory` allows the user to specify the weights on the image's min/max and variance of the highpass residuals, though we do not expect this to be necessary.
-
 :::{admonition} How would I do this for my own model?
 :class: hint
 
 For your own model, you could do something similar to the above to reweight your model representation as needed. However, you could also simply change the representation of your model, performing the reweighting in your model's `forward` <!-- skip-lint --> method. We did not do that because we want our representation to match that of the original MATLAB implementation. Using a reweighting function may also make testing out a variety of weights more straightforward.
 
+We also recommend reading [](tips-model-tweak) for more information.
 :::
+
+(threads)=
+## Parallelism and CPU efficiency
+
+PyTorch allows users to control the number of [threads](https://en.wikipedia.org/wiki/Thread_(computing)) used for parallelism on the CPU. By default, pytorch seems to be greedy, grabbing more threads than are helpful, especially if you are running several less memory-intensive jobs (like Portilla-Simoncelli metamer synthesis) at once. This problem is exacerbated when using the LBFGS optimizer.
+
+Thus, we have found that CPU-only performance can be increased by about three times when doing the following to restrict the number of threads:
+
+- Put {func}`torch.set_num_threads(1) <torch.set_num_threads>` at the top of your script.
+- Set the `OMP_NUM_THREADS` environment variable to 1 (this controls the number of threads available to [OpenMP]((https://docs.pytorch.org/tutorials/recipes/recipes/tuning_guide.html#utilize-openmp))). This can be done on the command-line by prepending `OMP_NUM_THREADS=1` before calling python (or ipython or jupyter or however you run your scripts), e.g., `OMP_NUM_THREADS=1 python my_awesome_script.py` or by adding the following at the top of your script:
+    ```{code-block} python
+    import os
+    os.environ["OMP_NUM_THREADS"] = 1
+    ```
+
+In practice, you are encouraged to experiment with the two above settings to find the best configuration for your problem.
