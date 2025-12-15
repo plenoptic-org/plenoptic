@@ -88,7 +88,7 @@ display_images(im_files, "Natural textures")
 
 ```{code-cell} ipython3
 im_files = [IMG_PATH / f"fig{num}.jpg" for num in artificial]
-display_images(im_files, "Articial textures")
+display_images(im_files, "Artificial textures")
 ```
 
 ```{code-cell} ipython3
