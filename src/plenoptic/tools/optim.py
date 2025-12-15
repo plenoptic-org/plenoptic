@@ -448,6 +448,18 @@ def portilla_simoncelli_loss_factory(
     ValueError
         If ``reweighting_dict`` contains keys not found in the model representation
         (``model.convert_to_dict(model(image))``).
+    ValueError
+        If model representation (``model.convert_to_dict(model(image))``) includes the
+        key ``"pixel_statistics"`` but the corresponding tensor does not have
+        ``shape[-1] == 6`` or if it includes the key ``"var_highpass_residual"`` but the
+        corresponding tensor does not have ``shape[-1] == 1`` and the corresponding key
+        is not included explicitly in ``reweighting_dict``.
+
+    Warns
+    -----
+    UserWarning
+        If model representation (``model.convert_to_dict(model(image))``) does not
+        include the keys ``"pixel_statistics"`` or ``"var_highpass_residual"``.
 
     Examples
     --------
@@ -494,7 +506,7 @@ def portilla_simoncelli_loss_factory(
     tensor(35.9753)
 
     Use ``reweighting_dict`` to include min/max in the loss and increase the importance
-    of the variance of highpass residuals.
+    of the standard deviations of the magnitude bands.
 
     >>> import plenoptic as po
     >>> import torch
@@ -512,14 +524,44 @@ def portilla_simoncelli_loss_factory(
     if reweighting_dict is None:
         reweighting_dict = {}
     weights = model.convert_to_dict(torch.ones_like(model(image)))
-    pixel_stats = torch.ones_like(weights["pixel_statistics"])
-    pixel_stats[..., -2:] = 0
-    reweighting_dict.setdefault("pixel_statistics", pixel_stats)
-    reweighting_dict.setdefault("var_highpass_residual", 100)
+    # do this before adding defaults for pixel_stats and var_highpass_residual
     if extra_keys := set(reweighting_dict.keys()) - set(weights.keys()):
         raise ValueError(
             "reweighting_dict contains key(s) not found in model representation! "
             f"{extra_keys}"
+        )
+    if "pixel_statistics" in weights:
+        pixel_stats = torch.ones_like(weights["pixel_statistics"])
+        pixel_stats[..., -2:] = 0
+        if pixel_stats.shape[-1] != 6 and "pixel_statistics" not in reweighting_dict:
+            raise ValueError(
+                "Expected model's 'pixel_statistics' representation "
+                f"to have 6 values, but it has {pixel_stats.shape[-1]}"
+                " values instead! Unsure what corresponds to the "
+                "min/max, set this directly in reweighting_dict"
+            )
+        reweighting_dict.setdefault("pixel_statistics", pixel_stats)
+    else:
+        warnings.warn(
+            "pixel_statistics not found in your model representation, "
+            "continuing without removing them. Hope you know what "
+            "you're doing..."
+        )
+    if "var_highpass_residual" in weights:
+        n_highpass = weights["var_highpass_residual"].shape[-1]
+        if n_highpass != 1 and "var_highpass_residual" not in reweighting_dict:
+            raise ValueError(
+                "Expected model's 'var_highpass_residual' representation "
+                f"to have 1 value, but it has {n_highpass}"
+                " values instead! Unsure how to handle this,"
+                " set directly in reweighting_dict"
+            )
+        reweighting_dict.setdefault("var_highpass_residual", 100)
+    else:
+        warnings.warn(
+            "var_highpass_residual not found in your model representation, "
+            "continuing without reweighting them. Hope you know what "
+            "you're doing..."
         )
     for k in weights:
         weights[k] *= reweighting_dict.get(k, 1)
