@@ -707,6 +707,9 @@ class TestPortillaSimoncelli:
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
     @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
+    @pytest.mark.filterwarnings(
+        "ignore:input_tensor range is:UserWarning"
+    )
     def test_ps_torch_v_matlab(
         self,
         n_scales,
