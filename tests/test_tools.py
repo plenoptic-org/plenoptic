@@ -793,6 +793,47 @@ class TestValidate:
     def test_remove_grad(self, model):
         po.tools.validate.validate_model(model, device=DEVICE)
 
+    @pytest.mark.parametrize(
+        "model",
+        ["PortillaSimoncelli"],
+        indirect=True,
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:Attempting to validate whether model can convert:UserWarning"
+    )
+    def test_convert_tensor_dict(self, model):
+        po.tools.validate.validate_convert_tensor_dict(
+            model, (1, 1, 256, 256), device=DEVICE
+        )
+
+    @pytest.mark.filterwarnings(
+        "ignore:Attempting to validate whether model can convert:UserWarning"
+    )
+    def test_convert_tensor_dict_fail(self):
+        # this model fails because we intentionally rearrange the channels
+        # in convert_to_tensor
+        class FailureModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.kernel = torch.nn.Conv2d(1, 2, (5, 5), bias=False)
+                self.kernel.weight.detach_()
+
+            def forward(self, x):
+                return self.kernel(x)
+
+            def convert_to_dict(self, rep):
+                return {f"channel_{i}": rep[:, i] for i in range(2)}
+
+            def convert_to_tensor(self, rep_dict):
+                return torch.stack(
+                    [rep_dict["channel_1"], rep_dict["channel_0"]], axis=1
+                )
+
+        model = FailureModel().to(DEVICE)
+        msg = "On random image 0, model.convert_to_dict did not invert"
+        with pytest.raises(ValueError, match=msg):
+            po.tools.validate.validate_convert_tensor_dict(model, device=DEVICE)
+
 
 class TestOptim:
     @pytest.fixture()
