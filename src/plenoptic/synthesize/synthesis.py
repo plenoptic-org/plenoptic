@@ -87,7 +87,7 @@ class Synthesis(abc.ABC):
             The path to save the synthesis object to.
         save_io_attrs
             List with tuples of form (str, (str, ...)). The first element is the name of
-            the attribute to we save, and the second element is a tuple of attributes of
+            the attribute to save, and the second element is a tuple of attributes of
             the Synthesis object, which we can pass as inputs to the attribute. We save
             them as tuples of (name, input_names, outputs). On load, we check that the
             initialized object's name hasn't changed, and that when called on the same
