@@ -187,51 +187,6 @@ class PortillaSimoncelliMask(po.simul.PortillaSimoncelli):
         return self.target * self.mask + image * (~self.mask)
 
 
-class PortillaSimoncelliMixture(po.simul.PortillaSimoncelli):
-    r"""Extend the PortillaSimoncelli model to mix two different images
-
-    Parameters
-    ----------
-    im_shape: int
-        the size of the images being processed by the model
-
-    """
-
-    def __init__(
-        self,
-        im_shape,
-    ):
-        super().__init__(im_shape, n_scales=4, n_orientations=4, spatial_corr_width=9)
-
-    def forward(self, images, scales=None):
-        r"""Average Texture Statistics representations of two image
-
-        Parameters
-        ----------
-        images : torch.Tensor
-            A 4d tensor containing one or two images to analyze, with shape (i,
-            channel, height, width), i in {1,2}.
-        scales : list, optional
-            Which scales to include in the returned representation. If an empty
-            list (the default), we include all scales. Otherwise, can contain
-            subset of values present in this model's scales attribute.
-
-        Returns
-        -------
-        representation_tensor: torch.Tensor
-            3d tensor of shape (batch, channel, stats) containing the measured
-            texture statistics.
-
-        """
-        if images.shape[0] == 2:
-            # need the images to be 4d, so we use the "1 element slice"
-            stats0 = super().forward(images[:1], scales=scales)
-            stats1 = super().forward(images[1:2], scales=scales)
-            return (stats0 + stats1) / 2
-        else:
-            return super().forward(images, scales=scales)
-
-
 class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
     r"""Include the magnitude means in the PS texture representation.
 
@@ -281,8 +236,17 @@ class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
         magnitude_means = [mag.mean((-2, -1)) for mag in magnitude_pyr_coeffs]
         return einops.pack([stats, *magnitude_means], "b c *")[0]
 
-    # overwriting these following two methods allows us to use the plot_representation
-    # method with the modified model, making examining it easier.
+    # overwriting this method is necessary for the loss factory to work
+    def convert_to_tensor(self, representation_dict: OrderedDict) -> torch.Tensor:
+        """Convert dictionary of statistics to a tensor."""
+        rep = super().convert_to_tensor(representation_dict)
+        return torch.cat(
+            [rep, representation_dict["magnitude_means"].flatten(-2, -1)], -1
+        )
+
+    # overwriting this method is necessary for the loss factory to work. overwriting
+    # this and the following method allows us to use the plot_representation method with
+    # the modified model, making examining it easier.
     def convert_to_dict(self, representation_tensor: torch.Tensor) -> OrderedDict:
         """Convert tensor of stats to dictionary."""
         n_mag_means = self.n_scales * self.n_orientations
@@ -312,7 +276,6 @@ class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
 @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only do this on cuda")
 class TestDoctest:
     def test_eigendistortion(self, einstein_img_double):
-        torch.use_deterministic_algorithms(True)
         po.tools.set_seed(0)
         os.makedirs("uploaded_files", exist_ok=True)
         torch.save(
@@ -347,7 +310,6 @@ class TestDoctest:
 class TestTutorialNotebooks:
     class TestDemoEigendistortion:
         def test_berardino_onoff(self, parrot_square_double):
-            torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             os.makedirs("uploaded_files", exist_ok=True)
             torch.save(
@@ -393,7 +355,6 @@ class TestTutorialNotebooks:
                 """standardize the image for vgg16"""
                 return (img_tensor - img_tensor.mean()) / img_tensor.std()
 
-            torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             os.makedirs("uploaded_files", exist_ok=True)
             torch.save(
@@ -446,7 +407,7 @@ class TestTutorialNotebooks:
             return fetch_data("ps_regression.tar.gz")
 
         @pytest.mark.parametrize(
-            "fn",
+            "fig_name",
             [
                 "fig4a",
                 "fig12a",
@@ -481,52 +442,52 @@ class TestTutorialNotebooks:
             ],
         )
         def test_ps_basic_synthesis(
-            self, ps_images, fn, einstein_img_double, ps_regression
+            self, ps_images, fig_name, einstein_img_double, ps_regression
         ):
-            torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             torch.save(
                 torch.random.get_rng_state(),
-                f"uploaded_files/torch_rng_state_ps_basic_{fn}.pt",
+                f"uploaded_files/torch_rng_state_ps_basic_{fig_name}.pt",
             )
             print(np.random.get_state())
-            if fn.startswith("fig"):
-                img = self.get_specific_img(*ps_images, fn)
-            elif fn == "einstein":
+            if fig_name.startswith("fig"):
+                img = self.get_specific_img(*ps_images, fig_name)
+            elif fig_name == "einstein":
                 img = einstein_img_double
             # this is a sawtooth grating, with 4 scales the steerable pyramid's
             # residual lowpass is uniform and thus correlation between it and
             # the coarsest scale is all NaNs (i.e., the last scale of
             # auto_correlation_reconstructed is all NaNs)
-            n_scales = 3 if fn == "fig12b" else 4
+            n_scales = 3 if fig_name == "fig12b" else 4
             model = po.simul.PortillaSimoncelli(img.shape[-2:], n_scales=n_scales)
-            model.to(DEVICE).to(torch.float64)
-            met = po.synth.MetamerCTF(
-                img,
-                model,
-                loss_function=po.tools.optim.l2_norm,
-                coarse_to_fine="together",
-            )
-            met.setup(
-                ((torch.rand_like(img) - 0.5) * 0.1 + img.mean()).clip(min=0, max=1)
-            )
-            met.synthesize(
-                max_iter=3000,
-                change_scale_criterion=None,
-                ctf_iters_to_check=7,
-            )
-            met.save(f"uploaded_files/ps_basic_synthesis_{fn}.pt")
-            met_up = po.synth.MetamerCTF(
-                img,
-                model,
-                loss_function=po.tools.optim.l2_norm,
-                coarse_to_fine="together",
-            )
-            met_up.load(
-                ps_regression / f"ps_basic_synthesis_{fn}.pt",
-                tensor_equality_atol=1e-7,
-                map_location=DEVICE,
-            )
+            model.to(DEVICE)
+            loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
+            met = po.synth.Metamer(img, model, loss_function=loss)
+            opt_kwargs = {
+                "max_iter": 10,
+                "max_eval": 10,
+                "history_size": 100,
+                "line_search_fn": "strong_wolfe",
+                "lr": 1,
+            }
+            met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
+            # add _lint_ignore so that our linter knows to ignore it
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+            n_iters = 150 if fig_name in ["fig12a", "fig12b"] else 100
+            met.synthesize(max_iter=n_iters)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save(f"uploaded_files/ps_basic_synthesis_{fig_name}.pt")
+            met_up = po.synth.Metamer(img, model, loss_function=loss)
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    ps_regression / f"ps_basic_synthesis_{fig_name}.pt",
+                    tensor_equality_atol=1e-7,
+                    map_location=DEVICE,
+                )
             compare_metamers(met, met_up)
 
         # make sure we fail if save load with different stats removed
@@ -536,28 +497,29 @@ class TestTutorialNotebooks:
                 img.shape[-2:], remove_keys=["pixel_statistics"]
             )
             model.to(DEVICE).to(torch.float64)
-            im_init = (torch.rand_like(img) - 0.5) * 0.1 + img.mean()
-            met = po.synth.MetamerCTF(
-                img,
-                model,
-                loss_function=po.tools.optim.l2_norm,
-                coarse_to_fine="together",
-            )
-            met.setup(im_init)
-            met.synthesize(
-                max_iter=5, change_scale_criterion=None, ctf_iters_to_check=7
-            )
+            loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
+            met = po.synth.Metamer(img, model, loss_function=loss)
+            opt_kwargs = {
+                "max_iter": 10,
+                "max_eval": 10,
+                "history_size": 100,
+                "line_search_fn": "strong_wolfe",
+                "lr": 1,
+            }
+            met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
+            init_state_dict = met.optimizer.state_dict()
+            met.synthesize(max_iter=5)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict)
             met.save(tmp_path / "test_ps_remove_fail.pt")
             model = PortillaSimoncelliRemove(
                 img.shape[-2:], remove_keys=["pixel_statistics", "skew_reconstructed"]
             )
             model.to(DEVICE).to(torch.float64)
-            met = po.synth.MetamerCTF(
-                img,
-                model,
-                loss_function=po.tools.optim.l2_norm,
-                coarse_to_fine="together",
-            )
+            met = po.synth.Metamer(img, model, loss_function=loss)
             with pytest.raises(ValueError, match="Saved and initialized model output"):
                 met.load(tmp_path / "test_ps_remove_fail.pt", map_location=DEVICE)
 
@@ -606,7 +568,6 @@ class TestTutorialNotebooks:
         )
         @pytest.mark.parametrize("remove_bool", [True, False])
         def test_ps_remove(self, ps_images, fn, stats, remove_bool, ps_regression):
-            torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             torch.save(
                 torch.random.get_rng_state(),
@@ -619,33 +580,35 @@ class TestTutorialNotebooks:
             else:
                 model = po.simul.PortillaSimoncelli(img.shape[-2:])
             model.to(DEVICE2).to(torch.float64)
-            met = po.synth.MetamerCTF(
-                img,
-                model,
-                loss_function=po.tools.optim.l2_norm,
-                coarse_to_fine="together",
-            )
-            met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
-            met.synthesize(
-                max_iter=3000, change_scale_criterion=None, ctf_iters_to_check=7
-            )
+            loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
+            met = po.synth.Metamer(img, model, loss_function=loss)
+            opt_kwargs = {
+                "max_iter": 10,
+                "max_eval": 10,
+                "history_size": 100,
+                "line_search_fn": "strong_wolfe",
+                "lr": 1,
+            }
+            met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+            met.synthesize(max_iter=100)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save(f"uploaded_files/ps_remove_{fn}_remove-{remove_bool}.pt")
-            met_up = po.synth.MetamerCTF(
-                img,
-                model,
-                loss_function=po.tools.optim.l2_norm,
-                coarse_to_fine="together",
-            )
-            met_up.load(
-                ps_regression / f"ps_remove_{fn}_remove-{remove_bool}.pt",
-                tensor_equality_atol=1e-7,
-                map_location=DEVICE2,
-            )
+            met_up = po.synth.Metamer(img, model, loss_function=loss)
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    ps_regression / f"ps_remove_{fn}_remove-{remove_bool}.pt",
+                    tensor_equality_atol=1e-7,
+                    map_location=DEVICE2,
+                )
             compare_metamers(met, met_up)
 
         @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
         def test_ps_mask(self, ps_images, ps_regression):
-            torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             torch.save(
                 torch.random.get_rng_state(),
@@ -658,31 +621,31 @@ class TestTutorialNotebooks:
             mask[..., ctr_dim[0] : 3 * ctr_dim[0], ctr_dim[1] : 3 * ctr_dim[1]] = True
             model = PortillaSimoncelliMask(img.shape[-2:], target=img, mask=mask)
             model.to(DEVICE2).to(torch.float64)
-            met = po.synth.MetamerCTF(
-                img,
-                model,
-                loss_function=po.tools.optim.l2_norm,
-                coarse_to_fine="together",
-            )
-            met.setup(
-                (torch.rand_like(img) - 0.5) * 0.1 + img.mean(),
-                optimizer_kwargs={"lr": 0.02, "amsgrad": True},
-            )
-            met.synthesize(
-                max_iter=1000, change_scale_criterion=None, ctf_iters_to_check=7
-            )
+            loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
+            met = po.synth.Metamer(img, model, loss_function=loss)
+            opt_kwargs = {
+                "max_iter": 10,
+                "max_eval": 10,
+                "history_size": 100,
+                "line_search_fn": "strong_wolfe",
+                "lr": 1,
+            }
+            met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+            met.synthesize(max_iter=100)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save("uploaded_files/ps_mask.pt")
-            met_up = po.synth.MetamerCTF(
-                img,
-                model,
-                loss_function=po.tools.optim.l2_norm,
-                coarse_to_fine="together",
-            )
-            met_up.load(
-                ps_regression / "ps_mask.pt",
-                tensor_equality_atol=1e-7,
-                map_location=DEVICE2,
-            )
+            met_up = po.synth.Metamer(img, model, loss_function=loss)
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    ps_regression / "ps_mask.pt",
+                    tensor_equality_atol=1e-7,
+                    map_location=DEVICE2,
+                )
             compare_metamers(met, met_up)
 
         @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
@@ -698,7 +661,6 @@ class TestTutorialNotebooks:
             ],
         )
         def test_ps_mixture(self, ps_images, fn, ps_regression):
-            torch.use_deterministic_algorithms(True)
             po.tools.set_seed(0)
             torch.save(
                 torch.random.get_rng_state(),
@@ -707,42 +669,42 @@ class TestTutorialNotebooks:
             print(np.random.get_state())
             img = torch.cat(
                 [
-                    self.get_specific_img(*ps_images, fn[0]),
-                    self.get_specific_img(*ps_images, fn[1]),
-                ]
+                    self.get_specific_img(*ps_images, fn[0])[..., 128:],
+                    self.get_specific_img(*ps_images, fn[1])[..., :128],
+                ],
+                -1,
             ).to(DEVICE2)
-            model = PortillaSimoncelliMixture(img.shape[-2:])
+            model = po.simul.PortillaSimoncelli(img.shape[-2:])
             model.to(DEVICE2).to(torch.float64)
-            met = po.synth.MetamerCTF(
-                img,
-                model,
-                loss_function=po.tools.optim.l2_norm,
-                coarse_to_fine="together",
-            )
-            met.setup(
-                (torch.rand_like(img[:1]) - 0.5) * 0.1 + img.mean(),
-                optimizer_kwargs={"lr": 0.02, "amsgrad": True},
-            )
-            met.synthesize(
-                max_iter=4000, change_scale_criterion=None, ctf_iters_to_check=7
-            )
+            loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
+            met = po.synth.Metamer(img, model, loss_function=loss)
+            opt_kwargs = {
+                "max_iter": 10,
+                "max_eval": 10,
+                "history_size": 100,
+                "line_search_fn": "strong_wolfe",
+                "lr": 1,
+            }
+            met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+            met.synthesize(max_iter=100)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save(f"uploaded_files/ps_mixture_{'-'.join(fn)}.pt")
-            met_up = po.synth.MetamerCTF(
-                img,
-                model,
-                loss_function=po.tools.optim.l2_norm,
-                coarse_to_fine="together",
-            )
-            met_up.load(
-                ps_regression / f"ps_mixture_{'-'.join(fn)}.pt",
-                tensor_equality_atol=1e-7,
-                map_location=DEVICE2,
-            )
+            met_up = po.synth.Metamer(img, model, loss_function=loss)
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    ps_regression / f"ps_mixture_{'-'.join(fn)}.pt",
+                    tensor_equality_atol=1e-7,
+                    map_location=DEVICE2,
+                )
             compare_metamers(met, met_up)
 
         @pytest.mark.parametrize("mag_bool", [True, False])
         def test_ps_mag_means(self, ps_images, mag_bool, ps_regression):
-            torch.use_deterministic_algorithms(True)
             po.tools.set_seed(100)
             torch.save(
                 torch.random.get_rng_state(),
@@ -757,28 +719,29 @@ class TestTutorialNotebooks:
                     img.shape[-2:], spatial_corr_width=7
                 )
             model.to(DEVICE2).to(torch.float64)
-            met = po.synth.MetamerCTF(
-                img,
-                model,
-                loss_function=po.tools.optim.l2_norm,
-                coarse_to_fine="together",
-            )
-            met.setup((torch.rand_like(img) - 0.5) * 0.1 + img.mean())
-            met.synthesize(
-                max_iter=3000,
-                change_scale_criterion=None,
-                ctf_iters_to_check=7,
-            )
+            loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
+            met = po.synth.Metamer(img, model, loss_function=loss)
+            opt_kwargs = {
+                "max_iter": 10,
+                "max_eval": 10,
+                "history_size": 100,
+                "line_search_fn": "strong_wolfe",
+                "lr": 1,
+            }
+            met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+            met.synthesize(max_iter=100)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save(f"uploaded_files/ps_mag_means-{mag_bool}.pt")
-            met_up = po.synth.MetamerCTF(
-                img,
-                model,
-                loss_function=po.tools.optim.l2_norm,
-                coarse_to_fine="together",
-            )
-            met_up.load(
-                ps_regression / f"ps_mag_means-{mag_bool}.pt",
-                tensor_equality_atol=1e-7,
-                map_location=DEVICE2,
-            )
+            met_up = po.synth.Metamer(img, model, loss_function=loss)
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    ps_regression / f"ps_mag_means-{mag_bool}.pt",
+                    tensor_equality_atol=1e-7,
+                    map_location=DEVICE2,
+                )
             compare_metamers(met, met_up)

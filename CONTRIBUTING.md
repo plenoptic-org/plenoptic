@@ -479,29 +479,30 @@ compares it against a cached version stored in our OSF project. See
 `tests/test_uploaded_files.py` to see how these tests look. Some important notes:
 
 - The new tests should be added to the `TestTutorialNotebooks` class in
-  `test_uploaded_files.py`, and within that class, they should be within a class
-  whose name matches that of the corresponding notebook (with underscores
-  removed). E.g., if the synthesis will be downloaded in
-  `docs/tutorials/applications/Demo_Eigendistortion.md`, the test should be
-  under `TestTutorialNotebooks` and `TestDemoEigendistortion`.
+  `test_uploaded_files.py`.
 - The synthesize call should be shown in the notebook, in a code block (unlike a
-  `code-cell`, `code-block` are not run) with a name that corresponds to the
-  name of the test. So, if our test was called `test_berardino_onoff`, the
-  corresponding code block should look like:
+  `code-cell`, `code-block` are not run). This `code-block` should be preceded
+  by a markdown comment giving the class and name of the corresponding test.
+  with a name that corresponds to the name of the test. So, if our test was
+  called `test_berardino_onoff` and found within the `TestDemoEigendistortion`
+  notebook, the corresponding code block should look like:
+
   ````
+  <!-- TestDemoEigendistortion.test_berardino_onoff -->
   ```{code-block} python
-  :name: test_berardino_onoff
   eigendist_f.synthesize(k=3, method="power", max_iter=2000)
   ```
   ````
-  If multiple code blocks correspond to the same test, the `:name:` of each code
-  block should end with `-N`, where `N` is a (potentially multi-digit,
-  1-indexed) number. This is to prevent sphinx complaining about having multiple
-  targets with the same name.
-- This block (and the corresponding test) can contain a call to `.setup` as
-  well, but it must come directly before the call to `synthesize`.
-- Both calls can go over multiple lines, but they should not reference any other
-  variables.
+- This block will be checked whether it is part of the corresponding test
+  (literally, with `in`).
+  - If a variable has a different name in the block and in the test, the
+    preceding comment should include square brackets containing a
+    comma-separated list of the replacements: `<!--
+    TestDemoEigendistortion.test_berardino_onoff[eigendist_f:eig] -->`.
+  - If the test has lines we want to ignore (because they're test-specific),
+    they should contain `lint_ignore` somewhere on the line, **not in a
+    comment** (e.g., `this_variable_lint_ignore = 100` but not `this_variable =
+    100 # lint_ignore`).
 - `src/plenoptic/data/fetch.py` needs the hash and the URL slug of each new
   file, so make sure to update them. The hash can be computed by calling
   `openssl sha256 path/to/file` on the command line.

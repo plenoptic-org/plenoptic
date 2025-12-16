@@ -38,8 +38,11 @@ jobs:
         pip install --upgrade --upgrade-strategy eager .[nb] --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Run notebooks
       run: |
-        for file in $(find docs/tutorials/ -name '*.md'); do
-           jupytext --execute $file
+        for file in $(find docs/ -name '*.md'); do
+           # if it doesn't have this header, then it's not an executable notebook
+           if [[ $(head -2 $file | tr '\n' ' ') == "--- jupytext: " ]]; then
+               jupytext --execute $file
+           fi
         done
   doctests:
     runs-on: ubuntu-latest

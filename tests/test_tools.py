@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from contextlib import nullcontext as does_not_raise
 from math import pi
 
@@ -113,6 +114,9 @@ class TestData:
     )
     @pytest.mark.filterwarnings(
         "ignore:pkg_resources is deprecated as an API:UserWarning"
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:pkg_resources is deprecated as an API:DeprecationWarning"
     )
     def test_load_images_some_non_image(self):
         test_dir = fetch_data("load_image_test.tar.gz")
@@ -791,6 +795,28 @@ class TestValidate:
 
 
 class TestOptim:
+    @pytest.fixture()
+    def test_model(self):
+        class TestModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.kernel = torch.nn.Conv2d(1, 2, (5, 5), bias=False)
+                self.kernel.weight.detach_()
+
+            def forward(self, x):
+                return self.kernel(x)
+
+            def convert_to_dict(self, rep):
+                return OrderedDict({f"channel_{i}": rep[:, i] for i in range(2)})
+
+            def convert_to_tensor(self, rep_dict):
+                return torch.stack(list(rep_dict.values()), axis=1)
+
+        model = TestModel()
+        model.to(DEVICE)
+        model.eval()
+        return model
+
     def test_penalize_range_above(self):
         img = 0.5 * torch.ones((1, 1, 4, 4))
         img[..., 0, :] = 2
@@ -800,6 +826,163 @@ class TestOptim:
         img = 0.5 * torch.ones((1, 1, 4, 4))
         img[..., 0, :] = -1
         assert po.tools.optim.penalize_range(img).item() == 4
+
+    @pytest.mark.parametrize("n_scales", [2, 3, 4])
+    @pytest.mark.parametrize("n_ori", [2, 3, 4])
+    def test_ps_loss_factory(self, n_scales, n_ori, einstein_img):
+        model = po.simul.PortillaSimoncelli(einstein_img.shape[-2:], n_scales, n_ori)
+        model.to(DEVICE)
+        loss = po.tools.optim.portilla_simoncelli_loss_factory(model, einstein_img)
+        assert loss(model(einstein_img), model(torch.rand_like(einstein_img))) > 0
+        assert loss(model(einstein_img), model(einstein_img)) == 0
+        model = po.simul.PortillaSimoncelli(einstein_img.shape[-2:], 4, 5)
+        model.to(DEVICE)
+        # loss only works with a specific model output shape, and that will change based
+        # on the number of scales and orientations
+        with pytest.raises(
+            RuntimeError, match=r"The size of tensor a \([0-9]+\) must match"
+        ):
+            loss(model(einstein_img), model(einstein_img))
+
+    @pytest.mark.parametrize("n_scales", [2, 3, 4])
+    @pytest.mark.parametrize("n_ori", [2, 3, 4])
+    @pytest.mark.parametrize("seed", range(3))
+    def test_ps_loss_factory_unnorm(self, n_scales, n_ori, seed):
+        # test that we can make this loss perform the same as L2-norm by setting
+        # reweighting_dict
+        po.tools.set_seed(seed)
+        img = torch.rand((1, 1, 256, 256), device=DEVICE)
+        model = po.simul.PortillaSimoncelli(img.shape[-2:], n_scales, n_ori)
+        model.to(DEVICE)
+        reweighting_dict = {"pixel_statistics": 1, "var_highpass_residual": 1}
+        loss = po.tools.optim.portilla_simoncelli_loss_factory(
+            model, img, reweighting_dict
+        )
+        comp = torch.rand_like(img)
+        custom_val = loss(model(img), model(comp))
+        l2_val = po.tools.optim.l2_norm(model(img), model(comp))
+        assert custom_val == l2_val
+
+    @pytest.mark.parametrize(
+        "model",
+        ["PortillaSimoncelli"],
+        indirect=True,
+    )
+    def test_ps_loss_factory_bad_dict(self, model):
+        img = torch.rand((1, 1, 256, 256), device=DEVICE)
+        reweighting_dict = {"pixel_statistic": 1}
+        with pytest.raises(ValueError, match="reweighting_dict contains key"):
+            po.tools.optim.portilla_simoncelli_loss_factory(
+                model, img, reweighting_dict
+            )
+
+    @pytest.mark.parametrize(
+        "missing_key", ["pixel_statistics", "var_highpass_residual"]
+    )
+    def test_ps_loss_factory_missing_key(self, missing_key, einstein_img):
+        class PSMissingKey(po.simul.PortillaSimoncelli):
+            def convert_to_tensor(self, representation_dict):
+                nec_mask = self._necessary_stats_mask.clone()
+                if missing_key == "pixel_statistics":
+                    nec_mask -= 6
+                    nec_mask = nec_mask[nec_mask >= 0]
+                elif missing_key == "var_highpass_residual":
+                    nec_mask = nec_mask[:-1]
+                rep = einops.pack(list(representation_dict.values()), "b c *")[0]
+                return rep.index_select(-1, nec_mask)
+
+            def convert_to_dict(self, *args, **kwargs):
+                rep = super().convert_to_dict(*args, **kwargs)
+                rep.pop(missing_key)
+                return rep
+
+        model = PSMissingKey(einstein_img.shape[-2:])
+        model.to(DEVICE)
+        msg = f"{missing_key} not found in your model representation"
+        with pytest.warns(UserWarning, match=msg):
+            po.tools.optim.portilla_simoncelli_loss_factory(model, einstein_img)
+
+    @pytest.mark.parametrize("how", ["fail", "rewt_dict"])
+    @pytest.mark.parametrize("rep_key", ["pixel_statistics", "var_highpass_residual"])
+    def test_ps_loss_factory_weird_stats(self, rep_key, how, einstein_img):
+        class PSWeirdStats(po.simul.PortillaSimoncelli):
+            def convert_to_dict(self, *args, **kwargs):
+                rep = super().convert_to_dict(*args, **kwargs)
+                if rep_key == "pixel_statistics":
+                    rep["pixel_statistics"] = rep["pixel_statistics"][..., :5]
+                elif rep_key == "var_highpass_residual":
+                    var_high = [
+                        rep["var_highpass_residual"],
+                        rep["var_highpass_residual"],
+                    ]
+                    rep["var_highpass_residual"] = torch.cat(var_high, axis=-1)
+                return rep
+
+            def convert_to_tensor(self, representation_dict):
+                nec_mask = self._necessary_stats_mask.clone()
+                if rep_key == "pixel_statistics":
+                    nec_mask -= 1
+                    nec_mask = nec_mask[nec_mask >= 0]
+                elif rep_key == "var_highpass_residual":
+                    var_high = torch.as_tensor(
+                        [nec_mask[-1] + 1], device=einstein_img.device
+                    )
+                    nec_mask = torch.cat([nec_mask, var_high], axis=-1)
+                rep = einops.pack(list(representation_dict.values()), "b c *")[0]
+                return rep.index_select(-1, nec_mask)
+
+        model = PSWeirdStats(einstein_img.shape[-2:])
+        model.to(DEVICE)
+        if how == "fail":
+            msg = f"Expected model's '{rep_key}' representation "
+            with pytest.raises(ValueError, match=msg):
+                po.tools.optim.portilla_simoncelli_loss_factory(model, einstein_img)
+        else:
+            rep = model.convert_to_dict(model(einstein_img))
+            if rep_key == "pixel_statistics":
+                pixel_stats = torch.as_tensor(
+                    [1, 1, 1, 1, 0],
+                    dtype=einstein_img.dtype,
+                    device=einstein_img.device,
+                )
+                pixel_stats = pixel_stats * torch.ones_like(rep["pixel_statistics"])
+                reweighting_dict = {"pixel_statistics": pixel_stats}
+            elif rep_key == "var_highpass_residual":
+                var_high = torch.as_tensor(
+                    [300, 300], dtype=einstein_img.dtype, device=einstein_img.device
+                )
+                var_high = var_high * torch.ones_like(rep["var_highpass_residual"])
+                reweighting_dict = {"var_highpass_residual": var_high}
+            po.tools.optim.portilla_simoncelli_loss_factory(
+                model, einstein_img, reweighting_dict
+            )
+
+    @pytest.mark.parametrize("seed", range(3))
+    def test_groupwise_l2_factory(self, test_model, seed):
+        po.tools.set_seed(seed)
+        img = torch.rand((1, 1, 256, 256), device=DEVICE)
+        comp = torch.rand_like(img)
+        loss = po.tools.optim.groupwise_relative_l2_norm_factory(test_model, img)
+        norm_img = test_model(img).pow(2).sum((-2, -1), keepdim=True).sqrt()
+        loss_val = loss(test_model(img), test_model(comp))
+        manual_val = (test_model(img) / norm_img) - (test_model(comp) / norm_img)
+        manual_val = manual_val.pow(2).sum().sqrt()
+        print(manual_val - loss_val)
+        torch.testing.assert_close(manual_val, loss_val)
+
+    def test_groupwise_l2_factory_synth(self, test_model):
+        img = torch.rand((1, 1, 32, 32), device=DEVICE)
+        loss = po.tools.optim.groupwise_relative_l2_norm_factory(test_model, img)
+        met = po.synth.Metamer(img, test_model, loss)
+        met.synthesize(5)
+
+    def test_groupwise_l2_factory_bad_dict(self, test_model):
+        img = torch.rand((1, 1, 32, 32), device=DEVICE)
+        reweighting_dict = {"channel": 1}
+        with pytest.raises(ValueError, match="reweighting_dict contains key"):
+            po.tools.optim.groupwise_relative_l2_norm_factory(
+                test_model, img, reweighting_dict
+            )
 
 
 class TestPolarImages:

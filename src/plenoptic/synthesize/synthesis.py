@@ -17,6 +17,7 @@ import torch
 
 from ..tools import examine_saved_synthesis
 from ..tools.data import _check_tensor_equality
+from ..tools.io import _parse_save_io_attr_name
 
 
 def _get_name(x: object) -> str:
@@ -124,12 +125,14 @@ class Synthesis(abc.ABC):
         for k, input_names in save_io_attrs:
             attr = getattr(self, k)
             name = _get_name(attr)
-            tensors = [getattr(self, t) for t in input_names]
+            tensors, input_names_test = _parse_save_io_attr_name(
+                vars(self), input_names
+            )
             save_dict[k] = (name, input_names, attr(*tensors))
-            if any([n not in save_dict for n in input_names]):
+            if any([n not in save_dict for n in input_names_test]):
                 raise ValueError(
                     "input_name must be included in save dictionary, "
-                    f"but got {input_names}!"
+                    f"but got {input_names_test}!"
                 )
         for k in save_state_dict_attrs:
             attr = getattr(self, k)
@@ -332,7 +335,38 @@ class Synthesis(abc.ABC):
         for k, input_names in check_io_attributes:
             # same as above
             display_k = k[1:] if k.startswith("_") else k
-            tensors = [tmp_dict[t] for t in tmp_dict[k][1]]
+            if input_names != tmp_dict[k][1]:
+                # PR #381 (release 1.3.2) fixed how Metamer loss is computed for
+                # checking during save/load. previously, it used image and metamer,
+                # which is incorrect since loss is computed on model outputs, not
+                # inputs. that means we can't check loss, which we just raise a warning
+                # about for now.
+                if (
+                    input_names
+                    == ("_target_representation", "2 * _target_representation")
+                    and tmp_dict[k][1] == ("_image", "_metamer")
+                    and display_k == "loss_function"
+                ):
+                    warnings.warn(
+                        "The saved object was saved with plenoptic 1.3.1 or earlier and"
+                        " will not be compatible with future releases. We therefore "
+                        f"cannot check {display_k} is the same in initialized and saved"
+                        " objects. Save this object with current version of plenoptic "
+                        "to make the saved object futureproof and avoid this warning.",
+                        category=FutureWarning,
+                    )
+                    continue
+                else:
+                    # in general/the future, we want to raise a more informative error
+                    # message about this problem.
+                    raise ValueError(
+                        "Initialized and saved objects use different inputs to check "
+                        f"identity of {display_k}, unsure how to proceed! If you trust "
+                        "this object, see 'Reproducibility and Compatibility' page of "
+                        "the documentation for how to load it anyway."
+                        f"\nSaved: {tmp_dict[k][1]}\nInitialized: {input_names}"
+                    )
+            tensors, _ = _parse_save_io_attr_name(tmp_dict, input_names)
             init_name = _get_name(getattr(self, k))
             saved_name = tmp_dict[k][0]
             init_loss = getattr(self, k)(*tensors)
@@ -378,7 +412,11 @@ class Synthesis(abc.ABC):
             setattr(self, k, v)
         setup_attrs = []
         optim = tmp_dict.get("_optimizer", None)
-        if isinstance(optim, tuple) and optim[0] != _get_name(torch.optim.Adam):
+        if (
+            isinstance(optim, tuple)
+            and optim[0] is not None
+            and optim[0] != _get_name(torch.optim.Adam)
+        ):
             setup_attrs.append("optimizer")
         sched = tmp_dict.get("_scheduler", None)
         if isinstance(sched, tuple) and sched[0] is not None:
