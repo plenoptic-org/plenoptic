@@ -1,6 +1,6 @@
 repos:
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.11.5
+  rev: v0.12.12
   hooks:
     # Run the formatter.
     - id: ruff-format
@@ -10,7 +10,7 @@ repos:
       args: [--config=pyproject.toml]
 
 - repo: https://github.com/numpy/numpydoc
-  rev: v1.8.0
+  rev: v1.9.0
   hooks:
     - id: numpydoc-validation
       exclude: |
@@ -21,7 +21,7 @@ repos:
           )
 
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v5.0.0
+  rev: v6.0.0
   # note: pre-commit runs top-to-bottom, so put the hooks that modify content first,
   # followed by checks that might be more likely to pass after the modifactaion hooks (like flake8)
   hooks:

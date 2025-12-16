@@ -25,8 +25,8 @@ jobs:
       fail-fast: false
     name: Execute notebooks
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
+    - uses: actions/checkout@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -35,7 +35,7 @@ jobs:
       uses: FedericoCarboni/setup-ffmpeg@v3.1
     - name: Install dependencies
       run: |
-        pip install --upgrade --upgrade-strategy eager .[nb]
+        pip install --upgrade --upgrade-strategy eager .[nb] --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Run notebooks
       run: |
         for file in $(find docs/tutorials/ -name '*.md'); do
@@ -49,9 +49,9 @@ jobs:
       fail-fast: false
     name: Run doctests
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install Python 3
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -61,7 +61,7 @@ jobs:
         # using the --upgrade and --upgrade-strategy eager flags ensures that
         # pip will always install the latest allowed version of all
         # dependencies, to make sure the cache doesn't go stale
-        pip install --upgrade --upgrade-strategy eager .[test]
+        pip install --upgrade --upgrade-strategy eager .[test] --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Run doctests with pytest
       run: |
         # ignore warnings in doctests, since otherwise pytest fails
@@ -70,11 +70,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Check sphinx references
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install Python 3
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
-        python-version: "3.12"
+        python-version: '3.12'
         cache: pip
         cache-dependency-path: setup.py
     - name: Install dependencies
@@ -82,7 +82,7 @@ jobs:
         # using the --upgrade and --upgrade-strategy eager flags ensures that
         # pip will always install the latest allowed version of all
         # dependencies, to make sure the cache doesn't go stale
-        pip install --upgrade --upgrade-strategy eager .[docs]
+        pip install --upgrade --upgrade-strategy eager .[docs] --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Build docs (no notebooks)
       run: |
         # this is needed to create the sphinx obj.inv file
@@ -96,9 +96,9 @@ jobs:
       fail-fast: false
     name: Run pytest scripts
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install Python 3
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -108,19 +108,19 @@ jobs:
         # using the --upgrade and --upgrade-strategy eager flags ensures that
         # pip will always install the latest allowed version of all
         # dependencies, to make sure the cache doesn't go stale
-        pip install --upgrade --upgrade-strategy eager .[test]
+        pip install --upgrade --upgrade-strategy eager .[test] --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Run tests with pytest
       run: |
         pytest --cov-report xml
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5.4.0
+      uses: codecov/codecov-action@v5.5.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
   check_urls:
     runs-on: ubuntu-latest
     name: Check all urls are valid
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: urlstechie/urlchecker-action@b643b43e2ac605e1475331c7b67247d242b7dce4 # 0.0.34
       with:
         file_types: .md,.py,.rst

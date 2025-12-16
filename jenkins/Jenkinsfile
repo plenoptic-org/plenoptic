@@ -3,7 +3,7 @@ pipeline {
   options {
     disableConcurrentBuilds(abortPrevious: true)
     buildDiscarder(logRotator(numToKeepStr: '8', daysToKeepStr: '20'))
-    timeout(time: 2, unit: 'HOURS')
+    timeout(time: 3, unit: 'HOURS')
   }
   triggers {
     cron '@weekly'
@@ -28,23 +28,24 @@ pipeline {
           }
           steps {
             sh 'python3.11 -m venv --system-site-packages $HOME'
-            lock(resource: 'plenoptic_build_slot_limit') {
-              sh '''#!/bin/bash -ex
-              source $HOME/bin/activate
-              # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
-              pip install -U pip setuptools
-              pip install -U .[test]
-              mkdir -p uploaded_files/
-              pip freeze
-              nvidia-smi
-              python3.11 -c "import torch; print(torch.cuda.current_device())"
-              RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n 8
-             '''
-            }
+            sh '''#!/bin/bash -ex
+            source $HOME/bin/activate
+            # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
+            pip install -U pip setuptools
+            pip install -U .[test]
+            mkdir -p uploaded_files/
+            pip freeze
+            nvidia-smi
+            python3.11 -c "import torch; print(torch.cuda.current_device())"
+            RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n 8
+            '''
           }
           post {
             always {
               archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
+              dir("$HOME") {
+                deleteDir()
+              }
             }
           }
         }
@@ -67,20 +68,23 @@ pipeline {
           steps {
             sh 'python3.11 -m venv --system-site-packages $HOME'
             sh '''#!/bin/bash -ex
-              source $HOME/bin/activate
-              # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
-              pip install -U pip setuptools
-              pip install .[test]
-              mkdir -p uploaded_files/
-              pip freeze
-              nvidia-smi
-              python3.11 -c "import torch; print(torch.cuda.current_device())"
-              RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n 8
+            source $HOME/bin/activate
+            # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
+            pip install -U pip setuptools
+            pip install .[test]
+            mkdir -p uploaded_files/
+            pip freeze
+            nvidia-smi
+            python3.11 -c "import torch; print(torch.cuda.current_device())"
+            RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n 8
             '''
           }
           post {
             always {
               archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
+              dir("$HOME") {
+                deleteDir()
+              }
             }
           }
         }
@@ -118,7 +122,7 @@ pipeline {
               RUN_NB=1 NB_EXECUTION_MODE=force make -C docs html O="-T -j $PARALLEL"
               mv docs/_build/ $HOME/built-docs/
            '''
-            lock('plenoptic_docs_publish') {
+            lock('plenoptic_publish') {
               script {
                 def scm = scmGit(branches: [[name: 'refs/heads/main']], userRemoteConfigs: [[credentialsId: 'github-jenkins', url: 'https://github.com/plenoptic-org/plenoptic-documentation.git']])
                 dir(path: 'docs') {
@@ -167,6 +171,13 @@ pipeline {
                 fi
               '''
                 }
+              }
+            }
+          }
+          post {
+            always {
+              dir("$HOME") {
+                deleteDir()
               }
             }
           }

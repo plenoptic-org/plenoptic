@@ -4,6 +4,7 @@
 import warnings
 from typing import Any, Literal
 
+import einops
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -526,8 +527,10 @@ def pyrshow(
     Parameters
     ----------
     pyr_coeffs
-        Pyramid coefficients in the standard dictionary format as returned by
-        ``SteerablePyramidFreq.forward()``.
+        Pyramid coefficients in the standard dictionary format as returned by the
+        steerable pyramid's
+        :func:`~plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq.forward`
+        method.
     vrange
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
         the minimum and maximum value of the colormap, respectively. If a
@@ -597,22 +600,29 @@ def pyrshow(
     pyr_coeffvis = {}
     is_complex = False
     for k, v in pyr_coeffs.items():
-        im = to_numpy(v)
-        if np.iscomplex(im).any():
-            is_complex = True
-        try:
-            # this removes only the first (batch) dimension
-            im = im[batch_idx : batch_idx + 1].squeeze(0)
-        except TypeError:
-            raise TypeError(f"batch_idx must be an int but got {batch_idx}")
-        try:
-            # this removes only the first (now channel) dimension
-            im = im[channel_idx : channel_idx + 1].squeeze(0)
-        except TypeError:
-            raise TypeError(f"channel_idx must be an int but got {channel_idx}")
-        # because of how we've handled everything above, we know that im will
-        # be (h,w).
-        pyr_coeffvis[k] = im
+        if isinstance(k, str):
+            ims = [v]
+            keys = [k]
+        else:
+            ims = einops.rearrange(v, "b c o h w -> o b c h w")
+            keys = [(k, i) for i in range(len(ims))]
+        for key, im in zip(keys, ims):
+            im = to_numpy(im)
+            if np.iscomplex(im).any():
+                is_complex = True
+            try:
+                # this removes only the first (batch) dimension
+                im = im[batch_idx : batch_idx + 1].squeeze(0)
+            except TypeError:
+                raise TypeError(f"batch_idx must be an int but got {batch_idx}")
+            try:
+                # this removes only the first (now channel) dimension
+                im = im[channel_idx : channel_idx + 1].squeeze(0)
+            except TypeError:
+                raise TypeError(f"channel_idx must be an int but got {channel_idx}")
+            # because of how we've handled everything above, we know that im will
+            # be (h,w).
+            pyr_coeffvis[key] = im
 
     return pt.pyrshow(
         pyr_coeffvis,

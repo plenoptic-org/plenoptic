@@ -1,5 +1,6 @@
 from contextlib import nullcontext as does_not_raise
 
+import einops
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -739,7 +740,6 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
             axes_idx=axes_idx,
             **plot_kwargs,
         )
-        plt.close(fig)
     if func == "animate":
         # animate closes the matplotlib figure itself, so don't need to do it here
         path = tmp_path / "test_anim.html"
@@ -750,6 +750,7 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
             included_plots=included_plots,
             **plot_kwargs,
         ).save(path)
+    plt.close(fig)
 
 
 class TestMADDisplay:
@@ -777,6 +778,36 @@ class TestMADDisplay:
             img, rgb_mse, rgb_ssim, "min", metric_tradeoff_lambda=0.1
         )
         mad.synthesize(max_iter=2, store_progress=True)
+        return mad
+
+    @pytest.fixture(
+        scope="class", params=["rgb-5", "rgb-4", "grayscale-5", "grayscale-4"]
+    )
+    def synthesized_mad_store_progress(self, request):
+        # make the images really small so nothing takes as long
+        img, max_iter = request.param.split("-")
+        if img == "rgb":
+            img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
+            img = img[..., :16, :16]
+        else:
+            img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
+            img = img[..., :16, :16]
+        img = torch.cat([img, img])
+
+        # to serve as a metric, need to return a single value, but SSIM and MSE
+        # will return a separate value for each RGB channel. Additionally, MAD
+        # requires metrics are *dis*-similarity metrics, so that they return 0
+        # if two images are identical (SSIM normally returns 1)
+        def rgb_ssim(*args, **kwargs):
+            return 1 - po.metric.ssim(*args, **kwargs).mean()
+
+        def rgb_mse(*args, **kwargs):
+            return po.metric.mse(*args, **kwargs).mean()
+
+        mad = po.synth.MADCompetition(
+            img, rgb_mse, rgb_ssim, "min", metric_tradeoff_lambda=0.1
+        )
+        mad.synthesize(max_iter=int(max_iter), store_progress=2)
         return mad
 
     @pytest.mark.parametrize("iteration", [None, 1, -1])
@@ -871,7 +902,8 @@ class TestMADDisplay:
             func = po.synth.mad_competition.plot_loss_all
         elif func == "image":
             func = po.synth.mad_competition.display_mad_image_all
-        func(*all_mad)
+        fig = func(*all_mad)
+        plt.close(fig)
 
     @pytest.mark.parametrize("func", ["plot", "animate"])
     # plot_representation_error is an allowed value for metamer, but not MAD.
@@ -896,9 +928,77 @@ class TestMADDisplay:
             kwargs["axes_idx"] = {val: 0, "plot_loss": 1}
         with pytest.raises(ValueError, match=f"{variable} contained value"):
             func(synthesized_mad, **kwargs)
+        plt.close()
+
+    @pytest.mark.parametrize("iteration", [None, 0, -1, -10, 10, 2, 3, 4])
+    @pytest.mark.parametrize("batch_idx", [0, 1])
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings("ignore:loss iteration and iteration for:UserWarning")
+    def test_iteration(self, synthesized_mad_store_progress, iteration, batch_idx):
+        included_plots = [
+            "display_mad_image",
+            "plot_loss",
+            "plot_pixel_values",
+        ]
+        max_iter = len(synthesized_mad_store_progress.losses) - 1
+        if iteration in [-10, 10]:
+            expectation = pytest.raises(IndexError, match="iteration.*out of bounds")
+        else:
+            expectation = does_not_raise()
+            if max_iter == 5:
+                mad_iter = {None: 3, 0: 0, -1: 2, 2: 1, 3: 2, 4: 2}[iteration]
+            elif max_iter == 4:
+                mad_iter = {None: 2, 0: 0, -1: 2, 2: 1, 3: 2, 4: 2}[iteration]
+        with expectation:
+            fig, _ = po.synth.mad_competition.plot_synthesis_status(
+                synthesized_mad_store_progress,
+                iteration=iteration,
+                batch_idx=batch_idx,
+                included_plots=included_plots,
+            )
+            axes_img = fig.axes[0].images[0].get_array().data
+            plt.close(fig)
+            img = synthesized_mad_store_progress.saved_mad_image[mad_iter, batch_idx]
+            img = einops.rearrange(po.to_numpy(img), "c h w -> h w c").squeeze()
+            # rgb images are clipped while plotting
+            if img.shape[-1] == 3:
+                img = img.clip(0, 1)
+            assert np.equal(axes_img, img).all(), "wrong saved mad_image plotted!"
 
 
 class TestMetamerDisplay:
+    @pytest.fixture(scope="class", params=["rgb", "grayscale"])
+    def synthesized_met_nostore(self, request):
+        img = request.param
+        # make the images really small so nothing takes as long
+        if img == "rgb":
+            img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
+            img = img[..., :16, :16]
+        else:
+            img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
+            img = img[..., :16, :16]
+
+        #  height=1 and order=0 to limit the time this takes, and then we
+        #  only return one of the tensors so that everything is easy for
+        #  plotting code to figure out (if we downsampled and were on an
+        #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
+        #  we'd have the residuals and one filter output for each channel,
+        #  and our code doesn't know how to handle that)
+        class SPyr(po.simul.SteerablePyramidFreq):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+            def forward(self, *args, **kwargs):
+                return super().forward(*args, **kwargs)[0][:, :, 0]
+
+        model = SPyr(img.shape[-2:], height=1, order=1).to(DEVICE)
+        met = po.synth.Metamer(img, model)
+        met.synthesize(max_iter=2, store_progress=False)
+        return met
+
     @pytest.fixture(scope="class", params=["rgb", "grayscale"])
     def synthesized_met(self, request):
         img = request.param
@@ -921,11 +1021,43 @@ class TestMetamerDisplay:
                 super().__init__(*args, **kwargs)
 
             def forward(self, *args, **kwargs):
-                return super().forward(*args, **kwargs)[(0, 0)]
+                return super().forward(*args, **kwargs)[0][:, :, 0]
 
         model = SPyr(img.shape[-2:], height=1, order=1).to(DEVICE)
         met = po.synth.Metamer(img, model)
         met.synthesize(max_iter=2, store_progress=True)
+        return met
+
+    @pytest.fixture(
+        scope="class", params=["rgb-5", "rgb-4", "grayscale-5", "grayscale-4"]
+    )
+    def synthesized_met_store_progress(self, request):
+        img, max_iter = request.param.split("-")
+        # make the images really small so nothing takes as long
+        if img == "rgb":
+            img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
+            img = img[..., :16, :16]
+        else:
+            img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
+            img = img[..., :16, :16]
+        img = torch.cat([img, img])
+
+        #  height=1 and order=0 to limit the time this takes, and then we
+        #  only return one of the tensors so that everything is easy for
+        #  plotting code to figure out (if we downsampled and were on an
+        #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
+        #  we'd have the residuals and one filter output for each channel,
+        #  and our code doesn't know how to handle that)
+        class SPyr(po.simul.SteerablePyramidFreq):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+            def forward(self, *args, **kwargs):
+                return super().forward(*args, **kwargs)[0][:, :, 0]
+
+        model = SPyr(img.shape[-2:], height=1, order=1).to(DEVICE)
+        met = po.synth.Metamer(img, model)
+        met.synthesize(max_iter=int(max_iter), store_progress=2)
         return met
 
     # mix together func and iteration, because iteration doesn't make sense to
@@ -982,6 +1114,60 @@ class TestMetamerDisplay:
             synthesized_met, func, fig_creation, tmp_path
         )
 
+    # mix together func and iteration, because iteration doesn't make sense to
+    # pass to animate
+    @pytest.mark.parametrize("display_metamer", [True, False])
+    @pytest.mark.parametrize("loss", [True, False])
+    @pytest.mark.parametrize("representation_error", [True, False])
+    @pytest.mark.parametrize("pixel_values", [True, False])
+    @pytest.mark.parametrize(
+        "fig_creation", ["auto", "auto-ratios", "pass-with", "pass-without"]
+    )
+    def test_all_plot_nostore(
+        self,
+        synthesized_met_nostore,
+        display_metamer,
+        loss,
+        representation_error,
+        pixel_values,
+        fig_creation,
+    ):
+        # tests whether we can plot all possible combinations of plots.
+        # test_custom_fig tests whether these animate correctly.
+        template_test_synthesis_all_plot(
+            synthesized_met_nostore,
+            iteration=None,
+            display_synth=display_metamer,
+            loss=loss,
+            representation_error=representation_error,
+            pixel_values=pixel_values,
+            fig_creation=fig_creation,
+        )
+
+    @pytest.mark.parametrize("func", ["plot"])
+    @pytest.mark.parametrize(
+        "fig_creation",
+        [
+            "custom",
+            "custom-misc",
+            "custom-without",
+            "custom-extra",
+            "custom-preplot",
+        ],
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:Looks like representation is image-like, haven't:UserWarning"
+    )
+    def test_custom_fig_nostore(
+        self, synthesized_met_nostore, func, fig_creation, tmp_path
+    ):
+        # tests whether we can create our own figure and pass it to Metamer's
+        # plotting and animating functions, specifying some or all of the
+        # locations for the plots
+        template_test_synthesis_custom_fig(
+            synthesized_met_nostore, func, fig_creation, tmp_path
+        )
+
     @pytest.mark.parametrize("func", ["plot", "animate"])
     # display_mad_image is an allowed value for MAD but not metamer.
     # the second is just a typo
@@ -1001,3 +1187,39 @@ class TestMetamerDisplay:
             kwargs["axes_idx"] = {val: 0, "plot_loss": 1}
         with pytest.raises(ValueError, match=f"{variable} contained value"):
             func(synthesized_met, **kwargs)
+        plt.close()
+
+    @pytest.mark.parametrize("iteration", [None, 0, -1, -10, 10, 2, 3, 4])
+    @pytest.mark.parametrize("batch_idx", [0, 1])
+    @pytest.mark.filterwarnings("ignore:loss iteration and iteration for:UserWarning")
+    def test_iteration(self, synthesized_met_store_progress, iteration, batch_idx):
+        included_plots = [
+            "display_metamer",
+            "plot_loss",
+            "plot_representation_error",
+            "plot_pixel_values",
+        ]
+        max_iter = len(synthesized_met_store_progress.losses) - 1
+        if iteration in [-10, 10]:
+            expectation = pytest.raises(IndexError, match="iteration.*out of bounds")
+        else:
+            expectation = does_not_raise()
+            if max_iter == 5:
+                met_iter = {None: 3, 0: 0, -1: 2, 2: 1, 3: 2, 4: 2}[iteration]
+            elif max_iter == 4:
+                met_iter = {None: 2, 0: 0, -1: 2, 2: 1, 3: 2, 4: 2}[iteration]
+        with expectation:
+            fig, _ = po.synth.metamer.plot_synthesis_status(
+                synthesized_met_store_progress,
+                iteration=iteration,
+                batch_idx=batch_idx,
+                included_plots=included_plots,
+            )
+            axes_img = fig.axes[0].images[0].get_array().data
+            plt.close(fig)
+            img = synthesized_met_store_progress.saved_metamer[met_iter, batch_idx]
+            img = einops.rearrange(po.to_numpy(img), "c h w -> h w c").squeeze()
+            # rgb images are clipped while plotting
+            if img.shape[-1] == 3:
+                img = img.clip(0, 1)
+            assert np.equal(axes_img, img).all(), "wrong saved metamer plotted!"

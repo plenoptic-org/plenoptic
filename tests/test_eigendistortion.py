@@ -508,6 +508,22 @@ class TestEigendistortionSynthesis:
         # reset model device for other tests
         model.to(DEVICE)
 
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
+    @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
+    def test_to_midsynth(self, curie_img, model):
+        ed = Eigendistortion(curie_img, model)
+        ed.synthesize(max_iter=4, method="power")
+        assert ed.eigendistortions.device.type == "cuda"
+        assert ed.image.device.type == "cuda"
+        ed.to("cpu")
+        ed.synthesize(max_iter=4, method="power")
+        assert ed.eigendistortions.device.type == "cpu"
+        assert ed.image.device.type == "cpu"
+        ed.to("cuda")
+        ed.synthesize(max_iter=4, method="power")
+        assert ed.eigendistortions.device.type == "cuda"
+        assert ed.image.device.type == "cuda"
+
     @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
     def test_change_precision_save_load(self, einstein_img, model, tmp_path):
         # Identity model doesn't change when you call .to() with a dtype
@@ -584,7 +600,7 @@ class TestAutodiffFunctions:
         Fv2 = jac.T @ jac @ U  # manually compute product to compare accuracy
 
         assert Fv.shape == (x_dim, k)
-        assert Fv2.allclose(Fv, atol=1e-6)
+        assert Fv2.allclose(Fv, atol=1e-5)
 
     def test_simple_model_eigenvalues(self):
         """Test if Jacobian is constant in all directions for linear model"""

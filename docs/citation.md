@@ -4,7 +4,7 @@
 
 If you use `plenoptic` in a published academic article or presentation, please cite both the code by the DOI as well as the current publication, {cite:alp}`Duong2023-plenop`. You can use the following:
 
-- Code: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151131.svg)](https://doi.org/10.5281/zenodo.10151131)
+- Code: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151130.svg)](https://doi.org/10.5281/zenodo.10151130)
 
 - Paper:
 
@@ -24,7 +24,7 @@ If you use `plenoptic` in a published academic article or presentation, please c
 
 Additionally, please cite the following paper(s) depending on which component you use:
 
-- {class}`Metamer <plenoptic.synthesize.metamer.Metamer>`: or {class}`MetamerCTF <plenoptic.synthesize.metamer.MetamerCTF>`: {cite:alp}`Portilla2000-param-textur`.
+- {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` or {class}`MetamerCTF <plenoptic.synthesize.metamer.MetamerCTF>`: {cite:alp}`Portilla2000-param-textur`.
 - {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>`: {cite:alp}`Wang2008-maxim-differ`.
 - {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>`: {cite:alp}`Berardino2017-eigen`.
 - {class}`SteerablePyramidFreq <plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq>`: {cite:alp}`Simoncelli1995-steer-pyram` ({cite:alp}`Simoncelli1992-shift-multi` contains a longer discussion about the motivation and the logic, while {cite:alp}`Simoncelli1995-steer-pyram` describes the implementation that is used here).
