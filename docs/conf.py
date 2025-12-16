@@ -41,9 +41,9 @@ extensions = [
     "sphinx.ext.napoleon",
     "matplotlib.sphinxext.plot_directive",
     "matplotlib.sphinxext.mathmpl",
+    "sphinx.ext.autosummary",
     "sphinx.ext.autodoc",
     "sphinx_autodoc_typehints",
-    "sphinxcontrib.apidoc",
     "sphinx.ext.intersphinx",
     "sphinx_copybutton",
     "sphinx_togglebutton",
@@ -54,7 +54,6 @@ extensions = [
 ]
 
 numfig = True
-
 add_module_names = False
 
 intersphinx_mapping = {
@@ -104,6 +103,14 @@ typehints_defaults = "braces"
 # SPHINX CROSS REFERENCES
 
 add_function_parentheses = False
+
+# AUTOSUMMARY / AUTODOC
+
+autodoc_default_options = {
+    "members": True,
+    "show-inheritance": True,
+    "member-order": "groupwise",
+}
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -197,9 +204,6 @@ epub_exclude_files = ["search.html"]
 
 
 # -- Extension configuration -------------------------------------------------
-#
-# APIDOC
-apidoc_module_dir = "../src/plenoptic"
 
 # MATPLOTLIB
 # because of the examples in the docstrings, want to default to showing source and not

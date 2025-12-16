@@ -188,3 +188,73 @@ def jacobian_vector_product(
     )
 
     return Jv
+
+
+def fisher_info_matrix_vector_product(
+    y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor
+) -> Tensor:
+    r"""
+    Compute Fisher Information Matrix Vector Product: :math:`Fv`.
+
+    Parameters
+    ----------
+    y
+        Output tensor with gradient attached.
+    x
+        Input tensor with gradient attached.
+    v
+        The vectors with which to compute Fisher vector products.
+    dummy_vec
+        Dummy vector for Jacobian vector product trick.
+
+    Returns
+    -------
+    Fv
+        Vector, Fisher vector product.
+
+    Notes
+    -----
+    Under white Gaussian noise assumption, :math:`F` is matrix multiplication
+    of Jacobian transpose and Jacobian:
+    :math:`F = J^T J`. Hence:
+    :math:`Fv = J^T (Jv)`
+    """  # numpydoc ignore=ES01
+    Jv = jacobian_vector_product(y, x, v, dummy_vec)
+    Fv = vector_jacobian_product(y, x, Jv, detach=True)
+
+    return Fv
+
+
+def fisher_info_matrix_eigenvalue(
+    y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor | None = None
+) -> Tensor:
+    r"""
+    Compute eigenvalues of Fisher vector products.
+
+    We compute the Fisher Information Matrix corresponding to eigenvectors in ``v``:
+    :math:`\lambda= v^T F v`.
+
+    Parameters
+    ----------
+    y
+        Output tensor with gradient attached.
+    x
+        Input tensor with gradient attached.
+    v
+        The vectors with which to compute Fisher vector products.
+    dummy_vec
+        Dummy vector for Jacobian vector product trick.
+
+    Returns
+    -------
+    lmbda
+        The computed eigenvalues.
+    """
+    if dummy_vec is None:
+        dummy_vec = torch.ones_like(y, requires_grad=True)
+
+    Fv = fisher_info_matrix_vector_product(y, x, v, dummy_vec)
+
+    # compute eigenvalues for all vectors in v
+    lmbda = torch.stack([a.dot(b) for a, b in zip(v.T, Fv.T)])
+    return lmbda

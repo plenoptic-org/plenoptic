@@ -1,63 +1,64 @@
+.. _api:
+
 API Reference
 =============
 
 Synthesis
 ---------
 
+.. rubric:: Synthesis objects
+   :heading-level: 3
 .. currentmodule:: plenoptic.synthesize
-
 .. autosummary::
    :toctree: generated
-   :nosignatures:
-   :inherited-members:
+   :signatures: none
+   :template: synthesis_object.rst.jinja
 
-   metamer
-   mad_competition
-   eigendistortion
-   synthesis
+   Metamer
+   MetamerCTF
+   Eigendistortion
+   MADCompetition
 
-Simulate
---------
+.. rubric:: Synthesis helper functions
+   :heading-level: 3
 
-.. currentmodule:: plenoptic
+These helper functions all are intended to help visualize the status and outputs of the synthesis objects above.
 
+.. rubric:: Metamer
+   :heading-level: 4
+
+These functions work with both :class:`~plenoptic.synthesize.metamer.Metamer` and :class:`~plenoptic.synthesize.metamer.MetamerCTF` objects.
+
+.. currentmodule:: plenoptic.synthesize.metamer
 .. autosummary::
-   :toctree: generated
-   :nosignatures:
-   :recursive:
+   :signatures: long
 
-   simulate
+   plot_loss
+   display_metamer
+   plot_pixel_values
+   plot_representation_error
+   plot_synthesis_status
+   animate
 
-Metric
-------
-
-.. currentmodule:: plenoptic.metric
-
+.. rubric:: MAD Competition
+   :heading-level: 4
+.. currentmodule:: plenoptic.synthesize.mad_competition
 .. autosummary::
-   :toctree: generated
-   :nosignatures:
-   :recursive:
+   :signatures: long
 
-Data
-----
+   display_mad_image
+   display_mad_image_all
+   plot_loss
+   plot_loss_all
+   plot_pixel_values
+   plot_synthesis_status
+   animate
 
-.. currentmodule:: plenoptic.data
-
+.. rubric:: Eigendistortion
+   :heading-level: 4
+.. currentmodule:: plenoptic.synthesize.eigendistortion
 .. autosummary::
-   :toctree: generated
-   :nosignatures:
-   :recursive:
+   :signatures: long
 
-      .
-
-Tools
------
-
-.. currentmodule:: plenoptic.tools
-
-.. autosummary::
-   :toctree: generated
-   :nosignatures:
-   :recursive:
-
-      *
+   display_eigendistortion
+   display_eigendistortion_all

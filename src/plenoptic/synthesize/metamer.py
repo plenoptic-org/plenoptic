@@ -1,7 +1,9 @@
 """
 Model metamers.
 
-Classes to perform the synthesis of model metamers.
+Model metamers are images whose pixel values differ but whose model outputs are
+identical. They allow researchers to better understand the information which have no
+effect on a model's output, also known as their invariances.
 """
 
 import re

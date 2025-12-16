@@ -135,7 +135,7 @@ tutorials/applications/*
 synthesis
 tips
 reproducibility
-API Documentation <api/modules>
+API Documentation <api>
 tutorials/advanced/*
 :::
 

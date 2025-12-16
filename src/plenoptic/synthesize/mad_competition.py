@@ -1,7 +1,12 @@
 """
-Run MAD Competition.
+Maximum Differentiation Competition.
 
-Classes to perform the synthesis of Maximum Differentiation Competition.
+Maximum Differentiation Competition synthesizes images which maximally distinguish
+between a pair of metrics. Generally speaking, they are synthesized in pairs (two images
+that one metric considers identical and the other considers as different as possible) or
+groups of four (a pair of such pairs, one for each of the two metrics). They emphasize
+the features that distinguish metrics, highlighting the features that one metric
+considers important that the other is invariant to.
 """
 
 import contextlib
