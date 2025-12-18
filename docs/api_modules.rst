@@ -16,10 +16,15 @@
 
 .. autosummary::
    :toctree: generated
+   :template: module_source_order.rst.jinja
 
-   simulate.models.portilla_simoncelli
    simulate.frontend
    simulate.naive
-   metric.naive
    metric.perceptual_distance
+
+.. autosummary::
+   :toctree: generated
+
+   simulate.models.portilla_simoncelli
+   metric.naive
    metric.model_metric
