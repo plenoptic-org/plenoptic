@@ -4,6 +4,7 @@ Model metamers.
 Classes to perform the synthesis of model metamers.
 """
 
+import functools
 import re
 import warnings
 from collections import OrderedDict
@@ -22,6 +23,9 @@ from ..tools.convergence import coarse_to_fine_enough, loss_convergence
 from ..tools.validate import validate_coarse_to_fine, validate_input, validate_model
 from .synthesis import OptimizedSynthesis
 
+default_penalty = functools.partial(
+    regularization.penalize_range, allowed_range=(0.0, 1.0)
+)
 
 class Metamer(OptimizedSynthesis):
     r"""
@@ -62,7 +66,7 @@ class Metamer(OptimizedSynthesis):
         image: Tensor,
         model: torch.nn.Module,
         loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
-        penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
+        penalty_function: Callable[[Tensor], Tensor] = default_penalty,
         penalty_lambda: float = 0.1,
     ):
         super().__init__(
