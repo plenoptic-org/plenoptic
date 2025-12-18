@@ -6,6 +6,7 @@ inherit one of these classes, to provide a unified interface.
 """
 
 import abc
+import functools
 import importlib
 import inspect
 import math
@@ -258,12 +259,21 @@ class Synthesis(abc.ABC):
                 f", but initialized object is {_get_name(self)}! "
                 f"{check_str}"
             )
-        # all attributes set at initialization should be present in the saved dictionary
+        # all attributes set at initialization should be present in the saved dictionary tmp_dict
         init_not_save = set(vars(self)) - set(tmp_dict)
         if len(init_not_save):
-            # in PR #370 (release 1.3.1), added _current_loss attribute, which we'll
-            # handle for now, but warn about.
-            if init_not_save == {"_current_loss"}:
+            compat_attrs = {"_current_loss", "penalty_function", "_penalty_lambda"}
+            if not init_not_save <= compat_attrs:
+                init_not_save_str = "\n ".join(
+                    [f"{k}: {getattr(self, k)}" for k in init_not_save]
+                )
+                raise ValueError(
+                    f"Initialized object has {len(init_not_save)} attribute(s) "
+                    f"not present in the saved object!\n {init_not_save_str}"
+                )
+            if "_current_loss" in init_not_save:
+                # in PR #370 (release 1.3.1), added _current_loss attribute, which we'll
+                # handle for now, but warn about.
                 tmp_dict["_current_loss"] = None
                 warnings.warn(
                     "The saved object was saved with plenoptic 1.3.0 or earlier and "
@@ -273,13 +283,30 @@ class Synthesis(abc.ABC):
                     "saved object futureproof and avoid this warning.",
                     category=FutureWarning,
                 )
-            else:
-                init_not_save_str = "\n ".join(
-                    [f"{k}: {getattr(self, k)}" for k in init_not_save]
+            penalty_missing = {"penalty_function", "_penalty_lambda"} & init_not_save
+            if penalty_missing:
+                # in PR #383, we added penalty_function and penalty_lambda attributes,
+                # which we'll handle for now, but warn about.
+                # Remove allowed_range and range_penalty_lambda so there's no extra key
+                # in saved dictionary
+                allowed_range = tmp_dict.pop("allowed_range", (0, 1.0))
+                penalty_fn = functools.partial(
+                    penalize_range, allowed_range=allowed_range
                 )
-                raise ValueError(
-                    f"Initialized object has {len(init_not_save)} attribute(s) "
-                    f"not present in the saved object!\n {init_not_save_str}"
+                tmp_dict["penalty_function"] = penalty_fn
+                range_penalty_lambda = tmp_dict.pop(
+                    "range_penalty_lambda", getattr(self, "_penalty_lambda")
+                )
+                if "_penalty_lambda" in penalty_missing:
+                    tmp_dict["_penalty_lambda"] = range_penalty_lambda
+                warnings.warn(
+                    "The saved object was saved before penalty_function and "
+                    "penalty_lambda existed and will not be compatible with future "
+                    "releases. Save this object with the current version of plenoptic "
+                    "or see the 'Reproducibility and Compatibility' page of the "
+                    "documentation for how to make the saved object futureproof and "
+                    "avoid this warning.",
+                    category=FutureWarning,
                 )
         # there shouldn't be any extra keys in the saved dictionary (we removed
         # save_metadata above)
