@@ -259,7 +259,7 @@ class Synthesis(abc.ABC):
                 f", but initialized object is {_get_name(self)}! "
                 f"{check_str}"
             )
-        # all attributes set at initialization should be present in the saved dictionary tmp_dict
+        # all attributes set at initialization should be present in the saved dictionary
         init_not_save = set(vars(self)) - set(tmp_dict)
         if len(init_not_save):
             compat_attrs = {"_current_loss", "penalty_function", "_penalty_lambda"}
@@ -289,9 +289,7 @@ class Synthesis(abc.ABC):
                 # which we'll handle for now, but warn about.
                 # Remove allowed_range and range_penalty_lambda so there's no extra key
                 # in saved dictionary
-                allowed_range = tmp_dict.pop(
-                    "_allowed_range", tmp_dict.pop("allowed_range", None)
-                )
+                allowed_range = tmp_dict.pop("_allowed_range")
                 penalty_fn = functools.partial(
                     penalize_range, allowed_range=allowed_range
                 )
