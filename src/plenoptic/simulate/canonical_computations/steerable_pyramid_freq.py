@@ -128,8 +128,9 @@ class SteerablePyramidFreq(nn.Module):
 
     Notes
     -----
-    Transform described in [1]_, filter kernel design described in [2]_.
-    For further information see the project [3]_.
+    Transform described in Simoncelli and Freeman, 1995 [1]_, filter kernel design
+    described in Karasaridis and Smoncelli, 1996 [2]_. For further information see
+    online [3]_.
 
     References
     ----------

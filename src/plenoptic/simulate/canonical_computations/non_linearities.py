@@ -43,7 +43,7 @@ def rectangular_to_polar_dict(
     polar_to_rectangular_dict
         The inverse operation.
     local_gain_control_dict
-        The analogous function for complex-valued signals.
+        The analogous function for real-valued signals.
 
     Examples
     --------

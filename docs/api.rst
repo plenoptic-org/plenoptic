@@ -77,7 +77,7 @@ See :ref:`models-doc` for more details.
    ~models.portilla_simoncelli.PortillaSimoncelli
 
 .. rubric:: Front End
-   :heading-level: 4
+   :heading-level: 3
 
 These "front end" models are inspired by the retina, come from :cite:alp:`Berardino2017-eigen`, and are nested, increasing in complexity as you move down the list.
 
@@ -90,7 +90,7 @@ These "front end" models are inspired by the retina, come from :cite:alp:`Berard
    ~frontend.OnOff
 
 .. rubric:: Naive
-   :heading-level: 4
+   :heading-level: 3
 
 These models are used to construct the front end models above. They are probably most useful in the construction of other, more complex models, but they are compatible with our synthesis methods.
 
@@ -122,7 +122,7 @@ See :ref:`metric-def` for more details.
    ~perceptual_distance.nlpd
 
 .. rubric:: Metric components
-   :heading-level: 4
+   :heading-level: 3
 
 These functions are used by the metrics above. While they are not compatible with any of our synthesis methods, they may be useful to better understand the behavior of their respective metrics.
 
@@ -131,3 +131,52 @@ These functions are used by the metrics above. While they are not compatible wit
 
    ~perceptual_distance.ssim_map
    ~perceptual_distance.normalized_laplacian_pyramid
+
+Canonical Computations
+----------------------
+
+These classes and functions may be helpful for constructing your own models. As is, they are not compatible with any of the synthesis methods.
+
+.. rubric:: Image pyramids
+   :heading-level: 3
+
+Image pyramids decompose images into bands corresponding to different spatial frequencies and orientations. As we often think of neurons in the early visual system as similarly only responding to a range of spatial frequencies and/or orientations, these pyramids can be used to construct a model of those early areas.
+
+See :external+pyrtools:std:doc:`index` for more information, including links to resources for learning more.
+
+.. currentmodule:: plenoptic.simulate
+.. autosummary::
+   :signatures: none
+
+   ~canonical_computations.laplacian_pyramid.LaplacianPyramid
+   ~canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq
+
+.. rubric:: Filter construction functions
+   :heading-level: 3
+
+These convenience functions make it easier to construct some commonly-used filters.
+
+.. currentmodule:: plenoptic.simulate
+.. autosummary::
+   :signatures: none
+
+   ~canonical_computations.filters.circular_gaussian2d
+   ~canonical_computations.filters.gaussian1d
+
+.. rubric:: Non-linearities
+   :heading-level: 3
+
+These functions perform some useful image-processing non-linearities on tensors or dictionaries of tensors.
+
+.. currentmodule:: plenoptic
+.. autosummary::
+   :signatures: none
+
+   ~tools.signal.rectangular_to_polar
+   ~tools.signal.polar_to_rectangular
+   ~simulate.canonical_computations.non_linearities.local_gain_control
+   ~simulate.canonical_computations.non_linearities.local_gain_release
+   ~simulate.canonical_computations.non_linearities.rectangular_to_polar_dict
+   ~simulate.canonical_computations.non_linearities.polar_to_rectangular_dict
+   ~simulate.canonical_computations.non_linearities.local_gain_control_dict
+   ~simulate.canonical_computations.non_linearities.local_gain_release_dict

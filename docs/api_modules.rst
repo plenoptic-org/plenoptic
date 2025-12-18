@@ -28,3 +28,8 @@
    simulate.models.portilla_simoncelli
    metric.naive
    metric.model_metric
+   simulate.canonical_computations.laplacian_pyramid
+   simulate.canonical_computations.steerable_pyramid_freq
+   simulate.canonical_computations.filters
+   simulate.canonical_computations.non_linearities
+   tools.signal
