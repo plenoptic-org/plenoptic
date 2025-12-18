@@ -289,13 +289,13 @@ class Synthesis(abc.ABC):
                 # which we'll handle for now, but warn about.
                 # Remove allowed_range and range_penalty_lambda so there's no extra key
                 # in saved dictionary
-                allowed_range = tmp_dict.pop("allowed_range", (0, 1.0))
+                allowed_range = tmp_dict.pop("_allowed_range", (0, 1.0))
                 penalty_fn = functools.partial(
                     penalize_range, allowed_range=allowed_range
                 )
                 tmp_dict["penalty_function"] = penalty_fn
                 range_penalty_lambda = tmp_dict.pop(
-                    "range_penalty_lambda", getattr(self, "_penalty_lambda")
+                    "_range_penalty_lambda", getattr(self, "_penalty_lambda")
                 )
                 if "_penalty_lambda" in penalty_missing:
                     tmp_dict["_penalty_lambda"] = range_penalty_lambda
