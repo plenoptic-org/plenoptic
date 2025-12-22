@@ -636,9 +636,7 @@ class TestMetamers:
         ["PortillaSimoncelli", "frontend.LinearNonlinear.nograd"],
         indirect=True,
     )
-    @pytest.mark.filterwarnings(
-        "ignore:input_tensor range is:UserWarning"
-    )
+    @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
     def test_model_dimensionality_real(self, einstein_img, model):
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(5)
@@ -751,7 +749,7 @@ class TestMetamers:
     )
     @pytest.mark.filterwarnings(
         "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
-        "ignore:input_tensor range is:UserWarning"
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_metamer_get_progress(
         self, einstein_img, model, iteration, store_progress, iteration_selection
@@ -982,7 +980,7 @@ class TestMetamers:
     )
     @pytest.mark.filterwarnings(
         "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
-        "ignore:input_tensor range is:UserWarning"
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_map_location(self, curie_img, model, tmp_path):
         if hasattr(model, "scales"):
@@ -1016,7 +1014,7 @@ class TestMetamers:
     )
     @pytest.mark.filterwarnings(
         "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
-        "ignore:input_tensor range is:UserWarning"
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_to_midsynth(self, curie_img, model):
         if hasattr(model, "scales"):
@@ -1135,7 +1133,7 @@ class TestMetamers:
     )
     @pytest.mark.filterwarnings(
         "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
-        "ignore:input_tensor range is:UserWarning"
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_stop_criterion(self, einstein_img, model):
         # checking that this hits the criterion and stops early, so set seed
