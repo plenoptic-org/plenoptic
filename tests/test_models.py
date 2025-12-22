@@ -816,7 +816,8 @@ class TestPortillaSimoncelli:
         )
 
     @pytest.mark.filterwarnings(
-        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+        "ignore:input_tensor range is:UserWarning"
     )
     def test_ps_synthesis(self, portilla_simoncelli_synthesize, run_test=True):
         """Test PS texture metamer synthesis.

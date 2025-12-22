@@ -602,6 +602,7 @@ class TestAutodiffFunctions:
         assert Fv.shape == (x_dim, k)
         assert Fv2.allclose(Fv, atol=1e-5)
 
+    @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
     def test_simple_model_eigenvalues(self):
         """Test if Jacobian is constant in all directions for linear model"""
         singular_value = torch.ones(1, device=DEVICE) * 3.0
