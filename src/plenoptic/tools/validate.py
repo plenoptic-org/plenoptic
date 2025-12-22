@@ -28,7 +28,8 @@ def validate_input(
     - If ``no_batch`` is ``True``, check whether ``input_tensor.shape[0] == 1`` or
       ``input_tensor.ndimension()==1`` (``ValueError``).
 
-    Additionally, if input_tensor is not 4d, raises a ``UserWarning``.
+    Additionally, if input_tensor is not 4d, or of it is outside the range
+    `(0, 1)`, raises a ``UserWarning``.
 
     Parameters
     ----------
