@@ -862,7 +862,7 @@ class MetamerCTF(Metamer):
         image: Tensor,
         model: torch.nn.Module,
         loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
-        penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
+        penalty_function: Callable[[Tensor], Tensor] = default_penalty,
         penalty_lambda: float = 0.1,
         coarse_to_fine: Literal["together", "separate"] = "together",
     ):
