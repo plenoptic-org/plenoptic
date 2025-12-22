@@ -430,7 +430,7 @@ class TestEigendistortionSynthesis:
         eig.synthesize(max_iter=5)
         eig.save(op.join(tmp_path, "test_eigendistortion_load_tol.pt"))
         eig = Eigendistortion(
-            einstein_img + 1e-7 * torch.rand_like(einstein_img), model
+            einstein_img * (1 - 1e-7) + 1e-7 * torch.rand_like(einstein_img), model
         )
         with pytest.raises(ValueError, match="Saved and initialized attribute image"):
             eig.load(op.join(tmp_path, "test_eigendistortion_load_tol.pt"))
