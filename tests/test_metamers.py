@@ -665,7 +665,8 @@ class TestMetamers:
     )
     @pytest.mark.parametrize("store_progress", [True, 2, 3])
     @pytest.mark.filterwarnings(
-        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_store_rep(self, einstein_img, model, store_progress):
         if hasattr(model, "scales"):
@@ -698,7 +699,8 @@ class TestMetamers:
         indirect=True,
     )
     @pytest.mark.filterwarnings(
-        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_save_metamer_empty(self, einstein_img, model):
         if hasattr(model, "scales"):
@@ -715,7 +717,8 @@ class TestMetamers:
         indirect=True,
     )
     @pytest.mark.filterwarnings(
-        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_metamer_empty_loss(self, einstein_img, model):
         if hasattr(model, "scales"):
