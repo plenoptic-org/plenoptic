@@ -27,6 +27,7 @@ default_penalty = functools.partial(
     regularization.penalize_range, allowed_range=(0.0, 1.0)
 )
 
+
 class Metamer(OptimizedSynthesis):
     r"""
     Synthesize metamers for image-computable differentiable models.
