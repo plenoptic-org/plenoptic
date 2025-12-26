@@ -25,6 +25,7 @@ This notebook shows the simplest possible MAD: a two pixel image, where our mode
 
 ```{code-cell} ipython3
 import itertools
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,6 +40,9 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # so that relative sizes of axes created by po.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
+
+# Ignore warnings for cleaner output
+warnings.filterwarnings("ignore", category=UserWarning, module="plenoptic")
 
 %load_ext autoreload
 %autoreload 2
