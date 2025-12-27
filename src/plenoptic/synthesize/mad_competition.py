@@ -5,6 +5,7 @@ Classes to perform the synthesis of Maximum Differentiation Competition.
 """
 
 import contextlib
+import functools
 import warnings
 from collections import OrderedDict
 from collections.abc import Callable
