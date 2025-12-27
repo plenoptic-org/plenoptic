@@ -236,7 +236,6 @@ class MADCompetition(OptimizedSynthesis):
             if initial_noise is None:
                 initial_noise = 0.1
             mad_image = self.image + initial_noise * torch.randn_like(self.image)
-            mad_image = mad_image.clamp(0, 1)
             self._initial_image = mad_image.clone()
             mad_image.requires_grad_()
             self._mad_image = mad_image
