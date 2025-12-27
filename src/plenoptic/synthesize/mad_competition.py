@@ -23,6 +23,10 @@ from ..tools.convergence import loss_convergence
 from ..tools.validate import validate_input, validate_metric
 from .synthesis import OptimizedSynthesis
 
+default_penalty = functools.partial(
+    regularization.penalize_range, allowed_range=(0.0, 1.0)
+)
+
 
 class MADCompetition(OptimizedSynthesis):
     r"""
@@ -80,7 +84,7 @@ class MADCompetition(OptimizedSynthesis):
         reference_metric: torch.nn.Module | Callable[[Tensor, Tensor], Tensor],
         minmax: Literal["min", "max"],
         metric_tradeoff_lambda: float | None = None,
-        penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
+        penalty_function: Callable[[Tensor], Tensor] = default_penalty,
         penalty_lambda: float = 0.1,
     ):
         super().__init__(
