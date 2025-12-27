@@ -25,6 +25,7 @@ This notebook shows the simplest possible MAD: a two pixel image, where our mode
 
 ```{code-cell} ipython3
 import itertools
+import functools
 import warnings
 
 import matplotlib.pyplot as plt
@@ -212,6 +213,10 @@ po.imshow(img, vrange=(0, 255), zoom=4);
 Now we'll do the same process of running synthesis and checking our loss as above:
 
 ```{code-cell} ipython3
+range_penalty_custom = functools.partial(
+    po.tools.regularization.penalize_range, allowed_range=(0.0, 255.0)
+)
+
 def l1_norm(x, y):
     return torch.linalg.vector_norm(x - y, ord=1)
 
@@ -239,8 +244,8 @@ for t, (m1, m2) in itertools.product(["min", "max"], zip(metrics, metrics[::-1])
         m2,
         t,
         metric_tradeoff_lambda=tradeoffs[name],
-        allowed_range=(0, 255),
-        range_penalty_lambda=1,
+        penalty_function=range_penalty_custom,
+        penalty_lambda=1,
     )
     all_mad[name].setup(initial_noise=20, optimizer_kwargs={"lr": lr.get(name, 0.1)})
     print(f"Synthesizing {name}")
