@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.18.1
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -24,8 +24,8 @@ Download this notebook: **{nb-download}`MAD_Competition_1.ipynb`**!
 This notebook shows the simplest possible MAD: a two pixel image, where our models are L2-norm and L1-norm. It will not explain the basics of MAD Competition or how to use it. Instead, since we're dealing with a simple and low-dimensional example, we can plot the image in pixel space and draw out the model contours, which we can use to explicitly check whether we've found the correct results.
 
 ```{code-cell} ipython3
-import itertools
 import functools
+import itertools
 import warnings
 
 import matplotlib.pyplot as plt
@@ -216,6 +216,7 @@ Now we'll do the same process of running synthesis and checking our loss as abov
 range_penalty_custom = functools.partial(
     po.tools.regularization.penalize_range, allowed_range=(0.0, 255.0)
 )
+
 
 def l1_norm(x, y):
     return torch.linalg.vector_norm(x - y, ord=1)
