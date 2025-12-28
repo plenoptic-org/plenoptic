@@ -65,8 +65,8 @@ class MADCompetitionVariant(po.synth.MADCompetition):
         scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         scheduler_kwargs: dict | None = None,
     ):
-        mad_image = initial_image.clamp(*self.allowed_range)
-        self._initial_image = mad_image.clone()
+        mad_image = initial_image
+        self._initial_image = initial_image.clone()
         mad_image.requires_grad_()
         self._mad_image = mad_image
         self._reference_metric_target = self.reference_metric(
