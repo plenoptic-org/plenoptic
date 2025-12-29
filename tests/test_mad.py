@@ -1067,11 +1067,26 @@ class TestMAD:
         # losses[-1] corresponds to the *current* loss (of mad.mad_image), not the loss
         # from the most recent iteration. so losses[-2] is the loss of the last
         # synthesis iteration.
-        mad.synthesize(max_iter=15, stop_criterion=1e-3, stop_iters_to_check=5)
-        assert abs(mad.losses[-6] - mad.losses[-2]) < 1e-3, (
+        max_iter = 30
+        stop_criterion = 5 * 1e-3
+        stop_iters = 5
+        mad.synthesize(
+            max_iter=max_iter,
+            stop_criterion=stop_criterion,
+            stop_iters_to_check=stop_iters,
+        )
+        # Check that synthesis converges at a reasonable iteration
+        assert len(mad.losses) < max_iter + 1, (
+            "MAD synthesis didn't converge, but this test expects it to."
+        )
+        assert len(mad.losses) >= stop_iters + 2, (
+            "MAD synthesis stopped too early for this test to work correctly."
+        )
+        # Check that convergence stopping worked well
+        assert abs(mad.losses[-6] - mad.losses[-6 + stop_iters - 1]) < stop_criterion, (
             "Didn't stop when hit criterion!"
         )
-        assert abs(mad.losses[-7] - mad.losses[-3]) > 1e-3, (
+        assert abs(mad.losses[-7] - mad.losses[-7 + stop_iters - 1]) > stop_criterion, (
             "Stopped after hit criterion!"
         )
 
