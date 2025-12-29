@@ -47,8 +47,8 @@ class Metamer(OptimizedSynthesis):
         The loss function used to compare the representations of the models
         in order to determine their loss.
     penalty_function
-        A penalty function applied to the metamer, that returns a penalty
-        scalar to be minimized. It constrains specific properties of the metamer.
+        A penalty function applied to the metamer, that returns a scalar penalty
+        to be minimized. It constrains specific properties of the metamer.
     penalty_lambda
         Weight of the penalty term. Must be non-negative.
 
