@@ -56,6 +56,8 @@ extensions = [
 numfig = True
 add_module_names = False
 
+nitpicky = True
+
 intersphinx_mapping = {
     "torch": ("https://docs.pytorch.org/docs/stable/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),

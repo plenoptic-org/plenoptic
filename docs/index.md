@@ -132,10 +132,10 @@ tutorials/applications/*
 :glob: true
 :maxdepth: 1
 
+API Documentation <api>
 synthesis
 tips
 reproducibility
-API Documentation <api>
 tutorials/advanced/*
 :::
 

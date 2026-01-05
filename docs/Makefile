@@ -22,4 +22,4 @@ help:
 	rm -r "$(BUILDDIR)/plot_directive/api/" || true
 	rm -r "$(SOURCEDIR)/generated/" || true
     # ignore the pyrtools-thrown warning about dpi
-	@ PYTHONWARNINGS="ignore:Ignoring dpi:UserWarning" $(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	@ PYTHONWARNINGS="ignore:Ignoring dpi:UserWarning" $(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O) -T -W
