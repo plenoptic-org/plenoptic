@@ -82,7 +82,7 @@ po.imshow(img);
 ```
 
 To start, we'll demonstrate MAD competition as described in the paper, using two metrics: structural similarity index (SSIM, described in [Wang, Z., Bovik, A., Sheikh, H., & Simoncelli, E. (2004). Image quality assessment: from error visibility to structural similarity. IEEE Transactions
-on Image Processing](https://www.cns.nyu.edu/pub/lcv/wang03-preprint.pdf)) and mean-squared error (MSE), implementations for both of which are found in {mod}`plenoptic.metric <plenoptic.metric>`. We use the weighted version of SSIM described in the MAD Competition paper, hence the `weighted` argument passed to {func}`ssim <plenoptic.metric.perceptual_distance.ssim>` below. Note also that we use `1-SSIM`: SSIM measures similarity (so that 0 means completely different and 1 means identical), but {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` expects [metrics](https://en.wikipedia.org/wiki/Metric_(mathematics)), which return 0 if and only if the two inputs are identical.
+on Image Processing](https://www.cns.nyu.edu/pub/lcv/wang03-preprint.pdf)) and mean-squared error (MSE), implementations for both of which are in [plenoptic](metrics-api). We use the weighted version of SSIM described in the MAD Competition paper, hence the `weighted` argument passed to {func}`ssim <plenoptic.metric.perceptual_distance.ssim>` below. Note also that we use `1-SSIM`: SSIM measures similarity (so that 0 means completely different and 1 means identical), but {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` expects [metrics](https://en.wikipedia.org/wiki/Metric_(mathematics)), which return 0 if and only if the two inputs are identical.
 
 ```{code-cell} ipython3
 def model1(*args):

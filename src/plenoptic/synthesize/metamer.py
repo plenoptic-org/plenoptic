@@ -59,6 +59,9 @@ class Metamer(OptimizedSynthesis):
        https://www.cns.nyu.edu/~lcv/texture/
     """
 
+    loss_function: Callable[[Tensor, Tensor], Tensor]
+    """Callable which specifies how close metamer representation is to target."""
+
     def __init__(
         self,
         image: Tensor,
@@ -81,7 +84,7 @@ class Metamer(OptimizedSynthesis):
         self._target_representation = self.model(self.image)
         self._scheduler = None
         self._scheduler_step_arg = False
-        self._loss_function = loss_function
+        self.loss_function = loss_function
         self._saved_metamer = []
         self._store_progress = None
         self._metamer = None
@@ -784,12 +787,6 @@ class Metamer(OptimizedSynthesis):
         The goal of synthesis is for ``model(metamer)`` to match this value.
         """  # numpydoc ignore=RT01
         return self._target_representation
-
-    @property
-    def loss_function(self) -> Callable[[Tensor, Tensor], Tensor]:
-        """Callable which specifies how close metamer representation is to target."""
-        # numpydoc ignore=RT01,ES01
-        return self._loss_function
 
     @property
     def metamer(self) -> torch.Tensor:
