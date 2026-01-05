@@ -150,11 +150,11 @@ Generally speaking, synthesis will run until you hit `max_iter` iterations. Howe
 
 ### Moving between devices
 
-{class}`Metamer <plenoptic.synthesize.metamer.Metamer>` has a {func}`to <plenoptic.synthesize.metamer.Metamer.to>` method for moving the object between devices or dtypes. Call it as you would call any {func}`tensor.to <torch.Tensor.to>` and it will move over the necessary attributes.
+{class}`~plenoptic.synthesize.metamer.Metamer` has a {func}`~plenoptic.synthesize.metamer.Metamer.to` method for moving the object between devices or dtypes. Call it as you would call any {meth}`torch.Tensor.to` and it will move over the necessary attributes.
 
 ### Saving and loading
 
-Finally, you probably want to save the results of your synthesis. As mentioned above, you can save the synthesis animation, and all of the plots return regular `matplotlib` Figures and can be manipulated as expected. The synthesized image itself is a tensor and can be detached, converted to a numpy array, and saved (either as an image or array) as you'd expect. {func}`po.to_numpy <plenoptic.tools.data.to_numpy>` is a convenience function we provide for operations like this, which detaches the tensor, sends it to the CPU, and converts it to a numpy array with appropriate dtype. Note that it doesn't squeeze the tensor, so you may want to do that yourself.
+Finally, you probably want to save the results of your synthesis. As mentioned above, you can save the synthesis animation, and all of the plots return regular `matplotlib` Figures and can be manipulated as expected. The synthesized image itself is a tensor and can be detached, converted to a numpy array, and saved (either as an image or array) as you'd expect. {func}`~plenoptic.tools.data.to_numpy` is a convenience function we provide for operations like this, which detaches the tensor, sends it to the CPU, and converts it to a numpy array with appropriate dtype. Note that it doesn't squeeze the tensor, so you may want to do that yourself.
 
 ```{code-cell} ipython3
 met_image = po.to_numpy(met.metamer).squeeze()
@@ -166,7 +166,7 @@ imageio.imwrite("test.png", met_image)
 
 The metamer lies slightly outside the range `[0, 1]`, so we clip before saving as an image. Metamer's objective function has a quadratic penalty on the synthesized image's range, and the weight on this penalty can be adjusted by changing the value of `range_penalty_lambda` <!-- skip-lint --> at initialization.
 
-You can also save the entire {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` object with its {func}`save <plenoptic.synthesize.metamer.Metamer.save>` method. This can be fairly large (depending on how many iterations you ran it for and how frequently you stored progress), but stores all information:
+You can also save the entire {class}`~plenoptic.synthesize.metamer.Metamer` object with its {func}`~plenoptic.synthesize.metamer.Metamer.save` method. This can be fairly large (depending on how many iterations you ran it for and how frequently you stored progress), but stores all information:
 
 ```{code-cell} ipython3
 met.save("test.pt")

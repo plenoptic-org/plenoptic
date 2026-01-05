@@ -22,7 +22,7 @@ Download this notebook: **{nb-download}`Display.ipynb`**!
 # Display and animate functions
 
 `plenoptic` contains a variety of code for visualizing the outputs and the process of synthesis. This notebook details how to make use of that code, which has largely been written with the following goals:
-1. If you follow the [model API](models-doc) (and that of {class}`Synthesis <plenoptic.synthesize.synthesis.Synthesis>` or {class}`OptimizedSynthesis <plenoptic.synthesize.synthesis.OptimizedSynthesis>`, if creating a new synthesis method; see the [synthesis design description](synthesis-objects)), display code should plot something reasonably useful automatically.
+1. If you follow the [model API](models-doc) or [synthesis object API](synthesis-objects), display code should plot something reasonably useful automatically.
 2. The code is flexible enough to allow for customization for more useful visualizations.
 3. If the plotting code works, the animate code should also.
 
@@ -247,7 +247,7 @@ po.synth.metamer.animate(
 
 ## More complicated model representation plots
 
-While this provides a starting point, it's not always super useful. In the example above, the {class}`LinearNonlinear <plenoptic.simulate.models.frontend.LinearNonlinear>` model returns the output of several convolutional kernels across the image, and so plotting as a series of images is pretty decent. The representation of the {class}`PortillaSimoncelli <plenoptic.simulate.models.PortillaSimoncelli>` model below, however, has several distinct components at multiple spatial scales and orientations. That structure is lost in a single stem plot:
+While this provides a starting point, it's not always super useful. In the example above, the {class}`~plenoptic.simulate.models.frontend.LinearNonlinear` model returns the output of several convolutional kernels across the image, and so plotting as a series of images is pretty decent. The representation of the {class}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` model below, however, has several distinct components at multiple spatial scales and orientations. That structure is lost in a single stem plot:
 
 ```{code-cell} ipython3
 img = po.data.reptile_skin().to(DEVICE)

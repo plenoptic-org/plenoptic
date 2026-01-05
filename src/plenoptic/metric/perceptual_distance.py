@@ -544,7 +544,7 @@ def normalized_laplacian_pyramid(img: torch.Tensor) -> list[torch.Tensor]:
       >>> po.imshow(pyramid, col_wrap=3)
       <PyrFigure size ...>
     """
-    (_, channel, height, width) = img.size()
+    (_, channel, _, _) = img.size()
 
     N_scales = 6
     spatialpooling_filters = np.load(Path(DIRNAME) / "DN_filts.npy")

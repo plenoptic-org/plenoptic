@@ -141,7 +141,7 @@ po.imshow(img);
 The following settings seem to reliably find good metamers for this model. Here, we just give a brief overview of these options; see the [](ps-optimization) notebook for more information.
 
 - `max_iter=100` puts an upper bound (of 100) on the number of iterations that the optimization will run.
-- `loss_function` specifies the loss function to use. Here, we use a loss that we know works well for this model, which reweights some of the representation to find a better solution.
+- `loss_function` <!-- skip-lint --> specifies the loss function to use. Here, we use a loss that we know works well for this model, which reweights some of the representation to find a better solution.
 - `optimizer` <!-- skip-lint --> / `optimizer_kwargs` specifies the torch optimizer to use and its keyword arguments. Here, we use {class}`~torch.optim.LBFGS`, which uses an estimate of the Hessian matrix (which contains all second-order partial derivatives) to find the best solution.
 
 This process takes about 4 minutes on my laptop without a GPU. How long it will take depends on your system and, in particular, whether you have a GPU.
@@ -178,7 +178,7 @@ po.imshow(
 );
 ```
 
-We can also use plenoptic's {func}`~plenoptic.synthesize.metamer.Metamer.plot_synthesis_status` method to see how things are going. The image on the left shows the metamer at this moment in synthesis, while the center plot shows the loss over time, with the red dot pointing out the current loss, and the rightmost plot shows the representation error (i.e., the {func}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.plot_representation` figure from above, but for `model(target image) - model(synthesized image)`).
+We can also use plenoptic's {func}`~plenoptic.synthesize.metamer.plot_synthesis_status` method to see how things are going. The image on the left shows the metamer at this moment in synthesis, while the center plot shows the loss over time, with the red dot pointing out the current loss, and the rightmost plot shows the representation error (i.e., the {func}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.plot_representation` figure from above, but for `model(target image) - model(synthesized image)`).
 
 We can see the synthesized texture on the leftmost plot. The overall synthesis error decreases over the synthesis iterations (subplot 2).  The remaining plots show us the error broken out by the different texture statistics; see [](ps-model-stats) to better understand them.
 

@@ -7,7 +7,7 @@ convergence: loss, pixel change, etc.
 They should probably be able to accept the following arguments, in this order
 (they can accept more):
 
-- ``synth``: an OptimizedSynthesis object to check.
+- ``synth``: the synthesis object to check.
 
 - ``stop_criterion``: the value used as criterion / tolerance that our
   convergence target is compared against.
@@ -23,12 +23,12 @@ They must return a single ``bool``: ``True`` if we've reached convergence,
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..synthesize.metamer import MetamerCTF
-    from ..synthesize.synthesis import OptimizedSynthesis
+    from ..synthesize.mad_competition import MADCompetition
+    from ..synthesize.metamer import Metamer, MetamerCTF
 
 
 def loss_convergence(
-    synth: "OptimizedSynthesis",
+    synth: "Metamer | MetamerCTF | MADCompetition",
     stop_criterion: float,
     stop_iters_to_check: int,
 ) -> bool:
@@ -48,7 +48,7 @@ def loss_convergence(
     Parameters
     ----------
     synth
-        The OptimizedSynthesis object to check.
+        The synthesis object to check.
     stop_criterion
         If the loss over the past ``stop_iters_to_check`` has changed
         less than ``stop_criterion``, we terminate synthesis.
@@ -115,7 +115,7 @@ def coarse_to_fine_enough(synth: "MetamerCTF", i: int, ctf_iters_to_check: int) 
 
 
 def pixel_change_convergence(
-    synth: "OptimizedSynthesis",
+    synth: "Metamer | MetamerCTF | MADCompetition",
     stop_criterion: float,
     stop_iters_to_check: int,
 ) -> bool:
@@ -135,7 +135,7 @@ def pixel_change_convergence(
     Parameters
     ----------
     synth
-        The OptimizedSynthesis object to check.
+        The synthesis object to check.
     stop_criterion
         If the pixel change norm has been less than ``stop_criterion`` for all
         of the past ``stop_iters_to_check``, we terminate synthesis.

@@ -704,7 +704,7 @@ class MADCompetition(OptimizedSynthesis):
         ValueError
             If the saved and loading ``MADCompetition`` objects have a different value
             for any of :attr:`image`, :attr:`range_penalty_lambda`,
-            :attr:`allowed_range`, :attr:`metric_tradeoff_lambda`, or :attr:`minimax`.
+            :attr:`allowed_range`, :attr:`metric_tradeoff_lambda`, or :attr:`minmax`.
         ValueError
             If the behavior of :attr:`optimized_metric` or :attr:`reference_metric` is
             different between the saved and loading objects.

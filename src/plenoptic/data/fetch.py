@@ -78,7 +78,7 @@ REGISTRY_URLS = {
     "ps_regression.tar.gz": OSF_TEMPLATE.format("7t4fj/?revision=11"),
 }
 
-#: List of files that can be downloaded using :func:`fetch_data`
+#: List of files that can be downloaded using :func:`~plenoptic.data.fetch.fetch_data`
 DOWNLOADABLE_FILES = list(REGISTRY_URLS.keys())
 
 try:

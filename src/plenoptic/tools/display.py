@@ -572,7 +572,7 @@ def pyrshow(
         Whether to display the residual bands.
     cmap
         Colormap to use when showing these images.
-    plot_complex : {'rectangular', 'polar', 'logpolar'}
+    plot_complex
         Specifies handling of complex values.
 
         * ``"rectangular"``: plot real and imaginary components as separate images.
