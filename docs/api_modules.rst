@@ -32,4 +32,15 @@
    simulate.canonical_computations.steerable_pyramid_freq
    simulate.canonical_computations.filters
    simulate.canonical_computations.non_linearities
+   data
+   data.fetch
    tools.signal
+   tools.convergence
+   tools.conv
+   tools.data
+   tools.display
+   tools.external
+   tools.io
+   tools.optim
+   tools.stats
+   tools.validate

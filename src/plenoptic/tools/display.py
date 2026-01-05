@@ -157,8 +157,8 @@ def imshow(
     cmap
         Colormap to use when showing these images. If ``None``, then behavior is
         determined by ``vrange``: if ``vmap in ["auto0", "indep0"]``, we use
-        ``"RdBu_r"``, else we use ``"gray"`` (see :doc:`matplotlib documentation
-        <matplotlib:colormaps>`).
+        ``"RdBu_r"``, else we use ``"gray"`` (see
+        :external+matplotlib:ref:`matplotlib documentation <colormaps>`).
     plot_complex
         Specifies handling of complex values.
 
@@ -377,8 +377,8 @@ def animshow(
     cmap
         Colormap to use when showing these images. If ``None``, then behavior is
         determined by ``vrange``: if ``vmap in ["auto0", "indep0"]``, we use
-        ``"RdBu_r"``, else we use ``"gray"`` (see :doc:`matplotlib documentation
-        <matplotlib:colormaps>`).
+        ``"RdBu_r"``, else we use ``"gray"`` (see
+        :external+matplotlib:ref:`matplotlib documentation <colormaps>`).
     plot_complex
         Specifies handling of complex values.
 
@@ -699,7 +699,7 @@ def update_stem(
     stem_container: mpl.container.StemContainer, ydata: np.ndarray | torch.Tensor
 ) -> mpl.container.StemContainer:
     r"""
-    Update the information in a stem plot.
+    Update the information in a stem plot (for an animation).
 
     We update the information in a single stem plot to match that given
     by ``ydata``. We update the position of the markers and and the
@@ -994,7 +994,7 @@ def update_plot(
     batch_idx: int = 0,
 ) -> list:
     r"""
-    Update the information in some axes.
+    Update the information in some axes (for an animation).
 
     This is used for creating an animation over time. In order to create the animation,
     we need to know how to update the matplotlib Artists, and this provides a simple way
