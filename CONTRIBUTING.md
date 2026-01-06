@@ -622,7 +622,7 @@ classes contained in the package, and they all should be located in the
 `docs/tutorials/` directory. If you add or change a substantial amount of code, please
 add a tutorial showing how to use it.
 
-In all markdown files, you should try to use sphinx's cross-reference syntax to refer to code objects in API documentation whenever one is mentioned (for example, you should refer to the `Metamer` class as ``{class}`Metamer <plenoptic.synthesize.metamer.Metamer>` ``). You should similarly refer to code objects in other packages (e.g., pytorch and matplotlib), though the syntax is different. See [myst-parser docs](https://myst-parser.readthedocs.io/en/latest/syntax/cross-referencing.html#reference-roles) for more details and the existing documentation for more examples. As part of the pull request review process, we run linters that will check for missing cross-references. The only objects that can be referred to simply as `monospace` font are function arguments and generic attributes / method (e.g., saying that plenoptic models must have a `forward` method). The linter will ignore all monospace font that have the word "argument" or "keyword" after them (e.g., "the `scales` keyword" or "the `scales` argument") or an html comment containing "skip-lint" (e.g., "the `scales` <!-- skip-lint --> method"; html comments are not rendered in sphinx).
+In all markdown files, you should try to use sphinx's cross-reference syntax to refer to code objects in API documentation whenever one is mentioned (for example, you should refer to the `Metamer` class as ``{class}`~plenoptic.synthesize.metamer.Metamer` ``). You should similarly refer to code objects in other packages (e.g., pytorch and matplotlib), though the syntax is different. See [myst-parser docs](https://myst-parser.readthedocs.io/en/latest/syntax/cross-referencing.html#reference-roles) for more details and the existing documentation for more examples. As part of the pull request review process, we run linters that will check for missing cross-references. The only objects that can be referred to simply as `monospace` font are function arguments and generic attributes / method (e.g., saying that plenoptic models must have a `forward` method). The linter will ignore all monospace font that have the word "argument" or "keyword" after them (e.g., "the `scales` keyword" or "the `scales` argument") or an html comment containing "skip-lint" (e.g., "the `scales` <!-- skip-lint --> method"; html comments are not rendered in sphinx).
 
 The regular markdown files contain everything else, especially discussions about why you should
 use some code in the package and the theory behind it, and should all be located
@@ -681,6 +681,18 @@ in your documentation, add:
 ````
 
 Similar to figures, you can use `numref` to refer to plots as well.
+
+#### API Documentation
+
+All public functions and classes must be included on the API documentation page.
+Therefore, if you add a new public function or class, make sure to add it to
+`docs/api.rst` in an appropriate location. If this is not done,
+`linting/check_apidocs.py` will fail (this check is included in our pre-commit
+config and thus is required to pass for a PR to merge).
+
+If you add a new source file (e.g., `src/plenoptic/synthesize/new_method.py`),
+you will also need to add it to `docs/api_modules.rst`. If this is not done,
+sphinx will raise an error when building the documentation.
 
 ### Docstrings
 
