@@ -255,3 +255,4 @@ else:
 
 nb_execution_mode = os.environ.get("NB_EXECUTION_MODE", "cache")
 nb_execution_raise_on_error = True
+nb_execution_cache_path = ".jupyter_cache"

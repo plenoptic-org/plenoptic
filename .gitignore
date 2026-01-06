@@ -63,3 +63,5 @@ venv
 *.inv
 
 *.lock
+
+.jupyter_cache
