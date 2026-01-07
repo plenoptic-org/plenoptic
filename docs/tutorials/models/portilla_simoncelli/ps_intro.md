@@ -53,9 +53,7 @@ IMG_PATH = fetch_data("portilla_simoncelli_images.tar.gz")
 plt.rcParams["figure.dpi"] = 72
 ```
 
-The simplest definition is a repeating visual pattern. Textures encompass a wide variety of images, including natural patterns such as bark or fur, artificial ones such as brick, and computer-generated ones such as the Julesz patterns ([Julesz 1978](https://link.springer.com/article/10.1007/BF00336998), [Yellot 1993](https://opg.optica.org/josaa/abstract.cfm?uri=josaa-10-5-777)). Below we load some examples.
-
-The Portilla-Simoncelli model was developed to measure the statistical properties of visual textures. Metamer synthesis was used (and can be used) in conjunction with the Portilla-Simoncelli texture model to demonstrate the necessity of different properties of the visual texture. Throughout the notebooks in this section, we will use some of these example textures to demonstrate aspects of the Portilla-Simoncelli model.
+The simplest definition of a texture is a repeating visual pattern. Textures encompass a wide variety of images, including natural patterns such as bark or fur, artificial ones such as brick, and computer-generated ones such as the Julesz patterns ([Julesz 1978](https://link.springer.com/article/10.1007/BF00336998), [Yellot 1993](https://opg.optica.org/josaa/abstract.cfm?uri=josaa-10-5-777)). Below we load some examples.
 
 ```{code-cell} ipython3
 # Load and display a set of visual textures
@@ -95,6 +93,14 @@ display_images(im_files, "Artificial textures")
 im_files = [IMG_PATH / f"fig{num}.jpg" for num in hand_drawn]
 display_images(im_files, "Hand-drawn / computer-generated textures")
 ```
+
+Why do vision scientists care about visual textures? Quoting from the beginning of {cite:alp}`Portilla2000-param-textur`:
+
+> Vision is the process of extracting information from the images that enter the eye. The set of all possible images is vast, and yet only a small fraction of these are likely to be encountered in a natural setting... Nevertheless, it has proven difficult to characterize this set of "natural" images, using either deterministic or statistical models. The class of images that we commonly call "visual texture" seems most amenable to statistical modeling. Loosely speaking, texture images are spatially homogeneous and consist of repeated elements, often subject to some randomization in their location, size, color, orientation, etc. Julesz pioneered the statistical characterization of textures by hypothesizing that the Nth-order joint empirical densities of image pixels (for some unspecified N), could be used to partition textures into classes that are preattentively indistinguishable to a human observer (Julesz, 1962).
+
+The phrase "indistinguishable to a human observer" in that last sentence should grab your attention. As discussed in the [Metamer tutorial](metamer-nb), this is the same idea as perceptual metamers!
+
+In the Portilla-Simoncelli paper, the authors developed a model to measure the statistical properties of visual textures and then used metamer synthesis was used in conjunction with this model to demonstrate the necessity of different properties of the visual texture. Throughout the rest of the notebooks in this section, we will use some of these example textures to demonstrate aspects of the Portilla-Simoncelli model.
 
 ## Further reading
 
