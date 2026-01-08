@@ -443,7 +443,7 @@ class PortillaSimoncelli(nn.Module):
         Examples
         --------
         >>> import plenoptic as po
-        >>> img = po.data.curie()
+        >>> img = po.data.reptile_skin()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
         >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_tensor.shape
@@ -611,7 +611,7 @@ class PortillaSimoncelli(nn.Module):
         Examples
         --------
         >>> import plenoptic as po
-        >>> img = po.data.curie()
+        >>> img = po.data.reptile_skin()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
         >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_tensor.shape
@@ -660,7 +660,7 @@ class PortillaSimoncelli(nn.Module):
         --------
         >>> import plenoptic as po
         >>> import torch
-        >>> img = po.data.curie()
+        >>> img = po.data.reptile_skin()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
         >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_dict = portilla_simoncelli_model.convert_to_dict(
@@ -713,7 +713,7 @@ class PortillaSimoncelli(nn.Module):
         Examples
         --------
         >>> import plenoptic as po
-        >>> img = po.data.curie()
+        >>> img = po.data.reptile_skin()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(
         ...     img.shape[2:], n_scales=3
         ... )
@@ -1268,7 +1268,7 @@ class PortillaSimoncelli(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> img = po.data.curie()
+          >>> img = po.data.reptile_skin()
           >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
           >>> representation_tensor = portilla_simoncelli_model(img)
           >>> fig, axes = portilla_simoncelli_model.plot_representation(
@@ -1441,7 +1441,7 @@ class PortillaSimoncelli(nn.Module):
         typically use this directly.
 
         >>> import plenoptic as po
-        >>> img = po.data.curie()
+        >>> img = po.data.reptile_skin()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
         >>> representation_tensor = portilla_simoncelli_model.forward(img)
         >>> fig, axes = portilla_simoncelli_model.plot_representation(
