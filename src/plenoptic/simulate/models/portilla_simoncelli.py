@@ -1186,7 +1186,7 @@ class PortillaSimoncelli(nn.Module):
             None, we create a new figure.
         figsize
             The size of the figure to create. Must be ``None`` if ax is not ``None``. If
-            both figsize and ax are ``None``, then we set ``figsize=(15, 15)``.
+            both figsize and ax are ``None``, then we set ``figsize=(12, 15)``.
         ylim
             If not None, the y-limits to use for this plot. If None, we use the
             default, slightly adjusted so that the minimum is 0. If False, do not
@@ -1217,11 +1217,11 @@ class PortillaSimoncelli(nn.Module):
           >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
           >>> representation_tensor = portilla_simoncelli_model(img)
           >>> fig, axes = portilla_simoncelli_model.plot_representation(
-          ...     representation_tensor, figsize=(13, 6)
+          ...     representation_tensor
           ... )
         """
         if ax is None and figsize is None:
-            figsize = (15, 15)
+            figsize = (12, 5)
         elif ax is not None and figsize is not None:
             raise ValueError("figsize can't be set if ax is not None")
         # pick the batch_idx we want (but keep the data 3d), and average over

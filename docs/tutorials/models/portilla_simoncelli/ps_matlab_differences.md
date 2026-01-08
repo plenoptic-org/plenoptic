@@ -382,6 +382,7 @@ for ax, im, info in zip(
     po.imshow(im, ax=ax, title=f"Metamer {info} magnitude means")
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
+
 model_mag_means.plot_representation(
     model_mag_means(met.metamer) - model_mag_means(img),
     ylim=(-0.06, 0.06),

@@ -123,7 +123,7 @@ The statistics have also been reshaped so that e.g., the `auto_correlation_magni
 - {func}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.plot_representation` will plot a summarized version of the representation tensor:
 
 ```{code-cell} ipython3
-model.plot_representation(representation, figsize=(15, 5))
+model.plot_representation(representation)
 ```
 
 This plot will be also useful when investigating metamer synthesis progress, so that we can see which statistics are matched and which still differ.

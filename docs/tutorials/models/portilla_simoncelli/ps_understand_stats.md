@@ -347,14 +347,12 @@ And we can double check the error plots to see the difference in their represent
 ```{code-cell} ipython3
 fig, _ = model.plot_representation(
     model(met_remove.metamer) - model(met.image),
-    figsize=(15, 5),
     ylim=(-4, 4),
 )
 fig.suptitle("Without Correlation Statistics")
 
 fig, _ = model.plot_representation(
     model(met.metamer) - model(met.image),
-    figsize=(15, 5),
     ylim=(-4, 4),
 )
 fig.suptitle("Full statistics")
@@ -444,14 +442,12 @@ And again, let's look at the error plots. The first figure shows the error for t
 ```{code-cell} ipython3
 fig, _ = model.plot_representation(
     model(met_remove.metamer) - model(met.image),
-    figsize=(15, 5),
     ylim=(-2, 2),
 )
 fig.suptitle("Without Correlation Statistics")
 
 fig, _ = model.plot_representation(
     model(met.metamer) - model(met.image),
-    figsize=(15, 5),
     ylim=(-2, 2),
 )
 fig.suptitle("Full statistics");
@@ -537,14 +533,12 @@ And again, let's look at the error plots. The first figure shows the error for t
 ```{code-cell} ipython3
 fig, _ = model.plot_representation(
     model(met_remove.metamer) - model(met.image),
-    figsize=(15, 5),
     ylim=(-1.2, 1.2),
 )
 fig.suptitle("Without Correlation Statistics")
 
 fig, _ = model.plot_representation(
     model(met.metamer) - model(met.image),
-    figsize=(15, 5),
     ylim=(-1.2, 1.2),
 )
 fig.suptitle("Full statistics")
