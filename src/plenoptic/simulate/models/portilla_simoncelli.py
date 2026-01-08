@@ -96,6 +96,61 @@ class PortillaSimoncelli(nn.Module):
     .. [2] E P Simoncelli and W T Freeman, "The Steerable Pyramid: A Flexible
        Architecture for Multi-Scale Derivative Computation," Second Int'l Conf
        on Image Processing, Washington, DC, Oct 1995.
+
+    Examples
+    --------
+    Compute texture statistics of an image:
+
+    >>> import plenoptic as po
+    >>> img = po.data.reptile_skin()
+    >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])
+    >>> ps_model(img)
+    tensor([[[0.4172, 0.0547, ..., 0.0048]]])
+
+    Visualize texture statistics:
+
+    >>> import plenoptic as po
+    >>> img = po.data.reptile_skin()
+    >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])
+    >>> fig, axes = ps_model.plot_representation(ps_model(img))
+
+    Convert texture statistics into an easier-to-read format:
+
+    >>> import plenoptic as po
+    >>> img = po.data.reptile_skin()
+    >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])
+    >>> representation_dict = ps_model.convert_to_dict(ps_model(img))
+    >>> representation_dict.keys()
+    odict_keys(['pixel_statistics', ..., 'var_highpass_residual'])
+
+    Synthesize a texture metamer:
+
+    .. plot::
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.reptile_skin()
+      >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])
+      >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(ps_model, img)
+      >>> met = po.synth.Metamer(img, ps_model, loss_function=loss)
+      >>> opt_kwargs = {
+      ...     "max_iter": 10,
+      ...     "max_eval": 10,
+      ...     "history_size": 100,
+      ...     "line_search_fn": "strong_wolfe",
+      ...     "lr": 1,
+      ... }
+      >>> met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
+      >>> # Note that this isn't enough to run synthesis to completion,
+      >>> # just an example to demonstrate what synthesis looks like
+      >>> met.synthesize(max_iter=20)
+      >>> fig, axes = plt.subplots(1, 4, figsize=(25, 4), width_ratios=[1, 1, 1, 3])
+      >>> po.imshow(img, ax=axes[0], title="Target image")
+      <Figure size ... with 4 Axes>
+      >>> axes[0].xaxis.set_visible(False)
+      >>> axes[0].yaxis.set_visible(False)
+      >>> po.synth.metamer.plot_synthesis_status(met, fig=fig, axes_idx={"misc": 0})[0]
+      <Figure size ...>
     """
 
     def __init__(
