@@ -6,6 +6,13 @@ If you are familiar with the model and its [matlab implementation](https://githu
 
 If you are planning on synthesizing Portilla-Simoncelli texture metamers for your own research, please read [](ps-optimization) and [](ps-limitations).
 
+:::{admonition} Understanding Metamers
+:class: warning
+
+We strongly recommended reading [the metamers tutorial](metamer-nb) before the notebooks found on this page, as they already assume a basic understanding of metamers.
+
+:::
+
 :::{toctree}
 :caption: Getting Started
 :titlesonly: true

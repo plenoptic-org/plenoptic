@@ -156,7 +156,7 @@ po.imshow(
 The Julesz conjecture, originally from {cite:alp}`Julesz1962-visual-patter-discr`, states that "humans cannot distinguish between textures with identical second-order statistics" (second-order statistics include the cross- and auto-correlations included in the Portilla-Simoncelli model, see Julesz paper for details). Following up on this initial paper, [Julesz et al, 1978](https://link.springer.com/article/10.1007/BF00336998) and then [Yellot, 1993](https://opg.optica.org/josaa/abstract.cfm?uri=josaa-10-5-777) created images that served as counter-examples for this conjecture: pairs of images that had identical second-order statistics (they differed in their third- and higher-order statistics) but were readily distinguishable by humans. In figure 13 of {cite:alp}`Portilla2000-param-textur`, the authors show that the model is able to synthesize novel images based on these counterexamples that are *also* distinguishable by humans, so the model does not confuse them either.
 
 :::{admonition} What's a third-order statistic?
-:class: dropdown question
+:class: dropdown hint
 
 {attribution="[Wikipedia: Higher-order statistics](https://en.wikipedia.org/wiki/Higher-order_statistics)"}
 > In statistics, the term higher-order statistics (HOS) refers to functions which use the third or higher power of a sample, as opposed to more conventional techniques of lower-order statistics, which use constant, linear, and quadratic terms (zeroth, first, and second powers). The third and higher moments, as used in the skewness and kurtosis, are examples of HOS, whereas the first and second moments, as used in the arithmetic mean (first), and variance (second) are examples of low-order statistics.
