@@ -1101,6 +1101,49 @@ class TestMetamers:
         met_copy.synthesize(max_iter=5)
         assert met_copy.metamer.dtype == torch.float64, "dtype incorrect!"
 
+    @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
+    def test_load_loss_change_warning(self, model, einstein_img, tmp_path):
+        # in PR #381, we fix how we check metamer loss is checked for save/load. for
+        # now, we support older versions and raise a warning. this test emulates that
+        # difference
+        met = po.synth.Metamer(einstein_img, model)
+        met.save(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+        loaded = torch.load(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+        loss_func = list(loaded["loss_function"])
+        loss_func[1] = ("_image", "_metamer")
+        loaded["loss_function"] = tuple(loss_func)
+        torch.save(loaded, op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+        met_copy = po.synth.Metamer(einstein_img, model)
+        with pytest.warns(
+            FutureWarning, match="The saved object was saved with plenoptic 1.3.1"
+        ):
+            met_copy.load(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+
+    @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
+    @pytest.mark.parametrize("check_attr", ["_model", "loss_function"])
+    def test_load_check_change(self, model, check_attr, einstein_img, tmp_path):
+        # this is an error triggered in the situation that the futurewarning in
+        # test_load_loss_change_warning is a specific version of: the saved and
+        # initialized objects want to check the output of model/loss in different ways
+        met = po.synth.Metamer(einstein_img, model)
+        met.save(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+        loaded = torch.load(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+        attr = list(loaded[check_attr])
+        if check_attr == "loss_function":
+            attr[1] = ("something_else", "bad")
+        elif check_attr == "_model":
+            attr[1] = "something_else"
+        loaded[check_attr] = tuple(attr)
+        torch.save(loaded, op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+        met_copy = po.synth.Metamer(einstein_img, model)
+        check_attr = check_attr[1:] if check_attr.startswith("_") else check_attr
+        msg = (
+            "Initialized and saved objects use different inputs to check "
+            f"identity of {check_attr}"
+        )
+        with pytest.raises(ValueError, match=msg):
+            met_copy.load(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+
     @pytest.mark.filterwarnings("ignore:Loss has converged:UserWarning")
     @pytest.mark.parametrize(
         "model", ["frontend.OnOff.nograd", "PortillaSimoncelli"], indirect=True

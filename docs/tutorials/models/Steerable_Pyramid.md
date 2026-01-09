@@ -18,6 +18,7 @@ Download this notebook: **{nb-download}`Steerable_Pyramid.ipynb`**!
 
 :::
 
+(ps-steer-pyr)=
 # Steerable Pyramid
 
 This tutorial walks through the basic features of the torch implementation of the Steerable Pyramid included in `plenoptic`, {class}`SteerablePyramidFreq <plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq>`, and as such describes some basic signal processing that may be useful when building models that process images. We use the steerable pyramid construction in the frequency domain, which provides perfect reconstruction (as long as the input has an even height and width, i.e., `256x256` not `255x255`) and allows for any number of orientation bands. For more details on steerable pyramids and how they are built, see the [pyrtools tutorial](inv:pyrtools:std:doc#tutorials/03_steerable_pyramids).
@@ -109,6 +110,7 @@ po.imshow(reconList, col_wrap=order + 1, vrange="indep1", zoom=2);
 
 We can see that this pyramid is representing a 3 scale 4 orientation decomposition: each row represents a single scale, which we can see because each filter is the same size. As the filter increases in size, we describe the scale as getting "coarser", and its spatial frequency selectivity moves to lower and lower frequencies (conversely, smaller filters are operating at finer scales, with selectivity to higher spatial frequencies). In a given column, all filters have the same orientation: the first column is vertical, the third horizontal, and the other two diagonals.
 
+(steer-pyr-bands)=
 ### Visualizing Filter Responses (Wavelet Coefficients)
 Now let's see what the steerable pyramid representation for images look like.
 

@@ -50,7 +50,15 @@ for p in paths:
     miss_xr = []
     for obj in objects_to_check:
         if xr := re.findall(
-            rf"`{obj}\(?\)?`(?! keyword)(?! argument)(?! ?<\!-- *?skip-lint *?-->)", md
+            # }} matches a single }, so this is looking for obj wrapped in
+            # backticks, optionally starting with tilde, that *is not* preceded by a
+            # closing curly brace (which implies {func} or {class}, which are used
+            # for cross-references) *and* is not followed by keyword, argument
+            # (which means we're describing how to call something) or the skip-lint
+            # comment
+            rf"(?<!}})`~?{obj}\(?\)?`(?! keyword)(?! argument)"
+            rf"(?! ?<\!-- *?skip-lint *?-->)",
+            md,
         ):
             miss_xr.append(xr)
     if miss_xr:
