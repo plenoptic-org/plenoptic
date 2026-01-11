@@ -31,7 +31,6 @@ from torch import Tensor
 from ...tools import signal, stats
 from ...tools.data import to_numpy
 from ...tools.display import clean_stem_plot, clean_up_axes, update_stem
-from ...tools.validate import validate_input
 from ..canonical_computations.steerable_pyramid_freq import (
     SCALES_TYPE as PYR_SCALES_TYPE,
 )
@@ -394,7 +393,10 @@ class PortillaSimoncelli(nn.Module):
         >>> representation_tensor.shape
         torch.Size([1, 1, 1046])
         """
-        validate_input(image)
+        if image.ndimension() != 4:
+            raise ValueError(
+                "Input image must be 4d (batch, channel, height, width)!"
+            )
 
         # pyr_dict is the dictionary of complex-valued tensors returned by the
         # steerable pyramid. pyr_coeffs is a list (length n_scales) of 5d
