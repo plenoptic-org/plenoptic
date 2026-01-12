@@ -3,7 +3,7 @@ Steerable frequency pyramid.
 
 Construct a steerable pyramid on matrix two dimensional signals, in the
 Fourier domain.
-"""
+"""  # numpydoc ignore=EX01
 
 import warnings
 from collections import OrderedDict
@@ -780,7 +780,7 @@ class SteerablePyramidFreq(nn.Module):
         ------
         TypeError
             If ``levels`` is not one of the allowed values.
-        """
+        """  # numpydoc ignore=EX01
         if isinstance(levels, str):
             if levels != "all":
                 raise TypeError(
@@ -846,7 +846,7 @@ class SteerablePyramidFreq(nn.Module):
         ValueError
             If ``bands`` is an integer outside of the range ``[0,
             self.num_orientations-1]``.
-        """
+        """  # numpydoc ignore=EX01
         if isinstance(bands, str):
             if bands != "all":
                 raise TypeError(
@@ -1000,7 +1000,7 @@ class SteerablePyramidFreq(nn.Module):
             Current reconstruction based on the orientation band dft from the
             current scale summed with the output of recursive call with the
             next scale incremented.
-        """
+        """  # numpydoc ignore=EX01
         # base case, return the low-pass residual
         if scale == self.num_scales:
             if "residual_lowpass" in recon_levels:

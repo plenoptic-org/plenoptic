@@ -2,7 +2,7 @@
 Fetch data using pooch.
 
 This is inspired by scipy's datasets module.
-"""
+"""  # numpydoc ignore=EX01
 
 import pathlib
 import sys
@@ -116,7 +116,7 @@ def _find_shared_directory(paths: list[pathlib.Path]) -> pathlib.Path:
     -------
     shared_dir
         Most recent common ancestor.
-    """
+    """  # numpydoc ignore=EX01
     for dir in paths[0].parents:
         if all([dir in p.parents for p in paths]):
             break
