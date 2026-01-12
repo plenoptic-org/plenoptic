@@ -1115,7 +1115,7 @@ class SteerablePyramidFreq(nn.Module):
             ...     coeffs, torch.linspace(0, 2 * torch.pi, 64)
             ... )
             >>> ani = po.animshow(resteered_coeffs[2], repeat=True, framerate=6, zoom=4)
-            >>> # Save the video (here we're saving it as a .gif), and open it.
+            >>> # Save the video (here we're saving it as a .gif)
             >>> ani.save("resteered_coeffs.gif")
 
         .. image:: resteered_coeffs.gif
