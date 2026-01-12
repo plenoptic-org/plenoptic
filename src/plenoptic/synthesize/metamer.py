@@ -344,14 +344,14 @@ class Metamer(OptimizedSynthesis):
         synthesis run for longer.
 
         >>> import plenoptic as po
-        >>> po.tools.set_seed(0)
+        >>> po.tools.set_seed(1)
         >>> img = po.data.einstein()
         >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
         >>> met.synthesize(12, stop_criterion=0.001, stop_iters_to_check=2)
         >>> len(met.losses)
-        10
+        9
         """
         # if setup hasn't been called manually, call it now.
         if self._metamer is None or isinstance(self._scheduler, tuple):
@@ -911,14 +911,14 @@ class Metamer(OptimizedSynthesis):
         >>> met = po.synth.Metamer(img, model)
         >>> met.synthesize(max_iter=5, store_progress=True)
         >>> print(met.metamer)
-        tensor([[[[ 0.0098, ... ]]]], requires_grad=True)
+        tensor([[[[ 0.0098, ...]]]], requires_grad=True)
         >>> met.save("metamers.pt")
         >>> met_copy = po.synth.Metamer(img, model)
         >>> print(met_copy.metamer)
         tensor([])
         >>> met_copy.load("metamers.pt")
         >>> print(met_copy.metamer)
-        tensor([[[[ 0.0098, ... ]]]], requires_grad=True)
+        tensor([[[[ 0.0098, ...]]]], requires_grad=True)
 
         Loading ``Metamer`` object must be initialized with same values as the saved
         object:
@@ -1051,6 +1051,7 @@ class Metamer(OptimizedSynthesis):
         Examples
         --------
         >>> import plenoptic as po
+        >>> img = po.data.einstein()
         >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
@@ -1086,10 +1087,11 @@ class Metamer(OptimizedSynthesis):
         Examples
         --------
         If synthesize is called without store_progress, then this attribute just
-        contains the metamer.
+        contains the metamer, though the number of dimensions is different:
 
         >>> import plenoptic as po
         >>> po.tools.set_seed(0)
+        >>> img = po.data.einstein()
         >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
@@ -1097,9 +1099,13 @@ class Metamer(OptimizedSynthesis):
         tensor([])
         >>> met.synthesize(10)
         >>> met.saved_metamer
-        torch.tensor([[[[0.4351, 0.5324, ...]]]], grad_fn=<StackBackward0>)
+        tensor([[[[[ 2.8099e-02, ...]]]]], grad_fn=<StackBackward0>)
         >>> met.metamer
-        torch.tensor([[[[0.4351, 0.5324, ...]]]], requires_grad=True)
+        tensor([[[[ 2.8099e-02, ...]]]], requires_grad=True)
+        >>> met.saved_metamer.shape
+        torch.Size([1, 1, 1, 256, 256])
+        >>> met.metamer.shape
+        torch.Size([1, 1, 256, 256])
 
         If synthesize is called with ``store_progress=1``, then this attribute
         contains the metamer at each iteration, and ``losses[i]`` contains the error
@@ -1116,9 +1122,9 @@ class Metamer(OptimizedSynthesis):
         >>> met.saved_metamer.shape
         torch.Size([11, 1, 1, 256, 256])
         >>> met.objective_function(met.saved_metamer[2])
-        tensor(0.0168, grad_fn=<AddBackward0>)
+        tensor(0.0179, grad_fn=<AddBackward0>)
         >>> met.losses[2]
-        tensor(0.0168)
+        tensor(0.0179)
         """  # numpydoc ignore=RT01,EX01
         if self._metamer is None:
             return torch.empty(0)
@@ -1817,14 +1823,14 @@ class MetamerCTF(Metamer):
         >>> met = po.synth.MetamerCTF(img, model)
         >>> met.synthesize(max_iter=5, store_progress=True)
         >>> print(met.metamer)
-        tensor([[[[6.7241e-01,...]]]], requires_grad=True)
+        tensor([[[[0.7668, ...]]]], requires_grad=True)
         >>> met.save("metamers_ctf.pt")
         >>> met_copy = po.synth.MetamerCTF(img, model)
         >>> met_copy.metamer
         tensor([])
         >>> met_copy.load("metamers_ctf.pt")
         >>> print(met_copy.metamer)
-        tensor([[[[6.7241e-01,...]]]], requires_grad=True)
+        tensor([[[[0.7668, ...]]]], requires_grad=True)
 
         Loading and saving must both be done with ``MetamerCTF``:
 
@@ -2442,7 +2448,7 @@ def plot_pixel_values(
       >>> met = po.synth.Metamer(img, model)
       >>> met.synthesize(10)
       >>> po.synth.metamer.plot_pixel_values(met)
-      <Axes: ... 'Histogram of pixel values'}>
+      <Axes: ... 'Histogram of pixel values'...>
 
     Plot pixel values from a specified iteration (requires setting ``store_progress``
     when :meth:`~plenoptic.synthesize.metamer.Metamer.synthesize` was called):
@@ -2457,7 +2463,7 @@ def plot_pixel_values(
       >>> met = po.synth.Metamer(img, model)
       >>> met.synthesize(10, store_progress=True)
       >>> po.synth.metamer.plot_pixel_values(met, iteration=3)
-      <Axes: ... 'Histogram of pixel values'}>
+      <Axes: ... 'Histogram of pixel values'...>
 
     Plot on an existing axis:
 
@@ -2472,7 +2478,7 @@ def plot_pixel_values(
       >>> met.synthesize(10)
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
       >>> po.synth.metamer.plot_pixel_values(met, ax=axes[1])
-      <Axes: ... 'Histogram of pixel values'}>
+      <Axes: ... 'Histogram of pixel values'...>
     """
 
     def _freedman_diaconis_bins(a: np.ndarray) -> int:
