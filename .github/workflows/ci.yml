@@ -68,7 +68,7 @@ jobs:
     - name: Run doctests with pytest
       run: |
         # ignore warnings in doctests, since otherwise pytest fails
-        pytest --doctest-modules src/ -W "ignore"
+        OMP_NUM_THREADS=1 pytest --doctest-modules src/ -W "ignore"
   check_sphinx_references:
     runs-on: ubuntu-latest
     name: Check sphinx references

@@ -21,6 +21,9 @@ import torch
 
 import plenoptic
 
+# by default, torch uses all avail threads which slows things run in parallel
+torch.set_num_threads(1)
+
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("./tutorials/"))
 
