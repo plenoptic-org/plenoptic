@@ -109,10 +109,13 @@ class PortillaSimoncelli(nn.Module):
 
     Visualize texture statistics:
 
-    >>> import plenoptic as po
-    >>> img = po.data.reptile_skin()
-    >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])
-    >>> fig, axes = ps_model.plot_representation(ps_model(img))
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> img = po.data.reptile_skin()
+      >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])
+      >>> fig, axes = ps_model.plot_representation(ps_model(img))
 
     Convert texture statistics into an easier-to-read format:
 
@@ -126,6 +129,7 @@ class PortillaSimoncelli(nn.Module):
     Synthesize a texture metamer:
 
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> import torch
@@ -1266,6 +1270,7 @@ class PortillaSimoncelli(nn.Module):
         Examples
         --------
         .. plot::
+          :context: reset
 
           >>> import plenoptic as po
           >>> img = po.data.reptile_skin()
