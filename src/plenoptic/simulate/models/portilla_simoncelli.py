@@ -14,7 +14,7 @@ References
    Computer Vision. 40(1):49-71, October, 2000.
    https://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
    https://www.cns.nyu.edu/~lcv/texture/
-"""
+"""  # numpydoc ignore=EX01
 
 from collections import OrderedDict
 from typing import Literal
@@ -257,7 +257,7 @@ class PortillaSimoncelli(nn.Module):
            values. These arrays have the same shape as the stat (excluding
            batch and channel), with values defining which scale they correspond
            to.
-        """
+        """  # numpydoc ignore=EX01
         shape_dict = OrderedDict()
         # There are 6 pixel statistics
         shape_dict["pixel_statistics"] = np.array(6 * ["pixel_statistics"])
@@ -369,7 +369,7 @@ class PortillaSimoncelli(nn.Module):
             scales_shape_dict's corresponding values. True denotes the
             statistics that will be included in the model's output, while False
             denotes the redundant ones we will toss.
-        """
+        """  # numpydoc ignore=EX01
         mask_dict = scales_shape_dict.copy()
         # Pre-compute some necessary indices.
         # Lower triangular indices (including diagonal), for auto correlations
@@ -825,7 +825,7 @@ class PortillaSimoncelli(nn.Module):
             The residual lowpass as a real-valued 4d tensor (batch, channel,
             height, width). This tensor has been demeaned (independently for
             each batch and channel).
-        """
+        """  # numpydoc ignore=EX01
         pyr_coeffs = self._pyr.forward(image)
         # separate out the residuals and demean the residual lowpass
         lowpass = pyr_coeffs["residual_lowpass"]
@@ -856,7 +856,7 @@ class PortillaSimoncelli(nn.Module):
             3d tensor of shape (batch, channel, 6) containing the mean,
             variance, skew, kurtosis, minimum pixel value, and maximum pixel
             value (in that order).
-        """  # numpydoc ignore=ES01
+        """  # numpydoc ignore=ES01,EX01
         mean = torch.mean(image, dim=(-2, -1), keepdim=True)
         # we use torch.var instead of plenoptic.tools.variance, because our
         # variance is the uncorrected (or sample) variance and we want the
@@ -905,7 +905,7 @@ class PortillaSimoncelli(nn.Module):
            channel, n_orientations, height, width) (same as ``pyr_coeffs``),
            containing the real components of the coefficients (i.e.
            ``coeffs.real``).
-        """
+        """  # numpydoc ignore=EX01
         magnitude_pyr_coeffs = [coeff.abs() for coeff in pyr_coeffs]
         magnitude_means = [
             mag.mean((-2, -1), keepdim=True) for mag in magnitude_pyr_coeffs
@@ -939,7 +939,7 @@ class PortillaSimoncelli(nn.Module):
             reconstructed just from the residual lowpass image. Each is a 4d
             tensor, this is a list because they are all different heights and
             widths.
-        """
+        """  # numpydoc ignore=EX01
         reconstructed_images = [
             self._pyr.recon_pyr(pyr_coeffs_dict, levels=["residual_lowpass"])
         ]
@@ -988,7 +988,7 @@ class PortillaSimoncelli(nn.Module):
         ------
         ValueError
             If ``coeffs_list`` contains tensors that have other than 4 or 5 dimensions.
-        """  # numpydoc ignore=ES01
+        """  # numpydoc ignore=ES01,EX01
         if coeffs_list[0].ndim == 5:
             dims = "o"
         elif coeffs_list[0].ndim == 4:
@@ -1039,7 +1039,7 @@ class PortillaSimoncelli(nn.Module):
             Tensors of shape (batch, channel, n_scales+1) containing the skew
             and kurtosis, respectively, of each tensor in
             ``reconstructed_images``.
-        """
+        """  # numpydoc ignore=EX01
         skew_recon = [
             stats.skew(im, mean=0, var=var_recon[..., i], dim=[-2, -1])
             for i, im in enumerate(reconstructed_images)
@@ -1088,7 +1088,7 @@ class PortillaSimoncelli(nn.Module):
             Tensor of shape (batch, channel, n_orientations, n_orientations,
             scales) containing the cross-correlations at each
             scale.
-        """  # numpydoc ignore=ES01
+        """  # numpydoc ignore=ES01,EX01
         covars = []
         for i, (coeff, coeff_other) in enumerate(
             zip(coeffs_tensor, coeffs_tensor_other)
@@ -1159,7 +1159,7 @@ class PortillaSimoncelli(nn.Module):
             found at the same orientation index as the input, and the imaginary
             at orientation+self.n_orientations. (The finest scale has been
             removed).
-        """
+        """  # numpydoc ignore=EX01
         doubled_phase_mags = []
         doubled_phase_sep = []
         # don't do this for the finest scale
@@ -1352,7 +1352,7 @@ class PortillaSimoncelli(nn.Module):
             or channel. Should select or average over those dimensions.
         ValueError
             If ``rep`` contains unexpected keys.
-        """
+        """  # numpydoc ignore=EX01
         if rep["skew_reconstructed"].ndim > 1:
             raise ValueError(
                 "Currently, only know how to plot single batch and channel at"
