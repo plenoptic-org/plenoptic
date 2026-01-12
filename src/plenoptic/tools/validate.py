@@ -439,6 +439,153 @@ def validate_metric(
             raise ValueError("metric should always return non-negative numbers!")
 
 
+def validate_penalty(
+    penalty_function: torch.nn.Module | Callable[[Tensor], Tensor],
+    image_shape: tuple[int, int, int, int] | None = None,
+    image_dtype: torch.dtype = torch.float32,
+    device: str | torch.device = "cpu",
+):
+    """
+    Determine whether ``penalty_function`` can be used for regularization
+    in synthesis.
+
+    In particular, this function checks the following (with their associated
+    errors raised):
+
+    - Whether ``penalty_function`` is callable and accepts a single tensor
+      of shape ``image_shape`` as input (``TypeError``).
+
+    - Whether ``penalty_function`` returns a scalar when called with a tensor
+      of shape ``image_shape`` as input (``ValueError``).
+
+    - If ``penalty_function`` adds a gradient to an input tensor, which implies
+      that learnable parameters are being used (``ValueError``).
+
+    - If ``penalty_function`` returns a tensor when given a tensor, failure
+      implies that not all computations are done using torch (``ValueError``).
+
+    - If ``penalty_function`` strips gradient from an input with gradient attached
+      (``ValueError``).
+
+    - If ``penalty_function`` casts an input tensor to something else and returns
+      it to a tensor before returning it (``ValueError``).
+
+    - If ``penalty_function`` changes the precision of the input tensor, or
+      doesn't return a real output (``TypeError``).
+
+    - If ``penalty_function`` changes the device of the input (``RuntimeError``).
+
+    Parameters
+    ----------
+    penalty_function
+        The penalty function to validate.
+    image_shape
+        Some models (e.g., the steerable pyramid) can only accept inputs of a
+        certain shape. If that's the case for ``model``, use this to
+        specify the expected shape. If ``None``, we use an image of shape
+        ``(1,1,16,16)``.
+    image_dtype
+        What dtype to validate against.
+    device
+        What device to place test image on.
+
+    Raises
+    ------
+    ValueError
+        If ``penalty_function`` fails one of the checks listed above.
+    TypeError
+        If ``penalty_function`` changes the precision of the input tensor.
+    RuntimeError
+        If ``penalty_function`` changes the device of the input tensor.
+
+    Examples
+    --------
+    Check that one of our built-in penalty functions work:
+
+    >>> import plenoptic as po
+    >>> penalty_fun = po.tools.regularization.penalize_range
+    >>> po.tools.validate.validate_penalty(penalty_fun)
+
+    Intentionally fail:
+
+    >>> import plenoptic as po
+    >>> import torch
+    >>> def failure_penalty(synth_img):
+    ...     non_scalar = synth_img**2
+    ...     return non_scalar
+    >>> po.tools.validate.validate_penalty(failure_penalty)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: penalty_function should return a scalar value but...
+    """
+    if image_shape is None:
+        image_shape = (1, 1, 16, 16)
+    test_img = torch.rand(
+        image_shape, dtype=image_dtype, requires_grad=False, device=device
+    )
+    try:
+        penalty = penalty_function(test_img)
+    except TypeError:
+        raise TypeError(
+          "penalty_function should be callable and accept a tensor as input"
+        )
+    try:
+        if penalty.requires_grad:
+            raise ValueError(
+                "penalty_function adds gradient to input, it is using learnable"
+                " parameters. Try calling plenoptic.tools.remove_grad()"
+                " on it."
+            )
+    # in particular, numpy arrays lack requires_grad attribute
+    except AttributeError:
+        raise ValueError(
+            "penalty_function does not return a torch.Tensor object -- are you sure"
+            " all computations are performed using torch?"
+        )
+    if penalty.numel() != 1:
+        raise ValueError(
+            "penalty_function should return a scalar value but"
+            + f" output had shape {penalty.shape}"
+        )
+    test_img.requires_grad_()
+    try:
+        if not penalty_function(test_img).requires_grad:
+            raise ValueError(
+                "penalty_function strips gradient from input, do you detach"
+                " it somewhere?"
+            )
+    # this gets raised if something tries to cast a tensor with requires_grad
+    # to an array, which can happen explicitly or if they try to use a numpy /
+    # scipy / etc function. This gets reached (rather than the first
+    # AttributeError) if they cast it to an array in the middle of forward()
+    # and then try to cast it back to a tensor
+    except RuntimeError:
+        raise ValueError(
+            "penalty_function tries to cast the input into something other than"
+            " torch.Tensor object -- are you sure all computations are"
+            " performed using torch?"
+        )
+    if image_dtype in [torch.float16, torch.complex32]:
+        allowed_dtypes = [torch.float16]
+    elif image_dtype in [torch.float32, torch.complex64]:
+        allowed_dtypes = [torch.float32]
+    elif image_dtype in [torch.float64, torch.complex128]:
+        allowed_dtypes = [torch.float64]
+    else:
+        raise TypeError(
+            f"Only float or complex dtypes are allowed for the input, but got"
+            f" type {image_dtype}"
+        )
+    output_dtype = penalty_function(test_img).dtype
+    if output_dtype not in allowed_dtypes:
+        raise TypeError(
+          f"penalty_function should return a real output with the same precision"
+          " as the input, but got type {output_dtype} instead of {image_dtype}"
+        )
+    if penalty_function(test_img).device != test_img.device:
+        # pytorch device errors are RuntimeErrors
+        raise RuntimeError("penalty_function changes device of input, don't do that!")
+
+
 def remove_grad(model: torch.nn.Module):
     """
     Detach all parameters and buffers of model (in place).
