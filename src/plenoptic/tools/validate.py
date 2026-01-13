@@ -446,8 +446,7 @@ def validate_penalty(
     device: str | torch.device = "cpu",
 ):
     """
-    Determine whether ``penalty_function`` can be used for regularization
-    in synthesis.
+    Determine whether ``penalty_function`` can be used for regularization in synthesis.
 
     In particular, this function checks the following (with their associated
     errors raised):
@@ -526,7 +525,7 @@ def validate_penalty(
         penalty = penalty_function(test_img)
     except TypeError:
         raise TypeError(
-          "penalty_function should be callable and accept a tensor as input"
+            "penalty_function should be callable and accept a tensor as input"
         )
     try:
         if penalty.requires_grad:
@@ -578,8 +577,8 @@ def validate_penalty(
     output_dtype = penalty_function(test_img).dtype
     if output_dtype not in allowed_dtypes:
         raise TypeError(
-          f"penalty_function should return a real output with the same precision"
-          " as the input, but got type {output_dtype} instead of {image_dtype}"
+            "penalty_function should return a real output with the same precision"
+            " as the input, but got type {output_dtype} instead of {image_dtype}"
         )
     if penalty_function(test_img).device != test_img.device:
         # pytorch device errors are RuntimeErrors

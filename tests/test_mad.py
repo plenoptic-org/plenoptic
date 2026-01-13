@@ -1124,9 +1124,7 @@ class TestMAD:
                 penalty_function=penalty,
             )
             mad.synthesize(max_iter=5)
-            output_penalty.append(
-              penalty(mad.mad_image.detach()).item()
-            )
+            output_penalty.append(penalty(mad.mad_image.detach()).item())
 
         assert output_penalty[1] < output_penalty[0], (
             "Stronger penalty_lambda did not lead to lower penalty value!"

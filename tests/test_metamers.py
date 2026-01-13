@@ -1187,9 +1187,7 @@ class TestMetamers:
                 penalty_function=penalty,
             )
             met.synthesize(max_iter=5)
-            output_penalty.append(
-                penalty(met.metamer.detach()).item()
-            )
+            output_penalty.append(penalty(met.metamer.detach()).item())
 
         assert output_penalty[1] < output_penalty[0], (
             "Stronger penalty_lambda did not lead to lower penalty value!"
