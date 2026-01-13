@@ -176,7 +176,7 @@ class Metamer(OptimizedSynthesis):
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
         >>> met.setup(po.data.curie())
-        >>> met.synthesize(10)
+        >>> met.synthesize(5)
 
         Set optimizer:
 
@@ -187,7 +187,7 @@ class Metamer(OptimizedSynthesis):
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
         >>> met.setup(optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
-        >>> met.synthesize(10)
+        >>> met.synthesize(5)
 
         Set optimizer and scheduler:
 
@@ -202,7 +202,7 @@ class Metamer(OptimizedSynthesis):
         ...     optimizer_kwargs={"lr": 0.01},
         ...     scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau,
         ... )
-        >>> met.synthesize(10)
+        >>> met.synthesize(5)
 
         Use with save/load. Only the optimizer/scheduler objects are necessary, their
         kwargs and the initial image are handled by load.
@@ -219,7 +219,7 @@ class Metamer(OptimizedSynthesis):
         ...     optimizer_kwargs={"lr": 0.01},
         ...     scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau,
         ... )
-        >>> met.synthesize(10)
+        >>> met.synthesize(5)
         >>> met.save("metamer_setup.pt")
         >>> met = po.synth.Metamer(img, model)
         >>> met.load("metamer_setup.pt")
@@ -227,7 +227,7 @@ class Metamer(OptimizedSynthesis):
         ...     optimizer=torch.optim.SGD,
         ...     scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau,
         ... )
-        >>> met.synthesize(10)
+        >>> met.synthesize(5)
         """
         if self._metamer is None:
             if initial_image is None:
@@ -314,9 +314,9 @@ class Metamer(OptimizedSynthesis):
         >>> met = po.synth.Metamer(img, model)
         >>> # this isn't enough to run synthesis to completion, just to demonstrate
         >>> # use
-        >>> met.synthesize(10)
+        >>> met.synthesize(5)
         >>> met.losses
-        tensor([0.0194, 0.0198, 0.0179, ..., 0.0088, 0.0081])
+        tensor([0.0194, 0.0198, 0.0179, 0.0160, 0.0145, 0.0132])
 
         Synthesize a metamer, using ``store_progress`` so we can examine progress
         later.
@@ -329,15 +329,15 @@ class Metamer(OptimizedSynthesis):
         >>> met = po.synth.Metamer(img, model)
         >>> # this isn't enough to run synthesis to completion, just to demonstrate
         >>> # use
-        >>> met.synthesize(10, store_progress=5)
+        >>> met.synthesize(5, store_progress=2)
         >>> met.saved_metamer.shape
-        torch.Size([3, 1, 1, 256, 256])
-        >>> # see loss, etc on the 9th iteration
-        >>> progress = met.get_progress(9)
+        torch.Size([4, 1, 1, 256, 256])
+        >>> # see loss, etc on the 4th iteration
+        >>> progress = met.get_progress(4)
         >>> progress.keys()
         dict_keys(['losses', ..., 'saved_metamer', 'store_progress_iteration'])
         >>> progress["losses"]
-        tensor(0.0088)
+        tensor(0.0145)
 
         Adjust ``stop_criterion`` and ``stop_iters_to_check`` to change how convergence
         is determined. In this case, we stop early by making ``stop_criterion`` fairly
@@ -427,12 +427,12 @@ class Metamer(OptimizedSynthesis):
         >>> # tensor because the metamer attribute hasn't been initialized.
         >>> met.objective_function()
         tensor([])
-        >>> met.synthesize(10, store_progress=True)
+        >>> met.synthesize(5, store_progress=True)
         >>> # when called without any arguments, this returns the current loss.
         >>> met.objective_function()
-        tensor(0.0081, grad_fn=<AddBackward0>)
+        tensor(0.0132, grad_fn=<AddBackward0>)
         >>> met.losses[-1]
-        tensor(0.0081)
+        tensor(0.0132)
         >>> # can be called with a different image.
         >>> met.objective_function(met.saved_metamer[0])
         tensor(0.0194, grad_fn=<AddBackward0>)
@@ -559,7 +559,7 @@ class Metamer(OptimizedSynthesis):
         >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
-        >>> met.synthesize(10)
+        >>> met.synthesize(5)
         >>> # get values from the first iteration.
         >>> met.get_progress(0)
         {'losses': tensor(0.0194),
@@ -568,14 +568,14 @@ class Metamer(OptimizedSynthesis):
         'gradient_norm': tensor(0.0010)}
         >>> # get values from most recent iteration.
         >>> print(met.get_progress(-2))
-        {'losses': tensor(0.0088),
-        'iteration': 9,
-        'pixel_change_norm': tensor(1.8220),
-        'gradient_norm': tensor(0.0205)}
+        {'losses': tensor(0.0145),
+        'iteration': 4,
+        'pixel_change_norm': tensor(2.2698),
+        'gradient_norm': tensor(0.0268)}
         >>> # get current values.
         >>> print(met.get_progress(-1))
-        {'losses': tensor(0.0081),
-        'iteration': 10,
+        {'losses': tensor(0.0132),
+        'iteration': 5,
         'pixel_change_norm': None,
         'gradient_norm': None}
 
@@ -588,14 +588,14 @@ class Metamer(OptimizedSynthesis):
         >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
-        >>> met.synthesize(10, store_progress=True)
+        >>> met.synthesize(5, store_progress=True)
         >>> print(met.get_progress(-1))
-        {'losses': tensor(0.0081),
-        'iteration': 10,
+        {'losses': tensor(0.0132),
+        'iteration': 5,
         'pixel_change_norm': None,
         'gradient_norm': None,
-        'saved_metamer': tensor([[[[...]]]], grad_fn=<SelectBackward0>),
-        'store_progress_iteration': 10}
+        'saved_metamer': tensor([[[[ 0.0098, ...]]]], grad_fn=<SelectBackward0>),
+        'store_progress_iteration': 5}
         >>> torch.equal(met.saved_metamer[-1], met.get_progress(-1)["saved_metamer"])
         True
 
@@ -608,23 +608,23 @@ class Metamer(OptimizedSynthesis):
         >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
-        >>> met.synthesize(10, store_progress=2)
-        >>> print(met.get_progress(-2))
-        {'losses': tensor(0.0088),
-        'iteration': 9,
-        'pixel_change_norm': tensor(1.8220),
-        'gradient_norm': tensor(0.0205),
-        'saved_metamer': tensor([[[[...]]]], grad_fn=<SelectBackward0>),
-        'store_progress_iteration': 8}
+        >>> met.synthesize(5, store_progress=2)
+        >>> print(met.get_progress(-3))
+        {'losses': tensor(0.0160),
+        'iteration': 3,
+        'pixel_change_norm': tensor(2.3538),
+        'gradient_norm': tensor(0.0271),
+        'saved_metamer': tensor([[[[ 4.4252e-03, ...]]]], grad_fn=<SelectBackward0>),
+        'store_progress_iteration': 4}
         >>> # when we cannot grab the saved metamer corresponding to the requested
         >>> # iteration, iteration_selection controls how we determine "closest".
-        >>> print(met.get_progress(-2, iteration_selection="ceiling"))
-        {'losses': tensor(0.0088),
-        'iteration': 9,
-        'pixel_change_norm': tensor(1.8220),
-        'gradient_norm': tensor(0.0205),
-        'saved_metamer': tensor([[[[...]]]], grad_fn=<SelectBackward0>),
-        'store_progress_iteration': 10}
+        >>> print(met.get_progress(-3, iteration_selection="floor"))
+        {'losses': tensor(0.0160),
+        'iteration': 3,
+        'pixel_change_norm': tensor(2.3538),
+        'gradient_norm': tensor(0.0271),
+        'saved_metamer': tensor([[[[-0.0084, ...]]]], grad_fn=<SelectBackward0>),
+        'store_progress_iteration': 2}
         """
         return super().get_progress(
             iteration,
@@ -1098,11 +1098,11 @@ class Metamer(OptimizedSynthesis):
         >>> met = po.synth.Metamer(img, model)
         >>> met.saved_metamer
         tensor([])
-        >>> met.synthesize(10)
+        >>> met.synthesize(5)
         >>> met.saved_metamer
-        tensor([[[[[ 2.8099e-02, ...]]]]], grad_fn=<StackBackward0>)
+        tensor([[[[[ 0.0098, ...]]]]], grad_fn=<StackBackward0>)
         >>> met.metamer
-        tensor([[[[ 2.8099e-02, ...]]]], requires_grad=True)
+        tensor([[[[ 0.0098, ...]]]], requires_grad=True)
         >>> met.saved_metamer.shape
         torch.Size([1, 1, 1, 256, 256])
         >>> met.metamer.shape
@@ -1117,11 +1117,11 @@ class Metamer(OptimizedSynthesis):
         >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
-        >>> met.synthesize(10, store_progress=True)
-        >>> # This has 11 elements because it includes the metamer at the start of each
-        >>> # of the 10 synthesis iterations, plus the current one
+        >>> met.synthesize(5, store_progress=True)
+        >>> # This has 6 elements because it includes the metamer at the start of each
+        >>> # of the 5 synthesis iterations, plus the current one
         >>> met.saved_metamer.shape
-        torch.Size([11, 1, 1, 256, 256])
+        torch.Size([6, 1, 1, 256, 256])
         >>> met.objective_function(met.saved_metamer[2])
         tensor(0.0179, grad_fn=<AddBackward0>)
         >>> met.losses[2]
@@ -1372,9 +1372,9 @@ class MetamerCTF(Metamer):
         >>> met = po.synth.MetamerCTF(img, model)
         >>> # this isn't enough to run synthesis to completion, just to demonstrate
         >>> # use
-        >>> met.synthesize(10)
+        >>> met.synthesize(5)
         >>> met.losses
-        tensor([0.0821, ..., 0.0801])
+        tensor([0.0821, ..., 0.0805])
         >>> # examine scales_timing attribute to see when MetamerCTF started and stopped
         >>> # optimizing each scale
         >>> met.scales_timing
@@ -1396,15 +1396,15 @@ class MetamerCTF(Metamer):
         >>> met = po.synth.MetamerCTF(img, model)
         >>> # this isn't enough to run synthesis to completion, just to demonstrate
         >>> # use
-        >>> met.synthesize(10, store_progress=5)
+        >>> met.synthesize(5, store_progress=2)
         >>> met.saved_metamer.shape
-        torch.Size([3, 1, 1, 256, 256])
-        >>> # see loss, etc on the 9th iteration
-        >>> progress = met.get_progress(9)
+        torch.Size([4, 1, 1, 256, 256])
+        >>> # see loss, etc on the 4th iteration
+        >>> progress = met.get_progress(4)
         >>> progress.keys()
         dict_keys(['losses', ..., 'saved_metamer', 'store_progress_iteration'])
         >>> progress["losses"]
-        tensor(0.0801)
+        tensor(0.0808)
 
         Set ``change_scale_criterion`` and ``ctf_iters_to_check`` to change
         scale-switching behavior.
@@ -1416,17 +1416,17 @@ class MetamerCTF(Metamer):
         >>> met = po.synth.MetamerCTF(img, model)
         >>> # this isn't enough to run synthesis to completion, just to demonstrate
         >>> # use
-        >>> met.synthesize(10, change_scale_criterion=None, ctf_iters_to_check=2)
+        >>> met.synthesize(5, change_scale_criterion=None, ctf_iters_to_check=2)
         >>> met.losses
-        tensor([0.0821, ..., 0.0492])
+        tensor([0.0821, ..., 0.0535])
         >>> # examine scales_timing attribute to see when MetamerCTF started and stopped
         >>> # optimizing each scale
         >>> met.scales_timing
         {'pixel_statistics': [0, 1],
          'residual_lowpass': [2, 3],
-         3: [4, 5],
-         2: [6, 7],
-         1: [8],
+         3: [4],
+         2: [],
+         1: [],
          0: [],
          'all': []}
 
@@ -1440,7 +1440,7 @@ class MetamerCTF(Metamer):
         >>> img = po.data.reptile_skin()
         >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
         >>> met = po.synth.MetamerCTF(img, model)
-        >>> met.synthesize(10, stop_criterion=0.001, stop_iters_to_check=2)
+        >>> met.synthesize(5, stop_criterion=0.001, stop_iters_to_check=2)
         """
         if (change_scale_criterion is not None) and (
             stop_criterion >= change_scale_criterion
@@ -1952,7 +1952,7 @@ def plot_loss(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> po.synth.metamer.plot_loss(met)
       <Axes: ... ylabel='Loss'>
 
@@ -1966,7 +1966,7 @@ def plot_loss(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> po.synth.metamer.plot_loss(met, iteration=5)
       <Axes: ... ylabel='Loss'>
 
@@ -1981,7 +1981,7 @@ def plot_loss(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> fig, axes = plt.subplots(1, 2)
       >>> po.synth.metamer.plot_loss(met, ax=axes[1])
       <Axes: ... ylabel='Loss'>
@@ -2079,9 +2079,9 @@ def display_metamer(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> po.synth.metamer.display_metamer(met)
-      <Axes: title=...Metamer [iteration=10]...>
+      <Axes: title=...Metamer [iteration=5]...>
 
     If no matplotlib figure exists, this function will create a new one:
 
@@ -2096,9 +2096,9 @@ def display_metamer(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> po.synth.metamer.display_metamer(met)
-      <Axes: title=...Metamer [iteration=10]...>
+      <Axes: title=...Metamer [iteration=5]...>
 
     Display metamer from a specified iteration (requires setting ``store_progress``
     when :meth:`~plenoptic.synthesize.metamer.Metamer.synthesize` was called):
@@ -2111,7 +2111,7 @@ def display_metamer(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10, store_progress=True)
+      >>> met.synthesize(5, store_progress=True)
       >>> po.synth.metamer.display_metamer(met, iteration=3)
       <Axes: title=...Metamer [iteration=3]...>
 
@@ -2126,10 +2126,10 @@ def display_metamer(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
       >>> po.synth.metamer.display_metamer(met, ax=axes[1])
-      <Axes: title=...Metamer [iteration=10]...>
+      <Axes: title=...Metamer [iteration=5]...>
 
     When plotting on an existing axis, if ``zoom=None``, this function will determine
     the best zoom level for the axis size.
@@ -2143,10 +2143,10 @@ def display_metamer(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> fig, axes = plt.subplots(1, 1, figsize=(2, 2))
       >>> po.synth.metamer.display_metamer(met, ax=axes)
-      <Axes: title=...Metamer [iteration=10]...dims: [256, 256] * 0.5'}>
+      <Axes: title=...Metamer [iteration=5]...dims: [256, 256] * 0.5'}>
     """
     progress = metamer.get_progress(iteration)
     try:
@@ -2321,7 +2321,7 @@ def plot_representation_error(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> po.synth.metamer.plot_representation_error(met)
       [<Axes: title=...Representation error...>]
 
@@ -2336,7 +2336,7 @@ def plot_representation_error(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
       >>> po.synth.metamer.plot_representation_error(met, ax=axes[1])
       [<Axes: title=...Representation error...>]
@@ -2359,7 +2359,7 @@ def plot_representation_error(
       >>> model = TestModel(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> po.synth.metamer.plot_representation_error(met)
       [<Axes: title=...Representation error...>]
 
@@ -2476,7 +2476,7 @@ def plot_pixel_values(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> po.synth.metamer.plot_pixel_values(met)
       <Axes: ... 'Histogram of pixel values'...>
 
@@ -2491,7 +2491,7 @@ def plot_pixel_values(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10, store_progress=True)
+      >>> met.synthesize(5, store_progress=True)
       >>> po.synth.metamer.plot_pixel_values(met, iteration=3)
       <Axes: ... 'Histogram of pixel values'...>
 
@@ -2506,7 +2506,7 @@ def plot_pixel_values(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
       >>> po.synth.metamer.plot_pixel_values(met, ax=axes[1])
       <Axes: ... 'Histogram of pixel values'...>
@@ -2860,7 +2860,7 @@ def plot_synthesis_status(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> po.synth.metamer.plot_synthesis_status(met)
       (<Figure size ...>, {'display_metamer': 0, ...})
 
@@ -2888,7 +2888,7 @@ def plot_synthesis_status(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> included_plots = ["plot_loss", "plot_pixel_values"]
       >>> po.synth.metamer.plot_synthesis_status(met, included_plots=included_plots)
       (<Figure size ...>, {'plot_loss': 0, ...})
@@ -2918,7 +2918,7 @@ def plot_synthesis_status(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10)
+      >>> met.synthesize(5)
       >>> fig, axes = plt.subplots(1, 5, figsize=(16, 4))
       >>> axes_idx = {"misc": [0, 3], "plot_loss": 4}
       >>> po.synth.metamer.plot_synthesis_status(met, fig=fig, axes_idx=axes_idx)
@@ -3149,7 +3149,7 @@ def animate(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10, store_progress=True)
+      >>> met.synthesize(5, store_progress=True)
       >>> ani = po.synth.metamer.animate(met)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-1.gif")
@@ -3165,7 +3165,7 @@ def animate(
     >>> model = po.simul.Gaussian(30).eval()
     >>> po.tools.remove_grad(model)
     >>> met = po.synth.Metamer(img, model)
-    >>> met.synthesize(10)
+    >>> met.synthesize(5)
     >>> ani = po.synth.metamer.animate(met)
     Traceback (most recent call last):
     ValueError: synthesize() was run with store_progress=False...
@@ -3197,7 +3197,7 @@ def animate(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10, store_progress=True)
+      >>> met.synthesize(5, store_progress=True)
       >>> included_plots = ["plot_loss", "plot_pixel_values"]
       >>> ani = po.synth.metamer.animate(met, included_plots=included_plots)
       >>> # Save the video (here we're saving it as a .gif)
@@ -3233,7 +3233,7 @@ def animate(
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(10, store_progress=True)
+      >>> met.synthesize(5, store_progress=True)
       >>> fig, axes = plt.subplots(1, 5, figsize=(16, 4))
       >>> axes_idx = {"misc": [0, 3], "plot_loss": 4}
       >>> ani = po.synth.metamer.animate(met, fig=fig, axes_idx=axes_idx)
