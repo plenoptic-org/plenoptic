@@ -702,6 +702,24 @@ need to be as extensive.
 We follow the [numpydoc](https://numpydoc.readthedocs.io/en/latest/) conventions
 for docstring structure.
 
+### Doctests
+
+All public-facing functions and classes should include [doctests](https://docs.python.org/3/library/doctest.html), which are the standard python way of showing short code examples in docstrings. These should be included in their own `Examples` section of the docstring. Every docstring should include at least one example, which shows the most common way of interacting with the function / class. Additional examples should be included where helpful, to show other common ways of interacting with the object (e.g., setting optional arguments), with brief descriptions describing what each example is doing. These examples should be independent of each other, so that a user can copy a block and run them directly (thus they should all e.g., start by importing all necessary modules).
+
+Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/doctest.html) and sphinx builds them as part of the documentation. Some notes about this:
+
+- If you would like to include a figure, use matplotlib's [plot_directive](https://matplotlib.org/stable/api/sphinxext_plot_directive_api.html). That means, your example should be structured like:
+
+```python
+.. plot::
+   :context: reset
+
+   >>> import plenoptic as po
+   >>> # more example code here...
+```
+
+- `:context: reset` is important to make sure that the figures are independent across examples. However, unfortunately,  only sphinx knows how to interpret this directive; pytest ignores it. That means the doctests must be written in such a way that they will not fail if they are run with open figures lying around. One could easily start their doctests by closing any open figures, but this generally goes against the principle of making these examples as compact and useful as possible. Unfortunately, I have not found a good general solution here.
+
 ### Build the documentation
 
 NOTE: If you just want to read the documentation, you do not need to do this;
