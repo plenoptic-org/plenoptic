@@ -1100,3 +1100,34 @@ class TestMAD:
                 "min",
                 metric_tradeoff_lambda=1,
             )
+
+    @pytest.mark.parametrize("penalty_function", ["range", "custom"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_penalty_effect(self, einstein_img, penalty_function):
+        """Higher penalty_lambda should yield smaller penalty values."""
+        if penalty_function == "range":
+            penalty = po.tools.regularization.penalize_range
+        elif penalty_function == "custom":
+            penalty = custom_penalty
+        penalty_lambdas = [0.0, 0.5]
+        output_penalty = []
+        # Synthesize with each penalty lambda and record penalty value
+        for pl in penalty_lambdas:
+            po.tools.set_seed(0)
+            mad = po.synth.MADCompetition(
+                einstein_img,
+                po.metric.mse,
+                dis_ssim,
+                "min",
+                metric_tradeoff_lambda=10,
+                penalty_lambda=pl,
+                penalty_function=penalty,
+            )
+            mad.synthesize(max_iter=5)
+            output_penalty.append(
+              penalty(mad.mad_image.detach()).item()
+            )
+
+        assert output_penalty[1] < output_penalty[0], (
+            "Stronger penalty_lambda did not lead to lower penalty value!"
+        )
