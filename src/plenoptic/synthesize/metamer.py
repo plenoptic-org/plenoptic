@@ -2062,10 +2062,32 @@ def display_metamer(
 
     Examples
     --------
+    If a matplotlib figure exists, this function will use it (using
+    :func:`matplotlib.pyplot.gca`):
+
     .. plot::
       :context: reset
 
       >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
+      >>> plt.figure()
+      >>> img = po.data.einstein()
+      >>> model = po.simul.Gaussian(30).eval()
+      >>> po.tools.remove_grad(model)
+      >>> met = po.synth.Metamer(img, model)
+      >>> met.synthesize(10)
+      >>> po.synth.metamer.display_metamer(met)
+      <Axes: title=...Metamer [iteration=10]...>
+
+    If no matplotlib figure exists, this function will create a new one:
+
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
+      >>> # close all open figures to ensure none exist
+      >>> plt.close("all")
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
@@ -2089,12 +2111,13 @@ def display_metamer(
       >>> po.synth.metamer.display_metamer(met, iteration=3)
       <Axes: title=...Metamer [iteration=3]...>
 
-    Display metamer on an existing axis:
+    Explicitly define the axis to use:
 
     .. plot::
       :context: reset
 
       >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
