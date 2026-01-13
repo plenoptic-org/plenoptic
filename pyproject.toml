@@ -61,7 +61,7 @@ test = [
     'pytest-xdist',
     'pytest-order',
     "pooch>=1.2.0",
-     "torchvision",
+    "torchvision",
 ]
 
 lint = [
