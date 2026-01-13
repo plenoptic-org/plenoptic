@@ -132,6 +132,7 @@ class PortillaSimoncelli(nn.Module):
       :context: reset
 
       >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
       >>> import torch
       >>> img = po.data.reptile_skin()
       >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])

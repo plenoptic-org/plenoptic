@@ -64,6 +64,7 @@ class Metamer(OptimizedSynthesis):
       :context: reset
 
       >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
@@ -1185,6 +1186,7 @@ class MetamerCTF(Metamer):
       :context: reset
 
       >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
       >>> import torch
       >>> img = po.data.reptile_skin()
       >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
@@ -1974,6 +1976,7 @@ def plot_loss(
       :context: reset
 
       >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
@@ -2134,6 +2137,7 @@ def display_metamer(
       :context: reset
 
       >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
@@ -2326,6 +2330,7 @@ def plot_representation_error(
       :context: reset
 
       >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
@@ -2350,7 +2355,7 @@ def plot_representation_error(
       ...
       ...     def forward(self, x):
       ...         return super().forward(x).flatten(-2)
-      >>> model = TestModel(30)
+      >>> model = TestModel(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
       >>> met.synthesize(10)
@@ -2378,6 +2383,7 @@ def plot_representation_error(
       :context: reset
 
       >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
       >>> img = po.data.reptile_skin()
       >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
       >>> met = po.synth.Metamer(img, model)
@@ -2494,6 +2500,7 @@ def plot_pixel_values(
       :context: reset
 
       >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
@@ -2905,6 +2912,7 @@ def plot_synthesis_status(
       :context: reset
 
       >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
@@ -3219,6 +3227,7 @@ def animate(
       :context: reset
 
       >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
