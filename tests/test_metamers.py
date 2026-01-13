@@ -1165,3 +1165,32 @@ class TestMetamers:
         assert abs(met.losses[-7] - met.losses[-3]) > stop_crit, (
             "Stopped after hit criterion!"
         )
+
+    @pytest.mark.parametrize("penalty_function", ["range", "custom"])
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_penalty_effect(self, einstein_img, penalty_function, model):
+        """Stronger penalty_lambda should lead to lower value of penalty,
+        if regularization is working properly."""
+        if penalty_function == "range":
+            penalty = po.tools.regularization.penalize_range
+        elif penalty_function == "custom":
+            penalty = custom_penalty
+        penalty_lambdas = [0.0, 0.5]
+        output_penalty = []
+        for pl in penalty_lambdas:
+            met = po.synth.Metamer(
+                einstein_img,
+                model,
+                penalty_lambda=pl,
+                penalty_function=penalty,
+            )
+            met.synthesize(max_iter=5)
+            output_penalty.append(
+                penalty(met.metamer.detach()).item()
+            )
+
+        assert output_penalty[1] < output_penalty[0], (
+            "Stronger penalty_lambda did not lead to lower penalty value!"
+        )
