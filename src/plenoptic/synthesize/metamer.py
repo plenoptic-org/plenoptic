@@ -2074,6 +2074,7 @@ def display_metamer(
       >>> import plenoptic as po
       >>> import matplotlib.pyplot as plt
       >>> plt.figure()
+      <Figure size ...>
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
