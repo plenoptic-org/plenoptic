@@ -204,6 +204,7 @@ The following functions return a modified version of their input.
 
 .. autosummary::
    :signatures: none
+
    ~signal.rescale
    ~signal.add_noise
    ~signal.center_crop
@@ -213,6 +214,9 @@ The following functions return a modified version of their input.
    :heading-level: 3
 
 The following functions compute summary statistics of their inputs.
+
+.. autosummary::
+   :signatures: none
 
    ~signal.autocorrelation
    ~stats.variance
