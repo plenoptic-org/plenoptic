@@ -3,13 +3,13 @@
 API Reference
 =============
 
-Synthesis
----------
+.. _synthesis-api:
+
+Synthesis objects
+-----------------
 
 Synthesis objects generate novel stimuli which allow researchers to better understand how their computational models make sense of their inputs.
 
-.. rubric:: Synthesis objects
-   :heading-level: 3
 .. currentmodule:: plenoptic.synthesize
 .. autosummary::
    :toctree: generated
@@ -20,48 +20,6 @@ Synthesis objects generate novel stimuli which allow researchers to better under
    ~metamer.MetamerCTF
    ~eigendistortion.Eigendistortion
    ~mad_competition.MADCompetition
-
-.. rubric:: Synthesis helper functions
-   :heading-level: 3
-
-These helper functions all are intended to help visualize the status and outputs of the synthesis objects above.
-
-.. rubric:: Metamer / MetamerCTF
-   :heading-level: 4
-
-.. currentmodule:: plenoptic.synthesize
-.. autosummary::
-   :signatures: long
-
-   ~metamer.plot_loss
-   ~metamer.display_metamer
-   ~metamer.plot_pixel_values
-   ~metamer.plot_representation_error
-   ~metamer.plot_synthesis_status
-   ~metamer.animate
-
-.. rubric:: MAD Competition
-   :heading-level: 4
-.. currentmodule:: plenoptic.synthesize
-.. autosummary::
-   :signatures: long
-
-   ~mad_competition.display_mad_image
-   ~mad_competition.display_mad_image_all
-   ~mad_competition.plot_loss
-   ~mad_competition.plot_loss_all
-   ~mad_competition.plot_pixel_values
-   ~mad_competition.plot_synthesis_status
-   ~mad_competition.animate
-
-.. rubric:: Eigendistortion
-   :heading-level: 4
-.. currentmodule:: plenoptic.synthesize
-.. autosummary::
-   :signatures: long
-
-   ~eigendistortion.display_eigendistortion
-   ~eigendistortion.display_eigendistortion_all
 
 .. _models-api:
 
@@ -130,6 +88,48 @@ These functions are used by the metrics above. While they are not compatible wit
 
    ~perceptual_distance.ssim_map
    ~perceptual_distance.normalized_laplacian_pyramid
+
+Synthesis helper functions
+---------------------------
+
+These helper functions all are intended to help visualize the status and outputs of `synthesis objects <synthesis-api>`_.
+
+.. rubric:: Metamer / MetamerCTF
+   :heading-level: 4
+
+.. currentmodule:: plenoptic.synthesize
+.. autosummary::
+   :signatures: long
+
+   ~metamer.plot_loss
+   ~metamer.display_metamer
+   ~metamer.plot_pixel_values
+   ~metamer.plot_representation_error
+   ~metamer.plot_synthesis_status
+   ~metamer.animate
+
+.. rubric:: MAD Competition
+   :heading-level: 4
+.. currentmodule:: plenoptic.synthesize
+.. autosummary::
+   :signatures: long
+
+   ~mad_competition.display_mad_image
+   ~mad_competition.display_mad_image_all
+   ~mad_competition.plot_loss
+   ~mad_competition.plot_loss_all
+   ~mad_competition.plot_pixel_values
+   ~mad_competition.plot_synthesis_status
+   ~mad_competition.animate
+
+.. rubric:: Eigendistortion
+   :heading-level: 4
+.. currentmodule:: plenoptic.synthesize
+.. autosummary::
+   :signatures: long
+
+   ~eigendistortion.display_eigendistortion
+   ~eigendistortion.display_eigendistortion_all
 
 Canonical Computations
 ----------------------
