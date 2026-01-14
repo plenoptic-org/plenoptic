@@ -162,10 +162,10 @@ These convenience functions make it easier to construct some commonly-used filte
    ~canonical_computations.filters.circular_gaussian2d
    ~canonical_computations.filters.gaussian1d
 
-.. rubric:: Non-linearities
+.. rubric:: Coordinate transformations
    :heading-level: 3
 
-These functions perform some useful image-processing non-linearities on tensors or dictionaries of tensors.
+This related set of functions convert between the rectangular and polar representations of a signal (or computing the norm and direction, which are the analogues for real-valued signals).
 
 .. currentmodule:: plenoptic
 .. autosummary::
@@ -179,6 +179,21 @@ These functions perform some useful image-processing non-linearities on tensors 
    ~simulate.canonical_computations.non_linearities.polar_to_rectangular_dict
    ~simulate.canonical_computations.non_linearities.local_gain_control_dict
    ~simulate.canonical_computations.non_linearities.local_gain_release_dict
+
+The following table summarizes the relationship among these functions (where ➡ denotes from rectangular to polar and ⬅ is the inverse):
+
+.. csv-table::
+   :header: "function", "dtype", "input object", "direction"
+   :widths: auto
+
+   rectangular_to_polar, ``complex*``, ``tensor``, ➡
+   polar_to_rectangular, ``complex*``, ``tensor``, ⬅
+   local_gain_control, ``float*``, ``tensor``, ➡
+   local_gain_release, ``float*``, ``tensor``, ⬅
+   rectangular_to_polar_dict, ``complex*``, ``dict``, ➡
+   polar_to_rectangular_dict, ``complex*``, ``dict``, ⬅
+   local_gain_control_dict, ``float*``, ``dict``, ➡
+   local_gain_release_dict, ``float*``, ``dict``, ⬅
 
 .. rubric:: Image resizing
    :heading-level: 3

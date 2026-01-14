@@ -15,7 +15,7 @@ def rectangular_to_polar_dict(
     residuals: bool = False,
 ) -> tuple[dict, dict]:
     """
-    Return the complex modulus and the phase of each complex tensor in a dictionary.
+    Return the complex amplitude and the phase of each complex tensor in a dictionary.
 
     Keys are preserved, with the option of dropping ``"residual_lowpass"`` and
     ``"residual_highpass"`` by setting ``residuals=False``.
@@ -31,7 +31,7 @@ def rectangular_to_polar_dict(
     -------
     energy
         The dictionary of :class:`torch.Tensor` containing the local complex
-        modulus of ``coeff_dict``.
+        amplitude of ``coeff_dict``.
     state
         The dictionary of :class:`torch.Tensor` containing the local phase of
         ``coeff_dict``.
@@ -91,7 +91,7 @@ def polar_to_rectangular_dict(
     ----------
     energy
         The dictionary of :class:`torch.Tensor` containing the local complex
-        modulus.
+        amplitude.
     state
         The dictionary of :class:`torch.Tensor` containing the local phase.
 
@@ -189,12 +189,12 @@ def local_gain_control(
 
     Notes
     -----
-    Norm and direction (analogous to complex modulus and phase) are defined using
+    Norm and direction (analogous to complex amplitude and phase) are defined using
     blurring operator and division. Indeed blurring the responses removes high
     frequencies introduced by the squaring operation. In the complex case adding the
     quadrature pair response has the same effect (note that this is most clearly seen in
     the frequency domain). Here computing the direction (phase) reduces to dividing out
-    the norm (modulus), indeed the signal only has one real component. This is a
+    the norm (amplitude), indeed the signal only has one real component. This is a
     normalization operation (local unit vector), hence the connection to local gain
     control.
 
@@ -273,12 +273,12 @@ def local_gain_release(
 
     Notes
     -----
-    Norm and direction (analogous to complex modulus and phase) are defined using
+    Norm and direction (analogous to complex amplitude and phase) are defined using
     blurring operator and division. Indeed blurring the responses removes high
     frequencies introduced by the squaring operation. In the complex case adding the
     quadrature pair response has the same effect (note that this is most clearly seen in
     the frequency domain). Here computing the direction (phase) reduces to dividing out
-    the norm (modulus), indeed the signal only has one real component. This is a
+    the norm (amplitude), indeed the signal only has one real component. This is a
     normalization operation (local unit vector), hence the connection to local gain
     control.
 

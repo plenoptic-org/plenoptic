@@ -126,8 +126,12 @@ def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
 
     See Also
     --------
+    :func:`~plenoptic.simulate.canonical_computations.non_linearities.rectangular_to_polar_dict`
+        Same operation on dictionaries.
     polar_to_rectangular
         The inverse operation.
+    :func:`~plenoptic.simulate.canonical_computations.non_linearities.local_gain_control`
+        The analogous function for real-valued signals.
     """
     amplitude = torch.abs(x)
     phase = torch.angle(x)
@@ -157,8 +161,12 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
 
     See Also
     --------
+    :func:`~plenoptic.simulate.canonical_computations.non_linearities.polar_to_rectangular_dict`
+        Same operation on dictionaries.
     rectangular_to_polar
         The inverse operation.
+    :func:`~plenoptic.simulate.canonical_computations.non_linearities.local_gain_release`
+        The analogous function for real-valued signals.
     """  # numpydoc ignore=ES01
     if (amplitude < 0).any():
         raise ValueError("Amplitudes must be non-negative.")
