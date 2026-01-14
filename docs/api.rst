@@ -6,6 +6,8 @@ API Reference
 Synthesis
 ---------
 
+Synthesis objects generate novel stimuli which allow researchers to better understand how their computational models make sense of their inputs.
+
 .. rubric:: Synthesis objects
    :heading-level: 3
 .. currentmodule:: plenoptic.synthesize
