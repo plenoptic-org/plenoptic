@@ -13,7 +13,7 @@ Synthesis objects generate novel stimuli which allow researchers to better under
 .. currentmodule:: plenoptic.synthesize
 .. autosummary::
    :toctree: generated
-   :signatures: long
+   :signatures: none
    :template: synthesis_object.rst.jinja
 
    ~metamer.Metamer
@@ -99,7 +99,7 @@ These helper functions all are intended to help visualize the status and outputs
 
 .. currentmodule:: plenoptic.synthesize
 .. autosummary::
-   :signatures: long
+   :signatures: none
 
    ~metamer.plot_loss
    ~metamer.display_metamer
@@ -112,7 +112,7 @@ These helper functions all are intended to help visualize the status and outputs
    :heading-level: 4
 .. currentmodule:: plenoptic.synthesize
 .. autosummary::
-   :signatures: long
+   :signatures: none
 
    ~mad_competition.display_mad_image
    ~mad_competition.display_mad_image_all
@@ -126,7 +126,7 @@ These helper functions all are intended to help visualize the status and outputs
    :heading-level: 4
 .. currentmodule:: plenoptic.synthesize
 .. autosummary::
-   :signatures: long
+   :signatures: none
 
    ~eigendistortion.display_eigendistortion
    ~eigendistortion.display_eigendistortion_all
