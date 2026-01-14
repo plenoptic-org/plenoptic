@@ -36,10 +36,10 @@ See :ref:`models-doc` for more details.
 
    ~models.portilla_simoncelli.PortillaSimoncelli
 
-.. rubric:: Front End Models
+.. rubric:: LGN-inspired Models
    :heading-level: 3
 
-These "front end" models are inspired by the retina, come from :cite:alp:`Berardino2017-eigen`, and are nested, increasing in complexity as you move down the list.
+These "front end" models are inspired by the lateral geniculate nucleus (LGN; the first non-retinal stage of the primate visual system), come from :cite:alp:`Berardino2017-eigen`, and are nested, increasing in complexity as you move down the list.
 
 .. autosummary::
    :signatures: none
