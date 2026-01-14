@@ -180,8 +180,47 @@ These functions perform some useful image-processing non-linearities on tensors 
    ~simulate.canonical_computations.non_linearities.local_gain_control_dict
    ~simulate.canonical_computations.non_linearities.local_gain_release_dict
 
-Loading, creating, and dealing with images
-------------------------------------------
+.. rubric:: Image resizing
+   :heading-level: 3
+
+The following functions return a version of their input whose size has increased or decreased without further modifying its contents.
+
+.. currentmodule:: plenoptic.tools
+.. autosummary::
+   :signatures: none
+
+   ~conv.correlate_downsample
+   ~conv.blur_downsample
+   ~conv.upsample_convolve
+   ~conv.upsample_blur
+   ~conv.same_padding
+   ~signal.shrink
+   ~signal.expand
+
+.. rubric:: Image modification
+   :heading-level: 3
+
+The following functions return a modified version of their input.
+
+.. autosummary::
+   :signatures: none
+   ~signal.rescale
+   ~signal.add_noise
+   ~signal.center_crop
+   ~signal.modulate_phase
+
+.. rubric:: Image statistics
+   :heading-level: 3
+
+The following functions compute summary statistics of their inputs.
+
+   ~signal.autocorrelation
+   ~stats.variance
+   ~stats.skew
+   ~stats.kurtosis
+
+Loading, creating, and accessing images
+---------------------------------------
 
 .. currentmodule:: plenoptic
 .. autosummary::
@@ -318,30 +357,6 @@ The following functions are used internally to check whether optimization has co
    ~convergence.loss_convergence
    ~convergence.pixel_change_convergence
    ~convergence.coarse_to_fine_enough
-
-Computations
-------------
-
-The following functions perform computations or transformations on image-like tensors and may be useful in building new models.
-
-.. autosummary::
-   :signatures: none
-
-   ~conv.correlate_downsample
-   ~conv.blur_downsample
-   ~conv.upsample_convolve
-   ~conv.upsample_blur
-   ~conv.same_padding
-   ~signal.shrink
-   ~signal.expand
-   ~signal.autocorrelation
-   ~signal.rescale
-   ~signal.add_noise
-   ~signal.center_crop
-   ~signal.modulate_phase
-   ~stats.variance
-   ~stats.skew
-   ~stats.kurtosis
 
 
 Debugging
