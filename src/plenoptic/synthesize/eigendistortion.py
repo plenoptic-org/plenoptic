@@ -19,9 +19,9 @@ from tqdm.auto import tqdm
 from ..tools.display import imshow
 from ..tools.validate import validate_input, validate_model
 from .autodiff import (
-    fisher_info_matrix_eigenvalue,
-    fisher_info_matrix_vector_product,
-    jacobian,
+    _fisher_info_matrix_eigenvalue,
+    _fisher_info_matrix_vector_product,
+    _jacobian,
 )
 from .synthesis import Synthesis
 
@@ -260,7 +260,7 @@ class Eigendistortion(Synthesis):
             this calculation will take too long.
         """
         if self.jacobian is None:
-            J = jacobian(self._representation_flat, self._image_flat)
+            J = _jacobian(self._representation_flat, self._image_flat)
             self._jacobian = J
         else:
             J = self.jacobian
@@ -278,7 +278,7 @@ class Eigendistortion(Synthesis):
         Apply the algorithm to approximate the extremal eigenvalues and eigenvectors
         of the Fisher Information Matrix, without explicitly representing that matrix.
 
-        This method repeatedly calls :func:`fisher_info_matrix_vector_product` with a
+        This method repeatedly calls :func:`_fisher_info_matrix_vector_product` with a
         single (``k=1``), or multiple (``k>1``) vectors.
 
         Parameters
@@ -317,9 +317,9 @@ class Eigendistortion(Synthesis):
         v = v / torch.linalg.vector_norm(v, dim=0, keepdim=True, ord=2)
 
         _dummy_vec = torch.ones_like(y, requires_grad=True)  # cache a dummy vec for jvp
-        Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
+        Fv = _fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
         v = Fv / torch.linalg.vector_norm(Fv, dim=0, keepdim=True, ord=2)
-        lmbda = fisher_info_matrix_eigenvalue(y, x, v, _dummy_vec)
+        lmbda = _fisher_info_matrix_eigenvalue(y, x, v, _dummy_vec)
 
         d_lambda = torch.as_tensor(float("inf"))
         lmbda_new, v_new = None, None
@@ -335,12 +335,12 @@ class Eigendistortion(Synthesis):
                 print(f"{desc} computed | Stop criterion {tol:.2E} reached.")
                 break
 
-            Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
+            Fv = _fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
             Fv = Fv - shift * v  # optionally shift: (F - shift*I)v
 
             v_new, _ = torch.linalg.qr(Fv, "reduced")  # (ortho)normalize vector(s)
 
-            lmbda_new = fisher_info_matrix_eigenvalue(y, x, v_new, _dummy_vec)
+            lmbda_new = _fisher_info_matrix_eigenvalue(y, x, v_new, _dummy_vec)
 
             d_lambda = torch.linalg.vector_norm(
                 lmbda - lmbda_new, ord=2
@@ -395,22 +395,22 @@ class Eigendistortion(Synthesis):
         # orthogonalize first for numerical stability
         P, _ = torch.linalg.qr(P, "reduced")
         _dummy_vec = torch.ones_like(y, requires_grad=True)
-        Z = fisher_info_matrix_vector_product(y, x, P, _dummy_vec)
+        Z = _fisher_info_matrix_vector_product(y, x, P, _dummy_vec)
 
         # optional power iteration to squeeze the spectrum for more accurate
         # estimate
         for _ in range(q):
-            Z = fisher_info_matrix_vector_product(y, x, Z, _dummy_vec)
+            Z = _fisher_info_matrix_vector_product(y, x, Z, _dummy_vec)
 
         Q, _ = torch.linalg.qr(Z, "reduced")
         # B = Q.T @ A @ Q
-        B = Q.T @ fisher_info_matrix_vector_product(y, x, Q, _dummy_vec)
+        B = Q.T @ _fisher_info_matrix_vector_product(y, x, Q, _dummy_vec)
         _, S, Vh = torch.linalg.svd(B, False)  # eigendecomp of small matrix
         V = Vh.T
         V = Q @ V  # lift up to original dimensionality
 
         # estimate error in Q estimate of range space
-        omega = fisher_info_matrix_vector_product(
+        omega = _fisher_info_matrix_vector_product(
             y, x, torch.randn(n, 20).to(x.device), _dummy_vec
         )
         error_approx = omega - (Q @ Q.T @ omega)
