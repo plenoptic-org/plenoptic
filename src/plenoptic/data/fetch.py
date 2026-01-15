@@ -16,6 +16,9 @@ def __dir__() -> list[str]:
     return __all__
 
 
+# If you add a file here:
+# - add the corresponding entry to REGISTRY_URLS
+# - it is useful for users, add it to DOWNLOADABLE_FILES
 REGISTRY = {
     "plenoptic-test-files.tar.gz": "a6b8e03ecc8d7e40c505c88e6c767af5da670478d3bebb4e13a9d08ee4f39ae8",  # noqa: E501
     "ssim_images.tar.gz": "19c1955921a3c37d30c88724fd5a13bdbc9620c9e7dfaeaa3ff835283d2bb42e",  # noqa: E501
@@ -79,7 +82,15 @@ REGISTRY_URLS = {
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch.fetch_data`
-DOWNLOADABLE_FILES = list(REGISTRY_URLS.keys())
+DOWNLOADABLE_FILES = [
+    "portilla_simoncelli_images.tar.gz",
+    "test_images.tar.gz",
+    "example_eigendistortion.pt",
+    "berardino_onoff.pt",
+    "berardino_vgg16.pt",
+    "tid2013.tar.gz",
+    "ps_regression.tar.gz",
+]
 
 try:
     import pooch
@@ -154,8 +165,7 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
     .. plot::
 
       >>> import plenoptic as po
-      >>> from plenoptic.data import fetch
-      >>> path = fetch.fetch_data("portilla_simoncelli_images.tar.gz")
+      >>> path = po.data.fetch_data("portilla_simoncelli_images.tar.gz")
       >>> len(list(path.glob("*")))
       38
       >>> img = po.load_images(path / "fig3b.jpg")

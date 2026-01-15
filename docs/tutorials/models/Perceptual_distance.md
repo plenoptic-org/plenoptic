@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -287,11 +287,8 @@ To execute this part of the notebook, the TID2013 dataset needs to be downloaded
 ```{code-cell} ipython3
 :tags: [hide-input]
 
-from plenoptic.data.fetch import fetch_data
-
-
 def get_tid2013_data():
-    folder = fetch_data("tid2013.tar.gz")
+    folder = po.data.fetch_data("tid2013.tar.gz")
     reference_images = sorted((folder / "reference_images").iterdir())
     reference_images = po.load_images(reference_images)
     # disorted_images file names are of the form "i##_##_#.bmp" (and both the i and

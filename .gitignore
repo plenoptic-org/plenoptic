@@ -16,16 +16,16 @@ __pycache__/
 *.mat
 *.npy
 
-data/
-data/plenoptic-test-files
-data/ssim_images
-data/ssim_analysis.mat
-data/msssim_images
-data/MAD_results
-data/imagenet1000_clsidx_to_labels.txt
-data/portilla*
-data/FashionMNIST
-data/tid2013
+/data/
+/data/plenoptic-test-files
+/data/ssim_images
+/data/ssim_analysis.mat
+/data/msssim_images
+/data/MAD_results
+/data/imagenet1000_clsidx_to_labels.txt
+/data/portilla*
+/data/FashionMNIST
+/data/tid2013
 
 logs/
 train/

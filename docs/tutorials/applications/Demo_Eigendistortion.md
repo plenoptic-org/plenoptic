@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -39,7 +39,6 @@ Our perception is influenced by our internal representation (neural responses) o
 import torch
 
 import plenoptic as po
-from plenoptic.data.fetch import fetch_data
 from plenoptic.simulate.models import OnOff
 from plenoptic.synthesize import Eigendistortion
 
@@ -102,7 +101,9 @@ eigendist_f = Eigendistortion(image=image_tensor, model=mdl_f)
 # this synthesis takes a long time to run, so we load in a cached version.
 # see the following admonition for how to run this yourself
 eigendist_f.load(
-    fetch_data("berardino_onoff.pt"), tensor_equality_atol=1e-7, map_location=DEVICE
+    po.data.fetch_data("berardino_onoff.pt"),
+    tensor_equality_atol=1e-7,
+    map_location=DEVICE,
 )
 ```
 
@@ -174,7 +175,9 @@ eigendist_v = Eigendistortion(image=image_tensor3, model=mdl_v)
 # this synthesis takes a long time to run, so we load in a cached version.
 # see the following admonition for how to run this yourself
 eigendist_v.load(
-    fetch_data("berardino_vgg16.pt"), tensor_equality_atol=1e-7, map_location=DEVICE
+    po.data.fetch_data("berardino_vgg16.pt"),
+    tensor_equality_atol=1e-7,
+    map_location=DEVICE,
 )
 ```
 
