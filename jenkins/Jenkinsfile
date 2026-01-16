@@ -37,6 +37,7 @@ pipeline {
             pip freeze
             nvidia-smi
             python3.11 -c "import torch; print(torch.cuda.current_device())"
+            tmate
             RUN_REGRESSION_SYNTH=1 python3.11 -m pytest -n 8
             '''
           }

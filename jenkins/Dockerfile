@@ -9,6 +9,7 @@ RUN apt-get update && \
       jq "ffmpeg" \
       pandoc \
       make \
+      tmate \
       && \
     apt-get autoremove --purge -y && \
     apt-get autoclean -y && \
