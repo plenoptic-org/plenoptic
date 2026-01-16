@@ -138,7 +138,8 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
     """
     Download data, using pooch. These are largely used for testing.
 
-    To view list of downloadable files, look at :const:`DOWNLOADABLE_FILES`.
+    To view list of downloadable files, look at
+    :const:`~plenoptic.data.fetch.DOWNLOADABLE_FILES`.
 
     This checks whether the data already exists and is unchanged and downloads
     again, if necessary. If dataset_name ends in .tar.gz, this also
