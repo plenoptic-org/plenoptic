@@ -133,10 +133,15 @@ tutorials/applications/*
 :maxdepth: 1
 
 API Documentation <api>
-synthesis
 tips
 reproducibility
 tutorials/advanced/*
+:::
+
+:::{toctree}
+:caption: For Developers
+:maxdepth: 1
+synthesis
 :::
 
 [^footnote-1]: These methods also work with auditory models, such as in [Feather et al., 2019](https://proceedings.neurips.cc/paper_files/paper/2019/hash/ac27b77292582bc293a51055bfc994ee-Abstract.html) though we haven't yet implemented examples. If you're interested, please post in [Discussions](<https://github.com/plenoptic-org/plenoptic/discussions)>)!
