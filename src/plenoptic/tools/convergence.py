@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from ..synthesize.metamer import Metamer, MetamerCTF
 
 
-def loss_convergence(
+def _loss_convergence(
     synth: "Metamer | MetamerCTF | MADCompetition",
     stop_criterion: float,
     stop_iters_to_check: int,
@@ -72,7 +72,11 @@ def loss_convergence(
     )
 
 
-def coarse_to_fine_enough(synth: "MetamerCTF", i: int, ctf_iters_to_check: int) -> bool:
+def _coarse_to_fine_enough(
+    synth: "MetamerCTF",
+    i: int,
+    ctf_iters_to_check: int,
+) -> bool:
     r"""
     Check whether we've been synthesized all scales for long enough.
 
@@ -114,7 +118,7 @@ def coarse_to_fine_enough(synth: "MetamerCTF", i: int, ctf_iters_to_check: int) 
         return False
 
 
-def pixel_change_convergence(
+def _pixel_change_convergence(
     synth: "Metamer | MetamerCTF | MADCompetition",
     stop_criterion: float,
     stop_iters_to_check: int,

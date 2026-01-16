@@ -35,7 +35,6 @@
    data
    data.fetch
    tools.signal
-   tools.convergence
    tools.conv
    tools.data
    tools.display
