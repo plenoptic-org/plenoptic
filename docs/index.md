@@ -12,9 +12,15 @@
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/format.json)](https://github.com/astral-sh/ruff)
 
-:::{figure} /_static/images/Plenoptic_Logo_CMYK_Full_Wide.svg
+:::{image} /_static/images/Plenoptic_Logo_CMYK_Full_DarkMode_Wide.svg
 :alt: plenoptic logo
-:figwidth: 100%
+:class: only-dark
+:align: center
+:::
+
+:::{image} /_static/images/Plenoptic_Logo_CMYK_Full_Wide.svg
+:alt: plenoptic logo
+:class: only-light
 :align: center
 :::
 
@@ -150,7 +156,16 @@ synthesis
 
 This package is supported by the [Center for Computational Neuroscience](https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/), in the Flatiron Institute of the Simons Foundation.
 
-:::{image} /_static/images/CCN-logo-wText.png
-:align: center
-:alt: Flatiron Institute Center for Computational Neuroscience logo
-:::
+```{image} /_static/images/logo_flatiron_white.svg
+:alt: Flatiron Center for Computational Neuroscience logo.
+:class: only-dark
+:width: 200px
+:target: https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/
+```
+
+```{image} /_static/images/CCN-logo-wText.png
+:alt: Flatiron Center for Computational Neuroscience logo.
+:class: only-light
+:width: 200px
+:target: https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/
+```

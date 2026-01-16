@@ -125,11 +125,42 @@ autodoc_default_options = {
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
+html_theme = "pydata_sphinx_theme"
+
+html_favicon = "_static/plenoptic.ico"
+
+html_theme_options = {
+    "icon_links": [
+        {
+            "name": "Home",
+            "url": "https://plenoptic.org",
+            "icon": "fa-solid fa-house",
+        },
+        {
+            "name": "GitHub",
+            "url": "https://github.com/plenoptic-org/plenoptic",
+            "icon": "fab fa-github",
+        },
+        {
+            "name": "PyPI",
+            "url": "https://pypi.org/project/plenoptic",
+            "icon": "fa-custom fa-pypi",
+        },
+    ],
+    "logo": {
+        "image_light": "_static/images/Plenoptic_Logo_CMYK_Full_Wide.svg",
+        "image_dark": "_static/images/Plenoptic_Logo_CMYK_Full_DarkMode_Wide.svg",
+    },
+    "show_prev_next": True,
+    "secondary_sidebar_items": {
+        "**": ["page-toc"],
+    },
+}
 
 # Path for static files (custom stylesheets or JavaScript)
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
+html_js_files = ["custom-icon.js"]
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
