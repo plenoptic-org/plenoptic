@@ -5,6 +5,47 @@ import importlib
 import torch
 
 
+def _parse_save_io_attr_name(
+    synth_object: dict, input_names: tuple[str]
+) -> tuple[list[torch.Tensor], list[str]]:
+    """
+    Parse names of save_io_attrs, allowing for more complex behavior.
+
+    The strings specified in ``input_names`` must either be the names of this
+    object's attributes or of the form ``x * name``, where ``x`` is a float and
+    ``name`` is a string as above, in which case we multiply that attribute by
+    ``x``.
+
+    Parameters
+    ----------
+    synth_object
+        Dictionary containing tensors corresponding to ``input_names`` from.
+    input_names
+        The second element from the tuple ``save_io_attrs`` input to
+        :func:`save`.
+
+    Returns
+    -------
+    tensors
+        The tensors to pass to the corresponding ``save_io_attr``.
+    input_names_test
+        List of strings of attributes that we ensure we save.
+    """
+    tensors = []
+    input_names_test = []
+    for t in input_names:
+        t = t.split("*")
+        if len(t) == 2:
+            name = t[1].strip()
+            scale = float(t[0].strip())
+        else:
+            name = t[0]
+            scale = 1
+        input_names_test.append(name)
+        tensors.append(scale * synth_object[name])
+    return tensors, input_names_test
+
+
 def examine_saved_synthesis(file_path: str, map_location: str | None = None):
     """
     Examine saved synthesis object.
@@ -50,9 +91,10 @@ def examine_saved_synthesis(file_path: str, map_location: str | None = None):
             print(f"{display_k:<{pad_len}}: {v[0]}")
         # then this is an io attribute
         else:
+            tensors, _ = _parse_save_io_attr_name(load_dict, v[1])
             print(
                 f"{display_k:<{pad_len}}: {v[0]}, "
-                f"{[load_dict[t].shape for t in v[1]]} -> {v[2].shape}"
+                f"{[t.shape for t in tensors]} -> {v[2].shape}"
             )
     print("\nTensor attributes\n-----------------")
     tensors = [(k, v) for k, v in load_dict.items() if isinstance(v, torch.Tensor)]

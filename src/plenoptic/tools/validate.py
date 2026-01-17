@@ -13,6 +13,8 @@ from collections.abc import Callable
 import torch
 from torch import Tensor
 
+from .optim import set_seed
+
 
 def validate_input(
     input_tensor: Tensor,
@@ -614,3 +616,95 @@ def remove_grad(model: torch.nn.Module):
     for p in model.buffers():
         if p.requires_grad:
             p.detach_()
+
+
+def validate_convert_tensor_dict(
+    model: torch.nn.Module,
+    image_shape: tuple[int, int, int, int] | None = None,
+    device: str | torch.device = "cpu",
+    n_checks: int = 100,
+):
+    """
+    Determine if a model can properly convert between tensor and dict representations.
+
+    In general, when converting between these two representations, one should use
+    :class:`~collections.OrderedDict` instead of a regular dictionary. If, for some
+    reason, you don't want to do that, this function will attempt to check that
+    ``model.convert_to_tensor`` and ``model.convert_to_dict`` invert each other, running
+    the comparison on ``n_checks`` independent random images.
+
+    WARNING: This is a heuristic and cannot guarantee that the order never changes.
+
+    Parameters
+    ----------
+    model
+        The model to validate.
+    image_shape
+        Some models (e.g., the steerable pyramid) can only accept inputs of a
+        certain shape. If that's the case for ``model``, use this to
+        specify the expected shape. If ``None``, we use an image of shape
+        ``(1,1,16,16)``.
+    device
+        Which device to place the test image on.
+    n_checks
+        How many independent random images to run the check on.
+
+    Raises
+    ------
+    ValueError
+        If any of the checks fail.
+
+    Examples
+    --------
+    Check that one of our built-in models work:
+
+    >>> import plenoptic as po
+    >>> model = po.simul.PortillaSimoncelli((256, 256))
+    >>> po.tools.validate.validate_convert_tensor_dict(
+    ...     model, image_shape=(1, 1, 256, 256)
+    ... )
+
+    Intentionally fail:
+
+    >>> import plenoptic as po
+    >>> import torch
+    >>> # this model fails because we intentionally rearrange the channels
+    >>> # in convert_to_tensor
+    >>> class FailureModel(torch.nn.Module):
+    ...     def __init__(self):
+    ...         super().__init__()
+    ...         self.kernel = torch.nn.Conv2d(1, 2, (5, 5), bias=False)
+    ...         self.kernel.weight.detach_()
+    ...
+    ...     def forward(self, x):
+    ...         return self.kernel(x)
+    ...
+    ...     def convert_to_dict(self, rep):
+    ...         return {f"channel_{i}": rep[:, i] for i in range(2)}
+    ...
+    ...     def convert_to_tensor(self, rep_dict):
+    ...         return torch.stack(
+    ...             [rep_dict["channel_1"], rep_dict["channel_0"]], axis=1
+    ...         )
+    >>> shape = (1, 1, 256, 256)
+    >>> model = FailureModel()
+    >>> po.tools.validate.validate_convert_tensor_dict(model)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: On random image 0, model.convert_to_dict did not invert...
+    """
+    warnings.warn(
+        "Attempting to validate whether model can convert between tensor and dictionary"
+        " representations -- this can take a while!"
+    )
+    if image_shape is None:
+        image_shape = (1, 1, 16, 16)
+    for i in range(n_checks):
+        set_seed(i)
+        img = torch.rand(image_shape, device=device)
+        rep = model(img)
+        check_rep = model.convert_to_tensor(model.convert_to_dict(rep))
+        if not torch.equal(rep, check_rep):
+            raise ValueError(
+                f"On random image {i}, model.convert_to_dict did not invert"
+                " model.convert_to_tensor"
+            )

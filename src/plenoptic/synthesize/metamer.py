@@ -523,7 +523,7 @@ class Metamer(OptimizedSynthesis):
             The path to save the metamer object to.
         """
         save_io_attrs = [
-            ("loss_function", ("_image", "_metamer")),
+            ("loss_function", ("_target_representation", "2 * _target_representation")),
             ("penalty_function", ("_image",)),
             ("_model", ("_image",)),
         ]
@@ -736,7 +736,7 @@ class Metamer(OptimizedSynthesis):
         ]
         check_attributes += additional_check_attributes
         check_io_attrs = [
-            ("loss_function", ("_image", "_metamer")),
+            ("loss_function", ("_target_representation", "2 * _target_representation")),
             ("penalty_function", ("_image",)),
             ("_model", ("_image",)),
         ]

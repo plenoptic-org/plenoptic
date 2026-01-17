@@ -19,7 +19,12 @@ IMG_DIR = fetch_data("test_images.tar.gz")
 # details
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
-torch.set_num_threads(1)  # torch uses all avail threads which will slow tests
+# especially for using LBFGS (e.g., in the PortillaSimoncelli regression tests in
+# test_uploaded_files.py), this speeds things up by reducing the number of threads used
+# by OpenMP
+os.environ["OMP_NUM_THREADS"] = "1"
+# torch uses all avail threads which will slow tests
+torch.set_num_threads(1)
 torch.manual_seed(0)
 if torch.cuda.is_available():
     torch.cuda.manual_seed(0)

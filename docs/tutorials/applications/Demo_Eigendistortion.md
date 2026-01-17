@@ -109,8 +109,8 @@ eigendist_f.load(
 :::{admonition} How to run this synthesis manually
 :class: dropdown note
 
+<!-- TestDemoEigendistortion.test_berardino_onoff[eigendist_f:eig] -->
 ```{code-block} python
-:name: test_berardino_onoff
 eigendist_f.synthesize(k=3, method="power", max_iter=2000)
 ```
 :::
@@ -181,8 +181,8 @@ eigendist_v.load(
 :::{admonition} How to run this synthesis manually
 :class: dropdown note
 
+<!-- TestDemoEigendistortion.test_berardino_vgg16[eigendist_v:eig] -->
 ```{code-block} python
-:name: test_berardino_vgg16
 eigendist_v.synthesize(k=2, method="power", max_iter=5000)
 ```
 :::

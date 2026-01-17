@@ -24,7 +24,7 @@ pipeline {
           }
           environment {
             HOME = pwd(tmp:true)
-            OMP_NUM_THREADS = 4
+            OMP_NUM_THREADS = 1
           }
           steps {
             sh 'python3.11 -m venv --system-site-packages $HOME'
@@ -63,7 +63,7 @@ pipeline {
           }
           environment {
             HOME = pwd(tmp:true)
-            OMP_NUM_THREADS = 4
+            OMP_NUM_THREADS = 1
           }
           steps {
             sh 'python3.11 -m venv --system-site-packages $HOME'
