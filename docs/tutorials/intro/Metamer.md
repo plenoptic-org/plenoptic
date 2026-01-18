@@ -209,6 +209,55 @@ met.synthesize()
 
 {func}`setup <plenoptic.synthesize.metamer.Metamer.setup>` also accepts a `scheduler` argument, so that you can pass a [pytorch scheduler](https://docs.pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate), which modifies the learning rate during optimization.
 
+
+### Regularization penalty
+
+It is sometimes useful to control properties of the synthesized metamer beyond
+those captured by the input model. Some examples include controlling the range
+of pixel values, penalizing high frequencies, or matching the spectrum of the target image.
+
+For this purpose, the {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` class
+takes an optional `penalty_function` argument at initialization.
+The `penalty_function` is a callable that takes as an input the synthesized metamer
+image, and returns a scalar penalty. This scalar penalty is added to the loss
+during optimization, and it can be used to control certain properties of the
+synthesized metamer.
+
+For example, the default `penalty_function` uses the
+{func} `penalize_range <plenoptic.tools.regularization.penalize_range>` function
+to penalize pixel values that fall outside the range [0, 1], helping to keep the
+synthesized metamer within this range. The user can pass custom penalty functions
+that control other properties of the synthesized metamer.
+A simple example can be a modified range penalty that uses a different allowed range.
+For this, we can use `functools.partial` to create a new function that penalizes pixels
+outside a different range, as shown below.
+
+```{code-cell} ipython3
+import functools
+
+# Create custom_penalty function, that penalizes pixels outside of [0.2, 0.8] range
+custom_penalty = functools.partial(
+    po.tools.regularization.penalize_range, allowed_range=(0.2, 0.8)
+)
+
+# Pass the custom_penalty function to the Metamer class, and synthesize the metamer
+met = po.synth.Metamer(
+    img,
+    model,
+    penalty_function=custom_penalty,
+)
+met.synthesize(store_progress=True, max_iter=50)
+
+print("Range of synthesized metamer: "
+  f" {met.metamer.min().item():.3f} to {met.metamer.max().item():.3f}")
+```
+
+The {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` class also has a
+`penalty_lambda` argument, that weighs the contribution of the penalty function
+to optimization. The `penalty_function` argument is also present in the
+{class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` class.
+
+
 (metamer-coarse-to-fine)=
 ### Coarse-to-fine optimization
 
