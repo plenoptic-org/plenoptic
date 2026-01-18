@@ -394,9 +394,7 @@ class PortillaSimoncelli(nn.Module):
         torch.Size([1, 1, 1046])
         """
         if image.ndimension() != 4:
-            raise ValueError(
-                "Input image must be 4d (batch, channel, height, width)!"
-            )
+            raise ValueError("Input image must be 4d (batch, channel, height, width)!")
 
         # pyr_dict is the dictionary of complex-valued tensors returned by the
         # steerable pyramid. pyr_coeffs is a list (length n_scales) of 5d
