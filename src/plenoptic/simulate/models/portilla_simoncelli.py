@@ -1,11 +1,11 @@
 """
 Portilla-Simoncelli texture statistics.
 
-The Portilla-Simoncelli (PS) texture statistics are a set of image
-statistics, first described in [1]_, that are proposed as a sufficient set
-of measurements for describing visual textures. That is, if two texture
-images have the same values for all PS texture stats, humans should
-consider them as members of the same family of textures.
+The Portilla-Simoncelli (PS) texture statistics are a set of image statistics, first
+described in Portilla and Simoncelli, 2000 [1]_, that are proposed as a sufficient set
+of measurements for describing visual textures. That is, if two texture images have the
+same values for all PS texture stats, humans should consider them as members of the same
+family of textures.
 
 References
 ----------
@@ -46,21 +46,20 @@ class PortillaSimoncelli(nn.Module):
     r"""
     Portila-Simoncelli texture statistics.
 
-    The Portilla-Simoncelli (PS) texture statistics are a set of image
-    statistics, first described in [1]_, that are proposed as a sufficient set
-    of measurements for describing visual textures. That is, if two texture
-    images have the same values for all PS texture stats, humans should
-    consider them as members of the same family of textures.
+    The Portilla-Simoncelli (PS) texture statistics are a set of image statistics, first
+    described in Portilla and Simoncelli, 2000 [2]_, that are proposed as a sufficient
+    set of measurements for describing visual textures. That is, if two texture images
+    have the same values for all PS texture stats, humans should consider them as
+    members of the same family of textures.
 
     The PS stats are computed based on the
     :class:`~plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq`
-    [2]_. They consist of the local auto-correlations, cross-scale
-    (within-orientation) correlations, and cross-orientation (within-scale)
-    correlations of both the pyramid coefficients and the local energy (as
-    computed by those coefficients). Additionally, they include the first four
-    global moments (mean, variance, skew, and kurtosis) of the image and
-    down-sampled versions of that image. See the paper and notebook for more
-    description.
+    (Simoncelli and Freeman, 1995, [3]_). They consist of the local auto-correlations,
+    cross-scale (within-orientation) correlations, and cross-orientation (within-scale)
+    correlations of both the pyramid coefficients and the local energy (as computed by
+    those coefficients). Additionally, they include the first four global moments (mean,
+    variance, skew, and kurtosis) of the image and down-sampled versions of that image.
+    See the paper and notebook for more description.
 
     Parameters
     ----------
@@ -88,12 +87,12 @@ class PortillaSimoncelli(nn.Module):
 
     References
     ----------
-    .. [1] J Portilla and E P Simoncelli. A Parametric Texture Model based on
+    .. [2] J Portilla and E P Simoncelli. A Parametric Texture Model based on
        Joint Statistics of Complex Wavelet Coefficients. Int'l Journal of
        Computer Vision. 40(1):49-71, October, 2000.
        https://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
        https://www.cns.nyu.edu/~lcv/texture/
-    .. [2] E P Simoncelli and W T Freeman, "The Steerable Pyramid: A Flexible
+    .. [3] E P Simoncelli and W T Freeman, "The Steerable Pyramid: A Flexible
        Architecture for Multi-Scale Derivative Computation," Second Int'l Conf
        on Image Processing, Washington, DC, Oct 1995.
     """

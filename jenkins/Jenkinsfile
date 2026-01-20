@@ -119,7 +119,7 @@ pipeline {
               pip install -U pip setuptools
               pip install .[docs]
               python3.11 -c "import torch; print(torch.cuda.current_device())"
-              RUN_NB=1 NB_EXECUTION_MODE=force make -C docs html O="-T -j $PARALLEL"
+              RUN_NB=1 NB_EXECUTION_MODE=force make -C docs html O="-j $PARALLEL"
               mv docs/_build/ $HOME/built-docs/
            '''
             lock('plenoptic_publish') {

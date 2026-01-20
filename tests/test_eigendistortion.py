@@ -562,7 +562,7 @@ class TestAutodiffFunctions:
     def test_jacobian(self, state):
         x, y, x_dim, y_dim, k = state
 
-        jac = autodiff.jacobian(y, x)
+        jac = autodiff._jacobian(y, x)
         assert jac.shape == (y_dim, x_dim)
         assert jac.requires_grad is False
 
@@ -573,7 +573,7 @@ class TestAutodiffFunctions:
         U = torch.randn((y_dim, k), device=DEVICE)
         U = U / torch.linalg.vector_norm(U, ord=2, dim=0)
 
-        vjp = autodiff.vector_jacobian_product(y, x, U, detach=detach)
+        vjp = autodiff._vector_jacobian_product(y, x, U, detach=detach)
         assert vjp.shape == (x_dim, k)
         assert vjp.requires_grad != detach
 
@@ -582,7 +582,7 @@ class TestAutodiffFunctions:
 
         V = torch.randn((x_dim, k), device=DEVICE)
         V = V / torch.linalg.vector_norm(V, ord=2, dim=0)
-        jvp = autodiff.jacobian_vector_product(y, x, V)
+        jvp = autodiff._jacobian_vector_product(y, x, V)
         assert jvp.shape == (y_dim, k)
         assert x.requires_grad and y.requires_grad
         assert jvp.requires_grad is False
@@ -592,10 +592,10 @@ class TestAutodiffFunctions:
 
         V, _ = torch.linalg.qr(torch.ones((x_dim, k), device=DEVICE), "reduced")
         U = V.clone()
-        Jv = autodiff.jacobian_vector_product(y, x, V)
-        Fv = autodiff.vector_jacobian_product(y, x, Jv)
+        Jv = autodiff._jacobian_vector_product(y, x, V)
+        Fv = autodiff._vector_jacobian_product(y, x, Jv)
 
-        jac = autodiff.jacobian(y, x)
+        jac = autodiff._jacobian(y, x)
 
         Fv2 = jac.T @ jac @ U  # manually compute product to compare accuracy
 
@@ -631,6 +631,6 @@ class TestAutodiffFunctions:
 
         e = Eigendistortion(x0, mdl)
         x, y = e._image_flat, e._representation_flat
-        Jv = autodiff.jacobian_vector_product(y, x, V)
-        Fv = autodiff.vector_jacobian_product(y, x, Jv)
+        Jv = autodiff._jacobian_vector_product(y, x, V)
+        Fv = autodiff._vector_jacobian_product(y, x, Jv)
         assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value, rtol=1e-3)

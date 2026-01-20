@@ -173,16 +173,16 @@ def ssim(
     r"""
     Compute the structural similarity index.
 
-    As described in [1]_, the structural similarity index (SSIM) is a
-    perceptual distance metric, giving the distance between two images. SSIM is
-    based on three comparison measurements between the two images: luminance,
-    contrast, and structure. All of these are computed convolutionally across the
-    images. See the references for more information.
+    As described in Wang et al., 2004 [1]_, the structural similarity index (SSIM) is a
+    perceptual distance metric, giving the distance between two images. SSIM is based on
+    three comparison measurements between the two images: luminance, contrast, and
+    structure. All of these are computed convolutionally across the images. See the
+    references for more information.
 
-    This implementation follows the original implementation, as found at [2]_,
-    as well as providing the option to use the weighted version used in [4]_
-    (which was shown to consistently improve the image quality prediction on
-    the LIVE database). More info can be found at [3]_.
+    This implementation follows the original implementation, as found online [2]_, as
+    well as providing the option to use the weighted version used in Wang and
+    Simoncelli, 2008 [4]_ (which was shown to consistently improve the image quality
+    prediction on the LIVE database). More info can be found online [3]_.
 
     Note that this is a similarity metric (not a distance), and so 1 means the
     two images are identical and 0 means they're very different. When the two
@@ -257,8 +257,8 @@ def ssim(
     .. [1] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli, "Image
        quality assessment: From error measurement to structural similarity"
        IEEE Transactions on Image Processing, vol. 13, no. 1, Jan. 2004.
-    .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m>`_
-    .. [3] `project page <https://www.cns.nyu.edu/~lcv/ssim/>`_
+    .. [2] matlab code: `<https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m>`_
+    .. [3] project page: `<https://www.cns.nyu.edu/~lcv/ssim/>`_
     .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
        competition: A methodology for comparing computational models of
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
@@ -294,16 +294,16 @@ def ssim_map(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
     """
     Structural similarity index map.
 
-    As described in [1]_, the structural similarity index (SSIM) is a
-    perceptual distance metric, giving the distance between two images. SSIM is
-    based on three comparison measurements between the two images: luminance,
-    contrast, and structure. All of these are computed convolutionally across the
-    images. See the references for more information.
+    As described in Wang et al., 2004 [5]_, the structural similarity index (SSIM) is a
+    perceptual distance metric, giving the distance between two images. SSIM is based on
+    three comparison measurements between the two images: luminance, contrast, and
+    structure. All of these are computed convolutionally across the images. See the
+    references for more information.
 
-    This implementation follows the original implementation, as found at [2]_,
-    as well as providing the option to use the weighted version used in [4]_
-    (which was shown to consistently improve the image quality prediction on
-    the LIVE database). More info can be found at [3]_.
+    This implementation follows the original implementation, as found online [6]_, as
+    well as providing the option to use the weighted version used in Wang and
+    Simoncelli, 2008 [8]_ (which was shown to consistently improve the image quality
+    prediction on the LIVE database). More info can be found online [7]_.
 
     Note that this is a similarity metric (not a distance), and so 1 means the
     two images are identical and 0 means they're very different. When the two
@@ -354,12 +354,12 @@ def ssim_map(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
 
     References
     ----------
-    .. [1] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli, "Image
+    .. [5] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli, "Image
        quality assessment: From error measurement to structural similarity"
        IEEE Transactions on Image Processing, vol. 13, no. 1, Jan. 2004.
-    .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m>`_
-    .. [3] `project page <https://www.cns.nyu.edu/~lcv/ssim/>`_
-    .. [4] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
+    .. [6] matlab code `<https://www.cns.nyu.edu/~lcv/ssim/ssim_index.m>`_
+    .. [7] project page `<https://www.cns.nyu.edu/~lcv/ssim/>`_
+    .. [8] Wang, Z., & Simoncelli, E. P. (2008). Maximum differentiation (MAD)
        competition: A methodology for comparing computational models of
        perceptual discriminability. Journal of Vision, 8(12), 1–13.
        https://dx.doi.org/10.1167/8.12.8
@@ -389,8 +389,8 @@ def ms_ssim(
     r"""
     Multiscale structural similarity index (MS-SSIM).
 
-    As described in [1]_, multiscale structural similarity index (MS-SSIM) is
-    an improvement upon structural similarity index (SSIM) that takes into
+    As described in Wang et al., 2003 [9]_, multiscale structural similarity index
+    (MS-SSIM) is an improvement upon structural similarity index (SSIM) that takes into
     account the perceptual distance between two images on different scales.
 
     SSIM is based on three comparison measurements between the two images:
@@ -431,7 +431,7 @@ def ms_ssim(
         Power exponents for the mean values of maps, for different scales (from
         fine to coarse). The length of this array determines the number of scales.
         If ``None``, set to ``[0.0448, 0.2856, 0.3001, 0.2363, 0.1333]``, which is what
-        psychophysical experiments in [1]_ found.
+        psychophysical experiments in Wang et al., 2003 [9]_ found.
 
     Returns
     -------
@@ -461,7 +461,7 @@ def ms_ssim(
 
     References
     ----------
-    .. [1] Wang, Zhou, Eero P. Simoncelli, and Alan C. Bovik. "Multiscale
+    .. [9] Wang, Zhou, Eero P. Simoncelli, and Alan C. Bovik. "Multiscale
        structural similarity for image quality assessment." The Thrity-Seventh
        Asilomar Conference on Signals, Systems & Computers, 2003. Vol. 2. IEEE, 2003.
 
@@ -505,8 +505,8 @@ def normalized_laplacian_pyramid(img: torch.Tensor) -> list[torch.Tensor]:
     """
     Compute the normalized Laplacian Pyramid using pre-optimized parameters.
 
-    Model parameters are those used in [1]_, copied from the matlab code used in the
-    paper, found at [2]_.
+    Model parameters are those used in Laparra et al., 2016 [10]_, copied from the
+    matlab code used in the paper, found online [11]_.
 
     Parameters
     ----------
@@ -522,10 +522,10 @@ def normalized_laplacian_pyramid(img: torch.Tensor) -> list[torch.Tensor]:
 
     References
     ----------
-    .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
+    .. [10] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
         image quality assessment using a normalized Laplacian pyramid. Electronic
         Imaging, 2016(16), pp.1-6.
-    .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m>`_
+    .. [11] matlab code: `<https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m>`_
 
     Examples
     --------
@@ -544,7 +544,7 @@ def normalized_laplacian_pyramid(img: torch.Tensor) -> list[torch.Tensor]:
       >>> po.imshow(pyramid, col_wrap=3)
       <PyrFigure size ...>
     """
-    (_, channel, height, width) = img.size()
+    (_, channel, _, _) = img.size()
 
     N_scales = 6
     spatialpooling_filters = np.load(Path(DIRNAME) / "DN_filts.npy")
@@ -577,9 +577,9 @@ def nlpd(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
     """
     Compute the normalized Laplacian Pyramid Distance.
 
-    As described in  [1]_, this is an image quality metric based on the transformations
-    associated with the early visual system: local luminance subtraction and local
-    contrast gain control.
+    As described in Laparra et al., 2016 [12]_, this is an image quality metric based on
+    the transformations associated with the early visual system: local luminance
+    subtraction and local contrast gain control.
 
     A laplacian pyramid subtracts a local estimate of the mean luminance at six scales.
     Then a local gain control divides these centered coefficients by a weighted sum of
@@ -587,7 +587,7 @@ def nlpd(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
 
     These weights parameters were optimized for redundancy reduction over an training
     database of (undistorted) natural images, as described in the paper. Parameters were
-    copied from matlab code used for the paper, found at  [2]_.
+    copied from matlab code used for the paper, found online [13]_.
 
     Note that we compute root mean squared error for each scale, and then average over
     these, effectively giving larger weight to the lower frequency coefficients
@@ -633,10 +633,10 @@ def nlpd(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
 
     References
     ----------
-    .. [1] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
+    .. [12] Laparra, V., Ballé, J., Berardino, A. and Simoncelli, E.P., 2016. Perceptual
         image quality assessment using a normalized Laplacian pyramid. Electronic
         Imaging, 2016(16), pp.1-6.
-    .. [2] `matlab code <https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m>`_
+    .. [13] matlab code: `<https://www.cns.nyu.edu/~lcv/NLPyr/NLP_dist.m>`_
 
     Examples
     --------

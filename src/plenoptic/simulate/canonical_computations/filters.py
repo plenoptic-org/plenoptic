@@ -127,13 +127,13 @@ def circular_gaussian2d(
 
     Raises
     ------
-    ValueError:
+    ValueError
         If out_channels is not a positive integer.
-    ValueError:
+    ValueError
         If kernel_size is not one or two positive integers.
-    ValueError:
+    ValueError
         If std is not positive.
-    ValueError:
+    ValueError
         If std is non-scalar and ``len(std) != out_channels``
 
     See Also

@@ -58,10 +58,8 @@ import plenoptic as po
 # we use an optional dependency, pooch. If the following raises an ImportError or
 # ModuleNotFoundError
 # then install pooch in your plenoptic environment and restart your kernel.
-from plenoptic.data.fetch import fetch_data
-
-IMG_PATH = fetch_data("portilla_simoncelli_images.tar.gz")
-CACHE_DIR = fetch_data("ps_regression.tar.gz")
+IMG_PATH = po.data.fetch_data("portilla_simoncelli_images.tar.gz")
+CACHE_DIR = po.data.fetch_data("ps_regression.tar.gz")
 # use GPU if available
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

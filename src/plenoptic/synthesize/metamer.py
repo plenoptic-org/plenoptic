@@ -1,7 +1,9 @@
 """
 Model metamers.
 
-Classes to perform the synthesis of model metamers.
+Model metamers are images whose pixel values differ but whose model outputs are
+identical. They allow researchers to better understand the information which have no
+effect on a model's output, also known as their invariances.
 """
 
 import re
@@ -18,7 +20,7 @@ from torch import Tensor
 from tqdm.auto import tqdm
 
 from ..tools import data, display, optim, signal
-from ..tools.convergence import coarse_to_fine_enough, loss_convergence
+from ..tools.convergence import _coarse_to_fine_enough, _loss_convergence
 from ..tools.validate import validate_coarse_to_fine, validate_input, validate_model
 from .synthesis import OptimizedSynthesis
 
@@ -56,6 +58,9 @@ class Metamer(OptimizedSynthesis):
        https://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
        https://www.cns.nyu.edu/~lcv/texture/
     """
+
+    loss_function: Callable[[Tensor, Tensor], Tensor]
+    """Callable which specifies how close metamer representation is to target."""
 
     def __init__(
         self,
@@ -235,9 +240,9 @@ class Metamer(OptimizedSynthesis):
         Update the pixels of :attr:`metamer` until its representation matches that of
         :attr:`image`.
 
-        We run this until either we reach ``max_iter`` or the change over the
-        past ``stop_iters_to_check`` iterations is less than
-        ``stop_criterion``, whichever comes first.
+        We run this until either we reach ``max_iter`` or the loss changes less than
+        ``stop_criterion`` over the past ``stop_iters_to_check`` iterations,
+        whichever comes first.
 
         Parameters
         ----------
@@ -462,7 +467,7 @@ class Metamer(OptimizedSynthesis):
         r"""
         Check whether the loss has stabilized and, if so, return True.
 
-        Uses :func:`loss_convergence`.
+        Uses :func:`~plenoptic.tools.convergence._loss_convergence`.
 
         Parameters
         ----------
@@ -478,7 +483,7 @@ class Metamer(OptimizedSynthesis):
         loss_stabilized
             Whether the loss has stabilized or not.
         """
-        return loss_convergence(self, stop_criterion, stop_iters_to_check)
+        return _loss_convergence(self, stop_criterion, stop_iters_to_check)
 
     def _store(self, i: int) -> bool:
         """
@@ -531,18 +536,24 @@ class Metamer(OptimizedSynthesis):
 
         This can be called as
 
-        .. function:: to(device=None, dtype=None, non_blocking=False)
+        .. code:: python
 
-        .. function:: to(dtype, non_blocking=False)
+            to(device=None, dtype=None, non_blocking=False)
 
-        .. function:: to(tensor, non_blocking=False)
+        .. code:: python
+
+            to(dtype, non_blocking=False)
+
+        .. code:: python
+
+            to(tensor, non_blocking=False)
 
         Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
-        floating point desired :attr:`dtype` s. In addition, this method will
-        only cast the floating point parameters and buffers to :attr:`dtype`
+        floating point desired ``dtype``. In addition, this method will
+        only cast the floating point parameters and buffers to ``dtype``
         (if given). The integral parameters and buffers will be moved
-        :attr:`device`, if that is given, but with dtypes unchanged. When
-        :attr:`non_blocking` is set, it tries to convert/move asynchronously
+        ``device``, if that is given, but with dtypes unchanged. When
+        `on_blocking`` is set, it tries to convert/move asynchronously
         with respect to the host if possible, e.g., moving CPU Tensors with
         pinned memory to CUDA devices.
 
@@ -842,7 +853,8 @@ class MetamerCTF(Metamer):
         - ``"separate"``: compute the gradient with respect to each
           scale separately (ignoring the others), then with respect
           to all of them at the end.
-        (see :ref:`Metamer tutorial <metamer-nb>`_ for more details).
+
+        (see :ref:`Metamer tutorial <metamer-nb>` for more details).
 
     References
     ----------
@@ -1236,8 +1248,8 @@ class MetamerCTF(Metamer):
         loss_stabilized
             Whether the loss has stabilized and we've synthesized all scales.
         """  # noqa: E501
-        loss_conv = loss_convergence(self, stop_criterion, stop_iters_to_check)
-        return loss_conv and coarse_to_fine_enough(self, i, ctf_iters_to_check)
+        loss_conv = _loss_convergence(self, stop_criterion, stop_iters_to_check)
+        return loss_conv and _coarse_to_fine_enough(self, i, ctf_iters_to_check)
 
     def to(self, *args: Any, **kwargs: Any):
         r"""
@@ -1245,18 +1257,24 @@ class MetamerCTF(Metamer):
 
         This can be called as
 
-        .. function:: to(device=None, dtype=None, non_blocking=False)
+        .. code:: python
 
-        .. function:: to(dtype, non_blocking=False)
+            to(device=None, dtype=None, non_blocking=False)
 
-        .. function:: to(tensor, non_blocking=False)
+        .. code:: python
+
+            to(dtype, non_blocking=False)
+
+        .. code:: python
+
+            to(tensor, non_blocking=False)
 
         Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
-        floating point desired :attr:`dtype` s. In addition, this method will
-        only cast the floating point parameters and buffers to :attr:`dtype`
+        floating point desired ``dtype``. In addition, this method will
+        only cast the floating point parameters and buffers to ``dtype``
         (if given). The integral parameters and buffers will be moved
-        :attr:`device`, if that is given, but with dtypes unchanged. When
-        :attr:`non_blocking` is set, it tries to convert/move asynchronously
+        ``device``, if that is given, but with dtypes unchanged. When
+        `on_blocking`` is set, it tries to convert/move asynchronously
         with respect to the host if possible, e.g., moving CPU Tensors with
         pinned memory to CUDA devices.
 
