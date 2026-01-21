@@ -4,5 +4,6 @@
 :hidden:
 
 synthesis
+contributing
 
 :::
