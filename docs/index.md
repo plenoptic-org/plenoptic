@@ -96,58 +96,14 @@ In all cases, we request that you respect our [code of conduct](https://github.c
 If you use `plenoptic` in a published academic article or presentation, please cite us! See the [](citation-doc) for more details.
 
 :::{toctree}
-:caption: Basic concepts
-:glob: true
-:titlesonly: true
+:hidden:
 
-install
-jupyter
-conceptual_intro
-models
-tutorials/*
-citation
-:::
+getting_started/index
+user_guide/index
+api
+reference/index
+developers/index
 
-:::{toctree}
-:caption: Synthesis method introductions
-:glob: true
-:titlesonly: true
-
-tutorials/intro/*
-:::
-
-:::{toctree}
-:caption: Models and metrics
-:glob: true
-:titlesonly: true
-
-tutorials/models/*
-tutorials/models/portilla_simoncelli/ps_index
-:::
-
-:::{toctree}
-:caption: Synthesis method examples
-:glob: true
-:titlesonly: true
-
-tutorials/applications/*
-:::
-
-:::{toctree}
-:caption: Advanced usage
-:glob: true
-:maxdepth: 1
-
-API Documentation <api>
-tips
-reproducibility
-tutorials/advanced/*
-:::
-
-:::{toctree}
-:caption: For Developers
-:maxdepth: 1
-synthesis
 :::
 
 [^footnote-1]: These methods also work with auditory models, such as in [Feather et al., 2019](https://proceedings.neurips.cc/paper_files/paper/2019/hash/ac27b77292582bc293a51055bfc994ee-Abstract.html) though we haven't yet implemented examples. If you're interested, please post in [Discussions](<https://github.com/plenoptic-org/plenoptic/discussions)>)!
