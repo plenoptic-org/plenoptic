@@ -49,7 +49,7 @@ im = po.data.einstein().to(DEVICE)
 fig = po.imshow(im)
 ```
 
-Models can be really simple, as this demonstrates. It needs to inherit {class}`torch.nn.Module` and just needs two methods: `__init__` (so it's an object) and `forward` <!-- skip-lint --> (so it can take an image). See the [Models page](../models.md) of the documentation for more details.
+Models can be really simple, as this demonstrates. It needs to inherit {class}`torch.nn.Module` and just needs two methods: `__init__` (so it's an object) and `forward` <!-- skip-lint --> (so it can take an image). See the [Models page](models-doc) of the documentation for more details.
 
 For this notebook, we'll initialize a simple plenoptic-compatible model and call its forward method. This model just convolves a 2d gaussian filter across an image, so it's a low-pass model, preserving low frequency information while discarding the high frequencies.
 
@@ -95,7 +95,7 @@ print(im.shape)
 print(rep.shape)
 ```
 
-There are also several more abstract constraints (e.g., model must accept real-valued inputs and return real-valued outputs), so it's recommended that you read the [Models page](../models.md) of the documentation before creating your own model.
+There are also several more abstract constraints (e.g., model must accept real-valued inputs and return real-valued outputs), so it's recommended that you read the [Models page](models-doc) of the documentation before creating your own model.
 
 The following shows the image and the model output. We can see that output is a blurred version of the input, as we would expect from a low-pass model.
 

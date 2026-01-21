@@ -38,7 +38,7 @@ It may also be useful to include some functions for investigating the status or 
 
 Functions that show images or videos should be called `display_X`, whereas those that show numbers as a scatter plot, line plot, etc. should be called `plot_X`. These must be axes-level matplotlib functions: they must accept an axis as an optional argument named `ax`, which will contain the plot. If no `ax` is supplied, `matplotlib.pyplot.gca` must be used to create / grab the axis. If a multi-axis figure is called for (e.g., to display the synthesis output and plot the loss), a function named `plot_synthesis_status` <!-- skip-lint --> should be created. This must have an optional `fig` argument, creating a figure if none is supplied. See {func}`~plenoptic.synthesize.metamer.plot_synthesis_status` for an example. If possible, this plot should be able to be animated to show progress over time. See {func}`~plenoptic.synthesize.metamer.plot_synthesis_status` for an example.
 
-See our {doc}`/tutorials/advanced/Display` notebook for description and examples of the included plotting and display code.
+See our [](display-nb) notebook for description and examples of the included plotting and display code.
 
 ## Optimized synthesis
 

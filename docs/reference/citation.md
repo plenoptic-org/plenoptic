@@ -38,6 +38,6 @@ Note that, the citations given above define the application of the relevant idea
 
 ## Bibliography
 
-```{bibliography} references.bib
+```{bibliography} ../references.bib
 :style: plain
 ```
