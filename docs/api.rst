@@ -1,7 +1,7 @@
 .. _api:
 
-API Reference
-=============
+API
+===
 
 .. _synthesis-api:
 

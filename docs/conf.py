@@ -155,6 +155,9 @@ html_theme_options = {
     "secondary_sidebar_items": {
         "**": ["page-toc"],
     },
+    "show_nav_level": 2,
+    "header_links_before_dropdown": 6,
+    "navbar_align": "left",
 }
 
 # Path for static files (custom stylesheets or JavaScript)
@@ -257,6 +260,7 @@ myst_enable_extensions = [
     "dollarmath",
     "amsmath",
     "attrs_block",
+    "linkify",
 ]
 
 # SPHINXCONTRIB-BIBTEX

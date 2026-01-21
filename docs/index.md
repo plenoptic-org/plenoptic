@@ -102,6 +102,7 @@ getting_started/index
 user_guide/index
 api
 reference/index
+Changelog <https://github.com/plenoptic-org/plenoptic/releases>
 developers/index
 
 :::

@@ -39,7 +39,7 @@ docs = [
      'pydata-sphinx-theme',
      'sphinx-autodoc-typehints',
      'sphinx-copybutton',
-     "myst-parser",
+     "myst-parser[linkify]",
      "sphinxcontrib-bibtex>=2.6.4",
      "sphinx-design",
      "pooch",
