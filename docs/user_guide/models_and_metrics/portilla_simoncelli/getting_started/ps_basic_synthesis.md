@@ -188,7 +188,7 @@ po.synth.metamer.plot_synthesis_status(
 
 ## Further reading
 
-To see more texture model metamers with different types of images, see the [](ps_examples) notebook.
+To see more texture model metamers with different types of images, see the [](ps-examples) notebook.
 
 Alternatively, to learn more:
 - about the different components of the model's representation, read the [](ps-model-stats) notebook.

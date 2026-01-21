@@ -14,29 +14,11 @@ We strongly recommended reading [the metamers tutorial](metamer-nb) before the n
 :::
 
 :::{toctree}
-:caption: Getting Started
-:titlesonly: true
-ps_intro
-ps_basic_synthesis
-:::
+:maxdepth: 2
 
-:::{toctree}
-:caption: Understanding the Model
-:titlesonly: true
-ps_examples
-ps_understand_stats
-:::
+getting_started/index
+understanding/index
+technical_details/index
+advanced_usage/index
 
-:::{toctree}
-:caption: Technical Details
-:titlesonly: true
-ps_optimization
-ps_limitations
-ps_matlab_differences
-:::
-
-:::{toctree}
-:caption: Advanced Usage
-:titlesonly: true
-ps_extensions
 :::
