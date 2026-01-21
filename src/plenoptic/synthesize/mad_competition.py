@@ -24,7 +24,7 @@ from torch import Tensor
 from tqdm.auto import tqdm
 
 from ..tools import data, display, optim
-from ..tools.convergence import loss_convergence
+from ..tools.convergence import _loss_convergence
 from ..tools.validate import validate_input, validate_metric
 from .synthesis import OptimizedSynthesis
 
@@ -278,9 +278,9 @@ class MADCompetition(OptimizedSynthesis):
         ``optimized_metric(image, mad_image)`` while keeping the value of
         ``reference_metric(image, mad_image)`` constant.
 
-        We run this until either we reach ``max_iter`` or the change over the
-        past ``stop_iters_to_check`` iterations is less than
-        ``stop_criterion``, whichever comes first.
+        We run this until either we reach ``max_iter`` or the loss changes less than
+        ``stop_criterion`` over the past ``stop_iters_to_check`` iterations,
+        whichever comes first.
 
         Parameters
         ----------
@@ -527,7 +527,7 @@ class MADCompetition(OptimizedSynthesis):
         r"""
         Check whether the loss has stabilized and, if so, return True.
 
-        Uses :func:`loss_convergence`.
+        Uses :func:`~plenoptic.tools.convergence._loss_convergence`.
 
         Parameters
         ----------
@@ -543,7 +543,7 @@ class MADCompetition(OptimizedSynthesis):
         loss_stabilized
             Whether the loss has stabilized or not.
         """
-        return loss_convergence(self, stop_criterion, stop_iters_to_check)
+        return _loss_convergence(self, stop_criterion, stop_iters_to_check)
 
     def _store(self, i: int) -> bool:
         """

@@ -365,19 +365,6 @@ The following functions operate as penalties.
 
    ~optim.penalize_range
 
-.. rubric:: Convergence checkers
-   :heading-level: 3
-
-The following functions are used internally to check whether optimization has converged.
-
-.. autosummary::
-   :signatures: none
-
-   ~convergence.loss_convergence
-   ~convergence.pixel_change_convergence
-   ~convergence.coarse_to_fine_enough
-
-
 Debugging
 ---------
 

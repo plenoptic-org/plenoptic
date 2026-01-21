@@ -20,7 +20,7 @@ from torch import Tensor
 from tqdm.auto import tqdm
 
 from ..tools import data, display, optim, signal
-from ..tools.convergence import coarse_to_fine_enough, loss_convergence
+from ..tools.convergence import _coarse_to_fine_enough, _loss_convergence
 from ..tools.validate import validate_coarse_to_fine, validate_input, validate_model
 from .synthesis import OptimizedSynthesis
 
@@ -240,9 +240,9 @@ class Metamer(OptimizedSynthesis):
         Update the pixels of :attr:`metamer` until its representation matches that of
         :attr:`image`.
 
-        We run this until either we reach ``max_iter`` or the change over the
-        past ``stop_iters_to_check`` iterations is less than
-        ``stop_criterion``, whichever comes first.
+        We run this until either we reach ``max_iter`` or the loss changes less than
+        ``stop_criterion`` over the past ``stop_iters_to_check`` iterations,
+        whichever comes first.
 
         Parameters
         ----------
@@ -467,7 +467,7 @@ class Metamer(OptimizedSynthesis):
         r"""
         Check whether the loss has stabilized and, if so, return True.
 
-        Uses :func:`loss_convergence`.
+        Uses :func:`~plenoptic.tools.convergence._loss_convergence`.
 
         Parameters
         ----------
@@ -483,7 +483,7 @@ class Metamer(OptimizedSynthesis):
         loss_stabilized
             Whether the loss has stabilized or not.
         """
-        return loss_convergence(self, stop_criterion, stop_iters_to_check)
+        return _loss_convergence(self, stop_criterion, stop_iters_to_check)
 
     def _store(self, i: int) -> bool:
         """
@@ -1248,8 +1248,8 @@ class MetamerCTF(Metamer):
         loss_stabilized
             Whether the loss has stabilized and we've synthesized all scales.
         """  # noqa: E501
-        loss_conv = loss_convergence(self, stop_criterion, stop_iters_to_check)
-        return loss_conv and coarse_to_fine_enough(self, i, ctf_iters_to_check)
+        loss_conv = _loss_convergence(self, stop_criterion, stop_iters_to_check)
+        return loss_conv and _coarse_to_fine_enough(self, i, ctf_iters_to_check)
 
     def to(self, *args: Any, **kwargs: Any):
         r"""
