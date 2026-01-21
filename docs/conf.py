@@ -277,8 +277,12 @@ if run_nb := os.environ.get("RUN_NB"):
         nb_execution_excludepatterns = []
         print("Running all notebooks, things will take longer...")
     else:
-        all_nbs = glob.glob("tutorials/**/*md", recursive=True)
-        all_nbs = [pathlib.Path(n).stem for n in all_nbs]
+        all_md = pathlib.Path(".").glob("**/*md")
+        all_nbs = [
+            pathlib.Path(n).stem
+            for n in all_md
+            if n.read_text().startswith("---\njupytext")
+        ]
         run_globs = [f"*{n}*" for n in run_nb.split(",")]
         nb_execution_excludepatterns = [
             f"*{n}*"
