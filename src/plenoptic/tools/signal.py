@@ -30,7 +30,7 @@ def rescale(x: Tensor, a: float = 0.0, b: float = 1.0) -> Tensor:
     return a + g * (b - a)
 
 
-def raised_cosine(
+def _raised_cosine(
     width: float = 1, position: float = 0, values: tuple[float, float] = (0, 1)
 ) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -42,7 +42,7 @@ def raised_cosine(
            + (VALUES(2)-VALUES(1))
            * cos^2( PI/2 * (X - POSITION + WIDTH)/WIDTH )
 
-    This lookup table is suitable for use by :func:`interpolate1d`.
+    This lookup table is suitable for use by :func:`_interpolate1d`.
 
     Parameters
     ----------
@@ -75,7 +75,7 @@ def raised_cosine(
     return X, Y
 
 
-def interpolate1d(
+def _interpolate1d(
     x_new: Tensor, Y: Tensor | np.ndarray, X: Tensor | np.ndarray
 ) -> Tensor:
     r"""
@@ -126,8 +126,12 @@ def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
 
     See Also
     --------
+    :func:`~plenoptic.simulate.canonical_computations.non_linearities.rectangular_to_polar_dict`
+        Same operation on dictionaries.
     polar_to_rectangular
         The inverse operation.
+    :func:`~plenoptic.simulate.canonical_computations.non_linearities.local_gain_control`
+        The analogous function for real-valued signals.
     """
     amplitude = torch.abs(x)
     phase = torch.angle(x)
@@ -157,8 +161,12 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
 
     See Also
     --------
+    :func:`~plenoptic.simulate.canonical_computations.non_linearities.polar_to_rectangular_dict`
+        Same operation on dictionaries.
     rectangular_to_polar
         The inverse operation.
+    :func:`~plenoptic.simulate.canonical_computations.non_linearities.local_gain_release`
+        The analogous function for real-valued signals.
     """  # numpydoc ignore=ES01
     if (amplitude < 0).any():
         raise ValueError("Amplitudes must be non-negative.")
@@ -168,7 +176,7 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
     return torch.complex(real, imaginary)
 
 
-def steer(
+def _steer(
     basis: Tensor,
     angle: np.ndarray | Tensor | float,
     harmonics: list[int] | None = None,

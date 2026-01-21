@@ -152,15 +152,13 @@ def imshow(
         Number of axes to have in each row. If ``None``, will fit all axes in a
         single row.
     ax
-        If ``None``, we make the appropriate figure. Otherwise, we resize the axes
-        so that it's the appropriate number of pixels (done by shrinking the
-        bbox - if the bbox is already too small, this will throw an Exception,
-        so first define a large enough figure).
+        If ``None``, we make the appropriate figure. Otherwise, we shrink the axes
+        so that it's the appropriate number of pixels.
     cmap
         Colormap to use when showing these images. If ``None``, then behavior is
         determined by ``vrange``: if ``vmap in ["auto0", "indep0"]``, we use
-        ``"RdBu_r"``, else we use ``"gray"`` (see `matplotlib documentation
-        <https://matplotlib.org/stable/users/explain/colors/colormaps.html#colormaps>`_).
+        ``"RdBu_r"``, else we use ``"gray"`` (see
+        :external+matplotlib:ref:`matplotlib documentation <colormaps>`).
     plot_complex
         Specifies handling of complex values.
 
@@ -374,15 +372,13 @@ def animshow(
         Number of axes to have in each row. If ``None``, will fit all axes in a
         single row.
     ax
-        If ``None``, we make the appropriate figure. Otherwise, we resize the axes
-        so that it's the appropriate number of pixels (done by shrinking the
-        bbox - if the bbox is already too small, this will throw an Exception,
-        so first define a large enough figure).
+        If ``None``, we make the appropriate figure. Otherwise, we shrink the axes
+        so that it's the appropriate number of pixels.
     cmap
         Colormap to use when showing these images. If ``None``, then behavior is
         determined by ``vrange``: if ``vmap in ["auto0", "indep0"]``, we use
-        ``"RdBu_r"``, else we use ``"gray"`` (see `matplotlib documentation
-        <https://matplotlib.org/stable/users/explain/colors/colormaps.html#colormaps>`_).
+        ``"RdBu_r"``, else we use ``"gray"`` (see
+        :external+matplotlib:ref:`matplotlib documentation <colormaps>`).
     plot_complex
         Specifies handling of complex values.
 
@@ -576,7 +572,7 @@ def pyrshow(
         Whether to display the residual bands.
     cmap
         Colormap to use when showing these images.
-    plot_complex : {'rectangular', 'polar', 'logpolar'}
+    plot_complex
         Specifies handling of complex values.
 
         * ``"rectangular"``: plot real and imaginary components as separate images.
@@ -703,7 +699,7 @@ def update_stem(
     stem_container: mpl.container.StemContainer, ydata: np.ndarray | torch.Tensor
 ) -> mpl.container.StemContainer:
     r"""
-    Update the information in a stem plot.
+    Update the information in a stem plot (for an animation).
 
     We update the information in a single stem plot to match that given
     by ``ydata``. We update the position of the markers and and the
@@ -998,7 +994,7 @@ def update_plot(
     batch_idx: int = 0,
 ) -> list:
     r"""
-    Update the information in some axes.
+    Update the information in some axes (for an animation).
 
     This is used for creating an animation over time. In order to create the animation,
     we need to know how to update the matplotlib Artists, and this provides a simple way

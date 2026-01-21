@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -45,9 +45,7 @@ import plenoptic as po
 # we use an optional dependency, pooch. If the following raises an ImportError or
 # ModuleNotFoundError
 # then install pooch in your plenoptic environment and restart your kernel.
-from plenoptic.data.fetch import fetch_data
-
-IMG_PATH = fetch_data("portilla_simoncelli_images.tar.gz")
+IMG_PATH = po.data.fetch_data("portilla_simoncelli_images.tar.gz")
 
 # so that relative sizes of axes created by po.imshow and others look right
 plt.rcParams["figure.dpi"] = 72

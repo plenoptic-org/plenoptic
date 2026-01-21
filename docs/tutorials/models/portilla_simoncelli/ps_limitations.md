@@ -42,7 +42,7 @@ Download this notebook: **{nb-download}`ps_limitations.ipynb`**!
 
 ## Usage limitations
 
-The Portilla-Simoncelli model only operates on images whose height and width can be divided by 2 `n_scales` <!-- skip-lint --> times (where `n_scales` <!-- skip-lint --> is one of the initialization arguments for {class}`~plenoptic.simulate.models.PortillaSimoncelli`). This is because the model computes [cross-scale correlations](ps-cross-scale) by recursively downsampling the input image by a factor of 2, then upsampling to compare representations at adjacent scales. For this to work properly, the image dimensions must survive repeated halving and doubling without changing size. For example, if we start with an image of size `(1, 1, 255, 255)`, downsampling by a factor of 2 we will produce an image of size `(1, 1, 128, 128)`, but upsampling that back produces a size of `(1, 1, 256, 256)` --- a mismatch!
+The Portilla-Simoncelli model only operates on images whose height and width can be divided by 2 `n_scales` <!-- skip-lint --> times (where `n_scales` <!-- skip-lint --> is one of the initialization arguments for {class}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli`). This is because the model computes [cross-scale correlations](ps-cross-scale) by recursively downsampling the input image by a factor of 2, then upsampling to compare representations at adjacent scales. For this to work properly, the image dimensions must survive repeated halving and doubling without changing size. For example, if we start with an image of size `(1, 1, 255, 255)`, downsampling by a factor of 2 we will produce an image of size `(1, 1, 128, 128)`, but upsampling that back produces a size of `(1, 1, 256, 256)` --- a mismatch!
 
 To avoid this issue, use images whose height and width are divisible by 2 the requisite number of times. If your image doesn't meet this requirement, you can:
 - Crop the image (e.g., using {func}`plenoptic.tools.signal.center_crop`).
@@ -69,10 +69,8 @@ import plenoptic as po
 # we use an optional dependency, pooch. If the following raises an ImportError or
 # ModuleNotFoundError
 # then install pooch in your plenoptic environment and restart your kernel.
-from plenoptic.data.fetch import fetch_data
-
-IMG_PATH = fetch_data("portilla_simoncelli_images.tar.gz")
-CACHE_DIR = fetch_data("ps_regression.tar.gz")
+IMG_PATH = po.data.fetch_data("portilla_simoncelli_images.tar.gz")
+CACHE_DIR = po.data.fetch_data("ps_regression.tar.gz")
 # use GPU if available
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

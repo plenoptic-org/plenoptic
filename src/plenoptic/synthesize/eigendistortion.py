@@ -1,7 +1,9 @@
 """
 Eigendistortions.
 
-Classes to perform the synthesis of eigendistortions.
+Eigendistortions are images which make changes that a model thinks are most or least
+noticeable to an image, given a constrained pixel budget. They allow researchers to see
+which features drive a model's response and which have no effect.
 """
 
 import warnings
@@ -17,81 +19,11 @@ from tqdm.auto import tqdm
 from ..tools.display import imshow
 from ..tools.validate import validate_input, validate_model
 from .autodiff import (
-    jacobian,
-    jacobian_vector_product,
-    vector_jacobian_product,
+    _fisher_info_matrix_eigenvalue,
+    _fisher_info_matrix_vector_product,
+    _jacobian,
 )
 from .synthesis import Synthesis
-
-
-def fisher_info_matrix_vector_product(
-    y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor
-) -> Tensor:
-    r"""
-    Compute Fisher Information Matrix Vector Product: :math:`Fv`.
-
-    Parameters
-    ----------
-    y
-        Output tensor with gradient attached.
-    x
-        Input tensor with gradient attached.
-    v
-        The vectors with which to compute Fisher vector products.
-    dummy_vec
-        Dummy vector for Jacobian vector product trick.
-
-    Returns
-    -------
-    Fv
-        Vector, Fisher vector product.
-
-    Notes
-    -----
-    Under white Gaussian noise assumption, :math:`F` is matrix multiplication
-    of Jacobian transpose and Jacobian:
-    :math:`F = J^T J`. Hence:
-    :math:`Fv = J^T (Jv)`
-    """  # numpydoc ignore=ES01
-    Jv = jacobian_vector_product(y, x, v, dummy_vec)
-    Fv = vector_jacobian_product(y, x, Jv, detach=True)
-
-    return Fv
-
-
-def fisher_info_matrix_eigenvalue(
-    y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor | None = None
-) -> Tensor:
-    r"""
-    Compute eigenvalues of Fisher vector products.
-
-    We compute the Fisher Information Matrix corresponding to eigenvectors in ``v``:
-    :math:`\lambda= v^T F v`.
-
-    Parameters
-    ----------
-    y
-        Output tensor with gradient attached.
-    x
-        Input tensor with gradient attached.
-    v
-        The vectors with which to compute Fisher vector products.
-    dummy_vec
-        Dummy vector for Jacobian vector product trick.
-
-    Returns
-    -------
-    lmbda
-        The computed eigenvalues.
-    """
-    if dummy_vec is None:
-        dummy_vec = torch.ones_like(y, requires_grad=True)
-
-    Fv = fisher_info_matrix_vector_product(y, x, v, dummy_vec)
-
-    # compute eigenvalues for all vectors in v
-    lmbda = torch.stack([a.dot(b) for a, b in zip(v.T, Fv.T)])
-    return lmbda
 
 
 class Eigendistortion(Synthesis):
@@ -120,15 +52,14 @@ class Eigendistortion(Synthesis):
     differentiable) mapping from the input pixels :math:`x \in \mathbb{R}^n` to a mean
     output response vector :math:`y\in \mathbb{R}^m`, where we assume additive white
     Gaussian noise in the response space.
-    The Jacobian matrix at :math:`x` is:
-        :math:`J(x) = J = dydx`,
-        :math:`J\in\mathbb{R}^{m \times n}` (ie. output_dim x input_dim)
+
+    The Jacobian matrix at :math:`x` is: :math:`J(x) = J = dydx`, where
+    :math:`J\in\mathbb{R}^{m \times n}` (i.e. output_dim x input_dim).
+
     The matrix consists of all partial derivatives of the vector-valued function
     :math:`f`. The Fisher Information Matrix (FIM) at :math:`x`, under white Gaussian
-    noise in the response space, is:
-        :math:`F = J^T J`
-    It is a quadratic approximation of the discriminability of distortions
-    relative to :math:`x`.
+    noise in the response space, is: :math:`F = J^T J` It is a quadratic approximation
+    of the discriminability of distortions relative to :math:`x`.
 
     References
     ----------
@@ -208,12 +139,12 @@ class Eigendistortion(Synthesis):
             computation. Ignored for other methods.
         p
             Oversampling parameter for randomized SVD. k+p vectors will be sampled,
-            and k will be returned. See docstring of :meth:`_synthesize_randomized_svd`
+            and k will be returned. See docstring of ``_synthesize_randomized_svd``
             for more details including algorithm reference.
         q
             Matrix power parameter for randomized SVD. This is an effective trick for
             the algorithm to converge to the correct eigenvectors when the
-            eigenspectrum does not decay quickly. See :meth:`_synthesize_randomized_svd`
+            eigenspectrum does not decay quickly. See ``_synthesize_randomized_svd``
             for more details including algorithm reference.
         stop_criterion
             Used if ``method='power'`` to check for convergence. If the L2-norm
@@ -311,7 +242,11 @@ class Eigendistortion(Synthesis):
 
     def compute_jacobian(self) -> Tensor:
         r"""
-        Compute (via :func:`autodiff.jacobian`), cache, and return jacobian.
+        Compute, cache, and return jacobian.
+
+        If the jacobian has not been cached: compute, cache, and return.
+
+        If the jacobian has already been cached, we simply return it.
 
         Returns
         -------
@@ -323,9 +258,9 @@ class Eigendistortion(Synthesis):
         UserWarning
             If input dimensionality is greater than 1e4, in which case we believe that
             this calculation will take too long.
-        """  # numpydoc ignore=ES01
+        """
         if self.jacobian is None:
-            J = jacobian(self._representation_flat, self._image_flat)
+            J = _jacobian(self._representation_flat, self._image_flat)
             self._jacobian = J
         else:
             J = self.jacobian
@@ -343,7 +278,7 @@ class Eigendistortion(Synthesis):
         Apply the algorithm to approximate the extremal eigenvalues and eigenvectors
         of the Fisher Information Matrix, without explicitly representing that matrix.
 
-        This method repeatedly calls :func:`fisher_info_matrix_vector_product` with a
+        This method repeatedly calls :func:`_fisher_info_matrix_vector_product` with a
         single (``k=1``), or multiple (``k>1``) vectors.
 
         Parameters
@@ -382,9 +317,9 @@ class Eigendistortion(Synthesis):
         v = v / torch.linalg.vector_norm(v, dim=0, keepdim=True, ord=2)
 
         _dummy_vec = torch.ones_like(y, requires_grad=True)  # cache a dummy vec for jvp
-        Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
+        Fv = _fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
         v = Fv / torch.linalg.vector_norm(Fv, dim=0, keepdim=True, ord=2)
-        lmbda = fisher_info_matrix_eigenvalue(y, x, v, _dummy_vec)
+        lmbda = _fisher_info_matrix_eigenvalue(y, x, v, _dummy_vec)
 
         d_lambda = torch.as_tensor(float("inf"))
         lmbda_new, v_new = None, None
@@ -400,12 +335,12 @@ class Eigendistortion(Synthesis):
                 print(f"{desc} computed | Stop criterion {tol:.2E} reached.")
                 break
 
-            Fv = fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
+            Fv = _fisher_info_matrix_vector_product(y, x, v, _dummy_vec)
             Fv = Fv - shift * v  # optionally shift: (F - shift*I)v
 
             v_new, _ = torch.linalg.qr(Fv, "reduced")  # (ortho)normalize vector(s)
 
-            lmbda_new = fisher_info_matrix_eigenvalue(y, x, v_new, _dummy_vec)
+            lmbda_new = _fisher_info_matrix_eigenvalue(y, x, v_new, _dummy_vec)
 
             d_lambda = torch.linalg.vector_norm(
                 lmbda - lmbda_new, ord=2
@@ -460,22 +395,22 @@ class Eigendistortion(Synthesis):
         # orthogonalize first for numerical stability
         P, _ = torch.linalg.qr(P, "reduced")
         _dummy_vec = torch.ones_like(y, requires_grad=True)
-        Z = fisher_info_matrix_vector_product(y, x, P, _dummy_vec)
+        Z = _fisher_info_matrix_vector_product(y, x, P, _dummy_vec)
 
         # optional power iteration to squeeze the spectrum for more accurate
         # estimate
         for _ in range(q):
-            Z = fisher_info_matrix_vector_product(y, x, Z, _dummy_vec)
+            Z = _fisher_info_matrix_vector_product(y, x, Z, _dummy_vec)
 
         Q, _ = torch.linalg.qr(Z, "reduced")
         # B = Q.T @ A @ Q
-        B = Q.T @ fisher_info_matrix_vector_product(y, x, Q, _dummy_vec)
+        B = Q.T @ _fisher_info_matrix_vector_product(y, x, Q, _dummy_vec)
         _, S, Vh = torch.linalg.svd(B, False)  # eigendecomp of small matrix
         V = Vh.T
         V = Q @ V  # lift up to original dimensionality
 
         # estimate error in Q estimate of range space
-        omega = fisher_info_matrix_vector_product(
+        omega = _fisher_info_matrix_vector_product(
             y, x, torch.randn(n, 20).to(x.device), _dummy_vec
         )
         error_approx = omega - (Q @ Q.T @ omega)
@@ -555,18 +490,24 @@ class Eigendistortion(Synthesis):
 
         This can be called as
 
-        .. function:: to(device=None, dtype=None, non_blocking=False)
+        .. code:: python
 
-        .. function:: to(dtype, non_blocking=False)
+            to(device=None, dtype=None, non_blocking=False)
 
-        .. function:: to(tensor, non_blocking=False)
+        .. code:: python
+
+            to(dtype, non_blocking=False)
+
+        .. code:: python
+
+            to(tensor, non_blocking=False)
 
         Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
-        floating point desired :attr:`dtype` s. In addition, this method will
-        only cast the floating point parameters and buffers to :attr:`dtype`
+        floating point desired ``dtype``. In addition, this method will
+        only cast the floating point parameters and buffers to ``dtype``
         (if given). The integral parameters and buffers will be moved
-        :attr:`device`, if that is given, but with dtypes unchanged. When
-        :attr:`non_blocking` is set, it tries to convert/move asynchronously
+        ``device``, if that is given, but with dtypes unchanged. When
+        `on_blocking`` is set, it tries to convert/move asynchronously
         with respect to the host if possible, e.g., moving CPU Tensors with
         pinned memory to CUDA devices.
 
