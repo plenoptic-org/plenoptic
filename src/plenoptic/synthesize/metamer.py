@@ -291,7 +291,10 @@ class Metamer(OptimizedSynthesis):
             Whether we should store the metamer image in progress during
             synthesis. If ``False``, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress`` iterations
-            (note then that 0 is the same as False and 1 the same as True).
+            (note then that 0 is the same as False and 1 the same as True). This is
+            primarily useful for using
+            :func:`~plenoptic.synthesize.metamer.animate` to create a video of the
+            course of synthesis.
         stop_criterion
             If the loss over the past ``stop_iters_to_check`` has changed
             less than ``stop_criterion``, we terminate synthesis.
@@ -303,6 +306,14 @@ class Metamer(OptimizedSynthesis):
         ------
         ValueError
             If we find a NaN during optimization.
+
+        See Also
+        --------
+        :func:`~plenoptic.synthesize.metamer.plot_synthesis_status`
+            Create a plot summarizing synthesis status at a given iteration.
+        :func:`~plenoptic.synthesize.metamer.animate`
+            Create a video of the metamer changing over the course of
+            synthesis.
 
         Examples
         --------
@@ -319,7 +330,9 @@ class Metamer(OptimizedSynthesis):
         tensor([0.0194, 0.0198, 0.0179, 0.0160, 0.0145, 0.0132])
 
         Synthesize a metamer, using ``store_progress`` so we can examine progress
-        later.
+        later. (This also enables us to create a video of the metamer changing over
+        the course of synthesis, see
+        :func:`~plenoptic.synthesize.metamer.animate`.)
 
         >>> import plenoptic as po
         >>> po.tools.set_seed(0)
@@ -433,7 +446,9 @@ class Metamer(OptimizedSynthesis):
         tensor(0.0132, grad_fn=<AddBackward0>)
         >>> met.losses[-1]
         tensor(0.0132)
-        >>> # can be called with a different image.
+        >>> # can be called with a different image. because we called with
+        >>> # store_progress=True, we can cached the metamer over the course of
+        >>> # synthesis
         >>> met.objective_function(met.saved_metamer[0])
         tensor(0.0194, grad_fn=<AddBackward0>)
         >>> met.losses[0]
@@ -550,6 +565,14 @@ class Metamer(OptimizedSynthesis):
             If the iteration used for ``saved_metamer`` is not the same as the argument
             ``iteration`` (because e.g., you set ``iteration=3`` but
             ``self.store_progress=2``).
+
+        See Also
+        --------
+        :func:`~plenoptic.synthesize.metamer.plot_synthesis_status`
+            Create a plot summarizing synthesis status at a given iteration.
+        :func:`~plenoptic.synthesize.metamer.animate`
+            Create a video of the metamer changing over the course of
+            synthesis.
 
         Examples
         --------
@@ -910,7 +933,7 @@ class Metamer(OptimizedSynthesis):
         >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
-        >>> met.synthesize(max_iter=5, store_progress=True)
+        >>> met.synthesize(max_iter=5)
         >>> print(met.metamer)
         tensor([[[[ 0.0098, ...]]]], requires_grad=True)
         >>> met.save("metamers.pt")
@@ -1337,7 +1360,10 @@ class MetamerCTF(Metamer):
             Whether we should store the metamer image in progress on every
             iteration. If ``False``, we don't save anything. If True, we save every
             iteration. If an int, we save every ``store_progress`` iterations
-            (note then that 0 is the same as False and 1 the same as True).
+            (note then that 0 is the same as False and 1 the same as True). This is
+            primarily useful for using
+            :func:`~plenoptic.synthesize.metamer.animate` to create a video of the
+            course of synthesis.
         stop_criterion
             If the loss over the past ``stop_iters_to_check`` has changed
             less than ``stop_criterion``, we terminate synthesis.
@@ -1363,6 +1389,14 @@ class MetamerCTF(Metamer):
         ValueError
             If we find a NaN during optimization.
 
+        See Also
+        --------
+        :func:`~plenoptic.synthesize.metamer.plot_synthesis_status`
+            Create a plot summarizing synthesis status at a given iteration.
+        :func:`~plenoptic.synthesize.metamer.animate`
+            Create a video of the metamer changing over the course of
+            synthesis.
+
         Examples
         --------
         >>> import plenoptic as po
@@ -1387,7 +1421,9 @@ class MetamerCTF(Metamer):
          'all': []}
 
         Synthesize a metamer, using ``store_progress`` so we can examine progress
-        later.
+        later. (This also enables us to create a video of the metamer changing over
+        the course of synthesis, see
+        :func:`~plenoptic.synthesize.metamer.animate`.)
 
         >>> import plenoptic as po
         >>> po.tools.set_seed(0)
@@ -1942,6 +1978,15 @@ def plot_loss(
     IndexError
         If ``iteration`` takes an illegal value.
 
+    See Also
+    --------
+    plot_synthesis_status
+        Create a figure combining this with other axis-level plots to summarize
+        synthesis status at a given iteration.
+    animate
+        Create a video animating this and other axis-level plots changing over
+        the course of synthesis.
+
     Examples
     --------
     .. plot::
@@ -2062,6 +2107,15 @@ def display_metamer(
         If the iteration for the displayed metamer is not the same as the argument
         ``iteration`` (because e.g., you set ``iteration=3`` but
         ``metamer.store_progress=2``).
+
+    See Also
+    --------
+    plot_synthesis_status
+        Create a figure combining this with other axis-level plots to summarize
+        synthesis status at a given iteration.
+    animate
+        Create a video animating this and other axis-level plots changing over
+        the course of synthesis.
 
     Examples
     --------
@@ -2311,6 +2365,15 @@ def plot_representation_error(
         the argument ``iteration`` (because e.g., you set ``iteration=3`` but
         ``metamer.store_progress=2``).
 
+    See Also
+    --------
+    plot_synthesis_status
+        Create a figure combining this with other axis-level plots to summarize
+        synthesis status at a given iteration.
+    animate
+        Create a video animating this and other axis-level plots changing over
+        the course of synthesis.
+
     Examples
     --------
     .. plot::
@@ -2465,6 +2528,15 @@ def plot_pixel_values(
         If the iteration used for ``saved_metamer`` is not the same as the argument
         ``iteration`` (because e.g., you set ``iteration=3`` but
         ``metamer.store_progress=2``).
+
+    See Also
+    --------
+    plot_synthesis_status
+        Create a figure combining this with other axis-level plots to summarize
+        synthesis status at a given iteration.
+    animate
+        Create a video animating this and other axis-level plots changing over
+        the course of synthesis.
 
     Examples
     --------
@@ -2850,6 +2922,23 @@ def plot_synthesis_status(
         ``iteration`` (because e.g., you set ``iteration=3`` but
         ``metamer.store_progress=2``).
 
+    See Also
+    --------
+    display_metamer
+        One of this function's axis-level component functions: display metamer at
+        a given synthesis iteration.
+    plot_loss
+        One of this function's axis-level component functions: plot synthesis loss
+        over iterations.
+    plot_representation_error
+        One of this function's axis-level component functions: plot error in model
+        representation at a given synthesis iteration.
+    plot_pixel_values
+        One of this function's axis-level component functions: plot histogram of
+        pixel values in target image and metamer at a given synthesis iteration.
+    animate
+        Create a video that animates this figure over synthesis iteration.
+
     Examples
     --------
     .. plot::
@@ -3128,6 +3217,24 @@ def animate(
         If ``metamer.metamer`` object is not 3d or 4d.
     ValueError
         If we do not know how to interpret the value of ``ylim``.
+
+    See Also
+    --------
+    display_metamer
+        One of this function's axis-level component functions: display metamer at
+        a given synthesis iteration.
+    plot_loss
+        One of this function's axis-level component functions: plot synthesis loss
+        over iterations.
+    plot_representation_error
+        One of this function's axis-level component functions: plot error in model
+        representation at a given synthesis iteration.
+    plot_pixel_values
+        One of this function's axis-level component functions: plot histogram of
+        pixel values in target image and metamer at a given synthesis iteration.
+    plot_synthesis_status
+        Create a figure that shows a frame from this movie: the synthesis status at
+        a given iteration.
 
     Notes
     -----
