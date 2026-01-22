@@ -46,6 +46,8 @@ REGISTRY = {
     "berardino_onoff.pt": "2174a40005489b9c94acc91213b2f6d57a75f262caf118cb1980658eadbfd047",  # noqa: E501
     "berardino_vgg16.pt": "5e0d10f4a367244879cd8a61c453992370ab801db1f66e10caa1ee2ecfab8ca4",  # noqa: E501
     "ps_regression.tar.gz": "7520ed2dbcb2647ac814a02e436e1f1e41fb06ca2534561c83f9e76193a12108",  # noqa: E501
+    "example_metamer_gaussian.pt": "16cd892f3dbdf99f346d3a154959f075a823a223271419e38645b6435631a64d",  # noqa: E501
+    "example_metamerCTF_ps.pt": "a200e3014a3538311f25d9c973c1818dae8ce66be41d0bd3a3b4d343854e2ea5",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"
@@ -80,6 +82,8 @@ REGISTRY_URLS = {
     "berardino_onoff.pt": OSF_TEMPLATE.format("uqfa8"),
     "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b"),
     "ps_regression.tar.gz": OSF_TEMPLATE.format("7t4fj/?revision=11"),
+    "example_metamer_gaussian.pt": OSF_TEMPLATE.format("7e48u"),
+    "example_metamerCTF_ps.pt": OSF_TEMPLATE.format("4zr37"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch.fetch_data`
@@ -91,6 +95,8 @@ DOWNLOADABLE_FILES = [
     "berardino_vgg16.pt",
     "tid2013.tar.gz",
     "ps_regression.tar.gz",
+    "example_metamer_gaussian.pt",
+    "example_metamerCTF_ps.pt",
 ]
 
 retriever = pooch.create(
