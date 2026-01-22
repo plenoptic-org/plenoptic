@@ -441,8 +441,8 @@ class Metamer(OptimizedSynthesis):
         tensor(0.0132)
 
         Can be called with a different image. (Note that, because we called
-        with ``store_progress=True``, we cached the metamer over the course
-        of synthesis):
+        :meth:`synthesize` with ``store_progress=True``, we cached the metamer
+        over the course of synthesis):
 
         >>> met.objective_function(met.saved_metamer[0])
         tensor(0.0194, grad_fn=<AddBackward0>)
@@ -599,8 +599,8 @@ class Metamer(OptimizedSynthesis):
         'pixel_change_norm': None,
         'gradient_norm': None}
 
-        When synthesis is run with ``store_progress=True``, this function returns the
-        metamer from the corresponding iteration:
+        When synthesis is run with ``store_progress=True``, this function also
+        returns the metamer from the corresponding iteration:
 
         >>> met = po.synth.Metamer(img, model)
         >>> met.synthesize(5, store_progress=True)
@@ -922,28 +922,25 @@ class Metamer(OptimizedSynthesis):
 
         Examples
         --------
+        In order to load a saved ``Metamer`` object, we must first initialize
+        one using the same arguments. Here, we load in a cached example:
+
         >>> import plenoptic as po
-        >>> po.tools.set_seed(0)
         >>> img = po.data.einstein()
         >>> model = po.simul.Gaussian(30).eval()
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
-        >>> met.synthesize(max_iter=5)
         >>> print(met.metamer)
-        tensor([[[[ 0.0098, ...]]]], requires_grad=True)
-        >>> met.save("metamers.pt")
-        >>> met_copy = po.synth.Metamer(img, model)
-        >>> print(met_copy.metamer)
         tensor([])
-        >>> met_copy.load("metamers.pt")
-        >>> print(met_copy.metamer)
-        tensor([[[[ 0.0098, ...]]]], requires_grad=True)
+        >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
+        >>> print(met.metamer)
+        tensor([[[[0.0529, ...]]]], requires_grad=True)
 
-        Loading ``Metamer`` object must be initialized with same values as the saved
-        object:
+        If the loading ``Metamer`` object was not initialized with same values
+        as the saved object, an error will be raised:
 
-        >>> met_copy = po.synth.Metamer(torch.rand_like(img), model)
-        >>> met_copy.load("metamers.pt")
+        >>> met = po.synth.Metamer(torch.rand_like(img), model)
+        >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
         Traceback (most recent call last):
         ValueError: Saved and initialized attribute image have different values...
         """
@@ -1832,34 +1829,33 @@ class MetamerCTF(Metamer):
 
         Examples
         --------
+        In order to load a saved ``MetamerCTF`` object, we must first initialize
+        one using the same arguments. Here, we load in a cached example:
+
         >>> import plenoptic as po
-        >>> po.tools.set_seed(0)
         >>> img = po.data.reptile_skin()
         >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
-        >>> met = po.synth.MetamerCTF(img, model)
-        >>> met.synthesize(max_iter=5, store_progress=True)
+        >>> met = po.synth.MetamerCTF(img, model, po.tools.optim.l2_norm)
         >>> print(met.metamer)
-        tensor([[[[0.7668, ...]]]], requires_grad=True)
-        >>> met.save("metamers_ctf.pt")
-        >>> met_copy = po.synth.MetamerCTF(img, model)
-        >>> met_copy.metamer
         tensor([])
-        >>> met_copy.load("metamers_ctf.pt")
-        >>> print(met_copy.metamer)
-        tensor([[[[0.7668, ...]]]], requires_grad=True)
+        >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
+        >>> print(met.metamer)
+        tensor([[[[0.6144, ...]]]], requires_grad=True)
 
         Loading and saving must both be done with ``MetamerCTF``:
 
-        >>> met_copy = po.synth.Metamer(img, model)
-        >>> met_copy.load("metamers_ctf.pt")
+        >>> met = po.synth.Metamer(img, model)
+        >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
         Traceback (most recent call last):
         ValueError: Saved object was a plenoptic.synthesize.metamer.MetamerCTF...
 
-        Loading ``MetamerCTF`` object must be initialized with same values as the saved
-        object:
+        If the loading ``MetamerCTF`` object was not initialized with same values
+        as the saved object, an error will be raised:
 
-        >>> met_copy = po.synth.MetamerCTF(torch.rand_like(img), model)
-        >>> met_copy.load("metamers_ctf.pt")
+        >>> met = po.synth.MetamerCTF(
+        ...     torch.rand_like(img), model, po.tools.optim.l2_norm
+        ... )
+        >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
         Traceback (most recent call last):
         ValueError: Saved and initialized attribute image have different values...
         """
