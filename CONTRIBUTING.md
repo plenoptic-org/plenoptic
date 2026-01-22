@@ -716,7 +716,9 @@ for docstring structure.
 
 ### Doctests
 
-All public-facing functions and classes should include [doctests](https://docs.python.org/3/library/doctest.html), which are the standard python way of showing short code examples in docstrings. These should be included in their own `Examples` section of the docstring. Every docstring should include at least one example, which shows the most common way of interacting with the function / class. Additional examples should be included where helpful, to show other common ways of interacting with the object (e.g., setting optional arguments), with brief descriptions describing what each example is doing. These examples should be independent of each other, so that a user can copy a block and run them directly (thus they should all e.g., start by importing all necessary modules).
+All public-facing functions and classes should include [doctests](https://docs.python.org/3/library/doctest.html), which are the standard python way of showing short code examples in docstrings. These should be included in their own `Examples` section of the docstring. Every docstring should include at least one example, which shows the most common way of interacting with the function / class. Additional examples should be included where helpful, to show other common ways of interacting with the object (e.g., setting optional arguments), with brief descriptions describing what each example is doing.
+
+A function's Examples section must run independently from those of other functions (i.e., it can't reuse an object defined in a different function), but different blocks withint he section can depend on each other (so that e.g., you don't have to reimport plenoptic in each block).
 
 Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/doctest.html) and sphinx builds them as part of the documentation. Some notes about this:
 
@@ -724,13 +726,13 @@ Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/
 
 ```python
 .. plot::
-   :context: reset
+   :context: close-figs
 
    >>> import plenoptic as po
    >>> # more example code here...
 ```
 
-- `:context: reset` is important to make sure that the figures are independent across examples. However, unfortunately,  only sphinx knows how to interpret this directive; pytest ignores it. That means the doctests must be written in such a way that they will not fail if they are run with open figures lying around. One could easily start their doctests by closing any open figures, but this generally goes against the principle of making these examples as compact and useful as possible. Unfortunately, I have not found a good general solution here.
+- `:context: close-figs` is important to make sure that the figures are independent across examples (this should probably be `:context: reset` for the first plot directive in a given docstring, `close-figs` thereafter). However, unfortunately,  only sphinx knows how to interpret this directive; pytest ignores it. That means the doctests must be written in such a way that they will not fail if they are run with open figures lying around. One could easily start their doctests by closing any open figures, but this generally goes against the principle of making these examples as compact and useful as possible. Unfortunately, I have not found a good general solution here.
 
 ### Build the documentation
 
