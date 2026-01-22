@@ -238,7 +238,10 @@ bibtex_bibfiles = ["references.bib"]
 bibtex_reference_style = "author_year"
 
 # SPHINX COPYBUTTON
-copybutton_exclude = ".linenos, .gp"
+
+# skip prompt characters and console outputs when copying
+# https://sphinx-copybutton.readthedocs.io/en/latest/use.html#automatic-exclusion-of-prompts-from-the-copies
+copybutton_exclude = ".linenos, .gp, .go"
 
 # MYST_NB
 
