@@ -1978,7 +1978,7 @@ def plot_loss(
     Plot on an axis in an existing figure:
 
     .. plot::
-      :context: reset
+      :context: close-figs
 
       >>> fig, axes = plt.subplots(1, 2)
       >>> po.synth.metamer.plot_loss(met, ax=axes[1])
