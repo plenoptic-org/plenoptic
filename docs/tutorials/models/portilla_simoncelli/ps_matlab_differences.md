@@ -54,10 +54,7 @@ import plenoptic as po
 %load_ext autoreload
 %autoreload 2
 
-# We need to download some additional images for this notebook. In order to do so,
-# we use an optional dependency, pooch. If the following raises an ImportError or
-# ModuleNotFoundError
-# then install pooch in your plenoptic environment and restart your kernel.
+# We need to download some additional images for this notebook.
 IMG_PATH = po.data.fetch_data("portilla_simoncelli_images.tar.gz")
 CACHE_DIR = po.data.fetch_data("ps_regression.tar.gz")
 # use GPU if available

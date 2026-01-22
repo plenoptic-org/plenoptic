@@ -7,6 +7,7 @@ This is inspired by scipy's datasets module.
 import pathlib
 import sys
 
+import pooch
 from tqdm.auto import tqdm
 
 __all__ = ["DOWNLOADABLE_FILES", "fetch_data"]
@@ -92,24 +93,18 @@ DOWNLOADABLE_FILES = [
     "ps_regression.tar.gz",
 ]
 
-try:
-    import pooch
-except ImportError:
-    pooch = None
-    retriever = None
-else:
-    retriever = pooch.create(
-        # Use the default cache folder for the operating system
-        # Pooch uses appdirs (https://github.com/ActiveState/appdirs) to
-        # select an appropriate directory for the cache on each platform.
-        path=pooch.os_cache("plenoptic"),
-        base_url="",
-        urls=REGISTRY_URLS,
-        registry=REGISTRY,
-        retry_if_failed=2,
-        allow_updates="POOCH_ALLOW_UPDATES",
-        env="PLENOPTIC_CACHE_DIR",
-    )
+retriever = pooch.create(
+    # Use the default cache folder for the operating system
+    # Pooch uses appdirs (https://github.com/ActiveState/appdirs) to
+    # select an appropriate directory for the cache on each platform.
+    path=pooch.os_cache("plenoptic"),
+    base_url="",
+    urls=REGISTRY_URLS,
+    registry=REGISTRY,
+    retry_if_failed=2,
+    allow_updates="POOCH_ALLOW_UPDATES",
+    env="PLENOPTIC_CACHE_DIR",
+)
 
 
 def _find_shared_directory(paths: list[pathlib.Path]) -> pathlib.Path:
@@ -173,12 +168,6 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
       >>> po.imshow(img)
       <PyrFigure size ...>
     """
-    if retriever is None:
-        raise ImportError(
-            "Missing optional dependency 'pooch'."
-            " Please use pip or "
-            "conda to install 'pooch'."
-        )
     processor = pooch.Untar() if dataset_name.endswith(".tar.gz") else None
     use_ascii = bool(sys.platform == "win32")
     fname = retriever.fetch(
