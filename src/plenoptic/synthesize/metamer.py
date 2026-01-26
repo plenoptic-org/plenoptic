@@ -352,6 +352,7 @@ class Metamer(OptimizedSynthesis):
         synthesis run for longer.
 
         >>> met = po.synth.Metamer(img, model)
+        >>> # this isn't enough to run synthesis to completion, just an example
         >>> met.synthesize(12, stop_criterion=0.001, stop_iters_to_check=2)
         >>> len(met.losses)
         9
@@ -923,18 +924,38 @@ class Metamer(OptimizedSynthesis):
         Examples
         --------
         In order to load a saved ``Metamer`` object, we must first initialize
-        one using the same arguments. Here, we load in a cached example:
+        one using the same arguments. (We use float64 / "double" precision rather than
+        torch's default float32 because it increases reproducibility, see the
+        :ref:`Reproducibility <reproduce>` page of our documentations for more details.)
+        Here, we load in a cached example:
 
         >>> import plenoptic as po
-        >>> img = po.data.einstein()
-        >>> model = po.simul.Gaussian(30).eval()
+        >>> img = po.data.einstein().to(torch.float64)
+        >>> model = po.simul.Gaussian(30).eval().to(torch.float64)
         >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
         >>> print(met.metamer)
         tensor([])
         >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
         >>> print(met.metamer)
-        tensor([[[[0.0529, ...]]]], requires_grad=True)
+        tensor([[[[0.0692, ...]]]], dtype=torch.float64, requires_grad=True)
+
+        If the saved ``Metamer`` object lived on a CUDA device and you do not have
+        CUDA on the loading machine, use ``map_location`` to change device:
+
+        >>> met = po.synth.Metamer(img, model)
+        >>> met.image.device
+        device(type='cpu')
+        >>> met.load(po.data.fetch_data("example_metamer_gaussian-cuda.pt"))
+        Traceback (most recent call last):
+        RuntimeError: Attempting to deserialize object on a CUDA device but
+        torch.cuda.is_available() is False...
+        >>> met.load(
+        ...     po.data.fetch_data("example_metamer_gaussian-cuda.pt"),
+        ...     map_location="cpu",
+        ... )
+        >>> print(met.metamer)
+        tensor([[[[0.0692, ...]]]], dtype=torch.float64, requires_grad=True)
 
         If the loading ``Metamer`` object was not initialized with same values
         as the saved object, an error will be raised:
@@ -943,6 +964,15 @@ class Metamer(OptimizedSynthesis):
         >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
         Traceback (most recent call last):
         ValueError: Saved and initialized attribute image have different values...
+
+        If the loading ``Metamer`` object has a different data type than the saved
+        object, an error will be raised:
+
+        >>> met = po.synth.Metamer(img, model)
+        >>> met.to(torch.float32)
+        >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
+        Traceback (most recent call last):
+        ValueError: Saved and initialized attribute image have different dtype...
         """
         self._load(
             file_path,
@@ -1445,6 +1475,7 @@ class MetamerCTF(Metamer):
         synthesis run for longer.
 
         >>> met = po.synth.MetamerCTF(img, model)
+        >>> # this isn't enough to run synthesis to completion, just an example
         >>> met.synthesize(10, stop_criterion=0.001, stop_iters_to_check=2)
         """
         if (change_scale_criterion is not None) and (
@@ -1829,18 +1860,37 @@ class MetamerCTF(Metamer):
 
         Examples
         --------
-        In order to load a saved ``MetamerCTF`` object, we must first initialize
-        one using the same arguments. Here, we load in a cached example:
+        In order to load a saved ``MetamerCTF`` object, we must first initialize one
+        using the same arguments. (We use float64 / "double" precision rather than
+        torch's default float32 because it increases reproducibility, see the
+        :ref:`Reproducibility <reproduce>` page of our documentations for more details.)
+        Here, we load in a cached example:
 
         >>> import plenoptic as po
-        >>> img = po.data.reptile_skin()
+        >>> img = po.data.reptile_skin().to(torch.float64)
         >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
         >>> met = po.synth.MetamerCTF(img, model, po.tools.optim.l2_norm)
         >>> print(met.metamer)
         tensor([])
         >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
         >>> print(met.metamer)
-        tensor([[[[0.6144, ...]]]], requires_grad=True)
+        tensor([[[[0.3016, ...]]]], dtype=torch.float64, requires_grad=True)
+
+        If the saved ``MetamerCTF`` object lived on a CUDA device and you do not have
+        CUDA on the loading machine, use ``map_location`` to change device:
+
+        >>> met = po.synth.MetamerCTF(img, model, po.tools.optim.l2_norm)
+        >>> met.image.device
+        device(type='cpu')
+        >>> met.load(po.data.fetch_data("example_metamerCTF_ps-cuda.pt"))
+        Traceback (most recent call last):
+        RuntimeError: Attempting to deserialize object on a CUDA device but
+        torch.cuda.is_available() is False...
+        >>> met.load(
+        ...     po.data.fetch_data("example_metamerCTF_ps-cuda.pt"), map_location="cpu"
+        ... )
+        >>> print(met.metamer)
+        tensor([[[[0.3016, ...]]]], dtype=torch.float64, requires_grad=True)
 
         Loading and saving must both be done with ``MetamerCTF``:
 
@@ -1858,6 +1908,15 @@ class MetamerCTF(Metamer):
         >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
         Traceback (most recent call last):
         ValueError: Saved and initialized attribute image have different values...
+
+        If the loading ``MetamerCTF`` object has a different data type than the saved
+        object, an error will be raised:
+
+        >>> met = po.synth.MetamerCTF(img, model, po.tools.optim.l2_norm)
+        >>> met.to(torch.float32)
+        >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
+        Traceback (most recent call last):
+        ValueError: Saved and initialized attribute image have different dtype...
         """
         super()._load(
             file_path,
@@ -1955,11 +2014,13 @@ def plot_loss(
       :context: reset
 
       >>> import plenoptic as po
+      >>> import torch
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(5)
+      >>> met.to(torch.float64)
+      >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
       >>> po.synth.metamer.plot_loss(met)
       <Axes: ... ylabel='Loss'>
 
@@ -1968,7 +2029,7 @@ def plot_loss(
     .. plot::
       :context: close-figs
 
-      >>> po.synth.metamer.plot_loss(met, iteration=5)
+      >>> po.synth.metamer.plot_loss(met, iteration=10)
       <Axes: ... ylabel='Loss'>
 
     Plot on an axis in an existing figure:
@@ -2076,15 +2137,17 @@ def display_metamer(
 
       >>> import plenoptic as po
       >>> import matplotlib.pyplot as plt
+      >>> import torch
       >>> plt.figure()
       <Figure size ...>
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(5)
+      >>> met.to(torch.float64)
+      >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
       >>> po.synth.metamer.display_metamer(met)
-      <Axes: title=...Metamer [iteration=5]...>
+      <Axes: title=...Metamer [iteration=107]...>
 
     If no matplotlib figure exists, this function will create a new one:
 
@@ -2094,7 +2157,7 @@ def display_metamer(
       >>> # close all open figures to ensure none exist
       >>> plt.close("all")
       >>> po.synth.metamer.display_metamer(met)
-      <Axes: title=...Metamer [iteration=5]...>
+      <Axes: title=...Metamer [iteration=107]...>
 
     Display metamer from a specified iteration (requires setting ``store_progress``
     when :meth:`~plenoptic.synthesize.metamer.Metamer.synthesize` was called):
@@ -2102,10 +2165,8 @@ def display_metamer(
     .. plot::
       :context: close-figs
 
-      >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(5, store_progress=True)
-      >>> po.synth.metamer.display_metamer(met, iteration=3)
-      <Axes: title=...Metamer [iteration=3]...>
+      >>> po.synth.metamer.display_metamer(met, iteration=10)
+      <Axes: title=...Metamer [iteration=10]...>
 
     Explicitly define the axis to use:
 
@@ -2114,7 +2175,7 @@ def display_metamer(
 
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
       >>> po.synth.metamer.display_metamer(met, ax=axes[1])
-      <Axes: title=...Metamer [iteration=5]...>
+      <Axes: title=...Metamer [iteration=107]...>
 
     When plotting on an existing axis, if ``zoom=None``, this function will determine
     the best zoom level for the axis size.
@@ -2122,9 +2183,9 @@ def display_metamer(
     .. plot::
       :context: close-figs
 
-      >>> fig, axes = plt.subplots(1, 1, figsize=(2, 2))
+      >>> fig, axes = plt.subplots(1, 1, figsize=(8, 8))
       >>> po.synth.metamer.display_metamer(met, ax=axes)
-      <Axes: title=...Metamer [iteration=5]...dims: [256, 256] * 0.5'}>
+      <Axes: title=...Metamer [iteration=107]...dims: [256, 256] * 2.0'}>
     """
     progress = metamer.get_progress(iteration)
     try:
@@ -2304,11 +2365,13 @@ def plot_representation_error(
       :context: reset
 
       >>> import plenoptic as po
+      >>> import torch
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(5)
+      >>> met.to(torch.float64)
+      >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
       >>> po.synth.metamer.plot_representation_error(met)
       [<Axes: title=...Representation error...>]
 
@@ -2317,11 +2380,14 @@ def plot_representation_error(
     .. plot::
       :context: close-figs
 
+      >>> import matplotlib.pyplot
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
       >>> po.synth.metamer.plot_representation_error(met, ax=axes[1])
       [<Axes: title=...Representation error...>]
 
-    The function switches between imshow and stem plot based on the shape of the
+    The function uses :func:`~plenoptic.tools.display.plot_representation`,
+    which switches between :func:`~plenoptic.tools.display.imshow` and
+    :func:`~plenoptic.tools.display.clean_stem_plot` based on the shape of the
     model's output:
 
     .. plot::
@@ -2337,19 +2403,24 @@ def plot_representation_error(
       >>> model = TestModel(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
+      >>> met.to(torch.float64)
       >>> met.synthesize(5)
       >>> po.synth.metamer.plot_representation_error(met)
       [<Axes: title=...Representation error...>]
 
     If model has its own ``plot_representation`` method, this function will use it,
-    potentially creating multiple axes:
+    potentially creating multiple axes (see
+    :func:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.plot_representation`
+    ):
 
     .. plot::
       :context: close-figs
 
+      >>> img = po.data.reptile_skin()
       >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
-      >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(5)
+      >>> met = po.synth.MetamerCTF(img, model, po.tools.optim.l2_norm)
+      >>> met.to(torch.float64)
+      >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
       >>> po.synth.metamer.plot_representation_error(met)
       [<Axes: ...>, ..., <Axes: ...>]
 
@@ -2361,7 +2432,7 @@ def plot_representation_error(
 
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
       >>> po.synth.metamer.display_metamer(met, ax=axes[0])
-      <Axes: title=...Metamer [iteration=5]...>
+      <Axes: title=...Metamer [iteration=150]...>
       >>> po.synth.metamer.plot_representation_error(met, ax=axes[1])
       [<Axes: ...>, ..., <Axes: ...>]
     """
@@ -2451,11 +2522,13 @@ def plot_pixel_values(
       :context: reset
 
       >>> import plenoptic as po
+      >>> import torch
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(5)
+      >>> met.to(torch.float64)
+      >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
       >>> po.synth.metamer.plot_pixel_values(met)
       <Axes: ... 'Histogram of pixel values'...>
 
@@ -2465,9 +2538,7 @@ def plot_pixel_values(
     .. plot::
       :context: close-figs
 
-      >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(5, store_progress=True)
-      >>> po.synth.metamer.plot_pixel_values(met, iteration=3)
+      >>> po.synth.metamer.plot_pixel_values(met, iteration=10)
       <Axes: ... 'Histogram of pixel values'...>
 
     Plot on an existing axis:
@@ -2841,23 +2912,29 @@ def plot_synthesis_status(
       :context: reset
 
       >>> import plenoptic as po
+      >>> import torch
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(5)
+      >>> met.to(torch.float64)
+      >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
       >>> po.synth.metamer.plot_synthesis_status(met)
       (<Figure size ...>, {'display_metamer': 0, ...})
 
     If model has its own ``plot_representation`` method, this function will use it
-    for plotting the representation error:
+    for plotting the representation error (see
+    :func:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.plot_representation`
+    ):
 
     .. plot::
       :context: close-figs
 
+      >>> img = po.data.reptile_skin()
       >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
-      >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(5)
+      >>> met = po.synth.MetamerCTF(img, model, po.tools.optim.l2_norm)
+      >>> met.to(torch.float64)
+      >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
       >>> po.synth.metamer.plot_synthesis_status(met)
       (<Figure size ...>, {'display_metamer': 0, ...})
 
@@ -3128,11 +3205,13 @@ def animate(
       :context: reset
 
       >>> import plenoptic as po
+      >>> import torch
       >>> img = po.data.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(5, store_progress=True)
+      >>> met.to(torch.float64)
+      >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
       >>> ani = po.synth.metamer.animate(met)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-1.gif")
@@ -3148,20 +3227,25 @@ def animate(
     >>> model = po.simul.Gaussian(30).eval()
     >>> po.tools.remove_grad(model)
     >>> met = po.synth.Metamer(img, model)
+    >>> met.to(torch.float64)
     >>> met.synthesize(5)
     >>> ani = po.synth.metamer.animate(met)
     Traceback (most recent call last):
     ValueError: synthesize() was run with store_progress=False...
 
     If model has its own ``plot_representation`` method, this function will use it
-    for plotting the representation error:
+    for plotting the representation error (see
+    :func:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.plot_representation`
+    ):
 
     .. plot::
       :context: close-figs
 
+      >>> img = po.data.reptile_skin()
       >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
-      >>> met = po.synth.Metamer(img, model)
-      >>> met.synthesize(5, store_progress=True)
+      >>> met = po.synth.MetamerCTF(img, model, po.tools.optim.l2_norm)
+      >>> met.to(torch.float64)
+      >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
       >>> ani = po.synth.metamer.animate(met)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-2.gif")
