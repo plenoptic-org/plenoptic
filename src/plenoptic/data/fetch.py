@@ -161,11 +161,6 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
     path
         Path of the downloaded dataset.
 
-    Raises
-    ------
-    ImportError
-        If ``pooch`` isn't installed.
-
     Examples
     --------
     .. plot::
