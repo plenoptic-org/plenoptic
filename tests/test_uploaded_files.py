@@ -300,6 +300,9 @@ class TestDoctest:
         )
         compare_eigendistortions(eig, eig_up)
 
+    @pytest.mark.filterwarnings(
+        "ignore:Loss has converged, stopping synthesis:UserWarning"
+    )
     def test_example_metamer_gaussian(self, einstein_img_double):
         po.tools.set_seed(0)
         os.makedirs("uploaded_files", exist_ok=True)
@@ -329,6 +332,9 @@ class TestDoctest:
         met.to("cpu")
         met.save("uploaded_files/example_metamer_gaussian.pt")
 
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
     def test_example_metamerCTF_ps(self):
         po.tools.set_seed(0)
         os.makedirs("uploaded_files", exist_ok=True)
