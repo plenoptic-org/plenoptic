@@ -353,7 +353,7 @@ class TestDoctest:
             150, change_scale_criterion=None, ctf_iters_to_check=7, store_progress=10
         )
         met.save("uploaded_files/example_metamerCTF_ps-cuda.pt")
-        met_up = po.synth.Metamer(img, model, po.tools.optim.l2_norm)
+        met_up = po.synth.MetamerCTF(img, model, po.tools.optim.l2_norm)
         met_up.load(
             fetch_data("example_metamerCTF_ps-cuda.pt"),
             tensor_equality_atol=1e-7,
