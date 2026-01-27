@@ -100,11 +100,14 @@ class PortillaSimoncelli(nn.Module):
     --------
     Compute texture statistics of an image:
 
-    >>> import plenoptic as po
-    >>> img = po.data.reptile_skin()
-    >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])
-    >>> ps_model(img)
-    tensor([[[0.4172, 0.0547, ..., 0.0048]]])
+    .. plot::
+      :context: reset
+
+       >>> import plenoptic as po
+       >>> img = po.data.reptile_skin()
+       >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])
+       >>> ps_model(img)
+       tensor([[[0.4172, 0.0547, ..., 0.0048]]])
 
     Visualize texture statistics:
 
