@@ -689,7 +689,8 @@ config and thus is required to pass for a PR to merge).
 
 If you add a new source file (e.g., `src/plenoptic/synthesize/new_method.py`),
 you will also need to add it to `docs/api_modules.rst`. If this is not done,
-sphinx will raise an error when building the documentation.
+sphinx will raise an error when building the documentation. You also need to add
+that file to the hidden toctree at the top of `docs/api.rst`.
 
 (docstrings)=
 ### Docstrings

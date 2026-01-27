@@ -37,4 +37,4 @@ Affirm that you have done the following:
 - [ ] I have described the changes in this PR, following the template above.
 - [ ] I have added any necessary tests.
 - [ ] I have added any necessary documentation. This includes docstrings, updates to existing files found in `docs/`, or (for large changes) adding new files to the `docs/` folder.
-- [ ] If a public new class or function was added: I have double-checked that it is present in the API docs, modifying `docs/api.rst` and `docs/api_modules.rst` to include it if necessary.
+- [ ] If a public new class or function was added: I have double-checked that it is present in the API docs, modifying `docs/api.rst` (adding both the appropriate autosummary and, if a new file, a line in the hidden toctree) and `docs/api_modules.rst` (if a new file) to include it if necessary.

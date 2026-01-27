@@ -160,6 +160,11 @@ html_theme_options = {
     "navbar_align": "left",
 }
 
+html_sidebars = {
+    "api": [],
+    "generated/*": [],
+}
+
 # Path for static files (custom stylesheets or JavaScript)
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
