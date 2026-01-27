@@ -184,21 +184,11 @@ class Metamer(OptimizedSynthesis):
 
         Set optimizer:
 
-        >>> import plenoptic as po
-        >>> import torch
-        >>> img = po.data.einstein()
-        >>> model = po.simul.Gaussian(30).eval()
-        >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
         >>> met.setup(optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
 
         Set optimizer and scheduler:
 
-        >>> import plenoptic as po
-        >>> import torch
-        >>> img = po.data.einstein()
-        >>> model = po.simul.Gaussian(30).eval()
-        >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
         >>> met.setup(
         ...     optimizer=torch.optim.SGD,
@@ -206,14 +196,10 @@ class Metamer(OptimizedSynthesis):
         ...     scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau,
         ... )
 
-        Use with save/load. Only the optimizer/scheduler objects are necessary, their
-        kwargs and the initial image are handled by load.
+        Use with save/load. We only pass the optimizer/scheduler objects when calling
+        setup after load, their kwargs and the initial image are handled during the
+        load.
 
-        >>> import plenoptic as po
-        >>> import torch
-        >>> img = po.data.einstein()
-        >>> model = po.simul.Gaussian(30).eval()
-        >>> po.tools.remove_grad(model)
         >>> met = po.synth.Metamer(img, model)
         >>> met.setup(
         ...     po.data.curie(),

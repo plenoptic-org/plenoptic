@@ -111,16 +111,10 @@ class PortillaSimoncelli(nn.Module):
     .. plot::
       :context: reset
 
-      >>> import plenoptic as po
-      >>> img = po.data.reptile_skin()
-      >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])
       >>> fig, axes = ps_model.plot_representation(ps_model(img))
 
     Convert texture statistics into an easier-to-read format:
 
-    >>> import plenoptic as po
-    >>> img = po.data.reptile_skin()
-    >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])
     >>> representation_dict = ps_model.convert_to_dict(ps_model(img))
     >>> representation_dict.keys()
     odict_keys(['pixel_statistics', ..., 'var_highpass_residual'])
