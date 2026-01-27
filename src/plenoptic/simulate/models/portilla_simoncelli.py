@@ -109,7 +109,7 @@ class PortillaSimoncelli(nn.Module):
     Visualize texture statistics:
 
     .. plot::
-      :context: reset
+      :context: close-figs
 
       >>> fig, axes = ps_model.plot_representation(ps_model(img))
 
@@ -122,7 +122,7 @@ class PortillaSimoncelli(nn.Module):
     Synthesize a texture metamer:
 
     .. plot::
-      :context: reset
+      :context: close-figs
 
       >>> import plenoptic as po
       >>> import matplotlib.pyplot as plt
