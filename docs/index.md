@@ -26,26 +26,40 @@
 
 `plenoptic` is a python library for model-based synthesis of perceptual stimuli. For `plenoptic`, models are those of visual [^footnote-1] information processing: they accept an image[^footnote-2] as input, perform some computations, and return some output, which can be mapped to neuronal firing rate, fMRI BOLD response, behavior on some task, image category, etc. The intended audience is researchers in neuroscience, psychology, and machine learning. The generated stimuli enable interpretation of model properties through examination of features that are enhanced, suppressed, or discarded. More importantly, they can facilitate the scientific process, through use in further perceptual or neural experiments aimed at validating or falsifying model predictions.
 
-## Getting started
-
-- If you are unfamiliar with stimulus synthesis, see the [](conceptual-intro) for an in-depth introduction.
-- Otherwise, see the [](quickstart-nb) tutorial.
-
-### Installation
-
-The best way to install `plenoptic` is via `pip`:
-
-```{code-block} console
-$ pip install plenoptic
+::::{grid} auto
+:::{grid-item}
+```{button-ref} install-doc
+:shadow:
+:ref-type: myst
+:color: primary
 ```
-
-or `conda`:
-
-```{code-block} console
-$ conda install plenoptic -c conda-forge
+:::
+:::{grid-item}
+```{button-ref} quickstart-nb
+:shadow:
+:ref-type: myst
+:color: primary
 ```
+:::
+:::{grid-item}
+```{button-link} https://archive.org/details/vss2025-symposium-plenoptic
+:shadow:
+:ref-type: myst
+:color: primary
 
-See the [](install-doc) page for more details, including how to set up an isolated virtual environment (recommended).
+Video Introduction
+```
+:::
+:::{grid-item}
+```{button-ref} citation-doc
+:shadow:
+:ref-type: myst
+:color: primary
+
+Citation Guide
+```
+:::
+::::
 
 (package-contents)=
 
