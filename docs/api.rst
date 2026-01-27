@@ -292,7 +292,7 @@ Plenoptic includes a small number of example images, which are used throughout t
    ~data.reptile_skin
    ~data.color_wheel
 
-Plenoptic includes a helper function for downloading data. These files are used for our internal tests and documentation.
+Plenoptic includes a helper function for downloading additional data, which includes example synthesis objects and additional images.
 
 .. autosummary::
    :signatures: none
