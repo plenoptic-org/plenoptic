@@ -15,10 +15,8 @@ def rescale(x: Tensor, a: float = 0.0, b: float = 1.0) -> Tensor:
     ----------
     x
         Input tensor to rescale.
-    a
-        Minimum value of the output range. Default is 0.
-    b
-        Maximum value of the output range. Default is 1.
+    a, b
+        Min and max values, respectively, for the output.
 
     Returns
     -------
@@ -341,6 +339,7 @@ def make_disk(
       >>> import matplotlib.pyplot as plt
       >>> mask = make_disk((128, 128), outer_radius=50, inner_radius=25)
       >>> plt.imshow(mask, cmap="gray")
+      <...>
     """
     if isinstance(img_size, int):
         img_size = (img_size, img_size)
