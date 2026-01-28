@@ -1,7 +1,6 @@
 # Synthesis method introductions
 
 :::{toctree}
-:hidden:
 
 Metamer
 Eigendistortions

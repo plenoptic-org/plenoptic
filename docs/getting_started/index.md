@@ -23,7 +23,6 @@ If you are unfamiliar with stimulus synthesis, we recommend watching the [Video 
 To see a minimum example of writing your own model to use with plenoptic, see [](quickstart).
 
 :::{toctree}
-:hidden:
 
 install
 jupyter
