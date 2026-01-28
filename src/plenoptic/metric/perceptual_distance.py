@@ -3,7 +3,7 @@ Metrics designed to model human perceptual distance.
 
 Metrics that model human perceptual distance seek to answer the question "how different
 do humans find these two images?".
-"""
+"""  # numpydoc ignore=EX01
 
 import warnings
 from importlib import resources
@@ -81,7 +81,7 @@ def _ssim_parts(
         grayscale images.
     UserWarning
         If either ``img1`` or ``img2`` has a value outside of range ``[0, 1]``.
-    """
+    """  # numpydoc ignore=EX01
     img_ranges = torch.stack([img1.min(), img1.max(), img2.min(), img2.max()])
     if (img_ranges > 1).any() or (img_ranges < 0).any():
         warnings.warn(
