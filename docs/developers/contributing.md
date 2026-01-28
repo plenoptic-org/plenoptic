@@ -250,6 +250,8 @@ When doing a new release, the following steps must be taken:
     which are found in `README.md` and `index.md`. Note that the version tag
     must match the github tag (specified in the next step) or the link won't
     work.
+  - Update `docs/_static/version_switcher.json`. You will need to add a section
+    for the new release and move the `preferred=true` line to that section.
 2. After merging the above PR into the `main` branch, [create a Github
    release](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository)
    with a new tag matching that used in the binder link above: `X.Y.Z`. Creating

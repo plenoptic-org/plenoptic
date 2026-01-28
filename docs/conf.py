@@ -163,6 +163,11 @@ html_theme_options = {
     "show_nav_level": 2,
     "header_links_before_dropdown": 6,
     "navbar_align": "left",
+    "show_version_warning_banner": True,
+    "switcher": {
+        "json_url": "https://docs.plenoptic.org/docs/branch/main/_static/version_switcher.json",
+        "version_match": version,
+    },
 }
 
 html_sidebars = {
