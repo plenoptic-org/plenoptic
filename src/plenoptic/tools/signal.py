@@ -14,14 +14,25 @@ def rescale(x: Tensor, a: float = 0.0, b: float = 1.0) -> Tensor:
     Parameters
     ----------
     x
-        Tensor to rescale.
-    a, b
-        Min and max values, respectively, for the output.
+        Input tensor to rescale.
+    a
+        Minimum value of the output range. Default is 0.
+    b
+        Maximum value of the output range. Default is 1.
 
     Returns
     -------
     rescaled_x
         The rescaled tensor.
+
+    Examples
+    --------
+    >>> import torch
+    >>> x = torch.tensor([2.0, 4.0, 6.0, 8.0])
+    >>> rescale(x)
+    tensor([0.0000, 0.3333, 0.6667, 1.0000])
+    >>> rescale(x, a=-1, b=1)
+    tensor([-1.0000, -0.3333, 0.3333, 1.0000])
     """  # numpydoc ignore=ES01
     v = x.max() - x.min()
     g = x - x.min()
@@ -132,6 +143,16 @@ def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
         The inverse operation.
     :func:`~plenoptic.simulate.canonical_computations.non_linearities.local_gain_control`
         The analogous function for real-valued signals.
+
+    Examples
+    --------
+    >>> import torch
+    >>> x = torch.tensor([1 + 1j, 1 - 1j])
+    >>> amplitude, phase = rectangular_to_polar(x)
+    >>> amplitude
+    tensor([1.4142, 1.4142])
+    >>> phase
+    tensor([ 0.7854, -0.7854])
     """
     amplitude = torch.abs(x)
     phase = torch.angle(x)
@@ -167,6 +188,14 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
         The inverse operation.
     :func:`~plenoptic.simulate.canonical_computations.non_linearities.local_gain_release`
         The analogous function for real-valued signals.
+
+    Examples
+    --------
+    >>> import torch
+    >>> amplitude = torch.tensor([1.4142, 1.4142])
+    >>> phase = torch.tensor([0.7854, -0.7854])
+    >>> polar_to_rectangular(amplitude, phase)
+    tensor([1.+1.j, 1.-1.j])
     """  # numpydoc ignore=ES01
     if (amplitude < 0).any():
         raise ValueError("Amplitudes must be non-negative.")
@@ -301,7 +330,17 @@ def make_disk(
     Returns
     -------
     mask
-        Tensor mask with ``torch.Size(img_size)``.
+        Tensor mask with shape ``torch.Size(img_size)``.
+
+    Examples
+    --------
+    .. plot::
+
+      >>> import torch
+      >>> from plenoptic.tools.signal import make_disk
+      >>> import matplotlib.pyplot as plt
+      >>> mask = make_disk((128, 128), outer_radius=50, inner_radius=25)
+      >>> plt.imshow(mask, cmap="gray")
     """
     if isinstance(img_size, int):
         img_size = (img_size, img_size)
