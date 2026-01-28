@@ -228,16 +228,16 @@ For example, the default `penalty_function` uses the
 to penalize pixel values that fall outside the range [0, 1], helping to keep the
 synthesized metamer within this range. The user can pass custom penalty functions
 that control other properties of the synthesized metamer.
-A simple example can be a modified range penalty that uses a different allowed range.
-For this, we can use `functools.partial` to create a new function that penalizes pixels
-outside a different range, as shown below.
+For example, we can constrain the image pixels to fall inside a different range,
+by using the argument `allowed_range` in the 
+{func} `penalize_range <plenoptic.tools.regularization.penalize_range>` function
+to define a new range penalization.
 
 ```{code-cell} ipython3
-import functools
-
+from plenoptic.tools import regularization
 # Create custom_penalty function, that penalizes pixels outside of [0.2, 0.8] range
-custom_penalty = functools.partial(
-    po.tools.regularization.penalize_range, allowed_range=(0.2, 0.8)
+def custom_penalty(image):
+    penalty = regularization.penalize_range(image, allowed_range=(0.2, 0.8))
 )
 
 # Pass the custom_penalty function to the Metamer class, and synthesize the metamer
