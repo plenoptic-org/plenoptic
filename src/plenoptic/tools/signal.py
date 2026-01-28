@@ -338,7 +338,7 @@ def make_disk(
       >>> from plenoptic.tools.signal import make_disk
       >>> import matplotlib.pyplot as plt
       >>> disk = make_disk((128, 128), outer_radius=50, inner_radius=25)
-      >>> plt.imshow(mask, cmap="gray")
+      >>> plt.imshow(disk, cmap="gray")
       <...>
     """
     if isinstance(img_size, int):
