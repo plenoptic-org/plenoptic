@@ -337,7 +337,7 @@ def make_disk(
       >>> import torch
       >>> from plenoptic.tools.signal import make_disk
       >>> import matplotlib.pyplot as plt
-      >>> mask = make_disk((128, 128), outer_radius=50, inner_radius=25)
+      >>> disk = make_disk((128, 128), outer_radius=50, inner_radius=25)
       >>> plt.imshow(mask, cmap="gray")
       <...>
     """
