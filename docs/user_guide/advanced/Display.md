@@ -265,7 +265,7 @@ ps.plot_representation(data=rep, ylim=False);
 Our {func}`~plenoptic.tools.display.plot_representation` function can make use of this method if you pass it the model; note how the plot below is identical to the one above. This might not seem very useful, but we make use of this in the different plotting methods used by our synthesis classes explained above.
 
 ```{code-cell} ipython3
-po.tools.display.plot_representation(ps, rep, figsize=(15, 15));
+po.tools.display.plot_representation(ps, rep);
 ```
 
 ```{code-cell} ipython3

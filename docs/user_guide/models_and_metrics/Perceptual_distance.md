@@ -281,7 +281,7 @@ The performance of these perceptual distance metrics can be measured by the corr
 Since both SSIM and MS-SSIM have higher values for less different image pairs, and are maximized at 1 for identical images, we need to convert them to distances as 1-SSIM and 1-(MS-SSIM). Then we will plot mean opinion score against the three metrics: 1-SSIM, 1-(MS-SSIM) and NLPD, as well as the baseline RMSE (square root of mean square error). We will also measure the correlation.
 
 :::{attention}
-To execute this part of the notebook, the TID2013 dataset needs to be downloaded. In order to do so, we use an optional dependency, `pooch`. If the following raises an `ImportError` or `ModuleNotFoundError` then install `pooch` in your plenoptic environment and restart your kernel. Note that the dataset is fairly large, about 1GB.
+To execute this part of the notebook, the TID2013 dataset needs to be downloaded. Note that the dataset is fairly large, about 1GB.
 :::
 
 ```{code-cell} ipython3

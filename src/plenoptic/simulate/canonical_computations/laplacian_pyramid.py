@@ -2,7 +2,7 @@
 Laplacian pyramid.
 
 Simple class for handling the Laplacian Pyramid.
-"""
+"""  # numpydoc ignore=EX01
 
 import torch
 import torch.nn as nn

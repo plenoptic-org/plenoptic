@@ -16,6 +16,11 @@ import pathlib
 import sys
 from importlib.metadata import version
 
+import torch
+
+# by default, torch uses all avail threads which slows things run in parallel
+torch.set_num_threads(1)
+
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("./tutorials/"))
 
@@ -273,7 +278,10 @@ bibtex_bibfiles = ["references.bib"]
 bibtex_reference_style = "author_year"
 
 # SPHINX COPYBUTTON
-copybutton_exclude = ".linenos, .gp"
+
+# skip prompt characters and console outputs when copying
+# https://sphinx-copybutton.readthedocs.io/en/latest/use.html#automatic-exclusion-of-prompts-from-the-copies
+copybutton_exclude = ".linenos, .gp, .go"
 
 # MYST_NB
 
