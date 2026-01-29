@@ -14,7 +14,7 @@ References
    Computer Vision. 40(1):49-71, October, 2000.
    https://www.cns.nyu.edu/~eero/ABSTRACTS/portilla99-abstract.html
    https://www.cns.nyu.edu/~lcv/texture/
-"""
+"""  # numpydoc ignore=EX01
 
 from collections import OrderedDict
 from typing import Literal
@@ -95,6 +95,63 @@ class PortillaSimoncelli(nn.Module):
     .. [3] E P Simoncelli and W T Freeman, "The Steerable Pyramid: A Flexible
        Architecture for Multi-Scale Derivative Computation," Second Int'l Conf
        on Image Processing, Washington, DC, Oct 1995.
+
+    Examples
+    --------
+    Compute texture statistics of an image:
+
+    .. plot::
+      :context: reset
+
+       >>> import plenoptic as po
+       >>> img = po.data.reptile_skin()
+       >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])
+       >>> ps_model(img)
+       tensor([[[0.4172, 0.0547, ..., 0.0048]]])
+
+    Visualize texture statistics:
+
+    .. plot::
+      :context: close-figs
+
+      >>> fig, axes = ps_model.plot_representation(ps_model(img))
+
+    Convert texture statistics into an easier-to-read format:
+
+    >>> representation_dict = ps_model.convert_to_dict(ps_model(img))
+    >>> representation_dict.keys()
+    odict_keys(['pixel_statistics', ..., 'var_highpass_residual'])
+
+    Synthesize a texture metamer:
+
+    .. plot::
+      :context: close-figs
+
+      >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
+      >>> import torch
+      >>> img = po.data.reptile_skin()
+      >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])
+      >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(ps_model, img)
+      >>> met = po.synth.Metamer(img, ps_model, loss_function=loss)
+      >>> opt_kwargs = {
+      ...     "max_iter": 10,
+      ...     "max_eval": 10,
+      ...     "history_size": 100,
+      ...     "line_search_fn": "strong_wolfe",
+      ...     "lr": 1,
+      ... }
+      >>> met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
+      >>> # Note that this isn't enough to run synthesis to completion,
+      >>> # just an example to demonstrate what synthesis looks like
+      >>> met.synthesize(max_iter=20)
+      >>> fig, axes = plt.subplots(1, 4, figsize=(25, 4), width_ratios=[1, 1, 1, 3])
+      >>> po.imshow(img, ax=axes[0], title="Target image")
+      <Figure size ... with 4 Axes>
+      >>> axes[0].xaxis.set_visible(False)
+      >>> axes[0].yaxis.set_visible(False)
+      >>> po.synth.metamer.plot_synthesis_status(met, fig=fig, axes_idx={"misc": 0})[0]
+      <Figure size ...>
     """
 
     def __init__(
@@ -197,7 +254,7 @@ class PortillaSimoncelli(nn.Module):
            values. These arrays have the same shape as the stat (excluding
            batch and channel), with values defining which scale they correspond
            to.
-        """
+        """  # numpydoc ignore=EX01
         shape_dict = OrderedDict()
         # There are 6 pixel statistics
         shape_dict["pixel_statistics"] = np.array(6 * ["pixel_statistics"])
@@ -309,7 +366,7 @@ class PortillaSimoncelli(nn.Module):
             scales_shape_dict's corresponding values. True denotes the
             statistics that will be included in the model's output, while False
             denotes the redundant ones we will toss.
-        """
+        """  # numpydoc ignore=EX01
         mask_dict = scales_shape_dict.copy()
         # Pre-compute some necessary indices.
         # Lower triangular indices (including diagonal), for auto correlations
@@ -387,7 +444,7 @@ class PortillaSimoncelli(nn.Module):
         Examples
         --------
         >>> import plenoptic as po
-        >>> img = po.data.curie()
+        >>> img = po.data.reptile_skin()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
         >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_tensor.shape
@@ -555,7 +612,7 @@ class PortillaSimoncelli(nn.Module):
         Examples
         --------
         >>> import plenoptic as po
-        >>> img = po.data.curie()
+        >>> img = po.data.reptile_skin()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
         >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_tensor.shape
@@ -604,7 +661,7 @@ class PortillaSimoncelli(nn.Module):
         --------
         >>> import plenoptic as po
         >>> import torch
-        >>> img = po.data.curie()
+        >>> img = po.data.reptile_skin()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
         >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_dict = portilla_simoncelli_model.convert_to_dict(
@@ -657,7 +714,7 @@ class PortillaSimoncelli(nn.Module):
         Examples
         --------
         >>> import plenoptic as po
-        >>> img = po.data.curie()
+        >>> img = po.data.reptile_skin()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(
         ...     img.shape[2:], n_scales=3
         ... )
@@ -765,7 +822,7 @@ class PortillaSimoncelli(nn.Module):
             The residual lowpass as a real-valued 4d tensor (batch, channel,
             height, width). This tensor has been demeaned (independently for
             each batch and channel).
-        """
+        """  # numpydoc ignore=EX01
         pyr_coeffs = self._pyr.forward(image)
         # separate out the residuals and demean the residual lowpass
         lowpass = pyr_coeffs["residual_lowpass"]
@@ -796,7 +853,7 @@ class PortillaSimoncelli(nn.Module):
             3d tensor of shape (batch, channel, 6) containing the mean,
             variance, skew, kurtosis, minimum pixel value, and maximum pixel
             value (in that order).
-        """  # numpydoc ignore=ES01
+        """  # numpydoc ignore=ES01,EX01
         mean = torch.mean(image, dim=(-2, -1), keepdim=True)
         # we use torch.var instead of plenoptic.tools.variance, because our
         # variance is the uncorrected (or sample) variance and we want the
@@ -845,7 +902,7 @@ class PortillaSimoncelli(nn.Module):
            channel, n_orientations, height, width) (same as ``pyr_coeffs``),
            containing the real components of the coefficients (i.e.
            ``coeffs.real``).
-        """
+        """  # numpydoc ignore=EX01
         magnitude_pyr_coeffs = [coeff.abs() for coeff in pyr_coeffs]
         magnitude_means = [
             mag.mean((-2, -1), keepdim=True) for mag in magnitude_pyr_coeffs
@@ -879,7 +936,7 @@ class PortillaSimoncelli(nn.Module):
             reconstructed just from the residual lowpass image. Each is a 4d
             tensor, this is a list because they are all different heights and
             widths.
-        """
+        """  # numpydoc ignore=EX01
         reconstructed_images = [
             self._pyr.recon_pyr(pyr_coeffs_dict, levels=["residual_lowpass"])
         ]
@@ -928,7 +985,7 @@ class PortillaSimoncelli(nn.Module):
         ------
         ValueError
             If ``coeffs_list`` contains tensors that have other than 4 or 5 dimensions.
-        """  # numpydoc ignore=ES01
+        """  # numpydoc ignore=ES01,EX01
         if coeffs_list[0].ndim == 5:
             dims = "o"
         elif coeffs_list[0].ndim == 4:
@@ -979,7 +1036,7 @@ class PortillaSimoncelli(nn.Module):
             Tensors of shape (batch, channel, n_scales+1) containing the skew
             and kurtosis, respectively, of each tensor in
             ``reconstructed_images``.
-        """
+        """  # numpydoc ignore=EX01
         skew_recon = [
             stats.skew(im, mean=0, var=var_recon[..., i], dim=[-2, -1])
             for i, im in enumerate(reconstructed_images)
@@ -1028,7 +1085,7 @@ class PortillaSimoncelli(nn.Module):
             Tensor of shape (batch, channel, n_orientations, n_orientations,
             scales) containing the cross-correlations at each
             scale.
-        """  # numpydoc ignore=ES01
+        """  # numpydoc ignore=ES01,EX01
         covars = []
         for i, (coeff, coeff_other) in enumerate(
             zip(coeffs_tensor, coeffs_tensor_other)
@@ -1099,7 +1156,7 @@ class PortillaSimoncelli(nn.Module):
             found at the same orientation index as the input, and the imaginary
             at orientation+self.n_orientations. (The finest scale has been
             removed).
-        """
+        """  # numpydoc ignore=EX01
         doubled_phase_mags = []
         doubled_phase_sep = []
         # don't do this for the finest scale
@@ -1185,7 +1242,7 @@ class PortillaSimoncelli(nn.Module):
             None, we create a new figure.
         figsize
             The size of the figure to create. Must be ``None`` if ax is not ``None``. If
-            both figsize and ax are ``None``, then we set ``figsize=(15, 15)``.
+            both figsize and ax are ``None``, then we set ``figsize=(12, 15)``.
         ylim
             If not None, the y-limits to use for this plot. If None, we use the
             default, slightly adjusted so that the minimum is 0. If False, do not
@@ -1210,17 +1267,18 @@ class PortillaSimoncelli(nn.Module):
         Examples
         --------
         .. plot::
+          :context: reset
 
           >>> import plenoptic as po
-          >>> img = po.data.curie()
+          >>> img = po.data.reptile_skin()
           >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
           >>> representation_tensor = portilla_simoncelli_model(img)
           >>> fig, axes = portilla_simoncelli_model.plot_representation(
-          ...     representation_tensor, figsize=(13, 6)
+          ...     representation_tensor
           ... )
         """
         if ax is None and figsize is None:
-            figsize = (15, 15)
+            figsize = (12, 5)
         elif ax is not None and figsize is not None:
             raise ValueError("figsize can't be set if ax is not None")
         # pick the batch_idx we want (but keep the data 3d), and average over
@@ -1291,7 +1349,7 @@ class PortillaSimoncelli(nn.Module):
             or channel. Should select or average over those dimensions.
         ValueError
             If ``rep`` contains unexpected keys.
-        """
+        """  # numpydoc ignore=EX01
         if rep["skew_reconstructed"].ndim > 1:
             raise ValueError(
                 "Currently, only know how to plot single batch and channel at"
@@ -1385,7 +1443,7 @@ class PortillaSimoncelli(nn.Module):
         typically use this directly.
 
         >>> import plenoptic as po
-        >>> img = po.data.curie()
+        >>> img = po.data.reptile_skin()
         >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
         >>> representation_tensor = portilla_simoncelli_model.forward(img)
         >>> fig, axes = portilla_simoncelli_model.plot_representation(

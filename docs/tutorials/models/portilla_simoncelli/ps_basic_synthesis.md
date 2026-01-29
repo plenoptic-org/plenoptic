@@ -56,10 +56,7 @@ import plenoptic as po
 %load_ext autoreload
 %autoreload 2
 
-# We need to download some additional images for this notebook. In order to do so,
-# we use an optional dependency, pooch. If the following raises an ImportError or
-# ModuleNotFoundError
-# then install pooch in your plenoptic environment and restart your kernel.
+# We need to download some additional images for this notebook.
 IMG_PATH = po.data.fetch_data("portilla_simoncelli_images.tar.gz")
 # use GPU if available
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -121,7 +118,7 @@ The statistics have also been reshaped so that e.g., the `auto_correlation_magni
 - {func}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.plot_representation` will plot a summarized version of the representation tensor:
 
 ```{code-cell} ipython3
-model.plot_representation(representation, figsize=(15, 5))
+model.plot_representation(representation)
 ```
 
 This plot will be also useful when investigating metamer synthesis progress, so that we can see which statistics are matched and which still differ.

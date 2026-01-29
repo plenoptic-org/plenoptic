@@ -8,7 +8,7 @@ You can run the notebooks in the cloud using [Binder](https://mybinder.org/v2/gh
 
 ## Installing jupyter and setting up the kernel
 
-If you wish to locally run the notebooks, you will need to install `jupyter`, `ipywidgets`, and (for some of the notebooks) `torchvision` and `pooch` . There are two or three possible ways of getting a local jupyter install working with this package, depending on what tool you are using to manage your virtual environments and how you wish to handle them (see [](install-doc) for how to use `conda` or `pip and venv` to setup a virtual environment and install plenoptic).
+If you wish to locally run the notebooks, you will need to install `jupyter`, `ipywidgets`, and (for some of the notebooks) `torchvision`. There are two or three possible ways of getting a local jupyter install working with this package, depending on what tool you are using to manage your virtual environments and how you wish to handle them (see [](install-doc) for how to use `conda` or `pip and venv` to setup a virtual environment and install plenoptic).
 
 
 :::{hint}
