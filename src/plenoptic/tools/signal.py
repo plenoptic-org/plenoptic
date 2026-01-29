@@ -390,6 +390,51 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
         The noisy image. If ``noise_mse`` contains only one element, this will be
         the same size as ``img``. Else, each separate value from ``noise_mse`` will
         be along the batch dimension.
+
+    Examples
+    --------
+    Basic usage:
+
+    .. plot::
+      :context: reset
+
+      >>> import matplotlib.pyplot as plt
+      >>> import torch
+      >>> from plenoptic.tools.signal import add_noise
+      >>> img = torch.zeros(32, 32)
+      >>> noisy = add_noise(img, noise_mse=0.1)
+      >>> noisy.shape
+      torch.Size([1, 1, 32, 32])
+      >>> fig, ax = plt.subplots(1, 2)
+      >>> ax[0].imshow(img, cmap="gray")
+      >>> ax[0].set_title("Original")
+      >>> ax[0].axis("off")
+      >>> ax[1].imshow(noisy[0, 0], cmap="gray")
+      >>> ax[1].set_title("Noisy")
+      >>> ax[1].axis("off")
+      <...>
+
+    With multiple elements in ``noise_mse``:
+
+    .. plot::
+      :context: reset
+
+      >>> import matplotlib.pyplot as plt
+      >>> import torch
+      >>> from plenoptic.tools.signal import add_noise
+      >>> img = torch.zeros(32, 32)
+      >>> noisy_multi = add_noise(img, noise_mse=[0.01, 0.1, 1.0])
+      >>> noisy_multi.shape
+      torch.Size([3, 1, 32, 32])
+      >>> fig, axs = plt.subplots(1, 4)
+      >>> axs[0].imshow(img, cmap="gray")
+      >>> axs[0].set_title("Original")
+      >>> axs[0].axis("off")
+      >>> for i, (ax, noisy) in enumerate(zip(axs[1:], noisy_multi), 1):
+      ...     ax.imshow(noisy[0], cmap="gray")
+      ...     ax.set_title(f"Noisy {i}")
+      ...     ax.axis("off")
+      <...>
     """
     noise_mse = torch.as_tensor(
         noise_mse, dtype=img.dtype, device=img.device
