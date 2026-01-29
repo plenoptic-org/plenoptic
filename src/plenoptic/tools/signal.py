@@ -406,12 +406,12 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
       >>> noisy.shape
       torch.Size([1, 1, 32, 32])
       >>> fig, ax = plt.subplots(1, 2)
-      >>> ax[0].imshow(img, cmap="gray")
-      >>> ax[0].set_title("Original")
-      >>> ax[0].axis("off")
-      >>> ax[1].imshow(noisy[0, 0], cmap="gray")
-      >>> ax[1].set_title("Noisy")
-      >>> ax[1].axis("off")
+      >>> _ = ax[0].imshow(img, cmap="gray")
+      >>> _ = ax[0].set_title("Original")
+      >>> _ = ax[0].axis("off")
+      >>> _ = ax[1].imshow(noisy[0, 0], cmap="gray")
+      >>> _ = ax[1].set_title("Noisy")
+      >>> _ = ax[1].axis("off")
 
     With multiple elements in ``noise_mse``:
 
@@ -426,13 +426,13 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
       >>> noisy_multi.shape
       torch.Size([3, 1, 32, 32])
       >>> fig, axs = plt.subplots(1, 4)
-      >>> axs[0].imshow(img, cmap="gray")
-      >>> axs[0].set_title("Original")
-      >>> axs[0].axis("off")
+      >>> _ = axs[0].imshow(img, cmap="gray")
+      >>> _ = axs[0].set_title("Original")
+      >>> _ = axs[0].axis("off")
       >>> for i, (ax, noisy) in enumerate(zip(axs[1:], noisy_multi), 1):
-      ...     ax.imshow(noisy[0], cmap="gray")
-      ...     ax.set_title(f"Noisy {i}")
-      ...     ax.axis("off")
+      ...     _ = ax.imshow(noisy[0], cmap="gray")
+      ...     _ = ax.set_title(f"Noisy {i}")
+      ...     _ = ax.axis("off")
     """
     noise_mse = torch.as_tensor(
         noise_mse, dtype=img.dtype, device=img.device
