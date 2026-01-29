@@ -412,7 +412,6 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
       >>> ax[1].imshow(noisy[0, 0], cmap="gray")
       >>> ax[1].set_title("Noisy")
       >>> ax[1].axis("off")
-      <...>
 
     With multiple elements in ``noise_mse``:
 
@@ -434,7 +433,6 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
       ...     ax.imshow(noisy[0], cmap="gray")
       ...     ax.set_title(f"Noisy {i}")
       ...     ax.axis("off")
-      <...>
     """
     noise_mse = torch.as_tensor(
         noise_mse, dtype=img.dtype, device=img.device
