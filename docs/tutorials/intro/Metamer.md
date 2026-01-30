@@ -254,8 +254,7 @@ print("Range of synthesized metamer: "
 
 The {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` class also has a
 `penalty_lambda` argument, that weighs the contribution of the penalty function
-to optimization. The `penalty_function` argument is also present in the
-{class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` class.
+to optimization.
 
 
 (metamer-coarse-to-fine)=
