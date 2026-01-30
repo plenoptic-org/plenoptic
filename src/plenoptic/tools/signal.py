@@ -474,6 +474,23 @@ def modulate_phase(x: Tensor, phase_factor: float = 2.0) -> Tensor:
     ------
     TypeError
         If ``x`` is not complex-valued.
+
+    Examples
+    --------
+    Basic usage:
+
+    .. plot::
+      :context: reset
+        >>> import plenoptic as po
+        >>> import torch
+        >>> from plenoptic.tools.signal import modulate_phase
+        >>> img = po.data.einstein()
+        >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
+        >>> coeffs = spyr(img)
+        >>> mod_coeffs = modulate_phase(coeffs[1], 2)
+        >>> mod_coeffs.shape
+        torch.Size([1, 1, 4, 128, 128])
+        >>> po.imshow(mod_coeffs[0])
     """
     try:
         angle = torch.atan2(x.imag, x.real)
