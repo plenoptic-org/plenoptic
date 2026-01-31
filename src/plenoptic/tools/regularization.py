@@ -39,17 +39,23 @@ def penalize_range(
 
     Examples
     --------
-    Synthesize a metamer with pixel range (-1, 1):
+    Initialize metamer with allowed range (0.2, 0.8):
 
-    >>> import functools
     >>> import plenoptic as po
     >>> img = po.data.einstein()
     >>> model = po.simul.Gaussian(30).eval()
     >>> po.tools.remove_grad(model)
-    >>> # Make function penalizing values outside (-1, 1)
-    >>> custom_range = functools.partial(po.tools.penalize_range, allowed_range=(-1, 1))
-    >>> met = po.synth.Metamer(img, model, penalty_function=custom_range)
-    >>> met.synthesize(10)
+    >>> # Make function penalizing values outside (0.2, 0.8)
+    >>> def custom_range(x):
+    ...     penalty = po.tools.penalize_range(x , allowed_range=(0.2, 0.8))
+    ...     return penalty
+    >>> met_default = po.synth.Metamer(img, model)
+    >>> met_custom = po.synth.Metamer(img, model, penalty_function=custom_range)
+    >>> # Compare the value of the penalties
+    >>> met_default.penalty_function(img)
+    tensor(0.)
+    >>> met_custom.penalty_function(img)
+    tensor(49.3881)
     """
     # Using clip like this is equivalent to using boolean indexing (e.g.,
     # synth_img[synth_img < allowed_range[0]]) but much faster
