@@ -264,7 +264,7 @@ class Synthesis(abc.ABC):
         init_not_save = set(vars(self)) - set(tmp_dict)
         if len(init_not_save):
             compat_attrs = {"_current_loss", "penalty_function", "_penalty_lambda"}
-            if not init_not_save <= compat_attrs:
+            if not init_not_save.issubset(compat_attrs):
                 init_not_save_str = "\n ".join(
                     [f"{k}: {getattr(self, k)}" for k in init_not_save]
                 )
@@ -284,7 +284,7 @@ class Synthesis(abc.ABC):
                     "saved object futureproof and avoid this warning.",
                     category=FutureWarning,
                 )
-            penalty_missing = {"penalty_function", "_penalty_lambda"} & init_not_save
+            penalty_missing = init_not_save.intersect({"penalty_function", "_penalty_lambda"})
             if penalty_missing:
                 # in PR #383, we added penalty_function and penalty_lambda attributes,
                 # which we'll handle for now, but warn about.
