@@ -6,7 +6,6 @@ inherit one of these classes, to provide a unified interface.
 """
 
 import abc
-import functools
 import importlib
 import inspect
 import math
@@ -17,10 +16,9 @@ from typing import Any, Literal
 import numpy as np
 import torch
 
-from ..tools import examine_saved_synthesis
+from ..tools import examine_saved_synthesis, regularization
 from ..tools.data import _check_tensor_equality
 from ..tools.io import _parse_save_io_attr_name
-from ..tools.regularization import penalize_range
 
 
 def _get_name(x: object) -> str:
@@ -293,13 +291,19 @@ class Synthesis(abc.ABC):
                 # Remove allowed_range and range_penalty_lambda so there's no extra key
                 # in saved dictionary
                 allowed_range = tmp_dict.pop("_allowed_range")
-                penalty_fn = functools.partial(
-                    penalize_range, allowed_range=allowed_range
-                )
+
+                def penalize_range(img: torch.Tensor) -> torch.Tensor:
+                    # Defining `penalize_range` is necessary for compatibility between
+                    # old and new objects, see discussion in
+                    # https://github.com/plenoptic-org/plenoptic/pull/383#discussion_r2709817411
+                    return regularization.penalize_range(
+                        img=img, allowed_range=allowed_range
+                    )
+
                 tmp_dict["penalty_function"] = (
-                    _get_name(penalty_fn),
+                    _get_name(penalize_range),
                     ("_image",),
-                    penalty_fn(tmp_dict["_image"]),
+                    penalize_range(tmp_dict["_image"]),
                 )
                 range_penalty_lambda = tmp_dict.pop(
                     "_range_penalty_lambda",
@@ -555,7 +559,9 @@ class OptimizedSynthesis(Synthesis):
 
     def __init__(
         self,
-        penalty_function: Callable[[torch.Tensor], torch.Tensor] = penalize_range,
+        penalty_function: Callable[
+            [torch.Tensor], torch.Tensor
+        ] = regularization.penalize_range,
         penalty_lambda: float = 0.1,
     ):
         super().__init__()
