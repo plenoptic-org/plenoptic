@@ -42,8 +42,11 @@ class Metamer(OptimizedSynthesis):
         The loss function used to compare the representations of the models
         in order to determine their loss.
     penalty_function
-        A penalty function applied to the metamer, that returns a scalar penalty
-        to be minimized. It constrains specific properties of the metamer.
+            A function applied to the metamer during optimization, that returns
+            a scalar penalty to be minimized. By penalizing certain properties of
+            the image, like pixels values outside an allowed range, we can constrain
+            those image properties. See :ref:`metamer-nb` in the documentation for
+            details and examples.
     penalty_lambda
         Weight of the penalty term. Must be non-negative.
 
@@ -830,8 +833,11 @@ class MetamerCTF(Metamer):
         The loss function to use to compare the representations of the models
         in order to determine their loss.
     penalty_function
-        A penalty function applied to the metamer, that returns a penalty
-        scalar to be minimized. It constrains specific properties of the metamer.
+            A function applied to the metamer during optimization, that returns
+            a scalar penalty to be minimized. By penalizing certain properties of
+            the image, like pixels values outside an allowed range, we can constrain
+            those image properties. See :ref:`metamer-nb` in the documentation for
+            details and examples.
     penalty_lambda
         Strength of the penalty term. Must be non-negative.
     coarse_to_fine

@@ -60,10 +60,13 @@ class MADCompetition(OptimizedSynthesis):
         ``optimized_metric`` loss. If ``None``, we pick a value so the two
         initial losses are approximately equal in magnitude.
     penalty_function
-        A penalty function applied to the synthesized image, that returns a scalar
-        penalty to be minimized. It constrains specific properties of the metamer.
+            A function applied to the metamer during optimization, that returns
+            a scalar penalty to be minimized. By penalizing certain properties of
+            the image, like pixels values outside an allowed range, we can constrain
+            those image properties. See :ref:`metamer-nb` in the documentation for
+            details and examples.
     penalty_lambda
-        Strength of the penalty term. Must be non-negative.
+        Weight of the penalty term. Must be non-negative.
 
     References
     ----------
