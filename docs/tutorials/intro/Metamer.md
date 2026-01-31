@@ -164,7 +164,7 @@ met_image = po.tools.convert_float_to_int(np.clip(met_image, 0, 1))
 imageio.imwrite("test.png", met_image)
 ```
 
-The metamer lies slightly outside the range `[0, 1]`, so we clip before saving as an image. Metamer's objective function has a quadratic penalty on the synthesized image's range, and the weight on this penalty can be adjusted by changing the value of `range_penalty_lambda` <!-- skip-lint --> at initialization.
+The metamer lies slightly outside the range `[0, 1]`, so we clip before saving as an image. Metamer's objective function has a quadratic penalty on the synthesized image's range, and the weight on this penalty can be adjusted by changing the value of `penalty_lambda` <!-- skip-lint --> at initialization.
 
 You can also save the entire {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` object with its {func}`save <plenoptic.synthesize.metamer.Metamer.save>` method. This can be fairly large (depending on how many iterations you ran it for and how frequently you stored progress), but stores all information:
 
@@ -209,7 +209,7 @@ met.synthesize()
 
 {func}`setup <plenoptic.synthesize.metamer.Metamer.setup>` also accepts a `scheduler` argument, so that you can pass a [pytorch scheduler](https://docs.pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate), which modifies the learning rate during optimization.
 
-
+(metamer-regularization)=
 ### Regularization penalty
 
 It is sometimes useful to control properties of the synthesized metamer beyond
