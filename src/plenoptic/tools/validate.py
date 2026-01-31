@@ -94,8 +94,8 @@ def validate_input(
         # numpy raises ValueError when operands cannot be broadcast together,
         # so it seems reasonable here
         raise ValueError("input_tensor batch dimension must be 1.")
-    allowed_range = (0.0, 1.0)
-    if input_tensor.min() < allowed_range[0] or input_tensor.max() > allowed_range[1]:
+    standard_range = (0.0, 1.0)
+    if input_tensor.min() < standard_range[0] or input_tensor.max() > standard_range[1]:
         input_range = (input_tensor.min().item(), input_tensor.max().item())
         warnings.warn(
             f"input_tensor range is {input_range}, which is outside"
@@ -533,7 +533,8 @@ def validate_penalty(
         if penalty.requires_grad:
             raise ValueError(
                 "penalty_function adds gradient to input, it is using learnable"
-                " parameters. Try calling plenoptic.tools.remove_grad()"
+                " parameters. This might happen if a Module is used inside"
+                " penalty_function. Try calling plenoptic.tools.remove_grad()"
                 " on it."
             )
     # in particular, numpy arrays lack requires_grad attribute
