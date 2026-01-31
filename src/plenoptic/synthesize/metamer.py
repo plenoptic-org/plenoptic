@@ -106,7 +106,7 @@ class Metamer(OptimizedSynthesis):
         ----------
         initial_image
             The tensor we use to initialize the metamer. If ``None``, we initialize with
-            random noise uniformly-distributed in [0,1].
+            random noise uniformly-distributed in $[0,1]$.
         optimizer
             The un-initialized optimizer object to use. If ``None``, we use
             :class:`torch.optim.Adam`.
