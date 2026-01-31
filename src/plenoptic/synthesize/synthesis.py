@@ -290,7 +290,7 @@ class Synthesis(abc.ABC):
                 # which we'll handle for now, but warn about.
                 # Remove allowed_range and range_penalty_lambda so there's no extra key
                 # in saved dictionary
-                allowed_range = tmp_dict.pop("_allowed_range")
+                allowed_range = tmp_dict.pop("_allowed_range", (0, 1))
 
                 def penalize_range(img: torch.Tensor) -> torch.Tensor:
                     # Defining `penalize_range` is necessary for compatibility between
@@ -306,7 +306,7 @@ class Synthesis(abc.ABC):
                     penalize_range(tmp_dict["_image"]),
                 )
                 range_penalty_lambda = tmp_dict.pop(
-                    "_range_penalty_lambda",
+                    "_range_penalty_lambda", 0.1
                 )
                 tmp_dict["_penalty_lambda"] = range_penalty_lambda
                 warnings.warn(
