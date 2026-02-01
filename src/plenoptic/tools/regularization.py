@@ -8,7 +8,7 @@ from torch import Tensor
 
 
 def penalize_range(
-    synth_img: Tensor,
+    img: Tensor,
     allowed_range: tuple[float, float] = (0.0, 1.0),
     **kwargs: Any,
 ) -> Tensor:
@@ -25,8 +25,8 @@ def penalize_range(
 
     Parameters
     ----------
-    synth_img
-        The tensor to penalize. the synthesized image.
+    img
+        The tensor to penalize.
     allowed_range
         2-tuple of values giving the (min, max) allowed values.
     **kwargs
@@ -58,7 +58,7 @@ def penalize_range(
     tensor(49.3881)
     """
     # Using clip like this is equivalent to using boolean indexing (e.g.,
-    # synth_img[synth_img < allowed_range[0]]) but much faster
-    below_min = torch.clip(synth_img - allowed_range[0], max=0).pow(2).sum()
-    above_max = torch.clip(synth_img - allowed_range[1], min=0).pow(2).sum()
+    # img[img < allowed_range[0]]) but much faster
+    below_min = torch.clip(img - allowed_range[0], max=0).pow(2).sum()
+    above_max = torch.clip(img - allowed_range[1], min=0).pow(2).sum()
     return below_min + above_max

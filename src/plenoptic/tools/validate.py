@@ -512,8 +512,8 @@ def validate_penalty(
 
     >>> import plenoptic as po
     >>> import torch
-    >>> def failure_penalty(synth_img):
-    ...     non_scalar = synth_img**2
+    >>> def failure_penalty(img):
+    ...     non_scalar = img**2
     ...     return non_scalar
     >>> po.tools.validate.validate_penalty(failure_penalty)  # doctest: +ELLIPSIS
     Traceback (most recent call last):

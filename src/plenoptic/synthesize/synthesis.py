@@ -299,7 +299,7 @@ class Synthesis(abc.ABC):
                     # old and new objects, see discussion in
                     # https://github.com/plenoptic-org/plenoptic/pull/383#discussion_r2709817411
                     return regularization.penalize_range(
-                        img=img, allowed_range=allowed_range
+                        img, allowed_range=allowed_range
                     )
 
                 tmp_dict["penalty_function"] = (
