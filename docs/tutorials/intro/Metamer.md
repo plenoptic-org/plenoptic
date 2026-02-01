@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.18.1
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: plenoptic
   language: python
@@ -229,20 +229,17 @@ to penalize pixel values that fall outside the range [0, 1], helping to keep the
 synthesized metamer within this range. The user can pass custom penalty functions
 that control other properties of the synthesized metamer.
 For example, we can constrain the image pixels to fall inside a different range,
-by using the argument `allowed_range` in the
+by using the argument `allowed_range` in the 
 {func} `penalize_range <plenoptic.tools.regularization.penalize_range>` function
 to define a new range penalization. Below we show how to constrain the
 pixel range to be between 0.2 and 0.8.
 
 ```{code-cell} ipython3
 from plenoptic.tools import regularization
-
-
 # Create custom_penalty function, that penalizes pixels outside of [0.2, 0.8] range
 def custom_penalty(image):
     penalty = regularization.penalize_range(image, allowed_range=(0.2, 0.8))
     return penalty
-
 
 # Pass the custom_penalty function to the Metamer class, and synthesize the metamer
 met = po.synth.Metamer(
