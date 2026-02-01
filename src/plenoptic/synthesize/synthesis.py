@@ -284,7 +284,9 @@ class Synthesis(abc.ABC):
                     "saved object futureproof and avoid this warning.",
                     category=FutureWarning,
                 )
-            penalty_missing = init_not_save.intersect({"penalty_function", "_penalty_lambda"})
+            penalty_missing = init_not_save.intersect(
+                {"penalty_function", "_penalty_lambda"}
+            )
             if penalty_missing:
                 # in PR #383, we added penalty_function and penalty_lambda attributes,
                 # which we'll handle for now, but warn about.
@@ -305,9 +307,7 @@ class Synthesis(abc.ABC):
                     ("_image",),
                     penalize_range(tmp_dict["_image"]),
                 )
-                range_penalty_lambda = tmp_dict.pop(
-                    "_range_penalty_lambda", 0.1
-                )
+                range_penalty_lambda = tmp_dict.pop("_range_penalty_lambda", 0.1)
                 tmp_dict["_penalty_lambda"] = range_penalty_lambda
                 warnings.warn(
                     "The saved object was saved before penalty_function and "
