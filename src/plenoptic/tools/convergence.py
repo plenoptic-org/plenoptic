@@ -7,7 +7,7 @@ convergence: loss, pixel change, etc.
 They should probably be able to accept the following arguments, in this order
 (they can accept more):
 
-- ``synth``: the synthesis object to check.
+- ``synth``: an OptimizedSynthesis object to check.
 
 - ``stop_criterion``: the value used as criterion / tolerance that our
   convergence target is compared against.
@@ -23,12 +23,12 @@ They must return a single ``bool``: ``True`` if we've reached convergence,
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..synthesize.mad_competition import MADCompetition
-    from ..synthesize.metamer import Metamer, MetamerCTF
+    from ..synthesize.metamer import MetamerCTF
+    from ..synthesize.synthesis import OptimizedSynthesis
 
 
-def _loss_convergence(
-    synth: "Metamer | MetamerCTF | MADCompetition",
+def loss_convergence(
+    synth: "OptimizedSynthesis",
     stop_criterion: float,
     stop_iters_to_check: int,
 ) -> bool:
@@ -48,7 +48,7 @@ def _loss_convergence(
     Parameters
     ----------
     synth
-        The synthesis object to check.
+        The OptimizedSynthesis object to check.
     stop_criterion
         If the loss over the past ``stop_iters_to_check`` has changed
         less than ``stop_criterion``, we terminate synthesis.
@@ -72,11 +72,7 @@ def _loss_convergence(
     )
 
 
-def _coarse_to_fine_enough(
-    synth: "MetamerCTF",
-    i: int,
-    ctf_iters_to_check: int,
-) -> bool:
+def coarse_to_fine_enough(synth: "MetamerCTF", i: int, ctf_iters_to_check: int) -> bool:
     r"""
     Check whether we've been synthesized all scales for long enough.
 
@@ -118,8 +114,8 @@ def _coarse_to_fine_enough(
         return False
 
 
-def _pixel_change_convergence(
-    synth: "Metamer | MetamerCTF | MADCompetition",
+def pixel_change_convergence(
+    synth: "OptimizedSynthesis",
     stop_criterion: float,
     stop_iters_to_check: int,
 ) -> bool:
@@ -139,7 +135,7 @@ def _pixel_change_convergence(
     Parameters
     ----------
     synth
-        The synthesis object to check.
+        The OptimizedSynthesis object to check.
     stop_criterion
         If the pixel change norm has been less than ``stop_criterion`` for all
         of the past ``stop_iters_to_check``, we terminate synthesis.

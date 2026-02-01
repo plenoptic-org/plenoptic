@@ -19,7 +19,6 @@ help:
 %: Makefile
     # issues with cache here, the || true is so that we don't fail if the
     # directory doesn't exist
-	rm -r "$(BUILDDIR)" || true
-	rm -r "$(SOURCEDIR)/generated/" || true
+	rm -r "$(BUILDDIR)/plot_directive/api/" || true
     # ignore the pyrtools-thrown warning about dpi
-	@ OMP_NUM_THREADS=1 PYTHONWARNINGS="ignore:Ignoring dpi:UserWarning" $(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O) -T -W
+	@ PYTHONWARNINGS="ignore:Ignoring dpi:UserWarning" $(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)

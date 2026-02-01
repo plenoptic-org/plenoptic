@@ -133,7 +133,8 @@ def load_images(
     .. plot::
 
       >>> import plenoptic as po
-      >>> img_dir = po.data.fetch_data("test_images.tar.gz") / "256"
+      >>> from plenoptic.data.fetch import fetch_data
+      >>> img_dir = fetch_data("test_images.tar.gz") / "256"
       >>> titles = ["color_wheel", "curie", "einstein", "metal", "nuts"]
       >>> imgs = po.load_images(img_dir)
       >>> po.imshow(imgs, title=titles)
@@ -144,7 +145,8 @@ def load_images(
     .. plot::
 
       >>> import plenoptic as po
-      >>> img_dir = po.data.fetch_data("test_images.tar.gz") / "256"
+      >>> from plenoptic.data.fetch import fetch_data
+      >>> img_dir = fetch_data("test_images.tar.gz") / "256"
       >>> titles = ["metal", "einstein", "color_wheel", "curie", "nuts"]
       >>> imgs = po.load_images(img_dir, sorted_key=lambda x: x.name[1])
       >>> po.imshow(imgs, title=titles)

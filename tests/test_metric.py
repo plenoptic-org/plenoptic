@@ -189,8 +189,7 @@ class TestPerceptualMetrics:
     @pytest.mark.parametrize("model", ["frontend.OnOff"], indirect=True)
     def test_model_metric_grad(self, einstein_img, curie_img, model):
         curie_img.requires_grad_()
-        model_metric = po.metric.model_metric_factory(model)
-        assert model_metric(einstein_img, curie_img).requires_grad
+        assert po.metric.model_metric(einstein_img, curie_img, model).requires_grad
         curie_img.requires_grad_(False)
 
     def test_ssim_dtype(self, einstein_img, curie_img):

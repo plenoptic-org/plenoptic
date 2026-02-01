@@ -48,7 +48,7 @@ Download this notebook: **{nb-download}`Eigendistortions.ipynb`**!
 **In this tutorial we will cover:**
 
 - Theory behind eigendistortions.
-- How to use the {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion` object.
+- How to use the {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>` object.
 - Computing eigendistortions using a simple input and linear model.
 - Computing extremal eigendistortions for different layers of ResNet18.
 
@@ -100,7 +100,7 @@ The simplest model that achieves this is linear, $y = f(x) = Mx$, where $M\in \m
 
 In this linear case, the Jacobian is fixed $J= \frac{\partial f}{\partial x}=M$ for all possible inputs $x$. Can we *synthesize* a distortion $\epsilon$ such that $f(x+\epsilon)$ is maximally/minimally perturbed from the original $f(x)$? Yes! This would amount to finding the first and last eigenvectors of the Fisher information matrix, i.e. $J^TJ v = \lambda v$.
 
-We'll be working with the {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion` object and its method, {func}`~plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize`.
+We'll be working with the {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>` object and its method, {func}`synthesize <plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize>`.
 
 Let's make a linear model and compute eigendistortions for a given input.
 
@@ -143,7 +143,7 @@ fig.tight_layout()
 
 ### 1.2 - Synthesizing eigendistortions of linear model
 
-To compute the eigendistortions of this model, we can instantiate an {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion` object with an input tensor and a valid PyTorch model with a `forward` <!-- skip-lint --> method. After that, we simply call the method {func}`~plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize`, choosing the appropriate synthesis method. Normally our input has thousands of entries, but our input in this case is small (only n=25 entries), so we can compute the full $m \times n$ Jacobian, and all the eigenvectors of the $n \times n$ Fisher matrix, $F=J^TJ$. The {func}`~plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize` method does this for us and stores the outputs (`eigendistortions, eigenvalues, eigenindex`) of the synthesis.
+To compute the eigendistortions of this model, we can instantiate an {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>` object with an input tensor and a valid PyTorch model with a `forward` <!-- skip-lint --> method. After that, we simply call the method {func}`synthesize <plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize>`, choosing the appropriate synthesis method. Normally our input has thousands of entries, but our input in this case is small (only n=25 entries), so we can compute the full $m \times n$ Jacobian, and all the eigenvectors of the $n \times n$ Fisher matrix, $F=J^TJ$. The {func}`synthesize <plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize>` method does this for us and stores the outputs (`eigendistortions, eigenvalues, eigenindex`) of the synthesis.
 
 ```{code-cell} ipython3
 # instantiate Eigendistortion object using an input and model
@@ -154,7 +154,7 @@ eig_jac.synthesize(method="exact")
 
 ### 1.3 - Comparing our synthesis to ground-truth
 
-The Jacobian is in general a rectangular (not necessarily square) matrix $J\in \mathbb{R}^{m\times n}$. Since this is a linear model, let's check if the computed Jacobian (stored as the {attr}`~plenoptic.synthesize.eigendistortion.Eigendistortion.jacobian` attribute in the {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion` object) matches the weight matrix $M$.
+The Jacobian is in general a rectangular (not necessarily square) matrix $J\in \mathbb{R}^{m\times n}$. Since this is a linear model, let's check if the computed Jacobian (stored as the {attr}`jacobian <plenoptic.synthesize.eigendistortion.Eigendistortion.jacobian>` attribute in the {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>` object) matches the weight matrix $M$.
 
 Since the eigendistortions are each 1D (vectors) in this example, we can display them all as an image where each column is an eigendistortion, each pixel is an entry of the eigendistortion, and the intensity is proportional to its value.
 
@@ -263,7 +263,7 @@ print(
 
 ## Example 2: Which layer of ResNet is a better model of human visual distortion perception?
 
-Now that we understand what eigendistortions are and how the {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion` class works, let's compute them real images using a more complex model: ResNet18. The response vector $y$ doesn't necessarily have to be the output of the last layer of the model; we can also compute Eigendistortions for intermediate model layers too. Let's synthesize distortions for an image using different layers of ResNet18 to see which layer produces extremal eigendistortions that align more with human perception.
+Now that we understand what eigendistortions are and how the {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>` class works, let's compute them real images using a more complex model: ResNet18. The response vector $y$ doesn't necessarily have to be the output of the last layer of the model; we can also compute Eigendistortions for intermediate model layers too. Let's synthesize distortions for an image using different layers of ResNet18 to see which layer produces extremal eigendistortions that align more with human perception.
 
 
 ### 2.1 - Load an example an image
@@ -326,7 +326,7 @@ Let's display the eigendistortions.
 
 ```
 
-`plenoptic` includes a {func}`~plenoptic.synthesize.eigendistortion.display_eigendistortion_all` function to visualize multiple eigendistortiosn together. Here, we show the original image on the bottom left, with the synthesized maximal eigendistortion in the top middle, and some constant $\alpha$ times the eigendistortion added to the image in the bottom middle. The rightmost column has a similar layout, but displays the minimal eigendistortion. Let's display the eigendistortions for the maxpool layer (pretty early in the model):
+`plenoptic` includes a {func}`display_eigendistortion_all <plenoptic.synthesize.eigendistortion.display_eigendistortion_all>` function to visualize multiple eigendistortiosn together. Here, we show the original image on the bottom left, with the synthesized maximal eigendistortion in the top middle, and some constant $\alpha$ times the eigendistortion added to the image in the bottom middle. The rightmost column has a similar layout, but displays the minimal eigendistortion. Let's display the eigendistortions for the maxpool layer (pretty early in the model):
 
 ```{code-cell} ipython3
 po.synth.eigendistortion.display_eigendistortion_all(

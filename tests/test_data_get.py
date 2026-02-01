@@ -10,12 +10,7 @@ import plenoptic as po
 )
 def test_data_module(item_name):
     """Test that data module works."""
-    if item_name == "DOWNLOADABLE_FILES":
-        assert isinstance(eval(f"po.data.{item_name}"), list)
-    elif item_name == "fetch_data":
-        assert callable(eval(f"po.data.{item_name}"))
-    else:
-        assert isinstance(eval(f"po.data.{item_name}()"), Tensor)
+    assert isinstance(eval(f"po.data.{item_name}()"), Tensor)
 
 
 @pytest.mark.parametrize(

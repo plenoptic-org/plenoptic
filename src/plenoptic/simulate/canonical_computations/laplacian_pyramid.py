@@ -2,7 +2,7 @@
 Laplacian pyramid.
 
 Simple class for handling the Laplacian Pyramid.
-"""  # numpydoc ignore=EX01
+"""
 
 import torch
 import torch.nn as nn
@@ -14,11 +14,11 @@ class LaplacianPyramid(nn.Module):
     """
     Laplacian Pyramid in Torch.
 
-    The Laplacian pyramid (Burt and Adelson, 1983, [1]_) is a multiscale image
-    representation. It decomposes the image by computing the local mean using Gaussian
-    blurring filters and subtracting it from the image and repeating this operation on
-    the local mean itself after downsampling. This representation is overcomplete and
-    invertible.
+    The Laplacian pyramid [1]_ is a multiscale image representation. It
+    decomposes the image by computing the local mean using Gaussian blurring
+    filters and subtracting it from the image and repeating this operation on
+    the local mean itself after downsampling. This representation is
+    overcomplete and invertible.
 
     Parameters
     ----------

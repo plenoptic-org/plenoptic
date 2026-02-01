@@ -2,7 +2,7 @@
 Naive image metrics.
 
 These aren't expected to do very well, just to provide a baseline for comparison.
-"""  # numpydoc ignore=EX01
+"""
 
 import torch
 

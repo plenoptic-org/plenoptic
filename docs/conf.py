@@ -11,6 +11,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import glob
+import inspect
 import os
 import pathlib
 import sys
@@ -18,8 +19,7 @@ from importlib.metadata import version
 
 import torch
 
-# by default, torch uses all avail threads which slows things run in parallel
-torch.set_num_threads(1)
+import plenoptic
 
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("./tutorials/"))
@@ -44,11 +44,12 @@ version: str = ".".join(release.split(".")[:3])
 extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
+    "numpydoc",
     "matplotlib.sphinxext.plot_directive",
     "matplotlib.sphinxext.mathmpl",
-    "sphinx.ext.autosummary",
     "sphinx.ext.autodoc",
     "sphinx_autodoc_typehints",
+    "sphinxcontrib.apidoc",
     "sphinx.ext.intersphinx",
     "sphinx_copybutton",
     "sphinx_togglebutton",
@@ -58,10 +59,7 @@ extensions = [
     "sphinx.ext.viewcode",
 ]
 
-numfig = True
 add_module_names = False
-
-nitpicky = True
 
 intersphinx_mapping = {
     "torch": ("https://docs.pytorch.org/docs/stable/", None),
@@ -85,13 +83,8 @@ master_doc = "index"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = [
-    "_build",
-    "Thumbs.db",
-    ".DS_Store",
-    "**.ipynb_checkpoints",
-    ".jupyter_cache",
-]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
+
 
 # Napoleon settings
 napoleon_google_docstring = False
@@ -104,26 +97,52 @@ napoleon_use_admonition_for_notes = False
 napoleon_use_admonition_for_references = False
 napoleon_use_ivar = False
 napoleon_use_param = True
-# when napoleon_use_rtype is true, the return type is often confused. setting this to
-# false let's sphinx-autodoc-typehints handle it instead.
 napoleon_use_rtype = False
 
-# SPHINX AUTODOC TYPEHINTS
-
-always_use_bars_union = True
-typehints_defaults = "braces"
+numfig = True
 
 # SPHINX CROSS REFERENCES
 
 add_function_parentheses = False
 
-# AUTOSUMMARY / AUTODOC
+# numpydoc
 
-autodoc_default_options = {
-    "members": True,
-    "show-inheritance": True,
-    "member-order": "groupwise",
-}
+
+# find whether the object is part of plenoptic
+def is_part_of_plenoptic(obj):
+    try:
+        return obj.__module__.startswith("plenoptic")
+    except AttributeError:
+        # then it's a module
+        return obj.__name__.startswith("plenoptic")
+
+
+def is_interesting(obj):
+    # find whether the object is a class or a module
+    is_right_object = inspect.isclass(obj) or inspect.ismodule(obj)
+    return is_right_object and is_part_of_plenoptic(obj)
+
+
+def find_module(obj):
+    members = inspect.getmembers(obj, is_interesting)
+    to_return = []
+    for name, mem in set(members):
+        if inspect.ismodule(mem):
+            # go through the modules recursively
+            to_return.extend(find_module(mem))
+        else:
+            # if they inherit torch Module
+            if issubclass(mem, torch.nn.Module):
+                to_return.append(f"{mem.__module__}.{name}")
+    # remove duplicates
+    return set(to_return)
+
+
+# avoid showing all the torch.nn.Module attributes and methods
+numpydoc_show_inherited_class_members = {k: False for k in find_module(plenoptic)}
+
+# to avoid this issue https://stackoverflow.com/a/73294408/4659293
+numpydoc_class_members_toctree = False
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -131,6 +150,11 @@ autodoc_default_options = {
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
+
+# these are for the sphinx_rtd_theme
+html_theme_options = {
+    "display_version": True,
+}
 
 # Path for static files (custom stylesheets or JavaScript)
 html_static_path = ["_static"]
@@ -217,6 +241,9 @@ epub_exclude_files = ["search.html"]
 
 
 # -- Extension configuration -------------------------------------------------
+#
+# APIDOC
+apidoc_module_dir = "../src/plenoptic"
 
 # MATPLOTLIB
 # because of the examples in the docstrings, want to default to showing source and not
@@ -238,10 +265,7 @@ bibtex_bibfiles = ["references.bib"]
 bibtex_reference_style = "author_year"
 
 # SPHINX COPYBUTTON
-
-# skip prompt characters and console outputs when copying
-# https://sphinx-copybutton.readthedocs.io/en/latest/use.html#automatic-exclusion-of-prompts-from-the-copies
-copybutton_exclude = ".linenos, .gp, .go"
+copybutton_exclude = ".linenos, .gp"
 
 # MYST_NB
 
@@ -269,4 +293,3 @@ else:
 
 nb_execution_mode = os.environ.get("NB_EXECUTION_MODE", "cache")
 nb_execution_raise_on_error = True
-nb_execution_cache_path = ".jupyter_cache"

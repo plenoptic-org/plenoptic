@@ -4,23 +4,6 @@
 
 ## Reprodubility
 
-(reproduce-best-practices)=
-### Best Practices
-
-plenoptic's synthesis methods are high-dimensional non-linear optimization problems. Thus, when trying to make your results reproducible, you should follow the guidelines below, which plenoptic uses for its tests and documentation:
-
-- Set the seed for the random number generator. In plenoptic's synthesis methods, this largely affects the initialization of the synthesis method (e.g., with random noise for {class}`plenoptic.synthesize.metamer.Metamer`). We provide a convenience function for this, {func}`~plenoptic.tools.optim.set_seed`, which sets both the pytorch and numpy seeds.
-- Use `torch.float64` dtype (torch defaults to `torch.float32`). {func}`torch.set_default_dtype` might be helpful for this. See {class}`torch.dtype` for more information.
-- Note the versions of plenoptic and pytorch when performing your analysis. We do not believe the versions of other packages are likely to affect reproducibility, but breaking changes in both plenoptic and pytorch have broken reproducibility.
-- If you *really* need to guarantee reproducibility and you used a GPU, note all relevant information, especially the CUDA and driver versions. See [plenoptic issue #368](https://github.com/plenoptic-org/plenoptic/issues/368) for a discussion here.
-
-Small differences in the output of computations resulting from any of the latter three points above can result in small differences in the gradient that accumulate over the course of synthesis, so that it is easier to guarantee reproducibility for procedures that take fewer iterations than those that take more.
-
-However, even when following all of the above steps, as discussed [below](reproduce-limits), we cannot guarantee perfect reproducibility.
-
-(reproduce-limits)=
-### Limits
-
 `plenoptic` includes several results reproduced from the literature and aims to facilitate reproducible research. However, we are limited by our dependencies and PyTorch, in particular, comes with the [caveat](https://pytorch.org/docs/stable/notes/randomness.html) that "Completely reproducible results are not guaranteed across PyTorch releases, individual commits, or different platforms. Furthermore, results may not be reproducible between CPU and GPU executions, even when using identical seeds" (quote from the [v1.12](https://pytorch.org/docs/1.12/notes/randomness.html) documentation).
 
 This means that you should note the `plenoptic` version and the `pytorch` version your synthesis used in order to guarantee reproducibility (some versions of `pytorch` will give consistent results with each other, but it's not guaranteed and hard to predict). We do not believe reproducibility depends on the python version or any other packages.
@@ -63,7 +46,7 @@ Prior to plenoptic 1.2, we were saving python functions and pytorch optimization
 
 ### FutureWarning in load in plenoptic 1.3.1
 
-A small change was made to the {class}`~plenoptic.synthesize.metamer.Metamer` and {class}`~plenoptic.synthesize.mad_competition.MADCompetition` APIs in `plenoptic` 1.3.1. You will be able to load {class}`~plenoptic.synthesize.metamer.Metamer` and {class}`~plenoptic.synthesize.mad_competition.MADCompetition` objects saved with version 1.2 and 1.3 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
+A small change was made to the {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` and {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` APIs in `plenoptic` 1.3.1. You will be able to load {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` and {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` objects saved with version 1.2 and 1.3 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
 
 In order to make an object compatible with future releases, you can either load it in with `plenoptic` 1.3.1 and re-save it, or do the following:
 

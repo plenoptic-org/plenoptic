@@ -622,7 +622,7 @@ classes contained in the package, and they all should be located in the
 `docs/tutorials/` directory. If you add or change a substantial amount of code, please
 add a tutorial showing how to use it.
 
-In all markdown files, you should try to use sphinx's cross-reference syntax to refer to code objects in API documentation whenever one is mentioned (for example, you should refer to the `Metamer` class as ``{class}`~plenoptic.synthesize.metamer.Metamer` ``). You should similarly refer to code objects in other packages (e.g., pytorch and matplotlib), though the syntax is different. See [myst-parser docs](https://myst-parser.readthedocs.io/en/latest/syntax/cross-referencing.html#reference-roles) for more details and the existing documentation for more examples. As part of the pull request review process, we run linters that will check for missing cross-references. The only objects that can be referred to simply as `monospace` font are function arguments and generic attributes / method (e.g., saying that plenoptic models must have a `forward` method). The linter will ignore all monospace font that have the word "argument" or "keyword" after them (e.g., "the `scales` keyword" or "the `scales` argument") or an html comment containing "skip-lint" (e.g., "the `scales` <!-- skip-lint --> method"; html comments are not rendered in sphinx).
+In all markdown files, you should try to use sphinx's cross-reference syntax to refer to code objects in API documentation whenever one is mentioned (for example, you should refer to the `Metamer` class as ``{class}`Metamer <plenoptic.synthesize.metamer.Metamer>` ``). You should similarly refer to code objects in other packages (e.g., pytorch and matplotlib), though the syntax is different. See [myst-parser docs](https://myst-parser.readthedocs.io/en/latest/syntax/cross-referencing.html#reference-roles) for more details and the existing documentation for more examples. As part of the pull request review process, we run linters that will check for missing cross-references. The only objects that can be referred to simply as `monospace` font are function arguments and generic attributes / method (e.g., saying that plenoptic models must have a `forward` method). The linter will ignore all monospace font that have the word "argument" or "keyword" after them (e.g., "the `scales` keyword" or "the `scales` argument") or an html comment containing "skip-lint" (e.g., "the `scales` <!-- skip-lint --> method"; html comments are not rendered in sphinx).
 
 The regular markdown files contain everything else, especially discussions about why you should
 use some code in the package and the theory behind it, and should all be located
@@ -682,18 +682,6 @@ in your documentation, add:
 
 Similar to figures, you can use `numref` to refer to plots as well.
 
-#### API Documentation
-
-All public functions and classes must be included on the API documentation page.
-Therefore, if you add a new public function or class, make sure to add it to
-`docs/api.rst` in an appropriate location. If this is not done,
-`linting/check_apidocs.py` will fail (this check is included in our pre-commit
-config and thus is required to pass for a PR to merge).
-
-If you add a new source file (e.g., `src/plenoptic/synthesize/new_method.py`),
-you will also need to add it to `docs/api_modules.rst`. If this is not done,
-sphinx will raise an error when building the documentation.
-
 ### Docstrings
 
 All public-facing functions and classes should have complete docstrings, which
@@ -713,26 +701,6 @@ need to be as extensive.
 
 We follow the [numpydoc](https://numpydoc.readthedocs.io/en/latest/) conventions
 for docstring structure.
-
-### Doctests
-
-All public-facing functions and classes should include [doctests](https://docs.python.org/3/library/doctest.html), which are the standard python way of showing short code examples in docstrings. These should be included in their own `Examples` section of the docstring. Every docstring should include at least one example, which shows the most common way of interacting with the function / class. Additional examples should be included where helpful, to show other common ways of interacting with the object (e.g., setting optional arguments), with brief descriptions describing what each example is doing.
-
-A function's Examples section must run independently from those of other functions (i.e., it can't reuse an object defined in a different function), but different blocks withint he section can depend on each other (so that e.g., you don't have to reimport plenoptic in each block).
-
-Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/doctest.html) and sphinx builds them as part of the documentation. Some notes about this:
-
-- If you would like to include a figure, use matplotlib's [plot_directive](https://matplotlib.org/stable/api/sphinxext_plot_directive_api.html). That means, your example should be structured like:
-
-```python
-.. plot::
-   :context: close-figs
-
-   >>> import plenoptic as po
-   >>> # more example code here...
-```
-
-- `:context: close-figs` is important to make sure that the figures are independent across examples (this should probably be `:context: reset` for the first plot directive in a given docstring, `close-figs` thereafter). However, unfortunately,  only sphinx knows how to interpret this directive; pytest ignores it. That means the doctests must be written in such a way that they will not fail if they are run with open figures lying around. One could easily start their doctests by closing any open figures, but this generally goes against the principle of making these examples as compact and useful as possible. Unfortunately, I have not found a good general solution here.
 
 ### Build the documentation
 

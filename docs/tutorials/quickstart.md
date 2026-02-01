@@ -201,9 +201,9 @@ fig = po.imshow(
 
 We see that the synthesized metamer here looks quite different from both the original and from our previous metamer, while the model outputs look very similar. Here, our synthesized model metamer looks like a blurry picture of Einstein with a high-frequency "shadow" of Curie added on top. Again, this is because the Gaussian model is insensitive to high frequencies, and thus a model metamer can include any high frequency information.
 
-By generating model metamers, we've gained a better understanding of the information our model is invariant to, but what if we want a better understanding of what our model is sensitive to? We can use {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion` for that.
+By generating model metamers, we've gained a better understanding of the information our model is invariant to, but what if we want a better understanding of what our model is sensitive to? We can use {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>` for that.
 
-Like {class}`~plenoptic.synthesize.metamer.Metamer`, {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion` accepts an image and a model as its inputs. By default, it synthesizes the top and bottom eigendistortion, that is, the changes to the input image that the model finds most and least noticeable.
+Like {class}`Metamer <plenoptic.synthesize.metamer.Metamer>`, {class}`Eigendistortion <plenoptic.synthesize.eigendistortion.Eigendistortion>` accepts an image and a model as its inputs. By default, it synthesizes the top and bottom eigendistortion, that is, the changes to the input image that the model finds most and least noticeable.
 
 ```{code-cell} ipython3
 eig = po.synthesize.Eigendistortion(im, model)

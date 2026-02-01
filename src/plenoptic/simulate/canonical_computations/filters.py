@@ -2,7 +2,7 @@
 Simple filters for visual models.
 
 The functions in this module only create tensors, they do not perform convolution.
-"""  # numpydoc ignore=EX01
+"""
 
 import torch
 from deprecated.sphinx import deprecated
@@ -127,13 +127,13 @@ def circular_gaussian2d(
 
     Raises
     ------
-    ValueError
+    ValueError:
         If out_channels is not a positive integer.
-    ValueError
+    ValueError:
         If kernel_size is not one or two positive integers.
-    ValueError
+    ValueError:
         If std is not positive.
-    ValueError
+    ValueError:
         If std is non-scalar and ``len(std) != out_channels``
 
     See Also
@@ -299,7 +299,7 @@ def _validate_filter_args(
         If std is not positive.
     ValueError
         If std is non-scalar and ``len(std) != out_channels``
-    """  # numpydoc ignore=EX01
+    """
     std = torch.as_tensor(std)
     if not torch.is_floating_point(std):
         std = std.to(torch.float32)

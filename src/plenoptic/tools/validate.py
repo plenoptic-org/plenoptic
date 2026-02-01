@@ -195,7 +195,7 @@ def validate_model(
     ...     def forward(self, x):
     ...         x = x.detach().numpy()
     ...         return torch.as_tensor(x)
-    >>> po.tools.validate.validate_model(FailureModel())
+    >>> po.tools.validate.validate_model(FailureModel())  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: model strips gradient from input, ...
     """
@@ -325,7 +325,7 @@ def validate_coarse_to_fine(
     ...         return self.model(x)
     >>> shape = (1, 1, 256, 256)
     >>> model = FailureModel()
-    >>> po.tools.validate.validate_coarse_to_fine(model, shape)
+    >>> po.tools.validate.validate_coarse_to_fine(model, shape)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     AttributeError: model has no scales attribute ...
     """
@@ -409,7 +409,7 @@ def validate_metric(
     whereas we need metric=0 to mean *identical*):
 
     >>> import plenoptic as po
-    >>> po.tools.validate.validate_metric(po.metric.ssim)
+    >>> po.tools.validate.validate_metric(po.metric.ssim)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: metric should return ...
     """
@@ -606,7 +606,7 @@ def remove_grad(model: torch.nn.Module):
     --------
     >>> import plenoptic as po
     >>> model = po.simul.OnOff(31, pretrained=True, cache_filt=True).eval()
-    >>> po.tools.validate.validate_model(model)
+    >>> po.tools.validate.validate_model(model)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: model adds gradient to input, ...
     >>> po.tools.remove_grad(model)
@@ -690,7 +690,7 @@ def validate_convert_tensor_dict(
     ...         )
     >>> shape = (1, 1, 256, 256)
     >>> model = FailureModel()
-    >>> po.tools.validate.validate_convert_tensor_dict(model)
+    >>> po.tools.validate.validate_convert_tensor_dict(model)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: On random image 0, model.convert_to_dict did not invert...
     """
