@@ -52,8 +52,9 @@ def validate_input(
     Warns
     -----
     UserWarning
-        If ``input_tensor`` is not 4d, or if ``input_tensor`` has values
-        outside (0, 1).
+        If ``input_tensor`` is not 4d
+    UserWarning
+        If ``input_tensor`` has values outside (0, 1).
 
     Examples
     --------
