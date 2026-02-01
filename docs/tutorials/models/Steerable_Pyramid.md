@@ -21,7 +21,7 @@ Download this notebook: **{nb-download}`Steerable_Pyramid.ipynb`**!
 (ps-steer-pyr)=
 # Steerable Pyramid
 
-This tutorial walks through the basic features of the torch implementation of the Steerable Pyramid included in `plenoptic`, {class}`SteerablePyramidFreq <plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq>`, and as such describes some basic signal processing that may be useful when building models that process images. We use the steerable pyramid construction in the frequency domain, which provides perfect reconstruction (as long as the input has an even height and width, i.e., `256x256` not `255x255`) and allows for any number of orientation bands. For more details on steerable pyramids and how they are built, see the [pyrtools tutorial](inv:pyrtools:std:doc#tutorials/03_steerable_pyramids).
+This tutorial walks through the basic features of the torch implementation of the Steerable Pyramid included in `plenoptic`, {class}`~plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq`, and as such describes some basic signal processing that may be useful when building models that process images. We use the steerable pyramid construction in the frequency domain, which provides perfect reconstruction (as long as the input has an even height and width, i.e., `256x256` not `255x255`) and allows for any number of orientation bands. For more details on steerable pyramids and how they are built, see the [pyrtools tutorial](inv:pyrtools:std:doc#tutorials/03_steerable_pyramids).
 
 Here we will specifically focus on the specifics of the torch version and how it may be used in concert with other differentiable torch models.
 
@@ -128,7 +128,7 @@ pyr = SteerablePyramidFreq(height=4, image_shape=[dim_im, dim_im], order=order).
 pyr_coeffs = pyr(im_batch)
 ```
 
-By default, the output of the pyramid is stored as a dictionary whose keys are either a string for the `'residual_lowpass'` and `'residual_highpass'` bands or a tuple of `(scale_index, orientation_index)`. `plenoptic` provides a convenience function, {func}`pyrshow <plenoptic.tools.display.pyrshow>`, to visualize the pyramid's coefficients for each image and channel.
+By default, the output of the pyramid is stored as a dictionary whose keys are either a string for the `'residual_lowpass'` and `'residual_highpass'` bands or a tuple of `(scale_index, orientation_index)`. `plenoptic` provides a convenience function, {func}`~plenoptic.tools.display.pyrshow`, to visualize the pyramid's coefficients for each image and channel.
 
 ```{code-cell} ipython3
 print(pyr_coeffs.keys())
@@ -136,7 +136,7 @@ po.pyrshow(pyr_coeffs, zoom=0.5, batch_idx=0)
 po.pyrshow(pyr_coeffs, zoom=0.5, batch_idx=1);
 ```
 
-For some applications, such as coarse-to-fine optimization procedures, it may be convenient to output a subset of the representation, including coefficients from only some scales. We do this by passing a `scales` argument to the forward method (a list containing a subset of the values found in {attr}`pyr.scales <plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq.scales>`):
+For some applications, such as coarse-to-fine optimization procedures, it may be convenient to output a subset of the representation, including coefficients from only some scales. We do this by passing a `scales` argument to the forward method (a list containing a subset of the values found in {attr}`~plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq.scales`):
 
 ```{code-cell} ipython3
 # get the 3rd scale
@@ -146,7 +146,7 @@ po.pyrshow(pyr_coeffs_scale0, zoom=2, batch_idx=0)
 po.pyrshow(pyr_coeffs_scale0, zoom=2, batch_idx=1);
 ```
 
-The above pyramid was the real pyramid but in many applications we might want the full complex pyramid output. This can be set using the `is_complex` argument. When `is_complex=True`, the pyramid uses a complex-valued filter, resulting in a complex-valued output. The real and imaginary components can be understood as the outputs of filters with identical scale and orientation, but different phases: the imaginary component is phase-shifted 90 degrees from the real (we refer to this matched pair of filters as a "quadrature pair"). This can be useful if you wish to construct a representation that is phase-insensitive (as complex cells in the primary visual cortex are believed to be), which can be done by computing the amplitude / complex modulus (e.g., call `torch.abs(x)`). {func}`rectangular_to_polar <plenoptic.tools.signal.rectangular_to_polar>` and {func}`rectangular_to_polar_dict <plenoptic.simulate.canonical_computations.non_linearities.rectangular_to_polar_dict>` provide convenience wrappers for this functionality.
+The above pyramid was the real pyramid but in many applications we might want the full complex pyramid output. This can be set using the `is_complex` argument. When `is_complex=True`, the pyramid uses a complex-valued filter, resulting in a complex-valued output. The real and imaginary components can be understood as the outputs of filters with identical scale and orientation, but different phases: the imaginary component is phase-shifted 90 degrees from the real (we refer to this matched pair of filters as a "quadrature pair"). This can be useful if you wish to construct a representation that is phase-insensitive (as complex cells in the primary visual cortex are believed to be), which can be done by computing the amplitude / complex modulus (e.g., call `torch.abs(x)`). {func}`~plenoptic.tools.signal.rectangular_to_polar` and {func}`~plenoptic.simulate.canonical_computations.non_linearities.rectangular_to_polar_dict` provide convenience wrappers for this functionality.
 
 ```{code-cell} ipython3
 order = 3
@@ -271,7 +271,7 @@ In this section we will demonstrate how the plenoptic steerable pyramid can be m
 
 ### Preliminaries
 
-Most standard model architectures only accept channels with fixed shape, but each scale of the pyramid coefficients has a different shape (because each scale is downsampled by a factor of 2). In order to obtain an output amenable to downstream processing by standard torch modules, we have created an argument to the pyramid (`downsample=False`) that does not downsample the frequency masks at each scale and thus maintains output feature maps that all have a fixed size. Once you have done this, you can then convert the dictionary into a tensor of size `(batch, channel, height, width)` so that it can easily be passed to a downstream {class}`torch.nn.Module`. The details of how to do this are provided in the the {func}`convert_pyr_to_tensor <plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq.convert_pyr_to_tensor>` function within the SteerablePyramidFreq class. Let's try this and look at the first image both in the downsampled and not downsampled versions:
+Most standard model architectures only accept channels with fixed shape, but each scale of the pyramid coefficients has a different shape (because each scale is downsampled by a factor of 2). In order to obtain an output amenable to downstream processing by standard torch modules, we have created an argument to the pyramid (`downsample=False`) that does not downsample the frequency masks at each scale and thus maintains output feature maps that all have a fixed size. Once you have done this, you can then convert the dictionary into a tensor of size `(batch, channel, height, width)` so that it can easily be passed to a downstream {class}`~plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq.convert_pyr_to_tensor` function within the SteerablePyramidFreq class. Let's try this and look at the first image both in the downsampled and not downsampled versions:
 
 ```{code-cell} ipython3
 height = 3
@@ -296,7 +296,7 @@ print(pyr_coeffs_fixed.shape, pyr_coeffs_fixed.dtype)
 
 We can see that in this complex pyramid with 4 scales and 3 orientations there will be 26 channels: 4 scales x 3 orientations x 2 (for real and imaginary featuremaps) + 2 (for the residual bands).
 
-In order to display the coefficients, we need to convert the tensor coefficients back to a dictionary. We can do this by using the {func}`convert_tensor_to_pyr <plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq.convert_tensor_to_pyr>` method. We can check that these are equal.
+In order to display the coefficients, we need to convert the tensor coefficients back to a dictionary. We can do this by using the {func}`~plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq.convert_tensor_to_pyr` method. We can check that these are equal.
 
 ```{code-cell} ipython3
 pyr_coeffs_fixed_1 = pyr_fixed(im_batch)

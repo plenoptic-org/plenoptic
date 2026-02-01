@@ -49,7 +49,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="plenoptic")
 %autoreload 2
 ```
 
-First we pick our metrics and run our synthesis. We create four different {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` instances, in order to create the full set of images.
+First we pick our metrics and run our synthesis. We create four different {class}`~plenoptic.synthesize.mad_competition.MADCompetition` instances, in order to create the full set of images.
 
 ```{code-cell} ipython3
 img = torch.as_tensor([0.5, 0.5], device=DEVICE, dtype=torch.float32)

@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -97,7 +97,7 @@ For two full images $\mathbf{X}, \mathbf{Y}$, an SSIM map is obtained by computi
 &= \frac{1}{N} \sum_{i=1}^N \frac{\left( 2 \mu_{X,i} \mu_{Y,i} + C_1 \right) \left( 2\sigma_{XY,i} + C_2 \right)} {\left( {\mu_{X,i}}^2 + {\mu_{Y,i}}^2 + C_1 \right) \left( {\sigma_{X,i}}^2 + {\sigma_{Y,i}}^2 + C_2 \right)}
 \end{align*}
 
-where $N$ is the number of pixels of the image. The SSIM index is also bounded between -1 and 1.  In `plenoptic`, the SSIM map is computed by the function {func}`ssim_map <plenoptic.metric.perceptual_distance.ssim_map>`, and the SSIM index itself is computed by the function {func}`ssim <plenoptic.metric.perceptual_distance.ssim>`. For more information, see the original paper:
+where $N$ is the number of pixels of the image. The SSIM index is also bounded between -1 and 1.  In `plenoptic`, the SSIM map is computed by the function {func}`~plenoptic.metric.perceptual_distance.ssim_map`, and the SSIM index itself is computed by the function {func}`~plenoptic.metric.perceptual_distance.ssim`. For more information, see the original paper:
 
 [Wang, Z., Bovik, A. C., Sheikh, H. R., & Simoncelli, E. P. (2004). Image quality assessment: from error visibility to structural similarity. _IEEE transactions on image processing_, 13(4), 600-612.](https://www.cns.nyu.edu/pub/lcv/wang03-reprint.pdf)
 
@@ -202,7 +202,7 @@ $$
 \text{MS-SSIM}(\mathbf{X}, \mathbf{Y}) = \text{SSIM}(\mathbf{X}_M, \mathbf{Y}_M)^{\gamma_M} \prod_{k=1}^{M-1} \text{CS}(\mathbf{X}_i, \mathbf{Y}_i)^{\gamma_i}
 $$
 
-where $\gamma_1, \cdots, \gamma_M$ are exponents that determine the relative importance of different scales. They are determined by a human psychophysics experiment and are constrained to sum to 1. When $M=1$, the MS-SSIM index is the same as the SSIM index. In the standard implementation of MS-SSIM, $M = 5$. In `plenoptic`, the MS-SSIM index is computed by the function {func}`ms_ssim <plenoptic.metric.perceptual_distance.ms_ssim>`. For more information, see the original paper:
+where $\gamma_1, \cdots, \gamma_M$ are exponents that determine the relative importance of different scales. They are determined by a human psychophysics experiment and are constrained to sum to 1. When $M=1$, the MS-SSIM index is the same as the SSIM index. In the standard implementation of MS-SSIM, $M = 5$. In `plenoptic`, the MS-SSIM index is computed by the function {func}`~plenoptic.metric.perceptual_distance.ms_ssim`. For more information, see the original paper:
 
 [Wang, Z., Simoncelli, E. P., & Bovik, A. C. (2003, November). Multiscale structural similarity for image quality assessment. In _The Thrity-Seventh Asilomar Conference on Signals, Systems & Computers_, 2003 (Vol. 2, pp. 1398-1402). IEEE.](https://www.cns.nyu.edu/pub/eero/wang03b.pdf)
 
@@ -219,7 +219,7 @@ po.imshow(img_distorted, vrange="auto", title=titles, col_wrap=3);
 
 ## NLPD (normalized Laplacian pyramid distance)
 
-Similar to MS-SSIM, the NLPD is also based on a multiscale representation of the images. Also similar to MS-SSIM, the idea of NLPD is also to separate out the effects of luminance and contrast difference. Unlike MS-SSIM, the NLPD directly performs luminance subtraction and contrast normalization on each scale, and then computes simple square difference. The NLPD uses the Laplacian pyramid for luminance subtraction. Given a Gaussian pyramid $\mathbf{X}_1, \cdots, \mathbf{X}_M$, for $k=1, \cdots, M - 1$, we upsample and blur $\mathbf{X}_{k+1}$ to produce $\mathbf{\hat{X}}_k$, which is a blurry version of $\mathbf{X}_k$, and let $\mathbf{X}'_k = \mathbf{X}_k - \mathbf{\hat{X}}_k$. Define $\mathbf{X}'_M = \mathbf{X}_M$, and we get the Laplacian pyramid $\mathbf{X}'_1, \cdots, \mathbf{X}'_M$. In `plenoptic`, the Laplacian pyramid is implemented by {class}`LaplacianPyramid <plenoptic.simulate.canonical_computations.laplacian_pyramid.LaplacianPyramid>`.
+Similar to MS-SSIM, the NLPD is also based on a multiscale representation of the images. Also similar to MS-SSIM, the idea of NLPD is also to separate out the effects of luminance and contrast difference. Unlike MS-SSIM, the NLPD directly performs luminance subtraction and contrast normalization on each scale, and then computes simple square difference. The NLPD uses the Laplacian pyramid for luminance subtraction. Given a Gaussian pyramid $\mathbf{X}_1, \cdots, \mathbf{X}_M$, for $k=1, \cdots, M - 1$, we upsample and blur $\mathbf{X}_{k+1}$ to produce $\mathbf{\hat{X}}_k$, which is a blurry version of $\mathbf{X}_k$, and let $\mathbf{X}'_k = \mathbf{X}_k - \mathbf{\hat{X}}_k$. Define $\mathbf{X}'_M = \mathbf{X}_M$, and we get the Laplacian pyramid $\mathbf{X}'_1, \cdots, \mathbf{X}'_M$. In `plenoptic`, the Laplacian pyramid is implemented by {class}`~plenoptic.simulate.canonical_computations.laplacian_pyramid.LaplacianPyramid`.
 
 The contrast normalization is achieved by dividing by a local estimation of amplitude:
 
@@ -241,7 +241,7 @@ $$
 \text{NLPD}(\mathbf{X}, \mathbf{Y}) = \frac{1}{M} \sum_{k=1}^M \sqrt{\frac{1}{N_k} \sum_{i=1}^{N_k} (\mathbf{X}''_{k,i} - \mathbf{Y}''_{k,i})^2}
 $$
 
-where $N_k$ is the number of pixels of $\mathbf{X}''_k$. In `plenoptic`, the NLPD is computed by the function {func}`nlpd <plenoptic.metric.perceptual_distance.nlpd>`. For more information, see the original paper:
+where $N_k$ is the number of pixels of $\mathbf{X}''_k$. In `plenoptic`, the NLPD is computed by the function {func}`~plenoptic.metric.perceptual_distance.nlpd`. For more information, see the original paper:
 
 [Laparra, V., Ballé, J., Berardino, A., & Simoncelli, E. P. (2016). Perceptual image quality assessment using a normalized Laplacian pyramid. _Electronic Imaging_, 2016(16), 1-6.](https://www.cns.nyu.edu/pub/lcv/laparra16a-reprint.pdf)
 
@@ -259,7 +259,7 @@ Note that, unlike SSIM and MS-SSIM, NLPD is a *distance* and so smaller numbers 
 
 ## Usage
 
-The basic usage of {func}`ssim <plenoptic.metric.perceptual_distance.ssim>`, {func}`ms_ssim <plenoptic.metric.perceptual_distance.ms_ssim>` and {func}`nlpd <plenoptic.metric.perceptual_distance.nlpd>` are the same: they take two arguments, the images to be compared, whose shapes should be in the format `(batch, channel, height, width)`. All these functions are designed for grayscale images, so the channel dimension is treated as another batch dimension. The height and width of the two arguments should be the same, and the batch and channel sizes of the two arguments should be broadcastable. The broadcasting is already demonstrated in the examples of SSIM, MS-SSIM and NLPD that use the Einstein image.
+The basic usage of {func}`~plenoptic.metric.perceptual_distance.ssim`, {func}`~plenoptic.metric.perceptual_distance.ms_ssim` and {func}`~plenoptic.metric.perceptual_distance.nlpd` are the same: they take two arguments, the images to be compared, whose shapes should be in the format `(batch, channel, height, width)`. All these functions are designed for grayscale images, so the channel dimension is treated as another batch dimension. The height and width of the two arguments should be the same, and the batch and channel sizes of the two arguments should be broadcastable. The broadcasting is already demonstrated in the examples of SSIM, MS-SSIM and NLPD that use the Einstein image.
 
 SSIM, MS-SSIM and NLPD are not scale-invariant. The input images should have values between 0 and 1. Otherwise, the result may be inaccurate, and we will raise a warning (but will still compute it).
 
@@ -281,17 +281,14 @@ The performance of these perceptual distance metrics can be measured by the corr
 Since both SSIM and MS-SSIM have higher values for less different image pairs, and are maximized at 1 for identical images, we need to convert them to distances as 1-SSIM and 1-(MS-SSIM). Then we will plot mean opinion score against the three metrics: 1-SSIM, 1-(MS-SSIM) and NLPD, as well as the baseline RMSE (square root of mean square error). We will also measure the correlation.
 
 :::{attention}
-To execute this part of the notebook, the TID2013 dataset needs to be downloaded. In order to do so, we use an optional dependency, `pooch`. If the following raises an `ImportError` or `ModuleNotFoundError` then install `pooch` in your plenoptic environment and restart your kernel. Note that the dataset is fairly large, about 1GB.
+To execute this part of the notebook, the TID2013 dataset needs to be downloaded. Note that the dataset is fairly large, about 1GB.
 :::
 
 ```{code-cell} ipython3
 :tags: [hide-input]
 
-from plenoptic.data.fetch import fetch_data
-
-
 def get_tid2013_data():
-    folder = fetch_data("tid2013.tar.gz")
+    folder = po.data.fetch_data("tid2013.tar.gz")
     reference_images = sorted((folder / "reference_images").iterdir())
     reference_images = po.load_images(reference_images)
     # disorted_images file names are of the form "i##_##_#.bmp" (and both the i and

@@ -33,9 +33,9 @@ Download this notebook: **{nb-download}`Synthesis_extensions.ipynb`**!
 (synthesis-extensions)=
 # Extending existing synthesis objects
 
-Once you are familiar with the existing synthesis objects included in `plenoptic`, you may wish to change some aspect of their function. For example, you may wish to change how the {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` initializes the MAD image or alter the objective function of {class}`Metamer <plenoptic.synthesize.metamer.Metamer>`. While you could certainly start from scratch or copy the source code of the object and alter them directly, an easier way to do so is to create a new sub-class: an object that inherits the synthesis object you wish to modify and over-writes some of its existing methods.
+Once you are familiar with the existing synthesis objects included in `plenoptic`, you may wish to change some aspect of their function. For example, you may wish to change how the {class}`~plenoptic.synthesize.mad_competition.MADCompetition` initializes the MAD image or alter the objective function of {class}`~plenoptic.synthesize.metamer.Metamer`. While you could certainly start from scratch or copy the source code of the object and alter them directly, an easier way to do so is to create a new sub-class: an object that inherits the synthesis object you wish to modify and over-writes some of its existing methods.
 
-For example, you could create a version of {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` that starts with a different natural image (rather than with `image` argument plus normally-distributed noise) by creating the following object:
+For example, you could create a version of {class}`~plenoptic.synthesize.mad_competition.MADCompetition` that starts with a different natural image (rather than with `image` argument plus normally-distributed noise) by creating the following object:
 
 ```{code-cell} ipython3
 import warnings
@@ -84,7 +84,7 @@ class MADCompetitionVariant(po.synth.MADCompetition):
         self._loaded = False
 ```
 
-We can then interact with this new object in the same way as the original {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` object, the only difference being how {func}`setup <plenoptic.synthesize.mad_competition.MADCompetition.setup>` is called:
+We can then interact with this new object in the same way as the original {class}`~plenoptic.synthesize.mad_competition.MADCompetition` object, the only difference being how {func}`~plenoptic.synthesize.mad_competition.MADCompetition.setup` is called:
 
 ```{code-cell} ipython3
 image = po.data.einstein()
@@ -122,7 +122,7 @@ po.imshow(
 );
 ```
 
-We call synthesize in the same way and can even make use of the original {func}`plot_synthesis_status <plenoptic.synthesize.mad_competition.plot_synthesis_status>` function to see what synthesis looks like
+We call synthesize in the same way and can even make use of the original {func}`~plenoptic.synthesize.mad_competition.plot_synthesis_status` function to see what synthesis looks like
 
 ```{code-cell} ipython3
 old_mad.synthesize(store_progress=True)
@@ -144,4 +144,4 @@ For version initialized with the image of Marie Curie, let's also examine the me
 po.synth.mad_competition.display_mad_image(new_mad, iteration=10)
 ```
 
-See the [synthesis design page](synthesis-objects) for more description of how the synthesis objects are structured to get ideas for how else to modify them, but some good methods to over-write include (note that not every object uses each of these methods): `setup` <!-- skip-lint -->, `_check_convergence`, and `objective_function` <!-- skip-lint -->. For a more serious change, you could also overwrite `synthesis` <!-- skip-lint --> and `_optimizer_step` (and possibly `_closure`) to really change how synthesis works. See {class}`MetamerCTF <plenoptic.synthesize.metamer.MetamerCTF>` for an example of how to do this.
+See the [synthesis design page](synthesis-objects) for more description of how the synthesis objects are structured to get ideas for how else to modify them, but some good methods to over-write include (note that not every object uses each of these methods): `setup` <!-- skip-lint -->, `_check_convergence`, and `objective_function` <!-- skip-lint -->. For a more serious change, you could also overwrite `synthesis` <!-- skip-lint --> and `_optimizer_step` (and possibly `_closure`) to really change how synthesis works. See {class}`~plenoptic.synthesize.metamer.MetamerCTF` for an example of how to do this.

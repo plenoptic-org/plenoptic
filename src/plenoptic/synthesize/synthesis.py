@@ -474,18 +474,24 @@ class Synthesis(abc.ABC):
 
         This can be called as
 
-        .. function:: to(device=None, dtype=None, non_blocking=False)
+        .. code:: python
 
-        .. function:: to(dtype, non_blocking=False)
+            to(device=None, dtype=None, non_blocking=False)
 
-        .. function:: to(tensor, non_blocking=False)
+        .. code:: python
+
+            to(dtype, non_blocking=False)
+
+        .. code:: python
+
+            to(tensor, non_blocking=False)
 
         Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
-        floating point desired :attr:`dtype` s. In addition, this method will
-        only cast the floating point parameters and buffers to :attr:`dtype`
+        floating point desired ``dtype``. In addition, this method will
+        only cast the floating point parameters and buffers to ``dtype``
         (if given). The integral parameters and buffers will be moved
-        :attr:`device`, if that is given, but with dtypes unchanged. When
-        :attr:`non_blocking` is set, it tries to convert/move asynchronously
+        ``device``, if that is given, but with dtypes unchanged. When
+        `on_blocking`` is set, it tries to convert/move asynchronously
         with respect to the host if possible, e.g., moving CPU Tensors with
         pinned memory to CUDA devices.
 

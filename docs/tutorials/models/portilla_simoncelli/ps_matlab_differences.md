@@ -54,14 +54,9 @@ import plenoptic as po
 %load_ext autoreload
 %autoreload 2
 
-# We need to download some additional images for this notebook. In order to do so,
-# we use an optional dependency, pooch. If the following raises an ImportError or
-# ModuleNotFoundError
-# then install pooch in your plenoptic environment and restart your kernel.
-from plenoptic.data.fetch import fetch_data
-
-IMG_PATH = fetch_data("portilla_simoncelli_images.tar.gz")
-CACHE_DIR = fetch_data("ps_regression.tar.gz")
+# We need to download some additional images for this notebook.
+IMG_PATH = po.data.fetch_data("portilla_simoncelli_images.tar.gz")
+CACHE_DIR = po.data.fetch_data("ps_regression.tar.gz")
 # use GPU if available
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -382,6 +377,7 @@ for ax, im, info in zip(
     po.imshow(im, ax=ax, title=f"Metamer {info} magnitude means")
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
+
 model_mag_means.plot_representation(
     model_mag_means(met.metamer) - model_mag_means(img),
     ylim=(-0.06, 0.06),

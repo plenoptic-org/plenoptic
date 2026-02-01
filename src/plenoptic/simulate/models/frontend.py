@@ -2,8 +2,9 @@
 Simple convolutional models of the visual system's front-end.
 
 All models are some combination of linear filtering, non-linear activation, and
-(optionally) gain control. Model architectures in this file are found in [1]_, [2]_,
-pretrained parameters from [3]_.
+(optionally) gain control. Model architectures in this file are described in Berardino
+et al., 2017 [1]_, found online [2]_, and the pretrained parameters come from Berardino,
+2018 [3]_.
 
 References
 ----------
@@ -13,7 +14,7 @@ References
 .. [3] A Berardino, Hierarchically normalized models of visual distortion
    sensitivity: Physiology, perception, and application; Ph.D. Thesis,
    2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
-"""
+"""  # numpydoc ignore=EX01
 
 from collections import OrderedDict
 from collections.abc import Callable
@@ -45,7 +46,8 @@ class LinearNonlinear(nn.Module):
     This model applies a difference of Gaussians filter followed by an activation
     function.
 
-    Model is described in [1]_ and [2]_, where it is called LN.
+    Model is described in Berardino et al., 2017 [4]_ and online [5]_, where it
+    is called LN.
 
     Parameters
     ----------
@@ -59,7 +61,8 @@ class LinearNonlinear(nn.Module):
     pad_mode
         Padding for convolution.
     pretrained
-        Whether or not to load model params from [3]_. See Notes for details.
+        Whether or not to load model params from Berardion, 2018 [6]_. See Notes for
+        details.
     activation
         Activation function following linear convolution.
     cache_filt
@@ -74,15 +77,15 @@ class LinearNonlinear(nn.Module):
     Notes
     -----
     These 2 parameters (standard deviations) were taken from Table 2, page 149
-    from [3]_ and are the values used [1]_. Please use these pretrained weights
-    at your own discretion.
+    from Berardino, 2018 [6]_ and are the values used in Berardino et al., 2017 [4]_.
+    Please use these pretrained weights at your own discretion.
 
     References
     ----------
-    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions
+    .. [4] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions
        of hierarchical representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
-    .. [2] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
-    .. [3] A Berardino, Hierarchically normalized models of visual distortion
+    .. [5] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+    .. [6] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
        2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
 
@@ -201,19 +204,13 @@ class LinearNonlinear(nn.Module):
         """
         Return parameters fit to human distortion judgments.
 
-        Values copied from Table 2 in [1]_.
+        Values copied from Table 2 in Berardino, 2018 [6]_.
 
         Returns
         -------
         state_dict
             Dictionary of parameters, to pass to :func:`load_state_dict`.
-
-        References
-        ----------
-        .. [1] A Berardino, Hierarchically normalized models of visual distortion
-           sensitivity: Physiology, perception, and application; Ph.D. Thesis,
-           2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
-        """
+        """  # numpydoc ignore=EX01
         state_dict = OrderedDict(
             [
                 ("center_surround.center_std", torch.as_tensor([0.5339])),
@@ -228,7 +225,8 @@ class LuminanceGainControl(nn.Module):
     """
     Linear center-surround followed by luminance gain control and activation.
 
-    Model is described in [1]_ and [2]_, where it is called LG.
+    Model is described in Berardino et al., 2017 [7]_ and online [8]_, where it
+    is called LG.
 
     Parameters
     ----------
@@ -242,7 +240,8 @@ class LuminanceGainControl(nn.Module):
     pad_mode
         Padding for convolution.
     pretrained
-        Whether or not to load model params from [3]_. See Notes for details.
+        Whether or not to load model params from Berardino, 2018 [9]_. See Notes for
+        details.
     activation
         Activation function following linear convolution.
     cache_filt
@@ -260,16 +259,16 @@ class LuminanceGainControl(nn.Module):
 
     Notes
     -----
-    These 4 parameters (standard deviations and scalar constants) were taken
-    from Table 2, page 149 from [3]_ and are the values used [1]_. Please use
-    these pretrained weights at your own discretion.
+    These 4 parameters (standard deviations and scalar constants) were taken from Table
+    2, page 149 from Berardino, 2018 [9]_ and are the values used Berardino et al., 2017
+    [7]_. Please use these pretrained weights at your own discretion.
 
     References
     ----------
-    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
+    .. [7] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
        hierarchical representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
-    .. [2] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
-    .. [3] A Berardino, Hierarchically normalized models of visual distortion
+    .. [8] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+    .. [9] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
        2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
 
@@ -416,19 +415,13 @@ class LuminanceGainControl(nn.Module):
         """
         Return parameters fit to human distortion judgments.
 
-        Values copied from Table 2 in [1]_.
+        Values copied from Table 2 in Berardino, 2018 [9]_.
 
         Returns
         -------
         state_dict
             Dictionary of parameters, to pass to :func:`load_state_dict`.
-
-        References
-        ----------
-        .. [1] A Berardino, Hierarchically normalized models of visual distortion
-           sensitivity: Physiology, perception, and application; Ph.D. Thesis,
-           2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
-        """
+        """  # numpydoc ignore=EX01
         state_dict = OrderedDict(
             [
                 ("luminance_scalar", torch.as_tensor([14.95])),
@@ -445,7 +438,8 @@ class LuminanceContrastGainControl(nn.Module):
     """
     Center-surround followed by luminance and contrast gain control, then activation.
 
-    Model is described in [1]_ and [2]_, where it is called LGG.
+    Model is described in Berardino et al., 2017 [10]_ and online [11]_, where it
+    is called LGG.
 
     Parameters
     ----------
@@ -459,7 +453,8 @@ class LuminanceContrastGainControl(nn.Module):
     pad_mode
         Padding for convolution.
     pretrained
-        Whether or not to load model params from [3]_. See Notes for details.
+        Whether or not to load model params from Berardino, 2018 [12]_. See Notes for
+        details.
     activation
         Activation function following linear convolution.
     cache_filt
@@ -481,16 +476,16 @@ class LuminanceContrastGainControl(nn.Module):
 
     Notes
     -----
-    These 6 parameters (standard deviations and constants) were taken from
-    Table 2, page 149 from [3]_ and are the values used [1]_. Please use these
-    pretrained weights at your own discretion.
+    These 6 parameters (standard deviations and constants) were taken from Table 2, page
+    149 from Berardino, 2018 [12]_ and are the values used Berardino et al., 2017 [10]_.
+    Please use these pretrained weights at your own discretion.
 
     References
     ----------
-    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
+    .. [10] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
        hierarchical representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
-    .. [2] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
-    .. [3] A Berardino, Hierarchically normalized models of visual distortion
+    .. [11] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+    .. [12] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
        2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
 
@@ -654,19 +649,13 @@ class LuminanceContrastGainControl(nn.Module):
         """
         Return parameters fit to human distortion judgments.
 
-        Values copied from Table 2 in [1]_.
+        Values copied from Table 2 in Berardino, 2018 [12]_.
 
         Returns
         -------
         state_dict
             Dictionary of parameters, to pass to :func:`load_state_dict`.
-
-        References
-        ----------
-        .. [1] A Berardino, Hierarchically normalized models of visual distortion
-           sensitivity: Physiology, perception, and application; Ph.D. Thesis,
-           2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
-        """
+        """  # numpydoc ignore=EX01
         state_dict = OrderedDict(
             [
                 ("luminance_scalar", torch.as_tensor([2.94])),
@@ -685,7 +674,8 @@ class OnOff(nn.Module):
     """
     On-off and off-on center-surround with contrast and luminance gain control.
 
-    Model is described in [1]_ and [2]_, where it is called OnOff.
+    Model is described in Berardino et al., 2017 [13]_ and online [14]_, where it
+    is called OnOff.
 
     Parameters
     ----------
@@ -696,7 +686,8 @@ class OnOff(nn.Module):
     pad_mode
         Padding for convolution.
     pretrained
-        Whether or not to load model params estimated from [1]_. See Notes for details.
+        Whether or not to load model params from Berardino, 2018 [15]_. See Notes for
+        details.
     activation
         Activation function following linear and gain control operations.
     apply_mask
@@ -725,16 +716,16 @@ class OnOff(nn.Module):
 
     Notes
     -----
-    These 12 parameters (standard deviations & scalar constants) were taken
-    from Table 2, page 149 from [3]_ and are the values used [1]_. Please use
-    these pretrained weights at your own discretion.
+    These 12 parameters (standard deviations & scalar constants) were taken from
+    Table 2, page 149 from Berardino, 2018 [15]_ and are the values used Berardino
+    et al., 2017 [13]_. Please use these pretrained weights at your own discretion.
 
     References
     ----------
-    .. [1] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
+    .. [13] A Berardino, J Ballé, V Laparra, EP Simoncelli, Eigen-distortions of
        hierarchical representations, NeurIPS 2017; https://arxiv.org/abs/1710.02266
-    .. [2] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
-    .. [3] A Berardino, Hierarchically normalized models of visual distortion
+    .. [14] https://www.cns.nyu.edu/~lcv/eigendistortions/ModelsIQA.html
+    .. [15] A Berardino, Hierarchically normalized models of visual distortion
        sensitivity: Physiology, perception, and application; Ph.D. Thesis,
        2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
 
@@ -910,19 +901,13 @@ class OnOff(nn.Module):
         """
         Return parameters fit to human distortion judgments.
 
-        Values copied from Table 2 in [1]_.
+        Values copied from Table 2 in Berardino, 2018 [15]_.
 
         Returns
         -------
         state_dict
             Dictionary of parameters, to pass to :func:`load_state_dict`.
-
-        References
-        ----------
-        .. [1] A Berardino, Hierarchically normalized models of visual distortion
-           sensitivity: Physiology, perception, and application; Ph.D. Thesis,
-           2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
-        """
+        """  # numpydoc ignore=EX01
         state_dict = OrderedDict(
             [
                 ("luminance_scalar", torch.as_tensor([3.2637, 14.3961])),
