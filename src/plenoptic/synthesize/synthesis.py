@@ -284,7 +284,9 @@ class Synthesis(abc.ABC):
                     "saved object futureproof and avoid this warning.",
                     category=FutureWarning,
                 )
-            penalty_missing = init_not_save.intersect({"penalty_function", "_penalty_lambda"})
+            penalty_missing = init_not_save.intersection(
+                {"penalty_function", "_penalty_lambda"}
+            )
             if penalty_missing:
                 # in PR #383, we added penalty_function and penalty_lambda attributes,
                 # which we'll handle for now, but warn about.
