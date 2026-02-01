@@ -430,7 +430,7 @@ class TestEigendistortionSynthesis:
         eig.synthesize(max_iter=5)
         eig.save(op.join(tmp_path, "test_eigendistortion_load_tol.pt"))
         eig = Eigendistortion(
-            einstein_img + 1e-7 * torch.rand_like(einstein_img), model
+            einstein_img * (1 - 1e-7) + 1e-7 * torch.rand_like(einstein_img), model
         )
         with pytest.raises(ValueError, match="Saved and initialized attribute image"):
             eig.load(op.join(tmp_path, "test_eigendistortion_load_tol.pt"))
@@ -562,7 +562,7 @@ class TestAutodiffFunctions:
     def test_jacobian(self, state):
         x, y, x_dim, y_dim, k = state
 
-        jac = autodiff._jacobian(y, x)
+        jac = autodiff.jacobian(y, x)
         assert jac.shape == (y_dim, x_dim)
         assert jac.requires_grad is False
 
@@ -573,7 +573,7 @@ class TestAutodiffFunctions:
         U = torch.randn((y_dim, k), device=DEVICE)
         U = U / torch.linalg.vector_norm(U, ord=2, dim=0)
 
-        vjp = autodiff._vector_jacobian_product(y, x, U, detach=detach)
+        vjp = autodiff.vector_jacobian_product(y, x, U, detach=detach)
         assert vjp.shape == (x_dim, k)
         assert vjp.requires_grad != detach
 
@@ -582,7 +582,7 @@ class TestAutodiffFunctions:
 
         V = torch.randn((x_dim, k), device=DEVICE)
         V = V / torch.linalg.vector_norm(V, ord=2, dim=0)
-        jvp = autodiff._jacobian_vector_product(y, x, V)
+        jvp = autodiff.jacobian_vector_product(y, x, V)
         assert jvp.shape == (y_dim, k)
         assert x.requires_grad and y.requires_grad
         assert jvp.requires_grad is False
@@ -592,16 +592,17 @@ class TestAutodiffFunctions:
 
         V, _ = torch.linalg.qr(torch.ones((x_dim, k), device=DEVICE), "reduced")
         U = V.clone()
-        Jv = autodiff._jacobian_vector_product(y, x, V)
-        Fv = autodiff._vector_jacobian_product(y, x, Jv)
+        Jv = autodiff.jacobian_vector_product(y, x, V)
+        Fv = autodiff.vector_jacobian_product(y, x, Jv)
 
-        jac = autodiff._jacobian(y, x)
+        jac = autodiff.jacobian(y, x)
 
         Fv2 = jac.T @ jac @ U  # manually compute product to compare accuracy
 
         assert Fv.shape == (x_dim, k)
         assert Fv2.allclose(Fv, atol=1e-5)
 
+    @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
     def test_simple_model_eigenvalues(self):
         """Test if Jacobian is constant in all directions for linear model"""
         singular_value = torch.ones(1, device=DEVICE) * 3.0
@@ -631,6 +632,6 @@ class TestAutodiffFunctions:
 
         e = Eigendistortion(x0, mdl)
         x, y = e._image_flat, e._representation_flat
-        Jv = autodiff._jacobian_vector_product(y, x, V)
-        Fv = autodiff._vector_jacobian_product(y, x, Jv)
+        Jv = autodiff.jacobian_vector_product(y, x, V)
+        Fv = autodiff.vector_jacobian_product(y, x, Jv)
         assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value, rtol=1e-3)

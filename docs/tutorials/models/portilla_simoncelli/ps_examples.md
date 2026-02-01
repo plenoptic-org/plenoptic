@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.18.1
 kernelspec:
   display_name: plenoptic
   language: python
@@ -63,9 +63,14 @@ import plenoptic as po
 %load_ext autoreload
 %autoreload 2
 
-# We need to download some additional images for this notebook.
-IMG_PATH = po.data.fetch_data("portilla_simoncelli_images.tar.gz")
-CACHE_DIR = po.data.fetch_data("ps_regression.tar.gz")
+# We need to download some additional images for this notebook. In order to do so,
+# we use an optional dependency, pooch. If the following raises an ImportError or
+# ModuleNotFoundError
+# then install pooch in your plenoptic environment and restart your kernel.
+from plenoptic.data.fetch import fetch_data
+
+IMG_PATH = fetch_data("portilla_simoncelli_images.tar.gz")
+CACHE_DIR = fetch_data("ps_regression.tar.gz")
 # use GPU if available
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

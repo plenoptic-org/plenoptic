@@ -19,7 +19,6 @@ from .optim import set_seed
 def validate_input(
     input_tensor: Tensor,
     no_batch: bool = False,
-    allowed_range: tuple[float, float] | None = None,
 ):
     """
     Determine whether ``input_tensor`` can be used for synthesis.
@@ -31,10 +30,8 @@ def validate_input(
     - If ``no_batch`` is ``True``, check whether ``input_tensor.shape[0] == 1`` or
       ``input_tensor.ndimension()==1`` (``ValueError``).
 
-    - If ``allowed_range`` is not ``None``, check whether all values of
-      ``input_tensor`` lie within the specified range (``ValueError``).
-
-    Additionally, if input_tensor is not 4d, raises a ``UserWarning``.
+    Additionally, if input_tensor is not 4d, or of it is outside the range
+    `(0, 1)`, raises a ``UserWarning``.
 
     Parameters
     ----------
@@ -43,21 +40,21 @@ def validate_input(
     no_batch
         If ``True``, raise a ValueError if the batch dimension of ``input_tensor``
         is greater than 1.
-    allowed_range
-        If not ``None``, ensure that all values of ``input_tensor`` lie within
-        allowed_range.
 
     Raises
     ------
     ValueError
-        If ``input_tensor`` fails any of the above checks.
+        If ``no_batch`` is ``True`` and the batch dimension of ``input_tensor``
+        is greater than 1.
     TypeError
         If ``input_tensor`` does not have a float or complex dtype.
 
     Warns
     -----
     UserWarning
-        If ``input_tensor`` is not 4d.
+        If ``input_tensor`` is not 4d
+    UserWarning
+        If ``input_tensor`` has values outside (0, 1).
 
     Examples
     --------
@@ -66,13 +63,11 @@ def validate_input(
     >>> import plenoptic as po
     >>> po.tools.validate.validate_input(po.data.einstein())
 
-    Intentionally fail:
+    Raise warning:
 
     >>> import plenoptic as po
-    >>> img = po.data.einstein()
-    >>> po.tools.validate.validate_input(img, allowed_range=(0, 0.5))
-    Traceback (most recent call last):
-    ValueError: input_tensor range ...
+    >>> img = po.data.einstein() * 5.0
+    >>> po.tools.validate.validate_input(img)  # doctest: +ELLIPSIS
     """
     # validate dtype
     if input_tensor.dtype not in [
@@ -100,20 +95,14 @@ def validate_input(
         # numpy raises ValueError when operands cannot be broadcast together,
         # so it seems reasonable here
         raise ValueError("input_tensor batch dimension must be 1.")
-    if allowed_range is not None:
-        if allowed_range[0] >= allowed_range[1]:
-            raise ValueError(
-                "allowed_range[0] must be strictly less than"
-                f" allowed_range[1], but got {allowed_range}"
-            )
-        if (
-            input_tensor.min() < allowed_range[0]
-            or input_tensor.max() > allowed_range[1]
-        ):
-            raise ValueError(
-                f"input_tensor range must lie within {allowed_range}, but got"
-                f" {(input_tensor.min().item(), input_tensor.max().item())}"
-            )
+    standard_range = (0.0, 1.0)
+    if input_tensor.min() < standard_range[0] or input_tensor.max() > standard_range[1]:
+        input_range = (input_tensor.min().item(), input_tensor.max().item())
+        warnings.warn(
+            f"input_tensor range is {input_range}, which is outside"
+            f" the tested range (0, 1). Synthesis should still work, but if"
+            " you have any problems, please open an issue."
+        )
 
 
 def validate_model(
@@ -206,7 +195,7 @@ def validate_model(
     ...     def forward(self, x):
     ...         x = x.detach().numpy()
     ...         return torch.as_tensor(x)
-    >>> po.tools.validate.validate_model(FailureModel())
+    >>> po.tools.validate.validate_model(FailureModel())  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: model strips gradient from input, ...
     """
@@ -336,7 +325,7 @@ def validate_coarse_to_fine(
     ...         return self.model(x)
     >>> shape = (1, 1, 256, 256)
     >>> model = FailureModel()
-    >>> po.tools.validate.validate_coarse_to_fine(model, shape)
+    >>> po.tools.validate.validate_coarse_to_fine(model, shape)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     AttributeError: model has no scales attribute ...
     """
@@ -420,7 +409,7 @@ def validate_metric(
     whereas we need metric=0 to mean *identical*):
 
     >>> import plenoptic as po
-    >>> po.tools.validate.validate_metric(po.metric.ssim)
+    >>> po.tools.validate.validate_metric(po.metric.ssim)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: metric should return ...
     """
@@ -453,6 +442,153 @@ def validate_metric(
             raise ValueError("metric should always return non-negative numbers!")
 
 
+def validate_penalty(
+    penalty_function: torch.nn.Module | Callable[[Tensor], Tensor],
+    image_shape: tuple[int, int, int, int] | None = None,
+    image_dtype: torch.dtype = torch.float32,
+    device: str | torch.device = "cpu",
+):
+    """
+    Determine whether ``penalty_function`` can be used for regularization in synthesis.
+
+    In particular, this function checks the following (with their associated
+    errors raised):
+
+    - Whether ``penalty_function`` is callable and accepts a single tensor
+      of shape ``image_shape`` as input (``TypeError``).
+
+    - Whether ``penalty_function`` returns a scalar when called with a tensor
+      of shape ``image_shape`` as input (``ValueError``).
+
+    - If ``penalty_function`` adds a gradient to an input tensor, which implies
+      that learnable parameters are being used (``ValueError``).
+
+    - If ``penalty_function`` returns a tensor when given a tensor, failure
+      implies that not all computations are done using torch (``ValueError``).
+
+    - If ``penalty_function`` strips gradient from an input with gradient attached
+      (``ValueError``).
+
+    - If ``penalty_function`` casts an input tensor to something else and returns
+      it to a tensor before returning it (``ValueError``).
+
+    - If ``penalty_function`` changes the precision of the input tensor, or
+      doesn't return a real output (``TypeError``).
+
+    - If ``penalty_function`` changes the device of the input (``RuntimeError``).
+
+    Parameters
+    ----------
+    penalty_function
+        The penalty function to validate.
+    image_shape
+        Some models (e.g., the steerable pyramid) can only accept inputs of a
+        certain shape. If that's the case for ``model``, use this to
+        specify the expected shape. If ``None``, we use an image of shape
+        ``(1,1,16,16)``.
+    image_dtype
+        What dtype to validate against.
+    device
+        What device to place test image on.
+
+    Raises
+    ------
+    ValueError
+        If ``penalty_function`` fails one of the checks listed above.
+    TypeError
+        If ``penalty_function`` changes the precision of the input tensor.
+    RuntimeError
+        If ``penalty_function`` changes the device of the input tensor.
+
+    Examples
+    --------
+    Check that one of our built-in penalty functions work:
+
+    >>> import plenoptic as po
+    >>> penalty_fun = po.tools.regularization.penalize_range
+    >>> po.tools.validate.validate_penalty(penalty_fun)
+
+    Intentionally fail:
+
+    >>> import plenoptic as po
+    >>> import torch
+    >>> def failure_penalty(img):
+    ...     non_scalar = img**2
+    ...     return non_scalar
+    >>> po.tools.validate.validate_penalty(failure_penalty)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: penalty_function should return a scalar value but...
+    """
+    if image_shape is None:
+        image_shape = (1, 1, 16, 16)
+    test_img = torch.rand(
+        image_shape, dtype=image_dtype, requires_grad=False, device=device
+    )
+    try:
+        penalty = penalty_function(test_img)
+    except TypeError:
+        raise TypeError(
+            "penalty_function should be callable and accept a tensor as input"
+        )
+    try:
+        if penalty.requires_grad:
+            raise ValueError(
+                "penalty_function adds gradient to input, it is using learnable"
+                " parameters. This might happen if a Module is used inside"
+                " penalty_function. Try calling plenoptic.tools.remove_grad()"
+                " on it."
+            )
+    # in particular, numpy arrays lack requires_grad attribute
+    except AttributeError:
+        raise ValueError(
+            "penalty_function does not return a torch.Tensor object -- are you sure"
+            " all computations are performed using torch?"
+        )
+    if penalty.numel() != 1:
+        raise ValueError(
+            "penalty_function should return a scalar value but"
+            + f" output had shape {penalty.shape}"
+        )
+    test_img.requires_grad_()
+    try:
+        if not penalty_function(test_img).requires_grad:
+            raise ValueError(
+                "penalty_function strips gradient from input, do you detach"
+                " it somewhere?"
+            )
+    # this gets raised if something tries to cast a tensor with requires_grad
+    # to an array, which can happen explicitly or if they try to use a numpy /
+    # scipy / etc function. This gets reached (rather than the first
+    # AttributeError) if they cast it to an array in the middle of forward()
+    # and then try to cast it back to a tensor
+    except RuntimeError:
+        raise ValueError(
+            "penalty_function tries to cast the input into something other than"
+            " torch.Tensor object -- are you sure all computations are"
+            " performed using torch?"
+        )
+    if image_dtype in [torch.float16, torch.complex32]:
+        allowed_dtypes = [torch.float16]
+    elif image_dtype in [torch.float32, torch.complex64]:
+        allowed_dtypes = [torch.float32]
+    elif image_dtype in [torch.float64, torch.complex128]:
+        allowed_dtypes = [torch.float64]
+    else:
+        raise TypeError(
+            f"Only float or complex dtypes are allowed for the input, but got"
+            f" type {image_dtype}"
+        )
+    output_dtype = penalty_function(test_img).dtype
+    if output_dtype not in allowed_dtypes:
+        raise TypeError(
+            "penalty_function should return a real output with the same precision"
+            " as the input, but got type {output_dtype} instead of {image_dtype}"
+        )
+    if penalty_function(test_img).device != test_img.device:
+        # pytorch device errors are RuntimeErrors
+        raise RuntimeError("penalty_function changes device of input, don't do that!")
+
+
 def remove_grad(model: torch.nn.Module):
     """
     Detach all parameters and buffers of model (in place).
@@ -470,7 +606,7 @@ def remove_grad(model: torch.nn.Module):
     --------
     >>> import plenoptic as po
     >>> model = po.simul.OnOff(31, pretrained=True, cache_filt=True).eval()
-    >>> po.tools.validate.validate_model(model)
+    >>> po.tools.validate.validate_model(model)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: model adds gradient to input, ...
     >>> po.tools.remove_grad(model)
@@ -554,7 +690,7 @@ def validate_convert_tensor_dict(
     ...         )
     >>> shape = (1, 1, 256, 256)
     >>> model = FailureModel()
-    >>> po.tools.validate.validate_convert_tensor_dict(model)
+    >>> po.tools.validate.validate_convert_tensor_dict(model)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: On random image 0, model.convert_to_dict did not invert...
     """

@@ -2,8 +2,8 @@
 Very simple visual models.
 
 While these may be useful as is, they are useful when combined with each other or
-non-linearities, as in :mod:`plenoptic.simulate.frontend`
-"""  # numpydoc ignore=EX01
+non-linearities, as in :mod:`plenoptic.simulate.models.frontend`
+"""
 
 from typing import Any
 

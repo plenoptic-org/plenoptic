@@ -3,17 +3,18 @@ Model metrics.
 
 Simple functions to convert models, which can return a tensor of arbitrary shape, to
 metrics, which must return a tensor.
-"""  # numpydoc ignore=EX01
+"""
 
 import torch
 
 
-def model_metric_factory(model: torch.nn.Module) -> torch.Tensor:
+def model_metric(
+    x: torch.Tensor, y: torch.Tensor, model: torch.nn.Module
+) -> torch.Tensor:
     r"""
-    Create a metric function which returns the root mean squared error in model space.
+    Calculate distance between x and y in model space root mean squared error.
 
-    The returned callable will compute, for two images, :math:`x` and :math:`y`, and
-    model :math:`M`:
+    For two images, :math:`x` and :math:`y`, and model :math:`M`.
 
     .. math::
 
@@ -23,18 +24,17 @@ def model_metric_factory(model: torch.nn.Module) -> torch.Tensor:
     ``y``, with :math:`n` elements, and :math:`\epsilon=1e-10` is to stabilize the
     gradient around zero.
 
-    This allows users to convert models into metrics.
-
     Parameters
     ----------
+    x, y
+        Images to pass to ``model``.
     model
         Torch model with defined forward operation.
 
     Returns
     -------
-    metric_func
-        A callable which accepts two tensors and returns their root mean squared error
-        in model space.
+    model_error
+        Root mean-squared error between the model representation of ``x`` and ``y``.
 
     Examples
     --------
@@ -42,20 +42,19 @@ def model_metric_factory(model: torch.nn.Module) -> torch.Tensor:
     >>> einstein_img = po.data.einstein()
     >>> curie_img = po.data.curie()
     >>> model = po.simul.Gaussian(30)
-    >>> model_metric = po.metric.model_metric_factory(model)
-    >>> model_metric(einstein_img, curie_img)
+    >>> model_metric = po.metric.model_metric(einstein_img, curie_img, model)
+    >>> model_metric
     tensor(0.3128, grad_fn=<SqrtBackward0>)
     >>> # calculate this model metric manually:
     >>> torch.mean((model(einstein_img) - model(curie_img)).pow(2)).sqrt()
     tensor(0.3128, grad_fn=<SqrtBackward0>)
     """
+    repx = model(x)
+    repy = model(y)
 
-    def metric(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # numpydoc ignore=GL08
-        repx = model(x)
-        repy = model(y)
-        # for optimization purpose (stabilizing the gradient around zero)
-        epsilon = 1e-10
-        return torch.sqrt(torch.mean((repx - repy) ** 2) + epsilon)
+    # for optimization purpose (stabilizing the gradient around zero)
+    epsilon = 1e-10
 
-    return metric
+    dist = torch.sqrt(torch.mean((repx - repy) ** 2) + epsilon)
+
+    return dist

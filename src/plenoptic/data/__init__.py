@@ -5,7 +5,6 @@ from importlib import resources
 import torch
 
 from ..tools.data import load_images
-from .fetch import DOWNLOADABLE_FILES, fetch_data
 
 __all__ = [
     "einstein",
@@ -13,8 +12,6 @@ __all__ = [
     "parrot",
     "reptile_skin",
     "color_wheel",
-    "DOWNLOADABLE_FILES",
-    "fetch_data",
 ]
 
 

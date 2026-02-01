@@ -7,7 +7,7 @@ images?"
 # ruff: noqa: F401
 
 from .classes import NLP
-from .model_metric import model_metric_factory
+from .model_metric import model_metric
 from .naive import mse
 from .perceptual_distance import (
     ms_ssim,
