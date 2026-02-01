@@ -439,7 +439,7 @@ class SteerablePyramidFreq(nn.Module):
 
         # image is a torch tensor batch of images of size (batch, channel, height,
         # width)
-        if len(image.shape) == 4:
+        if len(image.shape) != 4:
             raise ValueError("Input image must be 4d (batch, channel, height, width)!")
 
         imdft = fft.fft2(image, dim=(-2, -1), norm=self.fft_norm)
