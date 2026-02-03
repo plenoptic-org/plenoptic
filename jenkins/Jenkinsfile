@@ -37,7 +37,8 @@ pipeline {
             pip freeze
             nvidia-smi
             python3.12 -c "import torch; print(torch.cuda.current_device())"
-            RUN_REGRESSION_SYNTH=1 python3.12 -m pytest -n 8
+            # issue with cache creation in containers: https://github.com/pytorch/pytorch/issues/140765
+            TORCHINDUCTOR_CACHE_DIR=/tmp/torchinductor RUN_REGRESSION_SYNTH=1 python3.12 -m pytest -n 8
             '''
           }
           post {
@@ -76,7 +77,8 @@ pipeline {
             pip freeze
             nvidia-smi
             python3.12 -c "import torch; print(torch.cuda.current_device())"
-            RUN_REGRESSION_SYNTH=1 python3.12 -m pytest -n 8
+            # issue with cache creation in containers: https://github.com/pytorch/pytorch/issues/140765
+            TORCHINDUCTOR_CACHE_DIR=/tmp/torchinductor RUN_REGRESSION_SYNTH=1 python3.12 -m pytest -n 8
             '''
           }
           post {
@@ -119,7 +121,8 @@ pipeline {
               pip install -U pip setuptools
               pip install .[docs]
               python3.12 -c "import torch; print(torch.cuda.current_device())"
-              RUN_NB=1 NB_EXECUTION_MODE=force make -C docs html O="-j $PARALLEL"
+              # issue with cache creation in containers: https://github.com/pytorch/pytorch/issues/140765
+              TORCHINDUCTOR_CACHE_DIR=/tmp/torchinductor RUN_NB=1 NB_EXECUTION_MODE=force make -C docs html O="-j $PARALLEL"
               mv docs/_build/ $HOME/built-docs/
            '''
             lock('plenoptic_publish') {
