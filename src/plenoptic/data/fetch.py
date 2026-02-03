@@ -2,11 +2,12 @@
 Fetch data using pooch.
 
 This is inspired by scipy's datasets module.
-"""
+"""  # numpydoc ignore=EX01
 
 import pathlib
 import sys
 
+import pooch
 from tqdm.auto import tqdm
 
 __all__ = ["DOWNLOADABLE_FILES", "fetch_data"]
@@ -45,6 +46,10 @@ REGISTRY = {
     "berardino_onoff.pt": "2174a40005489b9c94acc91213b2f6d57a75f262caf118cb1980658eadbfd047",  # noqa: E501
     "berardino_vgg16.pt": "5e0d10f4a367244879cd8a61c453992370ab801db1f66e10caa1ee2ecfab8ca4",  # noqa: E501
     "ps_regression.tar.gz": "7520ed2dbcb2647ac814a02e436e1f1e41fb06ca2534561c83f9e76193a12108",  # noqa: E501
+    "example_metamer_gaussian.pt": "de3859a6e622f1dd38e614fef1aa017466270a61e96cc074f4337ee00c73887a",  # noqa: E501
+    "example_metamer_gaussian-cuda.pt": "4affdaa1903f3973eaeac4b43ea7d0b1f16c6525efa80d2474199904aafa243e",  # noqa: E501
+    "example_metamerCTF_ps.pt": "9a0e0a2629d86c1fbea460b915d1ecae3f8ab60f3f144d312001a5312e6aace0",  # noqa: E501
+    "example_metamerCTF_ps-cuda.pt": "d6e3a013263e93004468596a9abcf0f42b6e507733f4771a2654b0c2a5265e92",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"
@@ -79,6 +84,10 @@ REGISTRY_URLS = {
     "berardino_onoff.pt": OSF_TEMPLATE.format("uqfa8"),
     "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b"),
     "ps_regression.tar.gz": OSF_TEMPLATE.format("7t4fj/?revision=11"),
+    "example_metamer_gaussian.pt": OSF_TEMPLATE.format("7e48u"),
+    "example_metamer_gaussian-cuda.pt": OSF_TEMPLATE.format("jzhe7"),
+    "example_metamerCTF_ps.pt": OSF_TEMPLATE.format("4zr37"),
+    "example_metamerCTF_ps-cuda.pt": OSF_TEMPLATE.format("627sp"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch.fetch_data`
@@ -90,26 +99,22 @@ DOWNLOADABLE_FILES = [
     "berardino_vgg16.pt",
     "tid2013.tar.gz",
     "ps_regression.tar.gz",
+    "example_metamer_gaussian.pt",
+    "example_metamerCTF_ps.pt",
 ]
 
-try:
-    import pooch
-except ImportError:
-    pooch = None
-    retriever = None
-else:
-    retriever = pooch.create(
-        # Use the default cache folder for the operating system
-        # Pooch uses appdirs (https://github.com/ActiveState/appdirs) to
-        # select an appropriate directory for the cache on each platform.
-        path=pooch.os_cache("plenoptic"),
-        base_url="",
-        urls=REGISTRY_URLS,
-        registry=REGISTRY,
-        retry_if_failed=2,
-        allow_updates="POOCH_ALLOW_UPDATES",
-        env="PLENOPTIC_CACHE_DIR",
-    )
+retriever = pooch.create(
+    # Use the default cache folder for the operating system
+    # Pooch uses appdirs (https://github.com/ActiveState/appdirs) to
+    # select an appropriate directory for the cache on each platform.
+    path=pooch.os_cache("plenoptic"),
+    base_url="",
+    urls=REGISTRY_URLS,
+    registry=REGISTRY,
+    retry_if_failed=2,
+    allow_updates="POOCH_ALLOW_UPDATES",
+    env="PLENOPTIC_CACHE_DIR",
+)
 
 
 def _find_shared_directory(paths: list[pathlib.Path]) -> pathlib.Path:
@@ -127,7 +132,7 @@ def _find_shared_directory(paths: list[pathlib.Path]) -> pathlib.Path:
     -------
     shared_dir
         Most recent common ancestor.
-    """
+    """  # numpydoc ignore=EX01
     for dir in paths[0].parents:
         if all([dir in p.parents for p in paths]):
             break
@@ -156,11 +161,6 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
     path
         Path of the downloaded dataset.
 
-    Raises
-    ------
-    ImportError
-        If ``pooch`` isn't installed.
-
     Examples
     --------
     .. plot::
@@ -173,12 +173,6 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
       >>> po.imshow(img)
       <PyrFigure size ...>
     """
-    if retriever is None:
-        raise ImportError(
-            "Missing optional dependency 'pooch'."
-            " Please use pip or "
-            "conda to install 'pooch'."
-        )
     processor = pooch.Untar() if dataset_name.endswith(".tar.gz") else None
     use_ascii = bool(sys.platform == "win32")
     fname = retriever.fetch(

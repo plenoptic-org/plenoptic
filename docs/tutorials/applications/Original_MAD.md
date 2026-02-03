@@ -90,9 +90,6 @@ The following figure shows the results of MAD Competition synthesis using the or
 
 ```{code-cell} ipython3
 # We need to download some additional data for this portion of the notebook.
-# In order to do so, we use an optional dependency, pooch. If the following raises an
-# ImportError or ModuleNotFoundError then install pooch in your plenoptic
-# environment and restart your kernel.
 fig, results = po.tools.external.plot_MAD_results("samp6", [128], vrange="row1", zoom=3)
 ```
 
