@@ -415,6 +415,11 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
 
     .. plot::
 
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
+      >>> img.shape
+      torch.Size([1, 1, 256, 256])
       >>> noisy_multi = po.tools.add_noise(img, noise_mse=[0.01, 0.1, 1.0])
       >>> noisy_multi.shape
       torch.Size([3, 1, 256, 256])
