@@ -337,11 +337,10 @@ def make_disk(
     --------
     .. plot::
 
-      >>> import matplotlib.pyplot as plt
       >>> import plenoptic as po
       >>> import torch
       >>> disk = po.tools.make_disk((128, 128), outer_radius=50, inner_radius=25)
-      >>> plt.imshow(disk, cmap="gray")
+      >>> po.imshow(disk[None, None], cmap="gray")
       <...>
     """
     if isinstance(img_size, int):
@@ -401,41 +400,28 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
     .. plot::
       :context: reset
 
-      >>> import matplotlib.pyplot as plt
       >>> import plenoptic as po
       >>> import torch
-      >>> img = torch.zeros(32, 32)
+      >>> img = po.data.einstein()
       >>> noisy = po.tools.add_noise(img, noise_mse=0.1)
       >>> noisy.shape
       torch.Size([1, 1, 32, 32])
-      >>> fig, ax = plt.subplots(1, 2)
-      >>> _ = ax[0].imshow(img, cmap="gray")
-      >>> _ = ax[0].set_title("Original")
-      >>> _ = ax[0].axis("off")
-      >>> _ = ax[1].imshow(noisy[0, 0], cmap="gray")
-      >>> _ = ax[1].set_title("Noisy")
-      >>> _ = ax[1].axis("off")
+      >>> po.imshow([img, noisy])
+      <...>
 
     With multiple elements in ``noise_mse``:
 
     .. plot::
       :context: reset
 
-      >>> import matplotlib.pyplot as plt
       >>> import plenoptic as po
       >>> import torch
-      >>> img = torch.zeros(32, 32)
+      >>> img = po.data.einstein()
       >>> noisy_multi = po.tools.add_noise(img, noise_mse=[0.01, 0.1, 1.0])
       >>> noisy_multi.shape
       torch.Size([3, 1, 32, 32])
-      >>> fig, axs = plt.subplots(1, 4)
-      >>> _ = axs[0].imshow(img, cmap="gray")
-      >>> _ = axs[0].set_title("Original")
-      >>> _ = axs[0].axis("off")
-      >>> for i, (ax, noisy) in enumerate(zip(axs[1:], noisy_multi), 1):
-      ...     _ = ax.imshow(noisy[0], cmap="gray")
-      ...     _ = ax.set_title(f"Noisy {i}")
-      ...     _ = ax.axis("off")
+      >>> po.imshow([img, noisy_multi])
+      <...>
     """
     noise_mse = torch.as_tensor(
         noise_mse, dtype=img.dtype, device=img.device
@@ -543,7 +529,6 @@ def autocorrelation(x: Tensor) -> Tensor:
 
     .. plot::
       :context: reset
-        >>> import matplotlib.pyplot as plt
         >>> import plenoptic as po
         >>> import torch
         >>> img = po.data.einstein()
@@ -551,13 +536,8 @@ def autocorrelation(x: Tensor) -> Tensor:
         torch.Size([1, 1, 256, 256])
         >>> ac = po.tools.autocorrelation(img)
         torch.Size([1, 1, 256, 256])
-        >>> fig, axes = plt.subplots(1, 2)
-        >>> _ = axes[0].imshow(img[0][0], cmap="gray")
-        >>> _ = axes[0].set_title("Input")
-        >>> _ = axes[0].axis("off")
-        >>> _ = axes[1].imshow(ac[0][0])
-        >>> _ = axes[1].set_title("Autocorrelation")
-        >>> _ = axes[1].axis("off")
+        >>> po.imshow([img, ac], title=["Input", "Autocorrelation"])
+        <...>
     """
     # Calculate the auto-correlation
     ac = torch.fft.rfft2(x)
@@ -602,7 +582,6 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
     --------
     .. plot::
       :context: reset
-        >>> import matplotlib.pyplot as plt
         >>> import plenoptic as po
         >>> img = po.data.einstein()
         >>> img.shape
@@ -610,13 +589,7 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
         >>> crop = po.tools.center_crop(img, 128)
         >>> crop.shape
         torch.Size([1, 1, 128, 128])
-        >>> fig, axes = plt.subplots(1, 2)
-        >>> _ = axes[0].imshow(img[0][0], cmap="gray")
-        >>> _ = axes[0].set_title("Input")
-        >>> _ = axes[0].axis("off")
-        >>> _ = axes[1].imshow(crop[0][0])
-        >>> _ = axes[1].set_title("Autocorrelation")
-        >>> _ = axes[1].axis("off")
+        >>> po.imshow([img, crop], title=["Input", "Cropped"])
     """
     h, w = x.shape[-2:]
     output_size = torch.as_tensor(output_size)
