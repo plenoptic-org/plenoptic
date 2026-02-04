@@ -14,7 +14,7 @@ def rescale(x: Tensor, a: float = 0.0, b: float = 1.0) -> Tensor:
     Parameters
     ----------
     x
-        Input tensor to rescale.
+        Tensor to rescale.
     a, b
         Min and max values, respectively, for the output.
 
