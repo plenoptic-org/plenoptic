@@ -417,7 +417,7 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
 
       >>> noisy_multi = po.tools.add_noise(img, noise_mse=[0.01, 0.1, 1.0])
       >>> noisy_multi.shape
-      torch.Size([3, 1, 32, 32])
+      torch.Size([3, 1, 256, 256])
       >>> po.imshow([img, noisy_multi])
       <PyrFigure ...>
     """
