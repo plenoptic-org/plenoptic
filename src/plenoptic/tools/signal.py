@@ -25,11 +25,12 @@ def rescale(x: Tensor, a: float = 0.0, b: float = 1.0) -> Tensor:
 
     Examples
     --------
+    >>> import plenoptic as po
     >>> import torch
     >>> x = torch.tensor([2.0, 4.0, 6.0, 8.0])
-    >>> rescale(x)
+    >>> po.tools.rescale(x)
     tensor([0.0000, 0.3333, 0.6667, 1.0000])
-    >>> rescale(x, a=-1, b=1)
+    >>> po.tools.rescale(x, a=-1, b=1)
     tensor([-1.0000, -0.3333, 0.3333, 1.0000])
     """  # numpydoc ignore=ES01
     v = x.max() - x.min()
@@ -144,9 +145,10 @@ def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
 
     Examples
     --------
+    >>> import plenoptic as po
     >>> import torch
     >>> x = torch.tensor([1 + 1j, 1 - 1j])
-    >>> amplitude, phase = rectangular_to_polar(x)
+    >>> amplitude, phase = po.tools.rectangular_to_polar(x)
     >>> amplitude
     tensor([1.4142, 1.4142])
     >>> phase
@@ -189,10 +191,11 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
 
     Examples
     --------
+    >>> import plenoptic as po
     >>> import torch
     >>> amplitude = torch.tensor([1.4142, 1.4142])
     >>> phase = torch.tensor([0.7854, -0.7854])
-    >>> polar_to_rectangular(amplitude, phase)
+    >>> po.tools.polar_to_rectangular(amplitude, phase)
     tensor([1.+1.j, 1.-1.j])
     """  # numpydoc ignore=ES01
     if (amplitude < 0).any():
@@ -334,10 +337,10 @@ def make_disk(
     --------
     .. plot::
 
-      >>> import torch
-      >>> from plenoptic.tools.signal import make_disk
       >>> import matplotlib.pyplot as plt
-      >>> disk = make_disk((128, 128), outer_radius=50, inner_radius=25)
+      >>> import plenoptic as po
+      >>> import torch
+      >>> disk = po.tools.make_disk((128, 128), outer_radius=50, inner_radius=25)
       >>> plt.imshow(disk, cmap="gray")
       <...>
     """
@@ -399,10 +402,10 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
       :context: reset
 
       >>> import matplotlib.pyplot as plt
+      >>> import plenoptic as po
       >>> import torch
-      >>> from plenoptic.tools.signal import add_noise
       >>> img = torch.zeros(32, 32)
-      >>> noisy = add_noise(img, noise_mse=0.1)
+      >>> noisy = po.tools.add_noise(img, noise_mse=0.1)
       >>> noisy.shape
       torch.Size([1, 1, 32, 32])
       >>> fig, ax = plt.subplots(1, 2)
@@ -419,10 +422,10 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
       :context: reset
 
       >>> import matplotlib.pyplot as plt
+      >>> import plenoptic as po
       >>> import torch
-      >>> from plenoptic.tools.signal import add_noise
       >>> img = torch.zeros(32, 32)
-      >>> noisy_multi = add_noise(img, noise_mse=[0.01, 0.1, 1.0])
+      >>> noisy_multi = po.tools.add_noise(img, noise_mse=[0.01, 0.1, 1.0])
       >>> noisy_multi.shape
       torch.Size([3, 1, 32, 32])
       >>> fig, axs = plt.subplots(1, 4)
@@ -477,17 +480,15 @@ def modulate_phase(x: Tensor, phase_factor: float = 2.0) -> Tensor:
 
     Examples
     --------
-    Basic usage:
 
     .. plot::
       :context: reset
         >>> import plenoptic as po
         >>> import torch
-        >>> from plenoptic.tools.signal import modulate_phase
         >>> img = po.data.einstein()
         >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
         >>> coeffs = spyr(img)
-        >>> mod_coeffs = modulate_phase(coeffs[1], 2)
+        >>> mod_coeffs = po.tools.modulate_phase(coeffs[1], 2)
         >>> mod_coeffs.shape
         torch.Size([1, 1, 4, 128, 128])
         >>> po.imshow(mod_coeffs[0])
@@ -536,6 +537,27 @@ def autocorrelation(x: Tensor) -> Tensor:
     - By Cauchy-Swartz, the autocorrelation attains it is maximum at the center
       location (ie. no shift) - that maximum value is the signal's variance
       (assuming that the input signal is mean centered).
+
+    Examples
+    --------
+
+    .. plot::
+      :context: reset
+        >>> import matplotlib.pyplot as plt
+        >>> import plenoptic as po
+        >>> import torch
+        >>> img = po.data.einstein()
+        >>> img.shape
+        torch.Size([1, 1, 256, 256])
+        >>> ac = po.tools.autocorrelation(img)
+        torch.Size([1, 1, 256, 256])
+        >>> fig, axes = plt.subplots(1, 2)
+        >>> _ = axes[0].imshow(img[0][0], cmap="gray")
+        >>> _ = axes[0].set_title("Input")
+        >>> _ = axes[0].axis("off")
+        >>> _ = axes[1].imshow(ac[0][0])
+        >>> _ = axes[1].set_title("Autocorrelation")
+        >>> _ = axes[1].axis("off")
     """
     # Calculate the auto-correlation
     ac = torch.fft.rfft2(x)
@@ -578,13 +600,23 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
 
     Examples
     --------
-    >>> import plenoptic as po
-    >>> img = po.data.einstein()
-    >>> img.shape
-    torch.Size([1, 1, 256, 256])
-    >>> img = po.tools.center_crop(img, 128)
-    >>> img.shape
-    torch.Size([1, 1, 128, 128])
+    .. plot::
+      :context: reset
+        >>> import matplotlib.pyplot as plt
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> img.shape
+        torch.Size([1, 1, 256, 256])
+        >>> crop = po.tools.center_crop(img, 128)
+        >>> crop.shape
+        torch.Size([1, 1, 128, 128])
+        >>> fig, axes = plt.subplots(1, 2)
+        >>> _ = axes[0].imshow(img[0][0], cmap="gray")
+        >>> _ = axes[0].set_title("Input")
+        >>> _ = axes[0].axis("off")
+        >>> _ = axes[1].imshow(crop[0][0])
+        >>> _ = axes[1].set_title("Autocorrelation")
+        >>> _ = axes[1].axis("off")
     """
     h, w = x.shape[-2:]
     output_size = torch.as_tensor(output_size)
