@@ -341,7 +341,7 @@ def make_disk(
       >>> import torch
       >>> disk = po.tools.make_disk((128, 128), outer_radius=50, inner_radius=25)
       >>> po.imshow(disk[None, None], cmap="gray")
-      <...>
+      <PyrFigure ...>
     """
     if isinstance(img_size, int):
         img_size = (img_size, img_size)
@@ -407,7 +407,7 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
       >>> noisy.shape
       torch.Size([1, 1, 32, 32])
       >>> po.imshow([img, noisy])
-      <...>
+      <PyrFigure ...>
 
     With multiple elements in ``noise_mse``:
 
@@ -421,7 +421,7 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
       >>> noisy_multi.shape
       torch.Size([3, 1, 32, 32])
       >>> po.imshow([img, noisy_multi])
-      <...>
+      <PyrFigure ...>
     """
     noise_mse = torch.as_tensor(
         noise_mse, dtype=img.dtype, device=img.device
@@ -537,7 +537,7 @@ def autocorrelation(x: Tensor) -> Tensor:
         >>> ac = po.tools.autocorrelation(img)
         torch.Size([1, 1, 256, 256])
         >>> po.imshow([img, ac], title=["Input", "Autocorrelation"])
-        <...>
+        <PyrFigure ...>
     """
     # Calculate the auto-correlation
     ac = torch.fft.rfft2(x)
@@ -590,6 +590,7 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
         >>> crop.shape
         torch.Size([1, 1, 128, 128])
         >>> po.imshow([img, crop], title=["Input", "Cropped"])
+        <PyrFigure ...>
     """
     h, w = x.shape[-2:]
     output_size = torch.as_tensor(output_size)
