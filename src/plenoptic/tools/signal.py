@@ -467,16 +467,17 @@ def modulate_phase(x: Tensor, phase_factor: float = 2.0) -> Tensor:
 
     .. plot::
       :context: reset
-        >>> import plenoptic as po
-        >>> import torch
-        >>> img = po.data.einstein()
-        >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
-        >>> coeffs = spyr(img)
-        >>> mod_coeffs = po.tools.modulate_phase(coeffs[1], 2)
-        >>> mod_coeffs.shape
-        torch.Size([1, 1, 4, 128, 128])
-        >>> po.imshow(mod_coeffs[0])
-        <PyrFigure ...>
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
+      >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
+      >>> coeffs = spyr(img)
+      >>> mod_coeffs = po.tools.modulate_phase(coeffs[1], 2)
+      >>> mod_coeffs.shape
+      torch.Size([1, 1, 4, 128, 128])
+      >>> po.imshow(mod_coeffs[0])
+      <PyrFigure ...>
     """
     try:
         angle = torch.atan2(x.imag, x.real)
@@ -527,16 +528,17 @@ def autocorrelation(x: Tensor) -> Tensor:
 
     .. plot::
       :context: reset
-        >>> import plenoptic as po
-        >>> import torch
-        >>> img = po.data.einstein()
-        >>> img.shape
-        torch.Size([1, 1, 256, 256])
-        >>> ac = po.tools.autocorrelation(img)
-        >>> ac.shape
-        torch.Size([1, 1, 256, 256])
-        >>> po.imshow([img, ac], title=["Input", "Autocorrelation"])
-        <PyrFigure ...>
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
+      >>> img.shape
+      torch.Size([1, 1, 256, 256])
+      >>> ac = po.tools.autocorrelation(img)
+      >>> ac.shape
+      torch.Size([1, 1, 256, 256])
+      >>> po.imshow([img, ac], title=["Input", "Autocorrelation"])
+      <PyrFigure ...>
     """
     # Calculate the auto-correlation
     ac = torch.fft.rfft2(x)
@@ -581,15 +583,16 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
     --------
     .. plot::
       :context: reset
-        >>> import plenoptic as po
-        >>> img = po.data.einstein()
-        >>> img.shape
-        torch.Size([1, 1, 256, 256])
-        >>> crop = po.tools.center_crop(img, 128)
-        >>> crop.shape
-        torch.Size([1, 1, 128, 128])
-        >>> po.imshow([img, crop], title=["Input", "Cropped"])
-        <PyrFigure ...>
+
+      >>> import plenoptic as po
+      >>> img = po.data.einstein()
+      >>> img.shape
+      torch.Size([1, 1, 256, 256])
+      >>> crop = po.tools.center_crop(img, 128)
+      >>> crop.shape
+      torch.Size([1, 1, 128, 128])
+      >>> po.imshow([img, crop], title=["Input", "Cropped"])
+      <PyrFigure ...>
     """
     h, w = x.shape[-2:]
     output_size = torch.as_tensor(output_size)
