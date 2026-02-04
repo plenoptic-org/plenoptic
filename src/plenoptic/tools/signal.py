@@ -668,6 +668,17 @@ def expand(x: Tensor, factor: float) -> Tensor:
         The inverse operation.
     :func:`~plenoptic.tools.conv.upsample_blur`
         An alternative upsampling operation.
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> import torch
+    >>> img = po.data.einstein()
+    >>> img.shape
+    torch.Size([1, 1, 256, 256])
+    >>> expanded = po.tools.expand(img, factor=2)
+    >>> expanded.shape
+    torch.Size([1, 1, 512, 512])
     """
     if factor <= 1:
         raise ValueError("factor must be strictly greater than 1!")
@@ -761,6 +772,17 @@ def shrink(x: Tensor, factor: int) -> Tensor:
         The inverse operation.
     :func:`~plenoptic.tools.conv.blur_downsample`
         An alternative downsampling operation.
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> import torch
+    >>> img = po.data.einstein()
+    >>> img.shape
+    torch.Size([1, 1, 256, 256])
+    >>> shrunk = po.tools.shrink(img, factor=2)
+    >>> shrunk.shape
+    torch.Size([1, 1, 128, 128])
     """
     if factor <= 1:
         raise ValueError("factor must be strictly greater than 1!")
