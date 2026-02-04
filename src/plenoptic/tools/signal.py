@@ -403,20 +403,18 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
       >>> import plenoptic as po
       >>> import torch
       >>> img = po.data.einstein()
+      >>> img.shape
+      torch.Size([1, 1, 256, 256])
       >>> noisy = po.tools.add_noise(img, noise_mse=0.1)
       >>> noisy.shape
-      torch.Size([1, 1, 32, 32])
+      torch.Size([1, 1, 256, 256])
       >>> po.imshow([img, noisy])
       <PyrFigure ...>
 
     With multiple elements in ``noise_mse``:
 
     .. plot::
-      :context: reset
 
-      >>> import plenoptic as po
-      >>> import torch
-      >>> img = po.data.einstein()
       >>> noisy_multi = po.tools.add_noise(img, noise_mse=[0.01, 0.1, 1.0])
       >>> noisy_multi.shape
       torch.Size([3, 1, 32, 32])
@@ -535,6 +533,7 @@ def autocorrelation(x: Tensor) -> Tensor:
         >>> img.shape
         torch.Size([1, 1, 256, 256])
         >>> ac = po.tools.autocorrelation(img)
+        >>> ac.shape
         torch.Size([1, 1, 256, 256])
         >>> po.imshow([img, ac], title=["Input", "Autocorrelation"])
         <PyrFigure ...>
