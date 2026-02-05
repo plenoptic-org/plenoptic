@@ -172,7 +172,7 @@ def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
     torch.Size([1, 1, 256, 256])
     >>> # we can then invert the operation to verify
     >>> rectangular_coeff = po.tools.polar_to_rectangular(phase, amplitude)
-    >>> rectangular_coeff
+    >>> rectangular_coeff.shape
     torch.Size([1, 1, 256, 256])
     >>> # we can verify that they match the original
     >>> torch.allclose(coeff, rectangular_coeff)
