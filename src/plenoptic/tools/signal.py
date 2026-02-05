@@ -467,6 +467,7 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
     With multiple elements in ``noise_mse``:
 
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> import torch
@@ -581,7 +582,6 @@ def autocorrelation(x: Tensor) -> Tensor:
 
     Examples
     --------
-
     .. plot::
       :context: reset
 
@@ -594,6 +594,24 @@ def autocorrelation(x: Tensor) -> Tensor:
       >>> ac.shape
       torch.Size([1, 1, 256, 256])
       >>> po.imshow([img, ac], title=["Input", "Autocorrelation"])
+      <PyrFigure ...>
+
+    With a simpler periodic example, the autocorrelation is more interpretable:
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> # let's generate a 2D sine wave
+      >>> x = torch.arange(128).float()
+      >>> sine = torch.sin(2 * torch.pi * x / 64)
+      >>> img = torch.outer(sine, sine)
+      >>> # we will manually add batch and channel dimensions
+      >>> img = img[None, None, :, :]  # this is equivalent to .unsqueeze(0) twice
+      >>> ac = po.tools.autocorrelation(img)
+      >>> ac.shape
+      torch.Size([1, 1, 256, 256])
+      >>> po.imshow([img, ac], title=["Sine Wave", "Autocorrelation"])
       <PyrFigure ...>
     """
     # Calculate the auto-correlation
