@@ -152,7 +152,7 @@ def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
     >>> amplitude
     tensor([1.4142, 1.4142])
     >>> phase
-    tensor([0.7854, -0.7854])
+    tensor([ 0.7854, -0.7854])
 
     In plenoptic, this function is typically used
     for working with steerable pyramid coefficients:
@@ -240,7 +240,7 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
     torch.Size([1, 1, 256, 256])
     >>> # and from those we can use this function to get the rectangular coordinates
     >>> rectangular_coeff = po.tools.polar_to_rectangular(phase, amplitude)
-    >>> rectangular_coeff
+    >>> rectangular_coeff.shape
     torch.Size([1, 1, 256, 256])
     >>> # we can verify that they match the original
     >>> torch.allclose(coeff, rectangular_coeff)
@@ -610,7 +610,7 @@ def autocorrelation(x: Tensor) -> Tensor:
       >>> img = img[None, None, :, :]  # this is equivalent to .unsqueeze(0) twice
       >>> ac = po.tools.autocorrelation(img)
       >>> ac.shape
-      torch.Size([1, 1, 256, 256])
+      torch.Size([1, 1, 128, 128])
       >>> po.imshow([img, ac], title=["Sine Wave", "Autocorrelation"])
       <PyrFigure ...>
     """
