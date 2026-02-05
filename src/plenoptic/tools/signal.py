@@ -152,7 +152,7 @@ def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
     >>> amplitude
     tensor([1.4142, 1.4142])
     >>> phase
-    tensor([ 0.7854, -0.7854])
+    tensor([0.7854, -0.7854])
 
     In plenoptic, this function is typically used
     for working with steerable pyramid coefficients:
