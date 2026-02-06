@@ -597,6 +597,7 @@ def autocorrelation(x: Tensor) -> Tensor:
       <PyrFigure ...>
 
     With a simpler periodic example, the autocorrelation is more interpretable:
+
     .. plot::
       :context: reset
 
