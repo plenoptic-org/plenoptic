@@ -145,23 +145,24 @@ def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
 
     Examples
     --------
-    >>> import plenoptic as po
-    >>> import torch
-    >>> x = torch.tensor([1 + 1j, 1 - 1j])
-    >>> amplitude, phase = po.tools.rectangular_to_polar(x)
-    >>> amplitude
-    tensor([1.4142, 1.4142])
-    >>> phase
-    tensor([ 0.7854, -0.7854])
-
-    In plenoptic, this function is typically used
-    for working with steerable pyramid coefficients:
-
     .. plot::
       :context: reset
 
       >>> import plenoptic as po
       >>> import torch
+      >>> x = torch.tensor([1 + 1j, 1 - 1j])
+      >>> amplitude, phase = po.tools.rectangular_to_polar(x)
+      >>> amplitude
+      tensor([1.4142, 1.4142])
+      >>> phase
+      tensor([ 0.7854, -0.7854])
+
+    In plenoptic, this function is typically used
+    for working with steerable pyramid coefficients:
+
+    .. plot::
+      :context: close-figs
+
       >>> # starting from an image
       >>> img = po.data.einstein()
       >>> img.shape
@@ -246,7 +247,7 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
     torch.Size([1, 1, 256, 256])
     >>> phase.shape
     torch.Size([1, 1, 256, 256])
-    >>> # and from those, we can use this function to get the rectangular coordinates
+    >>> # and from those, we can use this function to recoverthe rectangular coordinates
     >>> rectangular_coeff = po.tools.polar_to_rectangular(amplitude, phase)
     >>> rectangular_coeff.shape
     torch.Size([1, 1, 256, 256])
@@ -477,13 +478,8 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
     With multiple elements in ``noise_mse``:
 
     .. plot::
-      :context: reset
+      :context: close-figs
 
-      >>> import plenoptic as po
-      >>> import torch
-      >>> img = po.data.einstein()
-      >>> img.shape
-      torch.Size([1, 1, 256, 256])
       >>> noisy_multi = po.tools.add_noise(img, noise_mse=[0.01, 0.1, 1.0])
       >>> noisy_multi.shape
       torch.Size([3, 1, 256, 256])
@@ -609,10 +605,8 @@ def autocorrelation(x: Tensor) -> Tensor:
     structure that is found in natural images:
 
     .. plot::
-      :context: reset
+      :context: close-figs
 
-      >>> import plenoptic as po
-      >>> import torch
       >>> random_img = torch.rand(size=(1, 1, 256, 256))
       >>> ac_noise = po.tools.autocorrelation(random_img)
       >>> po.imshow([random_img, ac_noise], title=["random noise", "autocorrelation"])
@@ -623,12 +617,8 @@ def autocorrelation(x: Tensor) -> Tensor:
     :func:`~plenoptic.tools.signal.center_crop`, that is easily achieved:
 
     .. plot::
-      :context: reset
+      :context: close-figs
 
-      >>> import plenoptic as po
-      >>> import torch
-      >>> img = po.data.einstein()
-      >>> ac = po.tools.autocorrelation(img)
       >>> ac_cropped = po.tools.center_crop(ac, 16)
       >>> po.imshow(
       ...     [img, ac, ac_cropped],
@@ -754,10 +744,30 @@ def expand(x: Tensor, factor: float) -> Tensor:
       >>> expanded = po.tools.expand(img, factor=2)
       >>> expanded.shape
       torch.Size([1, 1, 512, 512])
-      >>> po.imshow([img, expanded], title=["original", "expanded"], zoom=0.5)
+      >>> po.imshow(
+      ...     [img, expanded], title=["original", "expanded"], zoom=0.5, vrange=(0, 1)
+      ... )
       <PyrFigure...>
 
-    Note that the dimensions have changed.
+    Note that the range has changed:
+
+    >>> img.min(), img.max()
+    (tensor(0.0039), tensor(1.))
+    >>> expanded.min(), expanded.max()
+    (tensor(-0.1648), tensor(1.0239))
+
+    An alternative method for upsampling images is to use
+    :func:`~plenoptic.tools.conv.upsample_blur`:
+
+    .. plot::
+      :context: close-figs
+
+      >>> po.imshow(
+      ...     [img, expanded, po.tools.upsample_blur(img, (0, 0))],
+      ...     title=["original", "expanded", "blurred"],
+      ...     vrange=(0, 1),
+      ... )
+      <PyrFigure...>
     """
     if factor <= 1:
         raise ValueError("factor must be strictly greater than 1!")
@@ -868,7 +878,18 @@ def shrink(x: Tensor, factor: int) -> Tensor:
       >>> po.imshow([img, shrunk], title=["original", "shrunk"])
       <PyrFigure...>
 
-    Note that the dimensions have changed.
+    Note the horizontal/vertical lines in the shrunk version of the image.
+    These are the result of aliasing.
+    To avoid these, use :func:`~plenoptic.tools.conv.blur_downsample`:
+
+    .. plot::
+      :context: close-figs
+
+      >>> po.imshow(
+      ...     [img, shrunk, po.tools.blur_downsample(img)],
+      ...     title=["original", "shrunk", "blurred"],
+      ... )
+      <PyrFigure...>
     """
     if factor <= 1:
         raise ValueError("factor must be strictly greater than 1!")
