@@ -616,6 +616,7 @@ def autocorrelation(x: Tensor) -> Tensor:
       >>> random_img = torch.rand(size=(1, 1, 256, 256))
       >>> ac_noise = po.tools.autocorrelation(random_img)
       >>> po.imshow([random_img, ac_noise], title=["random noise", "autocorrelation"])
+      <PyrFigure...>
 
     Plenoptic models typically do not use the full autocorrelation, but rather
     the first couple shifts only. Using a combination of this function and
@@ -633,6 +634,7 @@ def autocorrelation(x: Tensor) -> Tensor:
       ...     [img, ac, ac_cropped],
       ...     title=["image", "autocorrelation", "cropped autocorrelation"],
       ... )
+      <PyrFigure...>
     """
     # Calculate the auto-correlation
     ac = torch.fft.rfft2(x)
