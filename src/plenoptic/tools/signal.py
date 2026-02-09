@@ -156,27 +156,32 @@ def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
 
     In plenoptic, this function is typically used
     for working with steerable pyramid coefficients:
-    >>> import plenoptic as po
-    >>> import torch
-    >>> img = po.data.einstein()  # starting from an image
-    >>> img.shape
-    torch.Size([1, 1, 256, 256])
-    >>> # taking the complex steerable pyramid coefficients
-    >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
-    >>> coeff = spyr(img)[0][:, :, 0]  # let's only look at 1 scale and 1 orientation
-    >>> # we can use this function to get the polar coordinates
-    >>> phase, amplitude = po.tools.rectangular_to_polar(coeff)
-    >>> phase.shape
-    torch.Size([1, 1, 256, 256])
-    >>> amplitude.shape
-    torch.Size([1, 1, 256, 256])
-    >>> # we can then invert the operation to verify
-    >>> rectangular_coeff = po.tools.polar_to_rectangular(phase, amplitude)
-    >>> rectangular_coeff.shape
-    torch.Size([1, 1, 256, 256])
-    >>> # we can verify that they match the original
-    >>> torch.allclose(coeff, rectangular_coeff)
-    True
+
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> # starting from an image
+      >>> img = po.data.einstein()
+      >>> img.shape
+      torch.Size([1, 1, 256, 256])
+      >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
+      >>> # let's only look at 1 scale and 1 orientation
+      >>> coeff = spyr(img)[0][:, :, 0]
+      >>> # the coefficients returned by spyr (forward) are in rectangular coordinates
+      >>> # so we can now use this function to get the polar coordinates
+      >>> amplitude, phase = po.tools.rectangular_to_polar(coeff)
+      >>> amplitude.shape
+      torch.Size([1, 1, 256, 256])
+      >>> phase.shape
+      torch.Size([1, 1, 256, 256])
+      >>> # we can then invert the operation to verify that we get back the original
+      >>> rectangular_coeff = po.tools.polar_to_rectangular(amplitude, phase)
+      >>> torch.allclose(coeff, rectangular_coeff)
+      True
+      >>> po.imshow([amplitude, phase], title=["amplitude", "phase"])
+      <PyrFigure...>
     """
     amplitude = torch.abs(x)
     phase = torch.angle(x)
@@ -224,22 +229,25 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
 
     In plenoptic, this function is typically used
     for working with steerable pyramid coefficients:
+
     >>> import plenoptic as po
     >>> import torch
-    >>> img = po.data.einstein()  # starting from an image
+    >>> # starting from an image
+    >>> img = po.data.einstein()
     >>> img.shape
     torch.Size([1, 1, 256, 256])
-    >>> # taking the complex steerable pyramid coefficients
     >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
-    >>> coeff = spyr(img)[0][:, :, 0]  # let's only look at 1 scale and 1 orientation
-    >>> # we can manually compute polar coordinates
-    >>> phase, amplitude = torch.abs(coeff), torch.angle(coeff)
-    >>> phase.shape
-    torch.Size([1, 1, 256, 256])
+    >>> # let's only look at 1 scale and 1 orientation
+    >>> coeff = spyr(img)[0][:, :, 0]
+    >>> # the coefficients returned by spyr (forward) are in rectangular coordinates
+    >>> # so, we can manually compute polar coordinates
+    >>> amplitude, phase = torch.abs(coeff), torch.angle(coeff)
     >>> amplitude.shape
     torch.Size([1, 1, 256, 256])
-    >>> # and from those we can use this function to get the rectangular coordinates
-    >>> rectangular_coeff = po.tools.polar_to_rectangular(phase, amplitude)
+    >>> phase.shape
+    torch.Size([1, 1, 256, 256])
+    >>> # and from those, we can use this function to get the rectangular coordinates
+    >>> rectangular_coeff = po.tools.polar_to_rectangular(amplitude, phase)
     >>> rectangular_coeff.shape
     torch.Size([1, 1, 256, 256])
     >>> # we can verify that they match the original
@@ -384,12 +392,14 @@ def make_disk(
     Examples
     --------
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> import torch
       >>> disk = po.tools.make_disk((256, 256), outer_radius=50, inner_radius=25)
       >>> # we can add batch and color dimensions
-      >>> disk = disk[None, None]  # this is equivalent to using .unsqueeze(0) twice
+      >>> # (this is equivalent to using .unsqueeze(0) twice)
+      >>> disk = disk[None, None]
       >>> # we can use the disk as a mask to apply to an image
       >>> img = po.data.einstein()
       >>> masked_img = img * disk
@@ -531,10 +541,13 @@ def modulate_phase(x: Tensor, phase_factor: float = 2.0) -> Tensor:
       >>> import torch
       >>> img = po.data.einstein()
       >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
-      >>> coeff = spyr(img)[3][:, :, 0]  # let's only look at 1 scale and 1 orientation
+      >>> # let's only look at 1 scale and 1 orientation
+      >>> coeff = spyr(img)[3][:, :, 0]
       >>> mod_coeff = po.tools.modulate_phase(coeff, 2)
-      >>> po.imshow([coeff, mod_coeff], title=["original", "modulated"])
+      >>> po.imshow([coeff, mod_coeff], title=["original", "modulated"], zoom=8)
       <PyrFigure ...>
+
+    Note how the white and black streaks have changed between original and modulated.
     """
     try:
         angle = torch.atan2(x.imag, x.real)
@@ -588,32 +601,38 @@ def autocorrelation(x: Tensor) -> Tensor:
       >>> import plenoptic as po
       >>> import torch
       >>> img = po.data.einstein()
-      >>> img.shape
-      torch.Size([1, 1, 256, 256])
       >>> ac = po.tools.autocorrelation(img)
-      >>> ac.shape
-      torch.Size([1, 1, 256, 256])
-      >>> po.imshow([img, ac], title=["Input", "Autocorrelation"])
-      <PyrFigure ...>
+      >>> po.imshow([img, ac], title=["image", "autocorrelation"])
+      <PyrFigure...>
 
-    With a simpler periodic example, the autocorrelation is more interpretable:
+    If we start from random noise, we do not see the correlation
+    structure that is found in natural images:
 
     .. plot::
       :context: reset
 
       >>> import plenoptic as po
       >>> import torch
-      >>> # let's generate a 2D sine wave
-      >>> x = torch.arange(128).float()
-      >>> sine = torch.sin(2 * torch.pi * x / 64)
-      >>> img = torch.outer(sine, sine)
-      >>> # we will manually add batch and channel dimensions
-      >>> img = img[None, None, :, :]  # this is equivalent to .unsqueeze(0) twice
+      >>> random_img = torch.rand(size=(1, 1, 256, 256))
+      >>> ac_noise = po.tools.autocorrelation(random_img)
+      >>> po.imshow([random_img, ac_noise], title=["random noise", "autocorrelation"])
+
+    Plenoptic models typically do not use the full autocorrelation, but rather
+    the first couple shifts only. Using a combination of this function and
+    :func:`~plenoptic.tools.signal.center_crop`, that is easily achieved:
+
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
       >>> ac = po.tools.autocorrelation(img)
-      >>> ac.shape
-      torch.Size([1, 1, 128, 128])
-      >>> po.imshow([img, ac], title=["Sine Wave", "Autocorrelation"])
-      <PyrFigure ...>
+      >>> ac_cropped = po.tools.center_crop(ac, 16)
+      >>> po.imshow(
+      ...     [img, ac, ac_cropped],
+      ...     title=["image", "autocorrelation", "cropped autocorrelation"],
+      ... )
     """
     # Calculate the auto-correlation
     ac = torch.fft.rfft2(x)
@@ -666,7 +685,7 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
       >>> crop = po.tools.center_crop(img, 128)
       >>> crop.shape
       torch.Size([1, 1, 128, 128])
-      >>> po.imshow([img, crop], title=["Input", "Cropped"])
+      >>> po.imshow([img, crop], title=["input", "cropped"])
       <PyrFigure ...>
     """
     h, w = x.shape[-2:]
@@ -722,19 +741,21 @@ def expand(x: Tensor, factor: float) -> Tensor:
 
     Examples
     --------
-    >>> import plenoptic as po
-    >>> import torch
-    >>> img = po.data.einstein()
-    >>> img.shape
-    torch.Size([1, 1, 256, 256])
-    >>> expanded = po.tools.expand(img, factor=2)
-    >>> expanded.shape
-    torch.Size([1, 1, 512, 512])
-    >>> po.imshow(
-    ...     [img, expanded],
-    ...     title=["original", "expanded (note the different dimensions!)"],
-    ... )
-    <PyrFigure...>
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
+      >>> img.shape
+      torch.Size([1, 1, 256, 256])
+      >>> expanded = po.tools.expand(img, factor=2)
+      >>> expanded.shape
+      torch.Size([1, 1, 512, 512])
+      >>> po.imshow([img, expanded], title=["original", "expanded"], zoom=0.5)
+      <PyrFigure...>
+
+    Note that the dimensions have changed.
     """
     if factor <= 1:
         raise ValueError("factor must be strictly greater than 1!")
@@ -831,18 +852,21 @@ def shrink(x: Tensor, factor: int) -> Tensor:
 
     Examples
     --------
-    >>> import plenoptic as po
-    >>> import torch
-    >>> img = po.data.einstein()
-    >>> img.shape
-    torch.Size([1, 1, 256, 256])
-    >>> shrunk = po.tools.shrink(img, factor=2)
-    >>> shrunk.shape
-    torch.Size([1, 1, 128, 128])
-    >>> po.imshow(
-    ...     [img, shrunk], title=["original", "shrunk (note the different dimensions!)"]
-    ... )
-    <PyrFigure...>
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
+      >>> img.shape
+      torch.Size([1, 1, 256, 256])
+      >>> shrunk = po.tools.shrink(img, factor=2)
+      >>> shrunk.shape
+      torch.Size([1, 1, 128, 128])
+      >>> po.imshow([img, shrunk], title=["original", "shrunk"])
+      <PyrFigure...>
+
+    Note that the dimensions have changed.
     """
     if factor <= 1:
         raise ValueError("factor must be strictly greater than 1!")
