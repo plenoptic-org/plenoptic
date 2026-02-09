@@ -890,6 +890,42 @@ def shrink(x: Tensor, factor: int) -> Tensor:
       ...     title=["original", "shrunk", "blurred"],
       ... )
       <PyrFigure...>
+
+    You can undo a shrink using :func:`~plenoptic.tools.signal.expand`, but not exactly.
+    Shrinking discards information that can not be recovered:
+
+    .. plot::
+      :context: close-figs
+
+      >>> expand_after_shrink = po.tools.expand(
+      ...     po.tools.shrink(img, factor=2), factor=2
+      ... )
+      >>> torch.allclose(img, expand_after_shrink, atol=1e-2)
+      False
+      >>> po.imshow(
+      ...     [img, expand_after_shrink],
+      ...     title=["original", "expand after shrink"],
+      ... )
+      <PyrFigure...>
+
+    Even in the opposite order, i.e. shrinking an expanded image, we can only recover
+    the original image with a low tolerance:
+
+    .. plot::
+      :context: close-figs
+
+      >>> shrink_after_expand = po.tools.shrink(
+      ...     po.tools.expand(img, factor=2), factor=2
+      ... )
+      >>> torch.allclose(img, shrink_after_expand, atol=1e-2)
+      True
+      >>> torch.allclose(img, shrink_after_expand, atol=1e-3)
+      False
+      >>> po.imshow(
+      ...     [img, shrink_after_expand],
+      ...     title=["original", "shrink after expand"],
+      ... )
+      <PyrFigure...>
     """
     if factor <= 1:
         raise ValueError("factor must be strictly greater than 1!")
