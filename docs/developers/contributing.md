@@ -624,10 +624,7 @@ runners and hosted on GitHub pages. If that means nothing to you, don't worry!
 
 All of our documentation is written as markdown files, with the extension `md`. We use the [myst parser](https://myst-parser.readthedocs.io/), along with [myst-nb](https://myst-nb.readthedocs.io). Both process markdown files, but `myst-nb` allows us to write [text-based notebooks](https://myst-nb.readthedocs.io/en/latest/authoring/text-notebooks.html), with python code that gets executed when the documentation is built.
 
-The text-based notebooks are tutorials and show how to use the various functions and
-classes contained in the package, and they all should be located in the
-`docs/tutorials/` directory. If you add or change a substantial amount of code, please
-add a tutorial showing how to use it.
+The text-based notebooks are tutorials and show how to use the various functions and classes contained in the package. If you add or change a substantial amount of code, please add a tutorial showing how to use it.
 
 In all markdown files, you should try to use sphinx's cross-reference syntax to refer to code objects in API documentation whenever one is mentioned. For example, you should refer to the {class}`~plenoptic.synthesize.metamer.Metamer` class as
 
@@ -747,7 +744,7 @@ However, it can be built locally as well. You would do this if you've made chang
 
 Then, to build the documentation, run: `make -C docs html O="-T -j auto"`. (`-j auto` tells sphinx to parallelize the build, using as many cores as possible, a specific number can be set.)
 
-By default, the notebooks are not run because they take a longish time to do so, especially if you do not have a GPU. In order to run all of them, prepend `RUN_NB=1` to the `make` command above. In order to run specific notebooks, set `RUN_NB` to a globbable comma-separated string in the above, e.g., `RUN_NB=Metamer,MAD` to run `docs/tutorials/intro/Metamer`, `docs/tutorials/intro/MAD_Competition`, and `docs/tutorials/intro/MAD_Simple`.
+By default, the text-based notebooks (see [earlier](adding-documentation)) are not run because they take a longish time to do so, especially if you do not have a GPU. In order to run all of them, prepend `RUN_NB=1` to the `make` command above. In order to run specific notebooks, set `RUN_NB` to a globbable comma-separated string in the above, e.g., `RUN_NB=Metamer,MAD` to run `docs/user_guide/synthesis/Metamer`, `docs/user_guide/synthesis/MAD_Competition_1`, and `docs/user_guide/synthesis/MAD_Competition_2`.
 
 The index page of the documentation will then be located at
 `docs/_build/html/index.html`, open it in your browser to navigate
