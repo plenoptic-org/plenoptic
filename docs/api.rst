@@ -159,8 +159,8 @@ These helper functions all are intended to help visualize the status and outputs
    ~eigendistortion.display_eigendistortion
    ~eigendistortion.display_eigendistortion_all
 
-Canonical Computations
-----------------------
+Model components
+----------------
 
 These classes and functions may be helpful for constructing your own models. As is, they are not compatible with any of the synthesis methods.
 
