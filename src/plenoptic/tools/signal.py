@@ -247,7 +247,7 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
     torch.Size([1, 1, 256, 256])
     >>> phase.shape
     torch.Size([1, 1, 256, 256])
-    >>> # and from those, we can use this function to recoverthe rectangular coordinates
+    >>> # from those, we can use this function to recover the rectangular coordinates
     >>> rectangular_coeff = po.tools.polar_to_rectangular(amplitude, phase)
     >>> rectangular_coeff.shape
     torch.Size([1, 1, 256, 256])
@@ -891,8 +891,8 @@ def shrink(x: Tensor, factor: int) -> Tensor:
       ... )
       <PyrFigure...>
 
-    You can undo a shrink using :func:`~plenoptic.tools.signal.expand`, but not exactly.
-    Shrinking discards information that can not be recovered:
+    You can invert ``shrink`` using :func:`~plenoptic.tools.signal.expand`, but the
+    inversion is not perfect; shrinking discards information that can not be recovered:
 
     .. plot::
       :context: close-figs
@@ -908,8 +908,9 @@ def shrink(x: Tensor, factor: int) -> Tensor:
       ... )
       <PyrFigure...>
 
-    Even in the opposite order, i.e. shrinking an expanded image, we can only recover
-    the original image with a low tolerance:
+    Even in the opposite order, i.e., shrinking an expanded image, the inversion is
+    not perfect. In this example with pixel values between 0 and 1,
+    there are differences on the order of 1e-3:
 
     .. plot::
       :context: close-figs
@@ -922,8 +923,8 @@ def shrink(x: Tensor, factor: int) -> Tensor:
       >>> torch.allclose(img, shrink_after_expand, atol=1e-3)
       False
       >>> po.imshow(
-      ...     [img, shrink_after_expand],
-      ...     title=["original", "shrink after expand"],
+      ...     [img, shrink_after_expand, img - shrink_after_expand],
+      ...     title=["original", "shrink after expand", "difference"],
       ... )
       <PyrFigure...>
     """
