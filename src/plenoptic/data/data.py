@@ -395,6 +395,61 @@ def polar_angle(
     return res
 
 
+def make_disk(
+    img_size: int | tuple[int, int] | torch.Size,
+    outer_radius: float | None = None,
+    inner_radius: float | None = None,
+) -> Tensor:
+    r"""
+    Create a circular mask with softened edges.
+
+    All values within ``inner_radius`` will be 1, and all values from ``inner_radius``
+    to ``outer_radius`` will decay smoothly to 0.
+
+    Parameters
+    ----------
+    img_size
+        Size of image in pixels.
+    outer_radius
+        Total radius of disk. Values from ``inner_radius`` to ``outer_radius``
+        will decay smoothly to zero.
+    inner_radius
+        Radius of inner disk. All elements from the origin to ``inner_radius``
+        will be set to 1.
+
+    Returns
+    -------
+    mask
+        Tensor mask with ``torch.Size(img_size)``.
+    """
+    if isinstance(img_size, int):
+        img_size = (img_size, img_size)
+    assert len(img_size) == 2
+
+    if outer_radius is None:
+        outer_radius = (min(img_size) - 1) / 2
+
+    if inner_radius is None:
+        inner_radius = outer_radius / 2
+
+    mask = torch.empty(*img_size)
+    i0, j0 = (img_size[0] - 1) / 2, (img_size[1] - 1) / 2  # image center
+
+    for i in range(img_size[0]):  # height
+        for j in range(img_size[1]):  # width
+            r = np.sqrt((i - i0) ** 2 + (j - j0) ** 2)
+
+            if r > outer_radius:
+                mask[i][j] = 0
+            elif r < inner_radius:
+                mask[i][j] = 1
+            else:
+                radial_decay = (r - inner_radius) / (outer_radius - inner_radius)
+                mask[i][j] = (1 + np.cos(np.pi * radial_decay)) / 2
+
+    return mask
+
+
 def _find_min_int(vals: list[int]) -> int:
     """
     Find the minimum non-negative int not in an iterable.
