@@ -48,6 +48,45 @@ def correlate_downsample(
         Perform this operation a user-specified number of times using a named filter.
     upsample_convolve
         Perform the inverse operation, upsampling and convolving with a filter.
+
+    Examples
+    --------
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
+      >>> # 2x2 averaging filter
+      >>> filt = torch.ones(2, 2) / 4.0
+      >>> downsampled = po.tools.correlate_downsample(img, filt)
+      >>> downsampled.shape
+      torch.Size([1, 1, 128, 128])
+      >>> po.imshow([img, downsampled], title=["image", "downsampled"])
+      <PyrFigure...>
+
+    When applying filters like this, you lose pixels at the border.
+    The ``padding_mode`` argument determines how to fill them in:
+
+    .. plot::
+      :context: close-figs
+
+      >>> # Large 50x50 averaging filter to make padding effects visible
+      >>> filt = torch.ones(50, 50) / (50 * 50)
+      >>> constant = po.tools.correlate_downsample(img, filt, padding_mode="constant")
+      >>> reflect = po.tools.correlate_downsample(img, filt, padding_mode="reflect")
+      >>> replicate = po.tools.correlate_downsample(img, filt, padding_mode="replicate")
+      >>> circular = po.tools.correlate_downsample(img, filt, padding_mode="circular")
+      >>> po.imshow(
+      ...     [reflect, constant, replicate, circular],
+      ...     title=[
+      ...         "reflect padding",
+      ...         "constant (zero) padding",
+      ...         "replicate padding",
+      ...         "circular padding",
+      ...     ],
+      ... )
+      <PyrFigure...>
     """
     if image.ndim != 4:
         raise ValueError(f"image must be 4d but has {image.ndim} dimensions instead!")
