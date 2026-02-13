@@ -1,7 +1,5 @@
 """Simple models to use with plenoptic's synthesis methods."""
 
-# ignore F401 (unused import) and F403 (from module import *)
-# ruff: noqa: F401, F403
-from .frontend import *
-from .naive import *
-from .portilla_simoncelli import PortillaSimoncelli
+import lazy_loader as lazy
+
+__getattr__, __dir__, __all__ = lazy.attach_stub(__name__, __file__)

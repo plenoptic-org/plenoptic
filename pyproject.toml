@@ -28,6 +28,7 @@ dependencies = [
     "importlib-resources>=6.0",
     "Deprecated",
     "pooch>=1.2.0",
+    "lazy_loader",
 ]
 
 [build-system]
