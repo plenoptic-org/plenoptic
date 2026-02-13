@@ -13,7 +13,7 @@ import torch
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from ..tools.validate import validate_input, validate_model
+from ..validate import validate_input, validate_model
 from .autodiff import (
     _fisher_info_matrix_eigenvalue,
     _fisher_info_matrix_vector_product,

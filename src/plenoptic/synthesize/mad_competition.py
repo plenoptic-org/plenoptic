@@ -20,9 +20,9 @@ import torch
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from ..tools import optim
-from ..tools.convergence import _loss_convergence
-from ..tools.validate import validate_input, validate_metric
+from .. import optim
+from ..convergence import _loss_convergence
+from ..validate import validate_input, validate_metric
 from .synthesis import OptimizedSynthesis
 
 

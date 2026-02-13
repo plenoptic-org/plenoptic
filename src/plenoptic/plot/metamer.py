@@ -9,8 +9,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from torch import Tensor
 
+from ..data import data
 from ..synthesize import Metamer
-from ..tools import data, display
+from . import display
 
 
 def plot_loss(

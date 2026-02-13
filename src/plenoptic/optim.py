@@ -9,11 +9,23 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ..simulate.models import PortillaSimoncelli
+    from ..models import PortillaSimoncelli
 
 import numpy as np
 import torch
 from torch import Tensor
+
+__all__ = [
+    "mse",
+    "l2_norm",
+    "relative_sse",
+    "penalize_range",
+    "portilla_simoncelli_loss_factory",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
 
 
 def set_seed(seed: int | None = None) -> None:

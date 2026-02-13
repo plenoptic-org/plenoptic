@@ -12,8 +12,8 @@ from torch import Tensor
 from torch import nn as nn
 from torch.nn import functional as F
 
-from ...tools.conv import same_padding
-from ..canonical_computations.filters import _validate_filter_args, circular_gaussian2d
+from ..model_components.convolutions import same_padding
+from ..model_components.filters import _validate_filter_args, circular_gaussian2d
 
 __all__ = ["Identity", "Linear", "Gaussian", "CenterSurround"]
 

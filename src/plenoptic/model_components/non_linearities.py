@@ -6,8 +6,8 @@ The functions operate on dictionaries or tensors.
 
 import torch
 
-from ...tools import signal
-from ...tools.conv import blur_downsample, upsample_blur
+from . import signal
+from .convolutions import blur_downsample, upsample_blur
 
 
 def rectangular_to_polar_dict(

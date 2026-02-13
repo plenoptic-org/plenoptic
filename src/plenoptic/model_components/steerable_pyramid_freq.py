@@ -18,7 +18,7 @@ from numpy.typing import NDArray
 from scipy.special import factorial
 from torch import Tensor
 
-from ...tools.signal import _interpolate1d, _raised_cosine, _steer
+from .signal import _interpolate1d, _raised_cosine, _steer
 
 complex_types = [torch.cdouble, torch.cfloat]
 

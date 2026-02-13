@@ -16,9 +16,10 @@ import torch
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from ..tools import optim, signal
-from ..tools.convergence import _coarse_to_fine_enough, _loss_convergence
-from ..tools.validate import validate_coarse_to_fine, validate_input, validate_model
+from .. import optim
+from ..convergence import _coarse_to_fine_enough, _loss_convergence
+from ..model_components import signal
+from ..validate import validate_coarse_to_fine, validate_input, validate_model
 from .synthesis import OptimizedSynthesis
 
 

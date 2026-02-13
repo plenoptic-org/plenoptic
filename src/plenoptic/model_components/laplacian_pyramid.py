@@ -7,7 +7,7 @@ Simple class for handling the Laplacian Pyramid.
 import torch
 import torch.nn as nn
 
-from ...tools.conv import blur_downsample, upsample_blur
+from .convolutions import blur_downsample, upsample_blur
 
 
 class LaplacianPyramid(nn.Module):

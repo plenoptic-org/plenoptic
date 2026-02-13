@@ -27,8 +27,8 @@ import torch.nn.functional as F
 from pyrtools.tools.display import PyrFigure
 from torch import Tensor
 
-from ...tools.display import imshow
-from ...tools.signal import make_disk
+from ..data import disk
+from ..plot import imshow
 from .naive import CenterSurround, Gaussian
 
 __all__ = [
@@ -694,7 +694,7 @@ class OnOff(nn.Module):
         Whether or not to apply circular disk mask centered on the input image. This is
         useful for synthesis methods like Eigendistortions to ensure that the
         synthesized distortion will not appear in the periphery. See
-        :func:`plenoptic.tools.signal.make_disk()` for details on how mask is created.
+        :func:`plenoptic.tools.signal.disk()` for details on how mask is created.
     cache_filt
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass.
@@ -828,7 +828,7 @@ class OnOff(nn.Module):
         if self.apply_mask:
             im_shape = x.shape[-2:]
             if self._disk is None or self._disk.shape != im_shape:  # cache new mask
-                self._disk = make_disk(im_shape).to(x.device)
+                self._disk = disk(im_shape).to(x.device)
             if self._disk.device != x.device:
                 self._disk = self._disk.to(x.device)
 

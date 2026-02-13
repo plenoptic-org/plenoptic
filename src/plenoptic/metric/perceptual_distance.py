@@ -14,9 +14,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from ..simulate.canonical_computations import LaplacianPyramid
-from ..simulate.canonical_computations.filters import circular_gaussian2d
-from ..tools.conv import same_padding
+from ..model_components import LaplacianPyramid, circular_gaussian2d, same_padding
 
 DIRNAME = resources.files("plenoptic.metric")
 

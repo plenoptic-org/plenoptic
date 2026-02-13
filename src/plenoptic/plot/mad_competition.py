@@ -9,8 +9,9 @@ import numpy as np
 import torch
 from pyrtools.tools.display import make_figure as pt_make_figure
 
+from ..data import data
 from ..synthesize import MADCompetition
-from ..tools import data, display
+from . import display
 
 
 def plot_loss(
