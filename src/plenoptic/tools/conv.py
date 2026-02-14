@@ -65,8 +65,17 @@ def correlate_downsample(
       >>> po.imshow([img, downsampled], title=["image", "downsampled"])
       <PyrFigure...>
 
-    When applying filters like this, you lose pixels at the border.
-    The ``padding_mode`` argument determines how to fill them in:
+    Note that the dimensions have changed.
+
+    When convolving an image with a filter, the filter must be centered on each output
+    pixel. For pixels near the image boundary, the filter extends outside the image
+    boundary, so we cannot compute an output. The ``padding_mode`` argument determines
+    what to do with those pixels:
+
+    - reflect: mirror the image at boundaries
+    - constant: pad with a constant value
+    - replicate: repeat edge pixel values
+    - circular: wrap the image around such that we do have enough values for the filter
 
     .. plot::
       :context: close-figs
@@ -85,6 +94,7 @@ def correlate_downsample(
       ...         "replicate padding",
       ...         "circular padding",
       ...     ],
+      ...     zoom=2,
       ... )
       <PyrFigure...>
     """
@@ -124,7 +134,7 @@ def upsample_convolve(
         This should contain two integers of value 0 or 1, which determines whether
         the output height and width should be even (0) or odd (1).
     filt
-        2D tensor defining the filter to correlate with the input ``image``.
+        2D tensor defining the filter to convolve with the input ``image``.
     padding_mode
         How to pad the image, so that we return an image of the appropriate size. The
         option ``"constant"`` means padding with zeros.
@@ -145,6 +155,82 @@ def upsample_convolve(
         Perform this operation a user-specified number of times using a named filter.
     correlate_downsample
         Perform the inverse operation, correlating and downsampling an image.
+
+    Examples
+    --------
+    .. plot::
+      :context: reset
+
+      >>> import matplotlib.pyplot as plt
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
+      >>> # 2x2 interpolation filter
+      >>> filt = torch.ones(2, 2) / 4.0
+      >>> upsampled = po.tools.upsample_convolve(img, odd=[0, 0], filt=filt)
+      >>> upsampled.shape
+      torch.Size([1, 1, 512, 512])
+      >>> po.imshow([img, upsampled], title=["image", "upsampled"])
+      <PyrFigure...>
+
+    Note that the dimensions have changed.
+
+    The odd argument allows for choosing whether the output width and/or height should
+    be even or odd:
+
+    .. plot::
+      :context: close-figs
+
+      >>> upsampled_even = po.tools.upsample_convolve(img, odd=[0, 0], filt=filt)
+      >>> upsampled_even.shape
+      torch.Size([1, 1, 512, 512])
+      >>> upsampled_odd = po.tools.upsample_convolve(img, odd=[1, 1], filt=filt)
+      >>> upsampled_odd.shape
+      torch.Size([1, 1, 511, 511])
+      >>> upsampled_mixed_odd_even = po.tools.upsample_convolve(
+      ...     img, odd=[1, 0], filt=filt
+      ... )
+      >>> upsampled_mixed_odd_even.shape
+      torch.Size([1, 1, 511, 512])
+
+    When convolving an image with a filter, the filter must be centered on each output
+    pixel. For pixels near the image boundary, the filter extends outside the image
+    boundary, so we cannot compute an output. The ``padding_mode`` argument determines
+    what to do with those pixels:
+
+    - reflect: mirror the image at boundaries
+    - constant: pad with a constant value
+    - replicate: repeat edge pixel values
+    - circular: wrap the image around such that we do have enough values for the filter
+
+    .. plot::
+      :context: close-figs
+
+      >>> # Large 50x50 interpolation filter to make padding effects visible
+      >>> filt = torch.ones(50, 50) / (50 * 50)
+      >>> constant = po.tools.upsample_convolve(
+      ...     img, odd=[0, 0], filt=filt, padding_mode="constant"
+      ... )
+      >>> reflect = po.tools.upsample_convolve(
+      ...     img, odd=[0, 0], filt=filt, padding_mode="reflect"
+      ... )
+      >>> replicate = po.tools.upsample_convolve(
+      ...     img, odd=[0, 0], filt=filt, padding_mode="replicate"
+      ... )
+      >>> circular = po.tools.upsample_convolve(
+      ...     img, odd=[0, 0], filt=filt, padding_mode="circular"
+      ... )
+      >>> po.imshow(
+      ...     [reflect, constant, replicate, circular],
+      ...     title=[
+      ...         "reflect padding",
+      ...         "constant (zero) padding",
+      ...         "replicate padding",
+      ...         "circular padding",
+      ...     ],
+      ...     zoom=2,
+      ... )
+      <PyrFigure...>
     """
     if image.ndim != 4:
         raise ValueError(f"image must be 4d but has {image.ndim} dimensions instead!")
