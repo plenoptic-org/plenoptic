@@ -338,7 +338,7 @@ def blur_downsample(
       ... )
       <PyrFigure...>
 
-     fifth order binomial filter is used,
+    In Plenoptic, we typically use a fifth order binomial filter,
     but many other filters are available,
     see :func:`~pyrtools.pyramids.filters.named_filter` for a list.
 
