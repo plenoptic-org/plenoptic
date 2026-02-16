@@ -303,6 +303,79 @@ def blur_downsample(
         of times using a named filter.
     :func:`~plenoptic.tools.signal.shrink`
         An alternative downsampling operation.
+
+    Examples
+    --------
+    .. plot::
+      :context: reset
+
+      >>> import matplotlib.pyplot as plt
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
+      >>> downsampled = po.tools.blur_downsample(img)
+      >>> downsampled.shape
+      torch.Size([1, 1, 128, 128])
+      >>> po.imshow([img, downsampled], title=["image", "downsampled"])
+      <PyrFigure...>
+
+    Note that the dimensions have changed.
+
+    The ``n_scales`` argument allows for applying the blurring and downsampling
+    recursively:
+
+    .. plot::
+      :context: close-figs
+      >>> downsampled_2 = po.tools.blur_downsample(img, n_scales=2)
+      >>> downsampled_2.shape
+      torch.Size([1, 1, 64, 64])
+      >>> downsampled_4 = po.tools.blur_downsample(img, n_scales=4)
+      >>> downsampled_4.shape
+      torch.Size([1, 1, 8, 8])
+      >>> po.imshow(
+      ...     [img, downsampled_2, downsampled_4],
+      ...     title=["image", "downsampled x2", "downsampled x4"],
+      ... )
+      <PyrFigure...>
+
+     fifth order binomial filter is used,
+    but many other filters are available,
+    see :func:`~pyrtools.pyramids.filters.named_filter` for a list.
+
+    .. plot::
+      :context: close-figs
+      >>> named_filters = [
+      ...     "binom2",
+      ...     "binom3",
+      ...     "binom4",
+      ...     "haar",
+      ...     "qmf8",
+      ...     "daub2",
+      ...     "qmf5",
+      ... ]
+      >>> downsampled_filter = [
+      ...     po.tools.blur_downsample(img, n_scales=2, filtname=filt)
+      ...     for filt in named_filters
+      ... ]
+      >>> po.imshow(
+      ...     [img] + downsampled_filter, title=["image"] + named_filters, col_wrap=4
+      ... )
+      <PyrFigure...>
+
+    The ``scale_filter`` argument forces the filter to sum to 1, making the mean of the
+    output approximately match that of the input. If set to ``False``, the filter will
+    sum to 2, and the output's mean will be approximately double that of the input:
+
+    .. plot::
+      :context: close-figs
+      >>> img.mean()
+      tensor(0.4567)
+      >>> downsampled.mean()
+      tensor(0.4585)
+      >>> downsampled_nonscaled = po.tools.blur_downsample(img, scale_filter=False)
+      >>> downsampled_nonscaled.mean()
+      tensor(0.9169)
+      >>> po.imshow([img, downsampled, downsampled_nonscaled])
     """
     if n_scales < 1:
         raise ValueError("n_scales must be positive!")
