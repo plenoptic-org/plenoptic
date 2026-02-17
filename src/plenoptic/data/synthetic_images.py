@@ -7,6 +7,16 @@ import numpy as np
 import torch
 from torch import Tensor
 
+__all__ = [
+    "polar_radius",
+    "polar_angle",
+    "disk",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 def polar_radius(
     size: int | tuple[int, int],

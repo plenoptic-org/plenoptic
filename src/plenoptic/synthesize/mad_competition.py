@@ -25,6 +25,14 @@ from ..convergence import _loss_convergence
 from ..validate import validate_input, validate_metric
 from .synthesis import OptimizedSynthesis
 
+__all__ = [
+    "MADCompetition",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 class MADCompetition(OptimizedSynthesis):
     r"""

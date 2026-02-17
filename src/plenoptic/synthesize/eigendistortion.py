@@ -21,6 +21,14 @@ from .autodiff import (
 )
 from .synthesis import Synthesis
 
+__all__ = [
+    "Eigendistortion",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 class Eigendistortion(Synthesis):
     r"""

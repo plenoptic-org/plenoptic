@@ -27,6 +27,13 @@ if TYPE_CHECKING:
     from ..synthesize.metamer import Metamer, MetamerCTF
 
 
+__all__ = []
+
+
+def __dir__() -> list[str]:
+    return __all__
+
+
 def _loss_convergence(
     synth: "Metamer | MetamerCTF | MADCompetition",
     stop_criterion: float,

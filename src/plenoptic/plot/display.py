@@ -13,6 +13,22 @@ import torch
 
 from ..tensors import to_numpy
 
+__all__ = [
+    "animshow",
+    "clean_stem_plot",
+    "clean_up_axes",
+    "imshow",
+    "plot_representation",
+    "pyrshow",
+    "rescale_ylim",
+    "update_plot",
+    "update_stem",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 def _find_zoom(
     image_heights: list[int], image_widths: list[int], ax: mpl.axes.Axes

@@ -18,6 +18,12 @@ import torch
 from ..io import _parse_save_io_attr_name, examine_saved_synthesis
 from ..tensors import _check_tensor_equality
 
+__all__ = []
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 def _get_name(x: object) -> str:
     """

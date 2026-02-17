@@ -19,6 +19,19 @@ from ..model_components import LaplacianPyramid, circular_gaussian2d, same_paddi
 DIRNAME = resources.files("plenoptic.metric")
 
 
+__all__ = [
+    "ms_ssim",
+    "nlpd",
+    "normalized_laplacian_pyramid",
+    "ssim",
+    "ssim_map",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
+
 def _ssim_parts(
     img1: torch.Tensor,
     img2: torch.Tensor,

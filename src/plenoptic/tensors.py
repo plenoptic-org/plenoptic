@@ -30,6 +30,17 @@ NUMPY_TO_TORCH_TYPES = {
 TORCH_TO_NUMPY_TYPES = {value: key for (key, value) in NUMPY_TO_TORCH_TYPES.items()}
 
 
+__all__ = [
+    "convert_float_to_int",
+    "load_images",
+    "to_numpy",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
+
 def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     r"""
     Cast tensor to numpy in the most conservative way possible.

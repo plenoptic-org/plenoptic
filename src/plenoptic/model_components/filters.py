@@ -11,6 +11,10 @@ from torch import Tensor
 __all__ = ["gaussian1d", "circular_gaussian2d"]
 
 
+def __dir__() -> list[str]:
+    return __all__
+
+
 @deprecated(
     "gaussian1d will be removed soon.",  # noqa: E501
     "1.2.0",

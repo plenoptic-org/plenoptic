@@ -13,6 +13,20 @@ from .. import tensors
 from ..synthesize import MADCompetition
 from . import display
 
+__all__ = [
+    "plot_loss",
+    "display_mad_image",
+    "plot_pixel_values",
+    "plot_synthesis_status",
+    "animate",
+    "display_mad_image_all",
+    "plot_loss_all",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 def plot_loss(
     mad: MADCompetition,

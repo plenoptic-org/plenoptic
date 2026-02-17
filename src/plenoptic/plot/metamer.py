@@ -13,6 +13,19 @@ from .. import tensors
 from ..synthesize import Metamer
 from . import display
 
+__all__ = [
+    "plot_loss",
+    "display_metamer",
+    "plot_representation_error",
+    "plot_pixel_values",
+    "plot_synthesis_status",
+    "animate",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 def plot_loss(
     metamer: Metamer,

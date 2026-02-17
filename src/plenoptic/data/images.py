@@ -8,6 +8,18 @@ from ..tensors import load_images
 
 FILES = resources.files("plenoptic.data")
 
+__all__ = [
+    "einstein",
+    "curie",
+    "parrot",
+    "reptile_skin",
+    "color_wheel",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 def einstein(as_gray: bool = True) -> torch.Tensor:
     """

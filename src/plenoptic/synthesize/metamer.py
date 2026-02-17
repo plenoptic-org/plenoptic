@@ -22,6 +22,15 @@ from ..model_components import signal
 from ..validate import validate_coarse_to_fine, validate_input, validate_model
 from .synthesis import OptimizedSynthesis
 
+__all__ = [
+    "Metamer",
+    "MetamerCTF",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 class Metamer(OptimizedSynthesis):
     r"""

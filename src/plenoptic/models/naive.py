@@ -18,6 +18,10 @@ from ..model_components.filters import _validate_filter_args, circular_gaussian2
 __all__ = ["Identity", "Linear", "Gaussian", "CenterSurround"]
 
 
+def __dir__() -> list[str]:
+    return __all__
+
+
 class Identity(torch.nn.Module):
     r"""
     Simple class that just returns a copy of the image.

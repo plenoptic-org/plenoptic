@@ -12,6 +12,15 @@ from torch import Tensor
 from ..synthesize import Eigendistortion
 from .display import imshow
 
+__all__ = [
+    "display_eigendistortion",
+    "display_eigendistortion_all",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 def display_eigendistortion(
     eigendistortion: Eigendistortion,

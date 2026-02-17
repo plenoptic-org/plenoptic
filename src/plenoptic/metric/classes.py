@@ -5,6 +5,14 @@ from deprecated.sphinx import deprecated
 
 from .perceptual_distance import normalized_laplacian_pyramid
 
+__all__ = [
+    "NLP",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 @deprecated(
     "NLP will be removed soon, use perceptual_distance.normalized_laplacian_pyramid directly",  # noqa: E501

@@ -7,6 +7,14 @@ metrics, which must return a tensor.
 
 import torch
 
+__all__ = [
+    "model_metric_factory",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 def model_metric_factory(model: torch.nn.Module) -> torch.Tensor:
     r"""

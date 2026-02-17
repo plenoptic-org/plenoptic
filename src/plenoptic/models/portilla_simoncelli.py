@@ -41,6 +41,14 @@ from ..validate import validate_input
 
 SCALES_TYPE = Literal["pixel_statistics"] | PYR_SCALES_TYPE
 
+__all__ = [
+    "PortillaSimoncelli",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 class PortillaSimoncelli(nn.Module):
     r"""

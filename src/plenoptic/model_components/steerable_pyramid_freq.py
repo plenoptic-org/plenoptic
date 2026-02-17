@@ -24,6 +24,14 @@ complex_types = [torch.cdouble, torch.cfloat]
 
 SCALES_TYPE = int | Literal["residual_lowpass", "residual_highpass"]
 
+__all__ = [
+    "SteerablePyramidFreq",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 class SteerablePyramidFreq(nn.Module):
     r"""

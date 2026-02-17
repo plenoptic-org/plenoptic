@@ -6,6 +6,22 @@ import torch
 from pyrtools.pyramids.steer import steer_to_harmonics_mtx
 from torch import Tensor
 
+__all__ = [
+    "add_noise",
+    "autocorrelation",
+    "center_crop",
+    "expand",
+    "modulate_phase",
+    "polar_to_rectangular",
+    "rectangular_to_polar",
+    "rescale",
+    "shrink",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 def rescale(x: Tensor, a: float = 0.0, b: float = 1.0) -> Tensor:
     r"""

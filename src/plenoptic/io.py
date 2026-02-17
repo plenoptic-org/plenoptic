@@ -4,6 +4,14 @@ import importlib
 
 import torch
 
+__all__ = [
+    "examine_saved_synthesis",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 def _parse_save_io_attr_name(
     synth_object: dict, input_names: tuple[str]

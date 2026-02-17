@@ -4,6 +4,16 @@
 import torch
 from torch import Tensor
 
+__all__ = [
+    "kurtosis",
+    "skew",
+    "variance",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 def variance(
     x: Tensor,

@@ -9,6 +9,12 @@ import torch.nn as nn
 
 from .convolutions import blur_downsample, upsample_blur
 
+__all__ = ["LaplacianPyramid"]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 class LaplacianPyramid(nn.Module):
     """

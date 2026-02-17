@@ -9,6 +9,19 @@ import torch
 from . import signal
 from .convolutions import blur_downsample, upsample_blur
 
+__all__ = [
+    "local_gain_control",
+    "local_gain_control_dict",
+    "local_gain_release",
+    "local_gain_release_dict",
+    "polar_to_rectangular_dict",
+    "rectangular_to_polar_dict",
+]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
 
 def rectangular_to_polar_dict(
     coeff_dict: dict,
