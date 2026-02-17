@@ -15,8 +15,8 @@ from typing import Any, Literal
 import numpy as np
 import torch
 
-from ..data.data import _check_tensor_equality
 from ..io import _parse_save_io_attr_name, examine_saved_synthesis
+from ..tensors import _check_tensor_equality
 
 
 def _get_name(x: object) -> str:

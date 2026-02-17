@@ -11,7 +11,7 @@ import numpy as np
 import pyrtools as pt
 import torch
 
-from ..data.data import to_numpy
+from ..tensors import to_numpy
 
 
 def _find_zoom(

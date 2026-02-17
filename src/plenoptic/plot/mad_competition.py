@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from pyrtools.tools.display import make_figure as pt_make_figure
 
-from ..data import data
+from .. import tensors
 from ..synthesize import MADCompetition
 from . import display
 
@@ -279,8 +279,8 @@ def plot_pixel_values(
     if channel_idx is not None:
         image = image[channel_idx]
         mad_image = mad_image[channel_idx]
-    image = data.to_numpy(image).flatten()
-    mad_image = data.to_numpy(mad_image).flatten()
+    image = tensors.to_numpy(image).flatten()
+    mad_image = tensors.to_numpy(mad_image).flatten()
 
     if ax is None:
         ax = plt.gca()
@@ -409,17 +409,17 @@ def _setup_synthesis_fig(
         n_subplots += 1
         width_ratios.append(display_mad_image_width)
         if "display_mad_image" not in axes_idx:
-            axes_idx["display_mad_image"] = data._find_min_int(axes_idx.values())
+            axes_idx["display_mad_image"] = tensors._find_min_int(axes_idx.values())
     if "plot_loss" in included_plots:
         n_subplots += 1
         width_ratios.append(plot_loss_width)
         if "plot_loss" not in axes_idx:
-            axes_idx["plot_loss"] = data._find_min_int(axes_idx.values())
+            axes_idx["plot_loss"] = tensors._find_min_int(axes_idx.values())
     if "plot_pixel_values" in included_plots:
         n_subplots += 1
         width_ratios.append(plot_pixel_values_width)
         if "plot_pixel_values" not in axes_idx:
-            axes_idx["plot_pixel_values"] = data._find_min_int(axes_idx.values())
+            axes_idx["plot_pixel_values"] = tensors._find_min_int(axes_idx.values())
     if fig is None:
         width_ratios = np.array(width_ratios)
         if figsize is None:

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from torch import Tensor
 
-from ..data import data
+from .. import tensors
 from ..synthesize import Metamer
 from . import display
 
@@ -647,8 +647,8 @@ def plot_pixel_values(
     if channel_idx is not None:
         image = image[channel_idx]
         met = met[channel_idx]
-    image = data.to_numpy(image).flatten()
-    met = data.to_numpy(met).flatten()
+    image = tensors.to_numpy(image).flatten()
+    met = tensors.to_numpy(met).flatten()
 
     if ax is None:
         ax = plt.gca()
@@ -783,24 +783,24 @@ def _setup_synthesis_fig(
         n_subplots += 1
         width_ratios.append(display_metamer_width)
         if "display_metamer" not in axes_idx:
-            axes_idx["display_metamer"] = data._find_min_int(axes_idx.values())
+            axes_idx["display_metamer"] = tensors._find_min_int(axes_idx.values())
     if "plot_loss" in included_plots:
         n_subplots += 1
         width_ratios.append(plot_loss_width)
         if "plot_loss" not in axes_idx:
-            axes_idx["plot_loss"] = data._find_min_int(axes_idx.values())
+            axes_idx["plot_loss"] = tensors._find_min_int(axes_idx.values())
     if "plot_representation_error" in included_plots:
         n_subplots += 1
         width_ratios.append(plot_representation_error_width)
         if "plot_representation_error" not in axes_idx:
-            axes_idx["plot_representation_error"] = data._find_min_int(
+            axes_idx["plot_representation_error"] = tensors._find_min_int(
                 axes_idx.values()
             )
     if "plot_pixel_values" in included_plots:
         n_subplots += 1
         width_ratios.append(plot_pixel_values_width)
         if "plot_pixel_values" not in axes_idx:
-            axes_idx["plot_pixel_values"] = data._find_min_int(axes_idx.values())
+            axes_idx["plot_pixel_values"] = tensors._find_min_int(axes_idx.values())
     if fig is None:
         width_ratios = np.array(width_ratios)
         if figsize is None:
@@ -964,7 +964,7 @@ def plot_synthesis_status(
 
       >>> import plenoptic as po
       >>> import torch
-      >>> img = po.data.einstein()
+      >>> img = po.tensors.einstein()
       >>> model = po.simul.Gaussian(30).eval()
       >>> po.tools.remove_grad(model)
       >>> met = po.synth.Metamer(img, model)

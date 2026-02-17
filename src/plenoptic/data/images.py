@@ -4,7 +4,7 @@ from importlib import resources
 
 import torch
 
-from .data import load_images
+from ..tensors import load_images
 
 FILES = resources.files("plenoptic.data")
 

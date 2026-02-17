@@ -28,7 +28,6 @@ import torch.fft
 import torch.nn as nn
 from torch import Tensor
 
-from ..data.data import to_numpy
 from ..model_components import signal, stats
 from ..model_components.steerable_pyramid_freq import (
     SCALES_TYPE as PYR_SCALES_TYPE,
@@ -37,6 +36,7 @@ from ..model_components.steerable_pyramid_freq import (
     SteerablePyramidFreq,
 )
 from ..plot import clean_stem_plot, clean_up_axes, update_stem
+from ..tensors import to_numpy
 from ..validate import validate_input
 
 SCALES_TYPE = Literal["pixel_statistics"] | PYR_SCALES_TYPE
