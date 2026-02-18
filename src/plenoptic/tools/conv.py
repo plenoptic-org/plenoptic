@@ -161,7 +161,6 @@ def upsample_convolve(
     .. plot::
       :context: reset
 
-      >>> import matplotlib.pyplot as plt
       >>> import plenoptic as po
       >>> import torch
       >>> img = po.data.einstein()
@@ -309,7 +308,6 @@ def blur_downsample(
     .. plot::
       :context: reset
 
-      >>> import matplotlib.pyplot as plt
       >>> import plenoptic as po
       >>> import torch
       >>> img = po.data.einstein()
@@ -326,12 +324,13 @@ def blur_downsample(
 
     .. plot::
       :context: close-figs
+
       >>> downsampled_2 = po.tools.blur_downsample(img, n_scales=2)
       >>> downsampled_2.shape
       torch.Size([1, 1, 64, 64])
       >>> downsampled_4 = po.tools.blur_downsample(img, n_scales=4)
       >>> downsampled_4.shape
-      torch.Size([1, 1, 8, 8])
+      torch.Size([1, 1, 16, 16])
       >>> po.imshow(
       ...     [img, downsampled_2, downsampled_4],
       ...     title=["image", "downsampled x2", "downsampled x4"],
@@ -340,10 +339,11 @@ def blur_downsample(
 
     In Plenoptic, we typically use a fifth order binomial filter,
     but many other filters are available,
-    see :func:`~pyrtools.pyramids.filters.named_filter` for a list.
+    see :func:`pyrtools.pyramids.filters.named_filter` for a list.
 
     .. plot::
       :context: close-figs
+
       >>> named_filters = [
       ...     "binom2",
       ...     "binom3",
@@ -368,6 +368,7 @@ def blur_downsample(
 
     .. plot::
       :context: close-figs
+
       >>> img.mean()
       tensor(0.4567)
       >>> downsampled.mean()
@@ -376,6 +377,7 @@ def blur_downsample(
       >>> downsampled_nonscaled.mean()
       tensor(0.9169)
       >>> po.imshow([img, downsampled, downsampled_nonscaled])
+      <PyrFigure...>
     """
     if n_scales < 1:
         raise ValueError("n_scales must be positive!")
@@ -440,6 +442,56 @@ def upsample_blur(
         number of times using a named filter.
     :func:`~plenoptic.tools.signal.expand`
         An alternative upsampling operation.
+
+    Examples
+    --------
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
+      >>> upsampled = po.tools.upsample_blur(img, odd=[0, 0])
+      >>> upsampled.shape
+      torch.Size([1, 1, 512, 512])
+      >>> po.imshow([img, upsampled], title=["image", "upsampled"])
+      <PyrFigure...>
+
+    Note that the dimensions have changed.
+
+    The ``odd`` argument allows for choosing whether the output width and/or height
+    should be even or odd:
+
+    .. plot::
+      :context: close-figs
+
+      >>> upsampled_even = po.tools.upsample_blur(img, odd=[0, 0])
+      >>> upsampled_even.shape
+      torch.Size([1, 1, 512, 512])
+      >>> upsampled_odd = po.tools.upsample_blur(img, odd=[1, 1])
+      >>> upsampled_odd.shape
+      torch.Size([1, 1, 511, 511])
+      >>> upsampled_mixed_odd_even = po.tools.upsample_blur(img, odd=[1, 0])
+      >>> upsampled_mixed_odd_even.shape
+      torch.Size([1, 1, 511, 512])
+
+    The ``n_scales`` argument allows for applying the upsampling and blurring
+    recursively:
+
+    .. plot::
+      :context: close-figs
+
+      >>> upsampled_2 = po.tools.upsample_blur(img, odd=[0, 0], n_scales=2)
+      >>> upsampled_2.shape
+      torch.Size([1, 1, 1024, 1024])
+      >>> upsampled_4 = po.tools.upsample_blur(img, odd=[0, 0], n_scales=4)
+      >>> upsampled_4.shape
+      torch.Size([1, 1, 4096, 4096])
+      >>> po.imshow(
+      ...     [img, upsampled_2, upsampled_4],
+      ...     title=["image", "upsampled x2", "upsampled x4"],
+      ... )
+      <PyrFigure...>
     """
     if n_scales < 1:
         raise ValueError("n_scales must be positive!")
@@ -494,6 +546,73 @@ def same_padding(
     ------
     ValueError
         If ``image`` is not 4d.
+
+    Examples
+    --------
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
+      >>> img.shape
+      torch.Size([1, 1, 256, 256])
+      >>> padded = po.tools.same_padding(img, kernel_size=(10, 10))
+      >>> padded.shape
+      torch.Size([1, 1, 265, 265])
+      >>> po.imshow(padded)
+      <PyrFigure...>
+
+    The output grows by ``kernel_size - 1`` in each dimension, so that a
+    subsequent convolution with that kernel returns an output matching the
+    original spatial dimensions.
+
+    Non-square kernels are supported; padding is computed independently for
+    height and width:
+
+    .. plot::
+      :context: close-figs
+
+      >>> padded_rect = po.tools.same_padding(img, kernel_size=(10, 20))
+      >>> padded_rect.shape
+      torch.Size([1, 1, 265, 275])
+      >>> po.imshow(padded_rect)
+      <PyrFigure...>
+
+    The ``pad_mode`` argument controls how boundary values are filled.
+    The border of each image shows the filled padding region:
+
+    .. plot::
+      :context: close-figs
+
+      >>> pad = 50
+      >>> pad_modes = ["circular", "reflect", "replicate", "constant"]
+      >>> padded_imgs = [
+      ...     po.tools.same_padding(img, kernel_size=(50, 50), pad_mode=m)
+      ...     for m in pad_modes
+      ... ]
+      >>> corners = [p[:, :, : pad * 3, : pad * 3] for p in padded_imgs]
+      >>> po.imshow(corners, title=pad_modes)
+      <PyrFigure...>
+
+    The ``stride`` and ``dilation`` arguments should match those passed to the
+    subsequent convolution. A strided convolution produces a smaller output but still
+    avoids losing edge information. A dilated convolution expands the effective
+    receptive field of the kernel without increasing its parameter count.
+
+    .. plot::
+      :context: close-figs
+
+      >>> padded_stride = po.tools.same_padding(
+      ...     img, kernel_size=(10, 10), stride=(3, 3)
+      ... )
+      >>> padded_dilate = po.tools.same_padding(
+      ...     img, kernel_size=(10, 10), dilation=(3, 3)
+      ... )
+      >>> po.imshow(padded_stride, title="stride")
+      <PyrFigure...>
+      >>> po.imshow(padded_dilate, title="dilate")
+      <PyrFigure...>
     """  # numpydoc ignore=ES01
     if len(image.shape) < 2:
         raise ValueError("Input must be tensor whose last dims are height x width")
