@@ -125,6 +125,11 @@ autodoc_default_options = {
     "member-order": "groupwise",
 }
 
+# this is supposed to be true by default
+# (https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-the-python-domain)
+# but must get set False by one of our extensions
+add_module_names = True
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
