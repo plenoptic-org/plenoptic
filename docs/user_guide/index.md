@@ -8,6 +8,8 @@ The [](reproduce-index) section includes examples of how to use plenoptic to rep
 
 Finally, the [](advanced-index) section describes some more complicated ways of interacting with plenoptic, which may be helpful for advanced users.
 
+::::{card}
+
 (synthesis-index)=
 :::{toctree}
 :maxdepth: 2
@@ -16,6 +18,9 @@ Finally, the [](advanced-index) section describes some more complicated ways of 
 
 synthesis/*
 :::
+
+::::
+::::{card}
 
 (models-metrics-index)=
 :::{toctree}
@@ -27,6 +32,9 @@ models_and_metrics/*
 models_and_metrics/portilla_simoncelli/ps_index.md
 :::
 
+::::
+::::{card}
+
 (reproduce-index)=
 :::{toctree}
 :maxdepth: 2
@@ -36,6 +44,9 @@ models_and_metrics/portilla_simoncelli/ps_index.md
 reproduce/*
 :::
 
+::::
+::::{card}
+
 (advanced-index)=
 :::{toctree}
 :maxdepth: 2
@@ -44,3 +55,5 @@ reproduce/*
 
 advanced/*
 :::
+
+::::
