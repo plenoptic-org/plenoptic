@@ -52,10 +52,10 @@ def plot_MAD_results(
         elements must be :math:`2^i` where :math:`i\in [1, 10]`.
     results_dir
         Path to the results directory containing the results.mat files. If
-        ``None``, we download them (requires optional dependency ``pooch``).
+        ``None``, we download them.
     ssim_images_dir
         Path to the directory containing the .tif images used in SSIM paper. If
-        ``None``, we download them (requires optional dependency ``pooch``).
+        ``None``, we download them.
     zoom
         Ratio of display pixels to image pixels, passed to
         :func:`~plenoptic.tools.display.imshow`. If >1, must be an integer. If <1, must

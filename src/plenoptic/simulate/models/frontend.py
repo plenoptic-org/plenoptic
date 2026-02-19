@@ -14,7 +14,7 @@ References
 .. [3] A Berardino, Hierarchically normalized models of visual distortion
    sensitivity: Physiology, perception, and application; Ph.D. Thesis,
    2018; https://www.cns.nyu.edu/pub/lcv/berardino-phd.pdf
-"""
+"""  # numpydoc ignore=EX01
 
 from collections import OrderedDict
 from collections.abc import Callable
@@ -210,7 +210,7 @@ class LinearNonlinear(nn.Module):
         -------
         state_dict
             Dictionary of parameters, to pass to :func:`load_state_dict`.
-        """
+        """  # numpydoc ignore=EX01
         state_dict = OrderedDict(
             [
                 ("center_surround.center_std", torch.as_tensor([0.5339])),
@@ -421,7 +421,7 @@ class LuminanceGainControl(nn.Module):
         -------
         state_dict
             Dictionary of parameters, to pass to :func:`load_state_dict`.
-        """
+        """  # numpydoc ignore=EX01
         state_dict = OrderedDict(
             [
                 ("luminance_scalar", torch.as_tensor([14.95])),
@@ -655,7 +655,7 @@ class LuminanceContrastGainControl(nn.Module):
         -------
         state_dict
             Dictionary of parameters, to pass to :func:`load_state_dict`.
-        """
+        """  # numpydoc ignore=EX01
         state_dict = OrderedDict(
             [
                 ("luminance_scalar", torch.as_tensor([2.94])),
@@ -907,7 +907,7 @@ class OnOff(nn.Module):
         -------
         state_dict
             Dictionary of parameters, to pass to :func:`load_state_dict`.
-        """
+        """  # numpydoc ignore=EX01
         state_dict = OrderedDict(
             [
                 ("luminance_scalar", torch.as_tensor([3.2637, 14.3961])),

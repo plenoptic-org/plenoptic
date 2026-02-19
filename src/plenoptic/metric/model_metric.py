@@ -3,7 +3,7 @@ Model metrics.
 
 Simple functions to convert models, which can return a tensor of arbitrary shape, to
 metrics, which must return a tensor.
-"""
+"""  # numpydoc ignore=EX01
 
 import torch
 

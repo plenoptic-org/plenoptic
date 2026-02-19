@@ -27,6 +27,7 @@ dependencies = [
     "einops>=0.3.0",
     "importlib-resources>=6.0",
     "Deprecated",
+    "pooch>=1.2.0",
 ]
 
 [build-system]
@@ -43,11 +44,9 @@ docs = [
      "myst-parser",
      "sphinxcontrib-bibtex>=2.6.4",
      "sphinx-design",
-     "pooch",
      "myst-nb",
      "ipywidgets",
      "torchvision",
-     "pooch",
      "jupytext",
      "sphobjinv",
      "sphinx-togglebutton",
@@ -58,8 +57,7 @@ test = [
     'pytest-cov',
     'pytest-xdist',
     'pytest-order',
-    "pooch>=1.2.0",
-     "torchvision",
+    "torchvision",
 ]
 
 lint = [
@@ -74,7 +72,6 @@ nb = [
     "ipywidgets",
     "nbclient>=0.5.5",
     "torchvision>=0.3",
-    "pooch>=1.2.0",
     "jupytext",
 ]
 

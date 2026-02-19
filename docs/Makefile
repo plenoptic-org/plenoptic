@@ -22,4 +22,4 @@ help:
 	rm -r "$(BUILDDIR)" || true
 	rm -r "$(SOURCEDIR)/generated/" || true
     # ignore the pyrtools-thrown warning about dpi
-	@ PYTHONWARNINGS="ignore:Ignoring dpi:UserWarning" $(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O) -T -W
+	@ OMP_NUM_THREADS=1 PYTHONWARNINGS="ignore:Ignoring dpi:UserWarning" $(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O) -T -W

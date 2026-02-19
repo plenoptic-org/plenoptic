@@ -714,6 +714,65 @@ need to be as extensive.
 We follow the [numpydoc](https://numpydoc.readthedocs.io/en/latest/) conventions
 for docstring structure.
 
+### Doctests
+
+All public-facing functions and classes should include [doctests](https://docs.python.org/3/library/doctest.html), which are the standard python way of showing short code examples in docstrings. These should be included in their own `Examples` section of the docstring. Every docstring should include at least one example, which shows the most common way of interacting with the function / class. Additional examples should be included where helpful, to show other common ways of interacting with the object (e.g., setting optional arguments), with brief descriptions describing what each example is doing.
+
+A function's Examples section must run independently from those of other functions (i.e., it can't reuse an object defined in a different function), but different blocks within the section can depend on each other (so that e.g., you don't have to reimport plenoptic in each block).
+
+Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/doctest.html) in our CI (the `doctests` action) and sphinx builds them as part of the documentation (which is part of the Jenkins CI step). Both are required to pass before any PR will be merged. Some notes about this:
+
+- If you would like to include a figure, use matplotlib's [plot_directive](https://matplotlib.org/stable/api/sphinxext_plot_directive_api.html). That means, your example should be structured like:
+
+    ```python
+    .. plot::
+       :context: close-figs
+
+       >>> import plenoptic as po
+       >>> # more example code here...
+    ```
+
+- `:context: close-figs` is important to make sure that the figures are independent across examples (this should probably be `:context: reset` for the first plot directive in a given docstring, `close-figs` thereafter). However, unfortunately,  only sphinx knows how to interpret this directive; pytest ignores it. That means the doctests must be written in such a way that they will not fail if they are run with open figures lying around. One could easily start their doctests by closing any open figures, but this generally goes against the principle of making these examples as compact and useful as possible. Unfortunately, I have not found a good general solution here.
+
+- sphinx **only** runs the blocks contained within the plot directive. That means, if, for example, you have two blocks in the doctest, only the second of which creates a plot, both of them need to be contained within a plot directive so that the second block can reuse objects (including the imported plenoptic library!) from the first. That is, the following will fail:
+
+    ```python
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> img = po.data.einstein()
+
+    And now we display the image:
+
+    .. plot::
+       :context: reset
+
+       >>> po.imshow(img)
+    ```
+
+    whereas the following will succeed:
+
+    ```python
+    Examples
+    --------
+    .. plot::
+       :reset: reset
+
+       >>> import plenoptic as po
+       >>> img = po.data.einstein()
+
+    And now we display the image:
+
+    .. plot::
+       :context: close-figs
+
+       >>> po.imshow(img)
+    ```
+
+    Note that the second block cannot have `:context: reset` or you will be unable to use the objects from the first block!
+
+    This only affects sphinx. pytest ignores the plot directive and so either structure will pass.
+
 ### Build the documentation
 
 NOTE: If you just want to read the documentation, you do not need to do this;

@@ -2,7 +2,7 @@
 Some useful non-linearities for visual models.
 
 The functions operate on dictionaries or tensors.
-"""
+"""  # numpydoc ignore=EX01
 
 import torch
 
@@ -213,7 +213,7 @@ def local_gain_control(
 
     def _local_gain_control(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute gain control in helper function we can vmap."""  # noqa: DOC201
-        # numpydoc ignore=ES01,PR01,RT01
+        # numpydoc ignore=ES01,PR01,RT01,EX01
         norm = blur_downsample(torch.abs(x**p)).pow(1 / p)
         odd = torch.as_tensor(x.shape)[-2:] % 2
         direction = x / (upsample_blur(norm, odd) + epsilon)
@@ -301,7 +301,7 @@ def local_gain_release(
         direction: torch.Tensor, norm: torch.Tensor
     ) -> torch.Tensor:
         """Compute gain release in helper function we can vmap."""  # noqa: DOC201
-        # numpydoc ignore=ES01,PR01,RT01
+        # numpydoc ignore=ES01,PR01,RT01,EX01
         odd = torch.as_tensor(direction.shape)[-2:] % 2
         return direction * (upsample_blur(norm, odd) + epsilon)
 
