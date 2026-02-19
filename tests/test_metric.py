@@ -16,7 +16,7 @@ def test_files_dir():
 
 
 def test_find_files(test_files_dir):
-    assert os.path.exists(os.path.join(test_files_dir, "buildSCFpyr0.mat"))
+    assert os.path.exists(test_files_dir / "buildSCFpyr0.mat")
 
 
 @pytest.fixture()
@@ -139,7 +139,7 @@ class TestPerceptualMetrics:
 
     @pytest.fixture
     def ssim_base_img(self, ssim_images, ssim_analysis):
-        return po.load_images(os.path.join(ssim_images, ssim_analysis["base_img"])).to(
+        return po.load_images(ssim_images / ssim_analysis["base_img"]).to(
             DEVICE
         )
 
@@ -149,7 +149,7 @@ class TestPerceptualMetrics:
         self, weighted, other_img, ssim_images, ssim_analysis, ssim_base_img
     ):
         mat_type = {True: "weighted", False: "standard"}[weighted]
-        other = po.load_images(os.path.join(ssim_images, f"samp{other_img}.tif")).to(
+        other = po.load_images(ssim_images / f"samp{other_img}.tif").to(
             DEVICE
         )
         # dynamic range is 1 for these images, because po.load_images
@@ -173,9 +173,9 @@ class TestPerceptualMetrics:
             device=DEVICE,
         )
         computed_values = torch.zeros_like(true_values)
-        base_img = po.load_images(os.path.join(msssim_images, "samp0.tiff")).to(DEVICE)
+        base_img = po.load_images(msssim_images / "samp0.tiff").to(DEVICE)
         for i in range(len(true_values)):
-            other_img = po.load_images(os.path.join(msssim_images, f"samp{i}.tiff")).to(
+            other_img = po.load_images(msssim_images / f"samp{i}.tiff").to(
                 DEVICE
             )
             computed_values[i] = po.metric.ms_ssim(base_img, other_img)
