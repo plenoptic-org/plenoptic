@@ -243,7 +243,7 @@ class TestEigendistortionSynthesis:
             ed_copy = Eigendistortion(img, model)
             with expectation:
                 ed_copy.load(
-                    tmp_path /"test_eigendistortion_save_load.pt",
+                    tmp_path / "test_eigendistortion_save_load.pt",
                     map_location=DEVICE,
                 )
         else:
