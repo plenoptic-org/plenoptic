@@ -67,15 +67,17 @@ def correlate_downsample(
 
     Note that the dimensions have changed.
 
-    When convolving an image with a filter, the filter must be centered on each output
-    pixel. For pixels near the image boundary, the filter extends outside the image
-    boundary, so we cannot compute an output. The ``padding_mode`` argument determines
-    what to do with those pixels:
+    This function always returns an image whose height and width are half that of the
+    input (rounded up). When convolving an image with a filter, the filter must be
+    centered on each output pixel. For pixels near the image boundary, the filter
+    extends outside the image boundary and thus we need to pad the input with extra
+    pixels. The ``padding_mode`` argument determines how to do so (using
+    :func:`same_padding`):
 
     - reflect: mirror the image at boundaries
-    - constant: pad with a constant value
+    - constant: pad with zeroes
     - replicate: repeat edge pixel values
-    - circular: wrap the image around such that we do have enough values for the filter
+    - circular: wrap the image around
 
     .. plot::
       :context: close-figs
@@ -192,15 +194,17 @@ def upsample_convolve(
       >>> upsampled_mixed_odd_even.shape
       torch.Size([1, 1, 511, 512])
 
-    When convolving an image with a filter, the filter must be centered on each output
-    pixel. For pixels near the image boundary, the filter extends outside the image
-    boundary, so we cannot compute an output. The ``padding_mode`` argument determines
-    what to do with those pixels:
+    This function always returns an image whose height and width are half that of the
+    input (rounded up). When convolving an image with a filter, the filter must be
+    centered on each output pixel. For pixels near the image boundary, the filter
+    extends outside the image boundary and thus we need to pad the input with extra
+    pixels. The ``padding_mode`` argument determines how to do so (using
+    :func:`same_padding`):
 
     - reflect: mirror the image at boundaries
-    - constant: pad with a constant value
+    - constant: pad with zeroes
     - replicate: repeat edge pixel values
-    - circular: wrap the image around such that we do have enough values for the filter
+    - circular: wrap the image around
 
     .. plot::
       :context: close-figs
@@ -260,7 +264,7 @@ def blur_downsample(
     filtname: str = "binom5",
     scale_filter: bool = True,
 ) -> Tensor:
-    """
+    r"""
     Correlate with a named filter and downsample by 2.
 
     This operation allows one to downsample in an alias-resistant manner, removing the
@@ -369,14 +373,15 @@ def blur_downsample(
     .. plot::
       :context: close-figs
 
-      >>> img.mean()
-      tensor(0.4567)
-      >>> downsampled.mean()
-      tensor(0.4585)
       >>> downsampled_nonscaled = po.tools.blur_downsample(img, scale_filter=False)
-      >>> downsampled_nonscaled.mean()
-      tensor(0.9169)
-      >>> po.imshow([img, downsampled, downsampled_nonscaled])
+      >>> po.imshow(
+      ...     [img, downsampled, downsampled_nonscaled],
+      ...     title=[
+      ...         f"original\nmean={img.mean()}",
+      ...         f"scaled\nmean={downsampled.mean()}",
+      ...         f"unscaled\nmean={downsampled_nonscaled.mean()}",
+      ...     ],
+      ... )
       <PyrFigure...>
     """
     if n_scales < 1:
@@ -490,6 +495,31 @@ def upsample_blur(
       >>> po.imshow(
       ...     [img, upsampled_2, upsampled_4],
       ...     title=["image", "upsampled x2", "upsampled x4"],
+      ... )
+      <PyrFigure...>
+
+    In Plenoptic, we typically use a fifth order binomial filter,
+    but many other filters are available,
+    see :func:`pyrtools.pyramids.filters.named_filter` for a list.
+
+    .. plot::
+      :context: close-figs
+
+      >>> named_filters = [
+      ...     "binom2",
+      ...     "binom3",
+      ...     "binom4",
+      ...     "haar",
+      ...     "qmf8",
+      ...     "daub2",
+      ...     "qmf5",
+      ... ]
+      >>> upsampled_filter = [
+      ...     po.tools.upsample_blur(img, n_scales=2, odd=[0, 0], filtname=filt)
+      ...     for filt in named_filters
+      ... ]
+      >>> po.imshow(
+      ...     [img] + upsampled_filter, title=["image"] + named_filters, col_wrap=4
       ... )
       <PyrFigure...>
     """
