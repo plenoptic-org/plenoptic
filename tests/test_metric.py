@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 import pytest
 import scipy.io as sio
@@ -16,7 +14,7 @@ def test_files_dir():
 
 
 def test_find_files(test_files_dir):
-    assert os.path.exists(test_files_dir / "buildSCFpyr0.mat")
+    assert (test_files_dir / "buildSCFpyr0.mat").exists()
 
 
 @pytest.fixture()

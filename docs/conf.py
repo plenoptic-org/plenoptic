@@ -16,8 +16,8 @@ import pathlib
 import sys
 from importlib.metadata import version
 
-sys.path.insert(0, os.path.abspath(".."))
-sys.path.insert(0, os.path.abspath("./tutorials/"))
+sys.path.insert(0, pathlib.path("..").resolve())
+sys.path.insert(0, pathlib.Path("./tutorials/").resolve())
 
 
 # -- Project information -----------------------------------------------------
