@@ -595,7 +595,9 @@ def same_padding(
 
     The output grows by ``kernel_size - 1`` in each dimension, so that a
     subsequent convolution with that kernel returns an output matching the
-    original spatial dimensions:
+    original spatial dimensions. All convolution functions in this file use
+    this padding function to return outputs with the same shape as the input.
+    Here, let's apply a convolution manually and verify the shapes:
 
     .. plot::
       :context: close-figs
