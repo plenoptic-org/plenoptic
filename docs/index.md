@@ -114,7 +114,7 @@ If you use `plenoptic` in a published academic article or presentation, please c
 
 getting_started/index
 user_guide/index
-api
+api/index
 reference/index
 Changelog <https://github.com/plenoptic-org/plenoptic/releases>
 developers/index
