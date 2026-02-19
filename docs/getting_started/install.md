@@ -11,8 +11,6 @@ If you will be contributing to `plenoptic`, and so need an editable install and 
 If you are unfamiliar with python environment management, we recommend [](conda).
 :::
 
-Our dependencies include [pytorch](https://pytorch.org/) and [pyrtools](https://pyrtools.readthedocs.io/en/latest/). Installation should take care of them (along with our other dependencies) automatically, but if you have an installation problem (especially on a non-Linux operating system), it is likely that the problem lies with one of those packages. [Open an issue](https://github.com/plenoptic-org/plenoptic/issues/new?assignees=&labels=&projects=&template=bug_report.md&title=) and we'll try to help you figure out the problem!
-
 (conda)=
 ## Installing with conda
 

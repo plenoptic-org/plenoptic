@@ -1,7 +1,7 @@
 .. _api:
 
-API Reference
-=============
+API
+===
 
 .. _synthesis-api:
 
@@ -20,6 +20,34 @@ Synthesis objects generate novel stimuli which allow researchers to better under
    ~metamer.MetamerCTF
    ~eigendistortion.Eigendistortion
    ~mad_competition.MADCompetition
+
+.. toctree::
+   :hidden:
+
+   generated/plenoptic.simulate.models.portilla_simoncelli
+   generated/plenoptic.simulate.frontend
+   generated/plenoptic.simulate.naive
+   generated/plenoptic.metric.naive
+   generated/plenoptic.metric.model_metric
+   generated/plenoptic.metric.perceptual_distance
+   generated/plenoptic.synthesize.metamer
+   generated/plenoptic.synthesize.eigendistortion
+   generated/plenoptic.synthesize.mad_competition
+   generated/plenoptic.simulate.canonical_computations.laplacian_pyramid
+   generated/plenoptic.simulate.canonical_computations.steerable_pyramid_freq
+   generated/plenoptic.simulate.canonical_computations.filters
+   generated/plenoptic.simulate.canonical_computations.non_linearities
+   generated/plenoptic.tools.conv
+   generated/plenoptic.tools.signal
+   generated/plenoptic.tools.stats
+   generated/plenoptic.data
+   generated/plenoptic.data.fetch
+   generated/plenoptic.tools.data
+   generated/plenoptic.tools.validate
+   generated/plenoptic.tools.display
+   generated/plenoptic.tools.optim
+   generated/plenoptic.tools.io
+   generated/plenoptic.tools.external
 
 .. _models-api:
 
@@ -264,7 +292,7 @@ Plenoptic includes a small number of example images, which are used throughout t
    ~data.reptile_skin
    ~data.color_wheel
 
-Plenoptic includes a helper function for downloading data. These files are used for our internal tests and documentation.
+Plenoptic includes a helper function for downloading additional data, which includes example synthesis objects and additional images.
 
 .. autosummary::
    :signatures: none

@@ -130,11 +130,55 @@ autodoc_default_options = {
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
+html_theme = "pydata_sphinx_theme"
+
+html_favicon = "_static/plenoptic.ico"
+
+html_theme_options = {
+    "icon_links": [
+        {
+            "name": "Home",
+            "url": "https://plenoptic.org",
+            "icon": "fa-solid fa-house",
+        },
+        {
+            "name": "GitHub",
+            "url": "https://github.com/plenoptic-org/plenoptic",
+            "icon": "fab fa-github",
+        },
+        {
+            "name": "PyPI",
+            "url": "https://pypi.org/project/plenoptic",
+            "icon": "fa-custom fa-pypi",
+        },
+    ],
+    "logo": {
+        "image_light": "_static/images/Plenoptic_Logo_CMYK_Full_Wide.svg",
+        "image_dark": "_static/images/Plenoptic_Logo_CMYK_Full_DarkMode_Wide.svg",
+    },
+    "show_prev_next": True,
+    "secondary_sidebar_items": {
+        "**": ["page-toc"],
+    },
+    "show_nav_level": 2,
+    "header_links_before_dropdown": 6,
+    "navbar_align": "left",
+    "show_version_warning_banner": True,
+    "switcher": {
+        "json_url": "https://docs.plenoptic.org/docs/branch/main/_static/version_switcher.json",
+        "version_match": version,
+    },
+}
+
+html_sidebars = {
+    "api": [],
+    "generated/*": [],
+}
 
 # Path for static files (custom stylesheets or JavaScript)
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
+html_js_files = ["custom-icon.js"]
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
@@ -231,6 +275,7 @@ myst_enable_extensions = [
     "dollarmath",
     "amsmath",
     "attrs_block",
+    "linkify",
 ]
 
 # SPHINXCONTRIB-BIBTEX
@@ -254,8 +299,12 @@ if run_nb := os.environ.get("RUN_NB"):
         nb_execution_excludepatterns = []
         print("Running all notebooks, things will take longer...")
     else:
-        all_nbs = glob.glob("tutorials/**/*md", recursive=True)
-        all_nbs = [pathlib.Path(n).stem for n in all_nbs]
+        all_md = pathlib.Path(".").glob("**/*md")
+        all_nbs = [
+            pathlib.Path(n).stem
+            for n in all_md
+            if n.read_text().startswith("---\njupytext")
+        ]
         run_globs = [f"*{n}*" for n in run_nb.split(",")]
         nb_execution_excludepatterns = [
             f"*{n}*"

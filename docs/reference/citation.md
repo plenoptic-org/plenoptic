@@ -2,9 +2,11 @@
 
 # Citation Guide and Bibliography
 
-If you use `plenoptic` in a published academic article or presentation, please cite both the code by the DOI as well as the current publication, {cite:alp}`Duong2023-plenop`. You can use the following:
+If you use `plenoptic` in a published academic article or presentation, please cite both the code by the DOI (for the specific version you used) as well as the current publication, {cite:alp}`Duong2023-plenop`. You can use the following:
 
-- Code: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151130.svg)](https://doi.org/10.5281/zenodo.10151130)
+- Most recent version of code: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151130.svg)](https://doi.org/10.5281/zenodo.10151130)
+
+  - See [zenodo](https://zenodo.org/search?q=parent.id%3A10151130&f=allversions%3Atrue&l=list&p=1&s=10&sort=version) for DOIs for older versions of the code.
 
 - Paper:
 
@@ -38,6 +40,6 @@ Note that, the citations given above define the application of the relevant idea
 
 ## Bibliography
 
-```{bibliography} references.bib
+```{bibliography} ../references.bib
 :style: plain
 ```

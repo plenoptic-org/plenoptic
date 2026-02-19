@@ -12,34 +12,54 @@
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/format.json)](https://github.com/astral-sh/ruff)
 
-:::{figure} /_static/images/Plenoptic_Logo_CMYK_Full_Wide.svg
+:::{image} /_static/images/Plenoptic_Logo_CMYK_Full_DarkMode_Wide.svg
 :alt: plenoptic logo
-:figwidth: 100%
+:class: only-dark
+:align: center
+:::
+
+:::{image} /_static/images/Plenoptic_Logo_CMYK_Full_Wide.svg
+:alt: plenoptic logo
+:class: only-light
 :align: center
 :::
 
 `plenoptic` is a python library for model-based synthesis of perceptual stimuli. For `plenoptic`, models are those of visual [^footnote-1] information processing: they accept an image[^footnote-2] as input, perform some computations, and return some output, which can be mapped to neuronal firing rate, fMRI BOLD response, behavior on some task, image category, etc. The intended audience is researchers in neuroscience, psychology, and machine learning. The generated stimuli enable interpretation of model properties through examination of features that are enhanced, suppressed, or discarded. More importantly, they can facilitate the scientific process, through use in further perceptual or neural experiments aimed at validating or falsifying model predictions.
 
-## Getting started
-
-- If you are unfamiliar with stimulus synthesis, see the [](conceptual-intro) for an in-depth introduction.
-- Otherwise, see the [](quickstart-nb) tutorial.
-
-### Installation
-
-The best way to install `plenoptic` is via `pip`:
-
-```{code-block} console
-$ pip install plenoptic
+::::{grid} auto
+:::{grid-item}
+```{button-ref} install-doc
+:shadow:
+:ref-type: myst
+:color: primary
 ```
-
-or `conda`:
-
-```{code-block} console
-$ conda install plenoptic -c conda-forge
+:::
+:::{grid-item}
+```{button-ref} quickstart-nb
+:shadow:
+:ref-type: myst
+:color: primary
 ```
+:::
+:::{grid-item}
+```{button-link} https://archive.org/details/vss2025-symposium-plenoptic
+:shadow:
+:ref-type: myst
+:color: primary
 
-See the [](install-doc) page for more details, including how to set up an isolated virtual environment (recommended).
+Video Introduction
+```
+:::
+:::{grid-item}
+```{button-ref} citation-doc
+:shadow:
+:ref-type: myst
+:color: primary
+
+Citation Guide
+```
+:::
+::::
 
 (package-contents)=
 
@@ -90,58 +110,15 @@ In all cases, we request that you respect our [code of conduct](https://github.c
 If you use `plenoptic` in a published academic article or presentation, please cite us! See the [](citation-doc) for more details.
 
 :::{toctree}
-:caption: Basic concepts
-:glob: true
-:titlesonly: true
+:hidden:
 
-install
-jupyter
-conceptual_intro
-models
-tutorials/*
-citation
-:::
+getting_started/index
+user_guide/index
+api
+reference/index
+Changelog <https://github.com/plenoptic-org/plenoptic/releases>
+developers/index
 
-:::{toctree}
-:caption: Synthesis method introductions
-:glob: true
-:titlesonly: true
-
-tutorials/intro/*
-:::
-
-:::{toctree}
-:caption: Models and metrics
-:glob: true
-:titlesonly: true
-
-tutorials/models/*
-tutorials/models/portilla_simoncelli/ps_index
-:::
-
-:::{toctree}
-:caption: Synthesis method examples
-:glob: true
-:titlesonly: true
-
-tutorials/applications/*
-:::
-
-:::{toctree}
-:caption: Advanced usage
-:glob: true
-:maxdepth: 1
-
-API Documentation <api>
-tips
-reproducibility
-tutorials/advanced/*
-:::
-
-:::{toctree}
-:caption: For Developers
-:maxdepth: 1
-synthesis
 :::
 
 [^footnote-1]: These methods also work with auditory models, such as in [Feather et al., 2019](https://proceedings.neurips.cc/paper_files/paper/2019/hash/ac27b77292582bc293a51055bfc994ee-Abstract.html) though we haven't yet implemented examples. If you're interested, please post in [Discussions](<https://github.com/plenoptic-org/plenoptic/discussions)>)!
@@ -150,7 +127,16 @@ synthesis
 
 This package is supported by the [Center for Computational Neuroscience](https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/), in the Flatiron Institute of the Simons Foundation.
 
-:::{image} /_static/images/CCN-logo-wText.png
-:align: center
-:alt: Flatiron Institute Center for Computational Neuroscience logo
-:::
+```{image} /_static/images/logo_flatiron_white.svg
+:alt: Flatiron Center for Computational Neuroscience logo.
+:class: only-dark
+:width: 200px
+:target: https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/
+```
+
+```{image} /_static/images/CCN-logo-wText.png
+:alt: Flatiron Center for Computational Neuroscience logo.
+:class: only-light
+:width: 200px
+:target: https://www.simonsfoundation.org/flatiron/center-for-computational-neuroscience/
+```
