@@ -549,7 +549,7 @@ def same_padding(
     dilation: int | tuple[int, int] = (1, 1),
     pad_mode: str = "circular",
 ) -> Tensor:
-    """
+    r"""
     Pad a tensor so that 2D convolution will result in output with same dims.
 
     Parameters
@@ -595,7 +595,21 @@ def same_padding(
 
     The output grows by ``kernel_size - 1`` in each dimension, so that a
     subsequent convolution with that kernel returns an output matching the
-    original spatial dimensions.
+    original spatial dimensions:
+
+    .. plot::
+      :context: close-figs
+
+      >>> kernel = torch.ones(1, 1, 10, 10) / 100
+      >>> padded = po.tools.same_padding(img, kernel_size=(10, 10))
+      >>> convolved = torch.nn.functional.conv2d(padded, kernel)
+      >>> convolved.shape
+      torch.Size([1, 1, 256, 256])
+      >>> po.imshow(
+      ...     [img, convolved],
+      ...     title=["original", "after convolution"],
+      ... )
+      <PyrFigure...>
 
     Non-square kernels are supported; padding is computed independently for
     height and width:
@@ -633,16 +647,25 @@ def same_padding(
     .. plot::
       :context: close-figs
 
+      >>> kernel = torch.ones(1, 1, 10, 10) / 100
       >>> padded_stride = po.tools.same_padding(
       ...     img, kernel_size=(10, 10), stride=(3, 3)
+      ... )
+      >>> convolved_stride = torch.nn.functional.conv2d(
+      ...     padded_stride, kernel, stride=(3, 3)
       ... )
       >>> padded_dilate = po.tools.same_padding(
       ...     img, kernel_size=(10, 10), dilation=(3, 3)
       ... )
-      >>> po.imshow(padded_stride, title="stride")
+      >>> convolved_dilate = torch.nn.functional.conv2d(
+      ...     padded_dilate, kernel, dilation=(3, 3)
+      ... )
+      >>> po.imshow(convolved_stride, title="stride (3,3)", zoom=3)
       <PyrFigure...>
-      >>> po.imshow(padded_dilate, title="dilate")
+      >>> po.imshow(convolved_dilate, title="dilation (3,3)")
       <PyrFigure...>
+
+      Note the different dimensions.
     """  # numpydoc ignore=ES01
     if len(image.shape) < 2:
         raise ValueError("Input must be tensor whose last dims are height x width")
