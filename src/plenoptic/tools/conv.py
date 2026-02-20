@@ -362,9 +362,35 @@ def blur_downsample(
       ...     for filt in named_filters
       ... ]
       >>> po.imshow(
-      ...     [img] + downsampled_filter, title=["image"] + named_filters, col_wrap=4
+      ...     [img] + downsampled_filter,
+      ...     title=["image"] + named_filters,
+      ...     col_wrap=4,
+      ...     vrange=(0, 1),
       ... )
       <PyrFigure...>
+
+    Note that the different filters can result in values beyond the original range:
+
+    .. plot::
+      :context: close-figs
+
+      >>> img.min()
+      tensor(0.0039)
+      >>> img.max()
+      tensor(1.)
+      >>> for filter_name, downsampled in zip(named_filters, downsampled_filter):
+      ...     print(
+      ...         f"filter: {filter_name}, "
+      ...         f"min={downsampled.min():.2f}, "
+      ...         f"max={downsampled.max():.2f}"
+      ...     )
+      filter: binom2, min=0.11, max=0.92
+      filter: binom3, min=0.11, max=0.91
+      filter: binom4, min=0.15, max=0.90
+      filter: haar, min=0.11, max=0.92
+      filter: qmf8, min=0.12, max=0.97
+      filter: daub2, min=0.09, max=0.95
+      filter: qmf5, min=0.09, max=0.94
 
     The ``scale_filter`` argument forces the filter to sum to 1, making the mean of the
     output approximately match that of the input. If set to ``False``, the filter will
@@ -374,12 +400,16 @@ def blur_downsample(
       :context: close-figs
 
       >>> downsampled_nonscaled = po.tools.blur_downsample(img, scale_filter=False)
+      >>> torch.allclose(img.mean(), downsampled.mean(), atol=1e-2)
+      True
+      >>> torch.allclose(img.mean(), downsampled_nonscaled.mean() / 2, atol=1e-2)
+      True
       >>> po.imshow(
       ...     [img, downsampled, downsampled_nonscaled],
       ...     title=[
-      ...         f"original\nmean={img.mean()}",
-      ...         f"scaled\nmean={downsampled.mean()}",
-      ...         f"unscaled\nmean={downsampled_nonscaled.mean()}",
+      ...         f"original, mean={img.mean().item():.3f}",
+      ...         f"scaled, mean={downsampled.mean().item():.3f}",
+      ...         f"unscaled, mean={downsampled_nonscaled.mean().item():.3f}",
       ...     ],
       ... )
       <PyrFigure...>
@@ -519,9 +549,35 @@ def upsample_blur(
       ...     for filt in named_filters
       ... ]
       >>> po.imshow(
-      ...     [img] + upsampled_filter, title=["image"] + named_filters, col_wrap=4
+      ...     [img] + upsampled_filter,
+      ...     title=["image"] + named_filters,
+      ...     col_wrap=4,
+      ...     vrange=(0, 1),
       ... )
       <PyrFigure...>
+
+    Note that the different filters can result in values beyond the original range:
+
+    .. plot::
+      :context: close-figs
+
+      >>> img.min()
+      tensor(0.0039)
+      >>> img.max()
+      tensor(1.)
+      >>> for filter_name, upsampled in zip(named_filters, upsampled_filter):
+      ...     print(
+      ...         f"filter: {filter_name}, "
+      ...         f"min={upsampled.min():.2f}, "
+      ...         f"max={upsampled.max():.2f}"
+      ...     )
+      filter: binom2, min=0.00, max=1.00
+      filter: binom3, min=0.00, max=1.00
+      filter: binom4, min=0.02, max=0.94
+      filter: haar, min=0.00, max=1.00
+      filter: qmf8, min=-0.07, max=1.07
+      filter: daub2, min=-0.24, max=1.24
+      filter: qmf5, min=-0.26, max=1.29
     """
     if n_scales < 1:
         raise ValueError("n_scales must be positive!")
