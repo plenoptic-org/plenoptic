@@ -17,7 +17,7 @@ import torch
 # by default, torch uses all avail threads which slows things run in parallel
 torch.set_num_threads(1)
 
-sys.path.insert(0, pathlib.path("..").resolve())
+sys.path.insert(0, pathlib.Path("..").resolve())
 sys.path.insert(0, pathlib.Path("./tutorials/").resolve())
 
 
