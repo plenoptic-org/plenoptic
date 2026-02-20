@@ -369,7 +369,8 @@ def blur_downsample(
       ... )
       <PyrFigure...>
 
-    Note that the different filters can result in values beyond the original range:
+    Note that this operation can change the minimum and maximum,
+    and different filters can do so differently:
 
     .. plot::
       :context: close-figs
@@ -556,7 +557,8 @@ def upsample_blur(
       ... )
       <PyrFigure...>
 
-    Note that the different filters can result in values beyond the original range:
+    Note that this operation can change the minimum and maximum,
+    and different filters can do so differently:
 
     .. plot::
       :context: close-figs
@@ -655,6 +657,7 @@ def same_padding(
 
     The following convolution functions all use this padding function to return outputs
     with the same shape as the input:
+
     - :func:`~plenoptic.tools.conv.correlate_downsample`
     - :func:`~plenoptic.tools.conv.blur_downsample`
 
