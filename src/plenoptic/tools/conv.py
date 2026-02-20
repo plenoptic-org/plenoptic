@@ -651,8 +651,15 @@ def same_padding(
 
     The output grows by ``kernel_size - 1`` in each dimension, so that a
     subsequent convolution with that kernel returns an output matching the
-    original spatial dimensions. All convolution functions in this file use
-    this padding function to return outputs with the same shape as the input.
+    original spatial dimensions.
+
+    The following convolution functions all use this padding function to return outputs
+    with the same shape as the input:
+    - :func:`~plenoptic.tools.conv.correlate_downsample`
+    - :func:`~plenoptic.tools.conv.upsample_convolve`
+    - :func:`~plenoptic.tools.conv.blur_downsample`
+    - :func:`~plenoptic.tools.conv.upsample_blur`
+
     Here, let's apply a convolution manually and verify the shapes:
 
     .. plot::
@@ -701,6 +708,7 @@ def same_padding(
     subsequent convolution. A strided convolution produces a smaller output but still
     avoids losing edge information. A dilated convolution expands the effective
     receptive field of the kernel without increasing its parameter count.
+    See :func:`torch.nn.functional.conv2d` for more information.
 
     .. plot::
       :context: close-figs
