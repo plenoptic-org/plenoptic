@@ -372,26 +372,23 @@ def blur_downsample(
     Note that this operation can change the minimum and maximum,
     and different filters can do so differently:
 
-    .. plot::
-      :context: close-figs
-
-      >>> img.min()
-      tensor(0.0039)
-      >>> img.max()
-      tensor(1.)
-      >>> for filter_name, downsampled in zip(named_filters, downsampled_filter):
-      ...     print(
-      ...         f"filter: {filter_name}, "
-      ...         f"min={downsampled.min():.2f}, "
-      ...         f"max={downsampled.max():.2f}"
-      ...     )
-      filter: binom2, min=0.11, max=0.92
-      filter: binom3, min=0.11, max=0.91
-      filter: binom4, min=0.15, max=0.90
-      filter: haar, min=0.11, max=0.92
-      filter: qmf8, min=0.12, max=0.97
-      filter: daub2, min=0.09, max=0.95
-      filter: qmf5, min=0.09, max=0.94
+    >>> img.min()
+    tensor(0.0039)
+    >>> img.max()
+    tensor(1.)
+    >>> for filter_name, downsampled in zip(named_filters, downsampled_filter):
+    ...     print(
+    ...         f"filter: {filter_name}, "
+    ...         f"min={downsampled.min():.2f}, "
+    ...         f"max={downsampled.max():.2f}"
+    ...     )
+    filter: binom2, min=0.11, max=0.92
+    filter: binom3, min=0.11, max=0.91
+    filter: binom4, min=0.15, max=0.90
+    filter: haar, min=0.11, max=0.92
+    filter: qmf8, min=0.12, max=0.97
+    filter: daub2, min=0.09, max=0.95
+    filter: qmf5, min=0.09, max=0.94
 
     The ``scale_filter`` argument forces the filter to sum to 1, making the mean of the
     output approximately match that of the input. If set to ``False``, the filter will
@@ -560,26 +557,23 @@ def upsample_blur(
     Note that this operation can change the minimum and maximum,
     and different filters can do so differently:
 
-    .. plot::
-      :context: close-figs
-
-      >>> img.min()
-      tensor(0.0039)
-      >>> img.max()
-      tensor(1.)
-      >>> for filter_name, upsampled in zip(named_filters, upsampled_filter):
-      ...     print(
-      ...         f"filter: {filter_name}, "
-      ...         f"min={upsampled.min():.2f}, "
-      ...         f"max={upsampled.max():.2f}"
-      ...     )
-      filter: binom2, min=0.00, max=1.00
-      filter: binom3, min=0.00, max=1.00
-      filter: binom4, min=0.02, max=0.94
-      filter: haar, min=0.00, max=1.00
-      filter: qmf8, min=-0.07, max=1.07
-      filter: daub2, min=-0.24, max=1.24
-      filter: qmf5, min=-0.26, max=1.29
+    >>> img.min()
+    tensor(0.0039)
+    >>> img.max()
+    tensor(1.)
+    >>> for filter_name, upsampled in zip(named_filters, upsampled_filter):
+    ...     print(
+    ...         f"filter: {filter_name}, "
+    ...         f"min={upsampled.min():.2f}, "
+    ...         f"max={upsampled.max():.2f}"
+    ...     )
+    filter: binom2, min=0.00, max=1.00
+    filter: binom3, min=0.00, max=1.00
+    filter: binom4, min=0.02, max=0.94
+    filter: haar, min=0.00, max=1.00
+    filter: qmf8, min=-0.07, max=1.07
+    filter: daub2, min=-0.24, max=1.24
+    filter: qmf5, min=-0.26, max=1.29
     """
     if n_scales < 1:
         raise ValueError("n_scales must be positive!")
