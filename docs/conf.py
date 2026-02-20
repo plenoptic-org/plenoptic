@@ -40,7 +40,6 @@ version: str = ".".join(release.split(".")[:3])
 extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
-    "matplotlib.sphinxext.plot_directive",
     "matplotlib.sphinxext.mathmpl",
     "sphinx.ext.autosummary",
     "sphinx.ext.autodoc",
@@ -53,6 +52,9 @@ extensions = [
     "sphinx_design",
     "sphinx.ext.viewcode",
 ]
+
+if not os.environ.get("SKIP_MPL"):
+    extensions.append("matplotlib.sphinxext.plot_directive")
 
 numfig = True
 add_module_names = False
