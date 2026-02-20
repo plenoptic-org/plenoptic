@@ -585,9 +585,7 @@ class TestMetamers:
         )
         with pytest.raises(ValueError, match="Saved and initialized attribute image"):
             met.load(tmp_path / "test_metamer_load_tol.pt")
-        met.load(
-            tmp_path / "test_metamer_load_tol.pt", tensor_equality_atol=1e-7
-        )
+        met.load(tmp_path / "test_metamer_load_tol.pt", tensor_equality_atol=1e-7)
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True

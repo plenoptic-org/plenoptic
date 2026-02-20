@@ -137,9 +137,7 @@ class TestPerceptualMetrics:
 
     @pytest.fixture
     def ssim_base_img(self, ssim_images, ssim_analysis):
-        return po.load_images(ssim_images / ssim_analysis["base_img"]).to(
-            DEVICE
-        )
+        return po.load_images(ssim_images / ssim_analysis["base_img"]).to(DEVICE)
 
     @pytest.mark.parametrize("weighted", [True, False])
     @pytest.mark.parametrize("other_img", np.arange(1, 11))
@@ -147,9 +145,7 @@ class TestPerceptualMetrics:
         self, weighted, other_img, ssim_images, ssim_analysis, ssim_base_img
     ):
         mat_type = {True: "weighted", False: "standard"}[weighted]
-        other = po.load_images(ssim_images / f"samp{other_img}.tif").to(
-            DEVICE
-        )
+        other = po.load_images(ssim_images / f"samp{other_img}.tif").to(DEVICE)
         # dynamic range is 1 for these images, because po.load_images
         # automatically re-ranges them. They were computed with
         # dynamic_range=255 in MATLAB, and by correctly setting this value,
@@ -173,9 +169,7 @@ class TestPerceptualMetrics:
         computed_values = torch.zeros_like(true_values)
         base_img = po.load_images(msssim_images / "samp0.tiff").to(DEVICE)
         for i in range(len(true_values)):
-            other_img = po.load_images(msssim_images / f"samp{i}.tiff").to(
-                DEVICE
-            )
+            other_img = po.load_images(msssim_images / f"samp{i}.tiff").to(DEVICE)
             computed_values[i] = po.metric.ms_ssim(base_img, other_img)
         assert torch.allclose(true_values, computed_values)
 

@@ -181,9 +181,7 @@ class TestMAD:
                 allowed_range=allowed_range,
                 range_penalty_lambda=range_penalty,
             )
-            mad_copy.load(
-                tmp_path / "test_mad_save_load.pt", map_location=DEVICE
-            )
+            mad_copy.load(tmp_path / "test_mad_save_load.pt", map_location=DEVICE)
             # check that can resume
             mad_copy.synthesize(max_iter=5, store_progress=True)
         if rgb:
