@@ -656,9 +656,7 @@ def same_padding(
     The following convolution functions all use this padding function to return outputs
     with the same shape as the input:
     - :func:`~plenoptic.tools.conv.correlate_downsample`
-    - :func:`~plenoptic.tools.conv.upsample_convolve`
     - :func:`~plenoptic.tools.conv.blur_downsample`
-    - :func:`~plenoptic.tools.conv.upsample_blur`
 
     Here, let's apply a convolution manually and verify the shapes:
 
