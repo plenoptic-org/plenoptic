@@ -541,5 +541,5 @@ fig.suptitle("Full statistics")
 
 ## Further reading
 
-- To see more texture model metamers with different types of images, see the [](ps_examples) notebook.
+- To see more texture model metamers with different types of images, see the [](ps-examples) notebook.
 - To learn more about the optimization choices, read the [](ps-optimization) notebook.
