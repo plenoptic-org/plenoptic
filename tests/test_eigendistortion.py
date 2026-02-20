@@ -1,4 +1,3 @@
-import os.path as op
 from contextlib import nullcontext as does_not_raise
 
 import matplotlib.pyplot as plt
@@ -225,7 +224,7 @@ class TestEigendistortionSynthesis:
             img = einstein_img
         ed = Eigendistortion(img, model)
         ed.synthesize(max_iter=4, method=method)
-        ed.save(op.join(tmp_path, "test_eigendistortion_save_load.pt"))
+        ed.save(tmp_path / "test_eigendistortion_save_load.pt")
         if fail:
             if fail == "img":
                 img = torch.rand_like(img)
@@ -244,13 +243,13 @@ class TestEigendistortionSynthesis:
             ed_copy = Eigendistortion(img, model)
             with expectation:
                 ed_copy.load(
-                    op.join(tmp_path, "test_eigendistortion_save_load.pt"),
+                    tmp_path / "test_eigendistortion_save_load.pt",
                     map_location=DEVICE,
                 )
         else:
             ed_copy = Eigendistortion(img, model)
             ed_copy.load(
-                op.join(tmp_path, "test_eigendistortion_save_load.pt"),
+                tmp_path / "test_eigendistortion_save_load.pt",
                 map_location=DEVICE,
             )
             for k in ["image", "_representation_flat"]:
@@ -268,11 +267,11 @@ class TestEigendistortionSynthesis:
     def test_load_init_fail(self, einstein_img, model, tmp_path):
         eig = Eigendistortion(einstein_img, model)
         eig.synthesize(max_iter=4)
-        eig.save(op.join(tmp_path, "test_eigendistortion_load_init_fail.pt"))
+        eig.save(tmp_path / "test_eigendistortion_load_init_fail.pt")
         with pytest.raises(
             ValueError, match="load can only be called with a just-initialized"
         ):
-            eig.load(op.join(tmp_path, "test_eigendistortion_load_init_fail.pt"))
+            eig.load(tmp_path / "test_eigendistortion_load_init_fail.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -326,12 +325,12 @@ class TestEigendistortionSynthesis:
             )
         eig = Eigendistortion(einstein_img, model)
         eig.synthesize(max_iter=4)
-        eig.save(op.join(tmp_path, f"test_eigendistortion_load_names_{fail}.pt"))
+        eig.save(tmp_path / f"test_eigendistortion_load_names_{fail}.pt")
         remove_grad(model2)
         model2.eval()
         eig = Eigendistortion(einstein_img, model2)
         with expectation:
-            eig.load(op.join(tmp_path, f"test_eigendistortion_load_names_{fail}.pt"))
+            eig.load(tmp_path / f"test_eigendistortion_load_names_{fail}.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -339,8 +338,8 @@ class TestEigendistortionSynthesis:
     def test_examine_saved_object(self, einstein_img, model, tmp_path):
         eig = Eigendistortion(einstein_img, model)
         eig.synthesize(max_iter=4)
-        eig.save(op.join(tmp_path, "test_eigendistortion_examine.pt"))
-        examine_saved_synthesis(op.join(tmp_path, "test_eigendistortion_examine.pt"))
+        eig.save(tmp_path / "test_eigendistortion_examine.pt")
+        examine_saved_synthesis(tmp_path / "test_eigendistortion_examine.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -349,7 +348,7 @@ class TestEigendistortionSynthesis:
     def test_load_object_type(self, einstein_img, model, synth_type, tmp_path):
         eig = Eigendistortion(einstein_img, model)
         eig.synthesize(max_iter=4)
-        eig.save(op.join(tmp_path, "test_eigendistortion_load_object_type.pt"))
+        eig.save(tmp_path / "test_eigendistortion_load_object_type.pt")
         if synth_type == "met":
             eig = Metamer(einstein_img, model)
         elif synth_type == "mad":
@@ -359,7 +358,7 @@ class TestEigendistortionSynthesis:
         with pytest.raises(
             ValueError, match="Saved object was a.* but initialized object is"
         ):
-            eig.load(op.join(tmp_path, "test_eigendistortion_load_object_type.pt"))
+            eig.load(tmp_path / "test_eigendistortion_load_object_type.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -368,7 +367,7 @@ class TestEigendistortionSynthesis:
     def test_load_model_change(self, einstein_img, model, model_behav, tmp_path):
         eig = Eigendistortion(einstein_img, model)
         eig.synthesize(max_iter=4)
-        eig.save(op.join(tmp_path, "test_eigendistortion_load_model_change.pt"))
+        eig.save(tmp_path / "test_eigendistortion_load_model_change.pt")
         if model_behav == "dtype":
             # this actually gets raised in the model validation step (during init), not
             # load.
@@ -400,7 +399,7 @@ class TestEigendistortionSynthesis:
         model.eval()
         with expectation:
             eig = Eigendistortion(einstein_img, model)
-            eig.load(op.join(tmp_path, "test_eigendistortion_load_model_change.pt"))
+            eig.load(tmp_path / "test_eigendistortion_load_model_change.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -412,7 +411,7 @@ class TestEigendistortionSynthesis:
         if attribute == "saved":
             eig.test = "BAD"
             err_str = "Saved"
-        eig.save(op.join(tmp_path, "test_eigendistortion_load_attributes.pt"))
+        eig.save(tmp_path / "test_eigendistortion_load_attributes.pt")
         eig = Eigendistortion(einstein_img, model)
         if attribute == "init":
             eig.test = "BAD"
@@ -420,7 +419,7 @@ class TestEigendistortionSynthesis:
         with pytest.raises(
             ValueError, match=rf"{err_str} object has 1 attribute\(s\) not present"
         ):
-            eig.load(op.join(tmp_path, "test_eigendistortion_load_attributes.pt"))
+            eig.load(tmp_path / "test_eigendistortion_load_attributes.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -428,14 +427,14 @@ class TestEigendistortionSynthesis:
     def test_load_tol(self, einstein_img, model, tmp_path):
         eig = Eigendistortion(einstein_img, model)
         eig.synthesize(max_iter=5)
-        eig.save(op.join(tmp_path, "test_eigendistortion_load_tol.pt"))
+        eig.save(tmp_path / "test_eigendistortion_load_tol.pt")
         eig = Eigendistortion(
             einstein_img + 1e-7 * torch.rand_like(einstein_img), model
         )
         with pytest.raises(ValueError, match="Saved and initialized attribute image"):
-            eig.load(op.join(tmp_path, "test_eigendistortion_load_tol.pt"))
+            eig.load(tmp_path / "test_eigendistortion_load_tol.pt")
         eig.load(
-            op.join(tmp_path, "test_eigendistortion_load_tol.pt"),
+            tmp_path / "test_eigendistortion_load_tol.pt",
             tensor_equality_atol=1e-7,
         )
 
@@ -496,12 +495,12 @@ class TestEigendistortionSynthesis:
     def test_map_location(self, curie_img, model, tmp_path):
         ed = Eigendistortion(curie_img, model)
         ed.synthesize(max_iter=4, method="power")
-        ed.save(op.join(tmp_path, "test_eig_map_location.pt"))
+        ed.save(tmp_path / "test_eig_map_location.pt")
         # calling load with map_location effectively switches everything
         # over to that device
         model.to("cpu")
         ed_copy = Eigendistortion(curie_img.to("cpu"), model)
-        ed_copy.load(op.join(tmp_path, "test_eig_map_location.pt"), map_location="cpu")
+        ed_copy.load(tmp_path / "test_eig_map_location.pt", map_location="cpu")
         assert ed_copy.eigendistortions.device.type == "cpu"
         assert ed_copy.image.device.type == "cpu"
         ed_copy.synthesize(max_iter=4, method="power")
@@ -532,9 +531,9 @@ class TestEigendistortionSynthesis:
         ed.synthesize(max_iter=5)
         ed.to(torch.float64)
         assert ed.image.dtype == torch.float64, "dtype incorrect!"
-        ed.save(op.join(tmp_path, "test_change_prec_save_load.pt"))
+        ed.save(tmp_path / "test_change_prec_save_load.pt")
         ed_copy = Eigendistortion(einstein_img.to(torch.float64), model)
-        ed_copy.load(op.join(tmp_path, "test_change_prec_save_load.pt"))
+        ed_copy.load(tmp_path / "test_change_prec_save_load.pt")
         ed_copy.synthesize(max_iter=5)
         assert ed_copy.image.dtype == torch.float64, "dtype incorrect!"
 

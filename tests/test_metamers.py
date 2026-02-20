@@ -1,5 +1,4 @@
 import math
-import os.path as op
 from contextlib import nullcontext as does_not_raise
 
 import pytest
@@ -50,7 +49,7 @@ class TestMetamers:
             range_penalty_lambda=range_penalty,
         )
         met.synthesize(max_iter=4, store_progress=True)
-        met.save(op.join(tmp_path, "test_metamer_save_load.pt"))
+        met.save(tmp_path / "test_metamer_save_load.pt")
         if fail:
             if fail == "img":
                 einstein_img = torch.rand_like(einstein_img)
@@ -108,7 +107,7 @@ class TestMetamers:
             )
             with expectation:
                 met_copy.load(
-                    op.join(tmp_path, "test_metamer_save_load.pt"),
+                    tmp_path / "test_metamer_save_load.pt",
                     map_location=DEVICE,
                 )
         else:
@@ -120,7 +119,7 @@ class TestMetamers:
                 allowed_range=allowed_range,
             )
             met_copy.load(
-                op.join(tmp_path, "test_metamer_save_load.pt"),
+                tmp_path / "test_metamer_save_load.pt",
                 map_location=DEVICE,
             )
             for k in [
@@ -192,9 +191,9 @@ class TestMetamers:
         met = po.synth.Metamer(einstein_img, model)
         met.setup(optimizer=torch.optim.SGD)
         met.synthesize(max_iter=4)
-        met.save(op.join(tmp_path, "test_metamer_synth_then_setup.pt"))
+        met.save(tmp_path / "test_metamer_synth_then_setup.pt")
         met = po.synth.Metamer(einstein_img, model)
-        met.load(op.join(tmp_path, "test_metamer_synth_then_setup.pt"))
+        met.load(tmp_path / "test_metamer_synth_then_setup.pt")
         with pytest.raises(ValueError, match="Don't know how to initialize"):
             met.synthesize(5)
         met.setup(optimizer=torch.optim.SGD)
@@ -206,9 +205,9 @@ class TestMetamers:
     def test_setup_load_fail(self, einstein_img, model, tmp_path):
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=4)
-        met.save(op.join(tmp_path, "test_metamer_setup_load_fail.pt"))
+        met.save(tmp_path / "test_metamer_setup_load_fail.pt")
         met = po.synth.Metamer(einstein_img, model)
-        met.load(op.join(tmp_path, "test_metamer_setup_load_fail.pt"))
+        met.load(tmp_path / "test_metamer_setup_load_fail.pt")
         with pytest.raises(
             ValueError, match="Cannot set initial_image after calling load"
         ):
@@ -221,7 +220,7 @@ class TestMetamers:
     def test_load_init_fail(self, einstein_img, model, fail, tmp_path):
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=4, store_progress=True)
-        met.save(op.join(tmp_path, "test_metamer_load_init_fail.pt"))
+        met.save(tmp_path / "test_metamer_load_init_fail.pt")
         if fail != "continue":
             met = po.synth.Metamer(einstein_img, model)
             if fail == "setup":
@@ -231,7 +230,7 @@ class TestMetamers:
         with pytest.raises(
             ValueError, match="load can only be called with a just-initialized"
         ):
-            met.load(op.join(tmp_path, "test_metamer_load_init_fail.pt"))
+            met.load(tmp_path / "test_metamer_load_init_fail.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -285,12 +284,12 @@ class TestMetamers:
             )
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=4, store_progress=True)
-        met.save(op.join(tmp_path, f"test_metamer_load_names_{fail}.pt"))
+        met.save(tmp_path / f"test_metamer_load_names_{fail}.pt")
         po.tools.remove_grad(model2)
         model2.eval()
         met = po.synth.Metamer(einstein_img, model2)
         with expectation:
-            met.load(op.join(tmp_path, f"test_metamer_load_names_{fail}.pt"))
+            met.load(tmp_path / f"test_metamer_load_names_{fail}.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -298,8 +297,8 @@ class TestMetamers:
     def test_examine_saved_object(self, einstein_img, model, tmp_path):
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=4, store_progress=True)
-        met.save(op.join(tmp_path, "test_metamer_examine.pt"))
-        po.tools.examine_saved_synthesis(op.join(tmp_path, "test_metamer_examine.pt"))
+        met.save(tmp_path / "test_metamer_examine.pt")
+        po.tools.examine_saved_synthesis(tmp_path / "test_metamer_examine.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -308,7 +307,7 @@ class TestMetamers:
     def test_load_object_type(self, einstein_img, model, synth_type, tmp_path):
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=4, store_progress=True)
-        met.save(op.join(tmp_path, "test_metamer_load_object_type.pt"))
+        met.save(tmp_path / "test_metamer_load_object_type.pt")
         if synth_type == "eig":
             met = po.synth.Eigendistortion(einstein_img, model)
         elif synth_type == "mad":
@@ -322,7 +321,7 @@ class TestMetamers:
         with pytest.raises(
             ValueError, match="Saved object was a.* but initialized object is"
         ):
-            met.load(op.join(tmp_path, "test_metamer_load_object_type.pt"))
+            met.load(tmp_path / "test_metamer_load_object_type.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -331,7 +330,7 @@ class TestMetamers:
     def test_load_model_change(self, einstein_img, model, model_behav, tmp_path):
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=4, store_progress=True)
-        met.save(op.join(tmp_path, "test_metamer_load_model_change.pt"))
+        met.save(tmp_path / "test_metamer_load_model_change.pt")
         if model_behav == "dtype":
             # this actually gets raised in the model validation step (during init), not
             # load.
@@ -363,7 +362,7 @@ class TestMetamers:
         model.eval()
         with expectation:
             met = po.synth.Metamer(einstein_img, model)
-            met.load(op.join(tmp_path, "test_metamer_load_model_change.pt"))
+            met.load(tmp_path / "test_metamer_load_model_change.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -372,7 +371,7 @@ class TestMetamers:
     def test_load_loss_change(self, einstein_img, model, loss_behav, tmp_path):
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(max_iter=4, store_progress=True)
-        met.save(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+        met.save(tmp_path / "test_metamer_load_loss_change.pt")
 
         def new_loss(x, y):
             if loss_behav == "dtype":
@@ -393,7 +392,7 @@ class TestMetamers:
                 f" {loss_behav}"
             )
         with pytest.raises(ValueError, match=expectation_str):
-            met.load(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+            met.load(tmp_path / "test_metamer_load_loss_change.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -405,7 +404,7 @@ class TestMetamers:
         if attribute == "saved":
             met.test = "BAD"
             err_str = "Saved"
-        met.save(op.join(tmp_path, "test_metamer_load_attributes.pt"))
+        met.save(tmp_path / "test_metamer_load_attributes.pt")
         met = po.synth.Metamer(einstein_img, model)
         if attribute == "init":
             met.test = "BAD"
@@ -413,7 +412,7 @@ class TestMetamers:
         with pytest.raises(
             ValueError, match=rf"{err_str} object has 1 attribute\(s\) not present"
         ):
-            met.load(op.join(tmp_path, "test_metamer_load_attributes.pt"))
+            met.load(tmp_path / "test_metamer_load_attributes.pt")
 
     @pytest.mark.parametrize(
         "model",
@@ -484,12 +483,12 @@ class TestMetamers:
             scheduler_kwargs=scheduler_kwargs,
         )
         met.synthesize(max_iter=5)
-        met.save(op.join(tmp_path, "test_metamer_optimizer.pt"))
+        met.save(tmp_path / "test_metamer_optimizer.pt")
         if coarse_to_fine:
             met = po.synth.MetamerCTF(curie_img, model)
         else:
             met = po.synth.Metamer(curie_img, model)
-        met.load(op.join(tmp_path, "test_metamer_optimizer.pt"))
+        met.load(tmp_path / "test_metamer_optimizer.pt")
         optimizer_kwargs = None
         scheduler_kwargs = None
         if not fail:
@@ -578,17 +577,15 @@ class TestMetamers:
     def test_load_tol(self, einstein_img, model, tmp_path):
         met = po.synth.Metamer(einstein_img, model, allowed_range=(-1, 2))
         met.synthesize(5)
-        met.save(op.join(tmp_path, "test_metamer_load_tol.pt"))
+        met.save(tmp_path / "test_metamer_load_tol.pt")
         met = po.synth.Metamer(
             einstein_img + 1e-7 * torch.rand_like(einstein_img),
             model,
             allowed_range=(-1, 2),
         )
         with pytest.raises(ValueError, match="Saved and initialized attribute image"):
-            met.load(op.join(tmp_path, "test_metamer_load_tol.pt"))
-        met.load(
-            op.join(tmp_path, "test_metamer_load_tol.pt"), tensor_equality_atol=1e-7
-        )
+            met.load(tmp_path / "test_metamer_load_tol.pt")
+        met.load(tmp_path / "test_metamer_load_tol.pt", tensor_equality_atol=1e-7)
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -606,9 +603,9 @@ class TestMetamers:
         met_copy.setup(curie_img, optimizer=torch.optim.SGD)
         met_copy.synthesize(5)
         if load:
-            met_copy.save(op.join(tmp_path, "test_metamer_resume_synthesis.pt"))
+            met_copy.save(tmp_path / "test_metamer_resume_synthesis.pt")
             met_copy = po.synth.Metamer(einstein_img, model)
-            met_copy.load(op.join(tmp_path, "test_metamer_resume_synthesis.pt"))
+            met_copy.load(tmp_path / "test_metamer_resume_synthesis.pt")
             met_copy.setup(optimizer=torch.optim.SGD)
             met_copy.synthesize(5)
         else:
@@ -836,11 +833,11 @@ class TestMetamers:
         )
         assert len(metamer.scales_finished) > 0, "Didn't actually switch scales!"
 
-        metamer.save(op.join(tmp_path, "test_metamer_ctf.pt"))
+        metamer.save(tmp_path / "test_metamer_ctf.pt")
         metamer_copy = po.synth.MetamerCTF(
             einstein_img, model, coarse_to_fine=coarse_to_fine
         )
-        metamer_copy.load(op.join(tmp_path, "test_metamer_ctf.pt"), map_location=DEVICE)
+        metamer_copy.load(tmp_path / "test_metamer_ctf.pt", map_location=DEVICE)
         # check the ctf-related attributes all saved correctly
         for k in [
             "coarse_to_fine",
@@ -963,7 +960,7 @@ class TestMetamers:
         else:
             met = po.synth.Metamer(curie_img, model)
         met.synthesize(max_iter=4, store_progress=True)
-        met.save(op.join(tmp_path, "test_metamer_map_location.pt"))
+        met.save(tmp_path / "test_metamer_map_location.pt")
         # calling load with map_location effectively switches everything
         # over to that device
         model.to("cpu")
@@ -973,7 +970,7 @@ class TestMetamers:
             met_copy = po.synth.Metamer(curie_img.to("cpu"), model)
         # end up with slightly different outputs on gpu vs cpu
         met_copy.load(
-            op.join(tmp_path, "test_metamer_map_location.pt"),
+            tmp_path / "test_metamer_map_location.pt",
             map_location="cpu",
             tensor_equality_atol=1e-6,
         )
@@ -1095,9 +1092,9 @@ class TestMetamers:
         met.synthesize(max_iter=5)
         met.to(torch.float64)
         assert met.metamer.dtype == torch.float64, "dtype incorrect!"
-        met.save(op.join(tmp_path, "test_metamer_change_prec_save_load.pt"))
+        met.save(tmp_path / "test_metamer_change_prec_save_load.pt")
         met_copy = po.synth.Metamer(einstein_img.to(torch.float64), model)
-        met_copy.load(op.join(tmp_path, "test_metamer_change_prec_save_load.pt"))
+        met_copy.load(tmp_path / "test_metamer_change_prec_save_load.pt")
         met_copy.synthesize(max_iter=5)
         assert met_copy.metamer.dtype == torch.float64, "dtype incorrect!"
 
@@ -1107,17 +1104,17 @@ class TestMetamers:
         # now, we support older versions and raise a warning. this test emulates that
         # difference
         met = po.synth.Metamer(einstein_img, model)
-        met.save(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
-        loaded = torch.load(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+        met.save(tmp_path / "test_metamer_load_loss_change.pt")
+        loaded = torch.load(tmp_path / "test_metamer_load_loss_change.pt")
         loss_func = list(loaded["loss_function"])
         loss_func[1] = ("_image", "_metamer")
         loaded["loss_function"] = tuple(loss_func)
-        torch.save(loaded, op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+        torch.save(loaded, tmp_path / "test_metamer_load_loss_change.pt")
         met_copy = po.synth.Metamer(einstein_img, model)
         with pytest.warns(
             FutureWarning, match="The saved object was saved with plenoptic 1.3.1"
         ):
-            met_copy.load(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+            met_copy.load(tmp_path / "test_metamer_load_loss_change.pt")
 
     @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
     @pytest.mark.parametrize("check_attr", ["_model", "loss_function"])
@@ -1126,15 +1123,15 @@ class TestMetamers:
         # test_load_loss_change_warning is a specific version of: the saved and
         # initialized objects want to check the output of model/loss in different ways
         met = po.synth.Metamer(einstein_img, model)
-        met.save(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
-        loaded = torch.load(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+        met.save(tmp_path / "test_metamer_load_loss_change.pt")
+        loaded = torch.load(tmp_path / "test_metamer_load_loss_change.pt")
         attr = list(loaded[check_attr])
         if check_attr == "loss_function":
             attr[1] = ("something_else", "bad")
         elif check_attr == "_model":
             attr[1] = "something_else"
         loaded[check_attr] = tuple(attr)
-        torch.save(loaded, op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+        torch.save(loaded, tmp_path / "test_metamer_load_loss_change.pt")
         met_copy = po.synth.Metamer(einstein_img, model)
         check_attr = check_attr[1:] if check_attr.startswith("_") else check_attr
         msg = (
@@ -1142,7 +1139,7 @@ class TestMetamers:
             f"identity of {check_attr}"
         )
         with pytest.raises(ValueError, match=msg):
-            met_copy.load(op.join(tmp_path, "test_metamer_load_loss_change.pt"))
+            met_copy.load(tmp_path / "test_metamer_load_loss_change.pt")
 
     @pytest.mark.filterwarnings("ignore:Loss has converged:UserWarning")
     @pytest.mark.parametrize(

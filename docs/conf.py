@@ -6,10 +6,6 @@
 
 # -- Path setup --------------------------------------------------------------
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#
 import glob
 import os
 import pathlib
@@ -21,8 +17,8 @@ import torch
 # by default, torch uses all avail threads which slows things run in parallel
 torch.set_num_threads(1)
 
-sys.path.insert(0, os.path.abspath(".."))
-sys.path.insert(0, os.path.abspath("./tutorials/"))
+sys.path.insert(0, pathlib.Path("..").resolve())
+sys.path.insert(0, pathlib.Path("./tutorials/").resolve())
 
 
 # -- Project information -----------------------------------------------------
