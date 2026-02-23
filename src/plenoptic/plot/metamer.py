@@ -184,6 +184,8 @@ def metamer_image(
 
     See Also
     --------
+    :func:`~plenoptic.plot.imshow`
+        Function used by this one to visualize the metamer image.
     metamer_synthesis_status
         Create a figure combining this with other axis-level plots to summarize
         synthesis status at a given iteration.
@@ -416,6 +418,8 @@ def metamer_representation_error(
 
     See Also
     --------
+    :func:`~plenoptic.plot.plot_representation`
+        Function used by this one to plot representation.
     metamer_synthesis_status
         Create a figure combining this with other axis-level plots to summarize
         synthesis status at a given iteration.
@@ -1237,6 +1241,9 @@ def metamer_animate(
 
     See Also
     --------
+    :func:`~plenoptic.plot.update_plot`
+        Function used by this one to update ``metamer_image`` and
+        ``metamer_representation_error`` plots.
     metamer_image
         One of this function's axis-level component functions: display metamer at
         a given synthesis iteration.

@@ -72,6 +72,8 @@ def eigendistortion_image(
 
     See Also
     --------
+    :func:`~plenoptic.plot.imshow`
+        Function used by this one to visualize the metamer image.
     eigendistortion_image_all
         Display base image and multiple eigendistortions, alone and added to image.
     """

@@ -214,6 +214,19 @@ def imshow(
     Exception
         If ``plot_complex`` takes an illegal value.
 
+    See Also
+    --------
+    :func:`~plenoptic.plot.metamer_image`
+        Show the image synthesized by a :class:`~plenoptic.Metamer` object.
+    :func:`~plenoptic.plot.mad_image`
+        Show the image synthesized by a :class:`~plenoptic.MADCompetition` object.
+    :func:`~plenoptic.plot.eigendistortion_image`
+        Show the image synthesized by a :class:`~plenoptic.Eigendistortion` object.
+    animshow
+        Animate a video.
+    pyrshow
+        Display steerable pyramid coefficients.
+
     Notes
     -----
     This interpolation avoidance is only guaranteed for the saved image; it should
@@ -432,6 +445,15 @@ def animshow(
         one batch and neither ``batch_idx`` nor ``channel_idx`` is set.
     Exception
         If ``plot_complex`` takes an illegal value.
+
+    See Also
+    --------
+    imshow
+        Display an image.
+    :func:`~plenoptic.plot.metamer_animate`
+        Animate synthesis process for a :class:`~plenoptic.Metamer` object.
+    :func:`~plenoptic.plot.mad_animate`
+        Animate synthesis process for a :class:`~plenoptic.MADCompetition` object.
 
     Notes
     -----
@@ -1234,6 +1256,18 @@ def plot_representation(
         If both ``figsize`` and ``ax`` are not ``None``.
     ValueError
         If ``data`` (or its values, if it's a ``dict``) are not 3 or 4 dimensional.
+
+    See Also
+    --------
+    :func:`~plenoptic.plot.metamer_representation_error`
+        Plot representation error for a :class:`~plenoptic.Metamer` object at a
+        specified iteration.
+    clean_stem_plot
+        If ``model`` does not have a ``plot_representation`` method and its output
+        is 3d, the function used to visualize its output.
+    imshow
+        If ``model`` does not have a ``plot_representation`` method and its output
+        is 4d, the function used to visualize its output.
     """
     if ax is None:
         if figsize is None:

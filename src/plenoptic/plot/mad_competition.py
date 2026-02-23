@@ -158,6 +158,17 @@ def mad_image(
         If the iteration used for ``saved_mad_image`` is not the same as the argument
         ``iteration`` (because e.g., you set ``iteration=3`` but
         ``mad.store_progress=2``).
+
+    See Also
+    --------
+    :func:`~plenoptic.plot.imshow`
+        Function used by this one to visualize the metamer image.
+    mad_synthesis_status
+        Create a figure combining this with other axis-level plots to summarize
+        synthesis status at a given iteration.
+    mad_animate
+        Create a video animating this and other axis-level plots changing over
+        the course of synthesis.
     """
     progress = mad.get_progress(iteration)
     try:
@@ -697,6 +708,11 @@ def mad_animate(
         If ``mad.mage_image`` object is not 3d or 4d.
     ValueError
         If we do not know how to interpret the value of ``ylim``.
+
+    See Also
+    --------
+    :func:`~plenoptic.plot.update_plot`
+        Function used by this one to update ``mad_image`` plot.
 
     Notes
     -----
