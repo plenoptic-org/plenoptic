@@ -782,9 +782,11 @@ github repo and published at http://docs.plenoptic.org/.
 
 However, it can be built locally as well. You would do this if you've made changes locally to the documentation (or the docstrings) that you would like to examine before pushing. All additional requirements are included in the `[docs]` optional dependency bundle, which you can install with `pip install plenoptic[docs]`.
 
-Then, to build the documentation, run: `make -C docs html O="-T -j auto"`. (`-j auto` tells sphinx to parallelize the build, using as many cores as possible, a specific number can be set.)
+Then, to build the documentation, run: `make -C docs html O="-j auto"`. (`-j auto` tells sphinx to parallelize the build, using as many cores as possible, a specific number can be set.)
 
 By default, the text-based notebooks (see [earlier](adding-documentation)) are not run because they take a longish time to do so, especially if you do not have a GPU. In order to run all of them, prepend `RUN_NB=1` to the `make` command above. In order to run specific notebooks, set `RUN_NB` to a globbable comma-separated string in the above, e.g., `RUN_NB=Metamer,MAD` to run `docs/user_guide/synthesis/Metamer`, `docs/user_guide/synthesis/MAD_Competition_1`, and `docs/user_guide/synthesis/MAD_Competition_2`.
+
+Additionally, our docstrings have a variety of Examples blocks that are run by sphinx in order to render plots in the documentation, which can take a while to run. You can temporarily disable these by prepending `SKIP_MPL=1` to the `make` command. This will cause `docutils` to raise an error every time it encounters a [`plot` directive](https://matplotlib.org/stable/api/sphinxext_plot_directive_api.html), and so the build will appear to fail. However, the output will be rendered correctly (with the exception of those `plot` blocks), and so this can be useful for rapidly viewing changes locally when editing other parts of the documentation. In order to ensure the documentation build completes without any warnings or errors, you should build the docs normally before pushing.
 
 The index page of the documentation will then be located at
 `docs/_build/html/index.html`, open it in your browser to navigate

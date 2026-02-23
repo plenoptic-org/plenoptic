@@ -36,7 +36,6 @@ version: str = ".".join(release.split(".")[:3])
 extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
-    "matplotlib.sphinxext.plot_directive",
     "matplotlib.sphinxext.mathmpl",
     "sphinx.ext.autosummary",
     "sphinx.ext.autodoc",
@@ -49,6 +48,9 @@ extensions = [
     "sphinx_design",
     "sphinx.ext.viewcode",
 ]
+
+if not os.environ.get("SKIP_MPL"):
+    extensions.append("matplotlib.sphinxext.plot_directive")
 
 numfig = True
 add_module_names = False
@@ -164,8 +166,9 @@ html_theme_options = {
         "api/**": [],
     },
     "show_nav_level": 2,
-    "header_links_before_dropdown": 6,
+    "header_links_before_dropdown": 4,
     "navbar_align": "left",
+    "navbar_start": ["navbar-logo", "version-switcher"],
     "show_version_warning_banner": True,
     "switcher": {
         "json_url": "https://docs.plenoptic.org/docs/branch/main/_static/version_switcher.json",
