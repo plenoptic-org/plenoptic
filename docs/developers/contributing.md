@@ -624,10 +624,7 @@ runners and hosted on GitHub pages. If that means nothing to you, don't worry!
 
 All of our documentation is written as markdown files, with the extension `md`. We use the [myst parser](https://myst-parser.readthedocs.io/), along with [myst-nb](https://myst-nb.readthedocs.io). Both process markdown files, but `myst-nb` allows us to write [text-based notebooks](https://myst-nb.readthedocs.io/en/latest/authoring/text-notebooks.html), with python code that gets executed when the documentation is built.
 
-The text-based notebooks are tutorials and show how to use the various functions and
-classes contained in the package, and they all should be located in the
-`docs/tutorials/` directory. If you add or change a substantial amount of code, please
-add a tutorial showing how to use it.
+The text-based notebooks are tutorials and show how to use the various functions and classes contained in the package. If you add or change a substantial amount of code, please add a tutorial showing how to use it.
 
 In all markdown files, you should try to use sphinx's cross-reference syntax to refer to code objects in API documentation whenever one is mentioned. For example, you should refer to the {class}`~plenoptic.synthesize.metamer.Metamer` class as
 
@@ -718,22 +715,60 @@ for docstring structure.
 
 All public-facing functions and classes should include {mod}`doctest`, which are the standard python way of showing short code examples in docstrings. These should be included in their own `Examples` section of the docstring. Every docstring should include at least one example, which shows the most common way of interacting with the function / class. Additional examples should be included where helpful, to show other common ways of interacting with the object (e.g., setting optional arguments), with brief descriptions describing what each example is doing.
 
-A function's Examples section must run independently from those of other functions (i.e., it can't reuse an object defined in a different function), but different blocks withint he section can depend on each other (so that e.g., you don't have to reimport plenoptic in each block).
+A function's Examples section must run independently from those of other functions (i.e., it can't reuse an object defined in a different function), but different blocks within the section can depend on each other (so that e.g., you don't have to reimport plenoptic in each block).
 
-Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/doctest.html) and sphinx builds them as part of the documentation. Some notes about this:
+Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/doctest.html) in our CI (the `doctests` action) and sphinx builds them as part of the documentation (which is part of the Jenkins CI step). Both are required to pass before any PR will be merged. Some notes about this:
 
 - If you would like to include a figure, use matplotlib's {doc}`plot directive <matplotlib:api/sphinxext_plot_directive_api>`. That means, your example should be structured like:
 
-```python
-.. plot::
-   :context: close-figs
+    ```python
+    .. plot::
+       :context: close-figs
 
-   >>> import plenoptic as po
-   >>> # more example code here...
-```
+       >>> import plenoptic as po
+       >>> # more example code here...
+    ```
 
 - `:context: close-figs` is important to make sure that the figures are independent across examples (this should probably be `:context: reset` for the first plot directive in a given docstring, `close-figs` thereafter). However, unfortunately,  only sphinx knows how to interpret this directive; pytest ignores it. That means the doctests must be written in such a way that they will not fail if they are run with open figures lying around. One could easily start their doctests by closing any open figures, but this generally goes against the principle of making these examples as compact and useful as possible. Unfortunately, I have not found a good general solution here.
 
+- sphinx **only** runs the blocks contained within the plot directive. That means, if, for example, you have two blocks in the doctest, only the second of which creates a plot, both of them need to be contained within a plot directive so that the second block can reuse objects (including the imported plenoptic library!) from the first. That is, the following will fail:
+
+    ```python
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> img = po.data.einstein()
+
+    And now we display the image:
+
+    .. plot::
+       :context: reset
+
+       >>> po.imshow(img)
+    ```
+
+    whereas the following will succeed:
+
+    ```python
+    Examples
+    --------
+    .. plot::
+       :reset: reset
+
+       >>> import plenoptic as po
+       >>> img = po.data.einstein()
+
+    And now we display the image:
+
+    .. plot::
+       :context: close-figs
+
+       >>> po.imshow(img)
+    ```
+
+    Note that the second block cannot have `:context: reset` or you will be unable to use the objects from the first block!
+
+    This only affects sphinx. pytest ignores the plot directive and so either structure will pass.
 
 (build-the-documentation)=
 ### Build the documentation
@@ -745,9 +780,11 @@ github repo and published at http://docs.plenoptic.org/.
 
 However, it can be built locally as well. You would do this if you've made changes locally to the documentation (or the docstrings) that you would like to examine before pushing. All additional requirements are included in the `[docs]` optional dependency bundle, which you can install with `pip install plenoptic[docs]`.
 
-Then, to build the documentation, run: `make -C docs html O="-T -j auto"`. (`-j auto` tells sphinx to parallelize the build, using as many cores as possible, a specific number can be set.)
+Then, to build the documentation, run: `make -C docs html O="-j auto"`. (`-j auto` tells sphinx to parallelize the build, using as many cores as possible, a specific number can be set.)
 
-By default, the notebooks are not run because they take a longish time to do so, especially if you do not have a GPU. In order to run all of them, prepend `RUN_NB=1` to the `make` command above. In order to run specific notebooks, set `RUN_NB` to a globbable comma-separated string in the above, e.g., `RUN_NB=Metamer,MAD` to run `docs/tutorials/intro/Metamer`, `docs/tutorials/intro/MAD_Competition`, and `docs/tutorials/intro/MAD_Simple`.
+By default, the text-based notebooks (see [earlier](adding-documentation)) are not run because they take a longish time to do so, especially if you do not have a GPU. In order to run all of them, prepend `RUN_NB=1` to the `make` command above. In order to run specific notebooks, set `RUN_NB` to a globbable comma-separated string in the above, e.g., `RUN_NB=Metamer,MAD` to run `docs/user_guide/synthesis/Metamer`, `docs/user_guide/synthesis/MAD_Competition_1`, and `docs/user_guide/synthesis/MAD_Competition_2`.
+
+Additionally, our docstrings have a variety of Examples blocks that are run by sphinx in order to render plots in the documentation, which can take a while to run. You can temporarily disable these by prepending `SKIP_MPL=1` to the `make` command. This will cause `docutils` to raise an error every time it encounters a [`plot` directive](https://matplotlib.org/stable/api/sphinxext_plot_directive_api.html), and so the build will appear to fail. However, the output will be rendered correctly (with the exception of those `plot` blocks), and so this can be useful for rapidly viewing changes locally when editing other parts of the documentation. In order to ensure the documentation build completes without any warnings or errors, you should build the docs normally before pushing.
 
 The index page of the documentation will then be located at
 `docs/_build/html/index.html`, open it in your browser to navigate

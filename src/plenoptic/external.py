@@ -4,7 +4,7 @@ Tools to deal with data from outside plenoptic.
 For example, images synthesized using the code from another paper.
 """
 
-import os.path as op
+import pathlib
 from typing import Any
 
 import imageio.v3 as iio
@@ -28,8 +28,8 @@ def __dir__() -> list[str]:
 def plot_MAD_results(
     original_image: str,
     noise_levels: list[int] | None = None,
-    results_dir: str | None = None,
-    ssim_images_dir: str | None = None,
+    results_dir: str | pathlib.Path | None = None,
+    ssim_images_dir: str | pathlib.Path | None = None,
     zoom: int | float = 3,
     vrange: str = "indep1",
     **kwargs: Any,
@@ -93,14 +93,18 @@ def plot_MAD_results(
         If ``original_image`` takes an illegal value.
     """
     if results_dir is None:
-        results_dir = str(fetch_data("MAD_results.tar.gz"))
+        results_dir = fetch_data("MAD_results.tar.gz")
+    else:
+        results_dir = pathlib.Path(results_dir).expanduser()
     if ssim_images_dir is None:
-        ssim_images_dir = str(fetch_data("ssim_images.tar.gz"))
+        ssim_images_dir = fetch_data("ssim_images.tar.gz")
+    else:
+        ssim_images_dir = pathlib.Path(ssim_images_dir).expanduser()
     allowed_vals = [f"samp{i}" for i in range(1, 11)]
     if original_image not in allowed_vals:
         err_msg = f"original_image must be one of {allowed_vals}"
         raise ValueError(err_msg)
-    img_path = op.join(op.expanduser(ssim_images_dir), f"{original_image}.tif")
+    img_path = ssim_images_dir / f"{original_image}.tif"
     orig_img = iio.imread(img_path)
     blanks = np.ones((*orig_img.shape, 4))
     if noise_levels is None:
@@ -118,10 +122,7 @@ def plot_MAD_results(
     ]
     for level in noise_levels:
         mat = sio.loadmat(
-            op.join(
-                op.expanduser(results_dir),
-                f"{original_image}_L{level}_results.mat",
-            ),
+            str(results_dir / f"{original_image}_L{level}_results.mat"),
             squeeze_me=True,
         )
         # remove these metadata keys

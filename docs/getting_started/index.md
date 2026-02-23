@@ -22,12 +22,28 @@ If you are unfamiliar with stimulus synthesis, we recommend watching the [Video 
 
 To see a minimum example of writing your own model to use with plenoptic, see [](quickstart).
 
+::::{card}
 :::{toctree}
+
+quickstart
+:::
+::::
+
+::::{card}
+:::{toctree}
+:caption: Installation
 
 install
 jupyter
-quickstart
+:::
+::::
+
+::::{card}
+:::{toctree}
+:caption: Background
+
 conceptual_intro
 Video introduction <https://archive.org/details/vss2025-symposium-plenoptic>
 Introduction slides <https://presentations.plenoptic.org/2025-05-16_vss-symposium/slides.html>
 :::
+::::

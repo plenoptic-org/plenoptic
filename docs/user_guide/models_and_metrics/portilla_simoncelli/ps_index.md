@@ -13,6 +13,7 @@ We strongly recommended reading [the metamers tutorial](metamer-nb) before the n
 
 :::
 
+::::{card}
 :::{toctree}
 :maxdepth: 2
 
@@ -22,3 +23,4 @@ technical_details/index
 advanced_usage/index
 
 :::
+::::
