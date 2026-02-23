@@ -9,16 +9,12 @@
 import glob
 import os
 import pathlib
-import sys
 from importlib.metadata import version
 
 import torch
 
 # by default, torch uses all avail threads which slows things run in parallel
 torch.set_num_threads(1)
-
-sys.path.insert(0, pathlib.Path("..").resolve())
-sys.path.insert(0, pathlib.Path("./tutorials/").resolve())
 
 
 # -- Project information -----------------------------------------------------
@@ -123,6 +119,11 @@ autodoc_default_options = {
     "member-order": "groupwise",
 }
 
+# this is supposed to be true by default
+# (https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-the-python-domain)
+# but must get set False by one of our extensions
+add_module_names = True
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -156,7 +157,13 @@ html_theme_options = {
     },
     "show_prev_next": True,
     "secondary_sidebar_items": {
-        "**": ["page-toc"],
+        # this glob pattern matches anything except a string that starts with api.
+        # unfortunately pydata-sphinx raises a warning if a page matches multiple glob
+        # patterns (and doesn't assign a reference code so we can tell sphinx to
+        # suppress it:
+        # https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-suppress_warnings)
+        "[!a]?[!p]?[!i]**": ["page-toc"],
+        "api/**": [],
     },
     "show_nav_level": 2,
     "header_links_before_dropdown": 4,
@@ -167,11 +174,6 @@ html_theme_options = {
         "json_url": "https://docs.plenoptic.org/docs/branch/main/_static/version_switcher.json",
         "version_match": version,
     },
-}
-
-html_sidebars = {
-    "api": [],
-    "generated/*": [],
 }
 
 # Path for static files (custom stylesheets or JavaScript)
@@ -318,3 +320,47 @@ else:
 nb_execution_mode = os.environ.get("NB_EXECUTION_MODE", "cache")
 nb_execution_raise_on_error = True
 nb_execution_cache_path = ".jupyter_cache"
+
+api_order = [
+    "synthesis.rst",
+    "models.rst",
+    "metrics.rst",
+    "synthesis_helper.rst",
+    "components.rst",
+    "images.rst",
+    "validation.rst",
+    "display.rst",
+    "optimization.rst",
+    "debugging.rst",
+    "external.rst",
+]
+api_dir = pathlib.Path("api")
+# API index page (api/index.rst) is auto-generated. It starts with a hidden toctree
+# including all the rst pages above, and then includes their text (in order), without
+# the sphinx anchor and the toctree argument to the autosummary directive
+api_index = """.. _api:
+
+API
+===
+
+.. toctree::
+   :hidden:
+
+"""
+api_index += "   "
+api_index += "\n   ".join(mod.replace(".rst", "") for mod in api_order)
+api_index += "\n"
+
+for api_rst in api_order:
+    api_rst = api_dir / api_rst
+    contents = api_rst.read_text().split("\n")
+    # two lines we want to throw away: the sphinx anchor (e.g., ".. _synthesis-api") and
+    # the line that tells autosummary to create a toctree (e.g., ":toctree: generated")
+    contents = [
+        c
+        for c in contents
+        if not c.strip().startswith(".. _") and not c.strip().startswith(":toctree:")
+    ]
+    api_index += "\n".join(contents)
+
+(api_dir / "index.rst").write_text(api_index)

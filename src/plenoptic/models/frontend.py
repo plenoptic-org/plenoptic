@@ -698,7 +698,7 @@ class OnOff(nn.Module):
         Whether or not to apply circular disk mask centered on the input image. This is
         useful for synthesis methods like Eigendistortions to ensure that the
         synthesized distortion will not appear in the periphery. See
-        :func:`plenoptic.tools.signal.disk()` for details on how mask is created.
+        :func:`plenoptic.tools.make_disk()` for details on how mask is created.
     cache_filt
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass.
