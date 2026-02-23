@@ -35,7 +35,7 @@ from ..model_components.steerable_pyramid_freq import (
 from ..model_components.steerable_pyramid_freq import (
     SteerablePyramidFreq,
 )
-from ..plot import clean_stem_plot, clean_up_axes, update_stem
+from ..plot.display import clean_stem_plot, clean_up_axes, update_stem
 from ..tensors import to_numpy
 from ..validate import validate_input
 

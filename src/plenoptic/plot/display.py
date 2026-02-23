@@ -16,13 +16,10 @@ from ..tensors import to_numpy
 __all__ = [
     "animshow",
     "clean_stem_plot",
-    "clean_up_axes",
     "imshow",
     "plot_representation",
     "pyrshow",
-    "rescale_ylim",
     "update_plot",
-    "update_stem",
 ]
 
 
@@ -1196,9 +1193,8 @@ def plot_representation(
     - If ``ax`` is ``None``, we create a one-subplot figure using ``figsize``.
       If ``ax`` is not ``None``, we therefore ignore ``figsize``.
 
-    - If ``ylim`` is ``None``, we call :func:`~plenoptic.tools.display.rescale_ylim`,
-      which sets the axes' y-limits to be ``(-y_max, y_max)``, where
-      ``y_max=np.abs(data).max()``. If it's ``False``, we do nothing.
+    - If ``ylim`` is ``None``, we set the axes' y-limits to be ``(-y_max, y_max)``,
+      where ``y_max=np.abs(data).max()``. If it's ``False``, we do nothing.
 
     Parameters
     ----------
