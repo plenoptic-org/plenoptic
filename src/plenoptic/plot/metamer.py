@@ -14,12 +14,12 @@ from ..synthesize import Metamer
 from . import display
 
 __all__ = [
-    "plot_loss",
-    "display_metamer",
-    "plot_representation_error",
-    "plot_pixel_values",
-    "plot_synthesis_status",
-    "animate",
+    "metamer_loss",
+    "metamer_image",
+    "metamer_representation_error",
+    "metamer_pixel_values",
+    "metamer_synthesis_status",
+    "metamer_animate",
 ]
 
 
@@ -27,7 +27,7 @@ def __dir__() -> list[str]:
     return __all__
 
 
-def plot_loss(
+def metamer_loss(
     metamer: Metamer,
     iteration: int | None = None,
     ax: mpl.axes.Axes | None = None,
@@ -65,10 +65,10 @@ def plot_loss(
 
     See Also
     --------
-    plot_synthesis_status
+    metamer_synthesis_status
         Create a figure combining this with other axis-level plots to summarize
         synthesis status at a given iteration.
-    animate
+    metamer_animate
         Create a video animating this and other axis-level plots changing over
         the course of synthesis.
 
@@ -118,7 +118,7 @@ def plot_loss(
     return ax
 
 
-def display_metamer(
+def metamer_image(
     metamer: Metamer,
     batch_idx: int = 0,
     channel_idx: int | None = None,
@@ -184,10 +184,10 @@ def display_metamer(
 
     See Also
     --------
-    plot_synthesis_status
+    metamer_synthesis_status
         Create a figure combining this with other axis-level plots to summarize
         synthesis status at a given iteration.
-    animate
+    metamer_animate
         Create a video animating this and other axis-level plots changing over
         the course of synthesis.
 
@@ -210,7 +210,7 @@ def display_metamer(
       >>> met = po.synth.Metamer(img, model)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
-      >>> po.synth.metamer.display_metamer(met)
+      >>> po.synth.metamer.metamer_image(met)
       <Axes: title=...Metamer [iteration=107]...>
 
     If no matplotlib figure exists, this function will create a new one:
@@ -220,7 +220,7 @@ def display_metamer(
 
       >>> # close all open figures to ensure none exist
       >>> plt.close("all")
-      >>> po.synth.metamer.display_metamer(met)
+      >>> po.synth.metamer.metamer_image(met)
       <Axes: title=...Metamer [iteration=107]...>
 
     Display metamer from a specified iteration (requires setting ``store_progress``
@@ -229,7 +229,7 @@ def display_metamer(
     .. plot::
       :context: close-figs
 
-      >>> po.synth.metamer.display_metamer(met, iteration=10)
+      >>> po.synth.metamer.metamer_image(met, iteration=10)
       <Axes: title=...Metamer [iteration=10]...>
 
     Explicitly define the axis to use:
@@ -238,7 +238,7 @@ def display_metamer(
       :context: close-figs
 
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-      >>> po.synth.metamer.display_metamer(met, ax=axes[1])
+      >>> po.synth.metamer.metamer_image(met, ax=axes[1])
       <Axes: title=...Metamer [iteration=107]...>
 
     When plotting on an existing axis, if ``zoom=None``, this function will determine
@@ -248,7 +248,7 @@ def display_metamer(
       :context: close-figs
 
       >>> fig, axes = plt.subplots(1, 1, figsize=(8, 8))
-      >>> po.synth.metamer.display_metamer(met, ax=axes)
+      >>> po.synth.metamer.metamer_image(met, ax=axes)
       <Axes: title=...Metamer [iteration=107]...dims: [256, 256] * 2.0'}>
     """
     progress = metamer.get_progress(iteration)
@@ -355,7 +355,7 @@ def _representation_error(
     return metamer_rep - metamer.target_representation
 
 
-def plot_representation_error(
+def metamer_representation_error(
     metamer: Metamer,
     batch_idx: int = 0,
     iteration: int | None = None,
@@ -416,10 +416,10 @@ def plot_representation_error(
 
     See Also
     --------
-    plot_synthesis_status
+    metamer_synthesis_status
         Create a figure combining this with other axis-level plots to summarize
         synthesis status at a given iteration.
-    animate
+    metamer_animate
         Create a video animating this and other axis-level plots changing over
         the course of synthesis.
 
@@ -495,7 +495,7 @@ def plot_representation_error(
       :context: close-figs
 
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-      >>> po.synth.metamer.display_metamer(met, ax=axes[0])
+      >>> po.synth.metamer.metamer_image(met, ax=axes[0])
       <Axes: title=...Metamer [iteration=150]...>
       >>> po.synth.metamer.plot_representation_error(met, ax=axes[1])
       [<Axes: ...>, ..., <Axes: ...>]
@@ -516,7 +516,7 @@ def plot_representation_error(
     )
 
 
-def plot_pixel_values(
+def metamer_pixel_values(
     metamer: Metamer,
     batch_idx: int = 0,
     channel_idx: int | None = None,
@@ -573,10 +573,10 @@ def plot_pixel_values(
 
     See Also
     --------
-    plot_synthesis_status
+    metamer_synthesis_status
         Create a figure combining this with other axis-level plots to summarize
         synthesis status at a given iteration.
-    animate
+    metamer_animate
         Create a video animating this and other axis-level plots changing over
         the course of synthesis.
 
@@ -688,7 +688,7 @@ def _check_included_plots(to_check: list[str] | dict[str, float], to_check_name:
     """
     Check whether the user wanted us to create plots that we can't.
 
-    Helper function for :func:`plot_synthesis_status` and :func:`animate`.
+    Helper function for :func:`metamer_synthesis_status` and :func:`animate`.
 
     Raises a ``ValueError`` if ``to_check`` contains any values that are not allowed.
 
@@ -707,10 +707,10 @@ def _check_included_plots(to_check: list[str] | dict[str, float], to_check_name:
         If ``to_check`` takes an illegal value.
     """  # numpydoc ignore=EX01
     allowed_vals = [
-        "display_metamer",
-        "plot_loss",
-        "plot_representation_error",
-        "plot_pixel_values",
+        "metamer_image",
+        "metamer_loss",
+        "metamer_representation_error",
+        "metamer_pixel_values",
         "misc",
     ]
     try:
@@ -730,17 +730,17 @@ def _setup_synthesis_fig(
     axes_idx: dict[str, int] = {},
     figsize: tuple[float, float] | None = None,
     included_plots: list[str] = [
-        "display_metamer",
-        "plot_loss",
-        "plot_representation_error",
+        "metamer_image",
+        "metamer_loss",
+        "metamer_representation_error",
     ],
-    display_metamer_width: float = 1,
-    plot_loss_width: float = 1,
-    plot_representation_error_width: float = 1,
-    plot_pixel_values_width: float = 1,
+    metamer_image_width: float = 1,
+    metamer_loss_width: float = 1,
+    metamer_representation_error_width: float = 1,
+    metamer_pixel_values_width: float = 1,
 ) -> tuple[mpl.figure.Figure, list[mpl.axes.Axes], dict[str, int]]:
     """
-    Set up figure for :func:`plot_synthesis_status`.
+    Set up figure for :func:`metamer_synthesis_status`.
 
     Creates figure with enough axes for the all the plots you want. Will
     also create index in ``axes_idx`` for them if you haven't done so already.
@@ -769,15 +769,15 @@ def _setup_synthesis_fig(
         playing around to find a reasonable value. If ``None``, we attempt to
         make our best guess, aiming to have relative width=1 correspond to 5.
     included_plots
-        Which plots to include. Must be some subset of ``'display_metamer',
-        'plot_loss', 'plot_representation_error', 'plot_pixel_values'``.
-    display_metamer_width
+        Which plots to include. Must be some subset of ``'metamer_image',
+        'metamer_loss', 'metamer_representation_error', 'metamer_pixel_values'``.
+    metamer_image_width
         Relative width of the axis for the synthesized metamer.
-    plot_loss_width
+    metamer_loss_width
         Relative width of the axis for loss plot.
-    plot_representation_error_width
+    metamer_representation_error_width
         Relative width of the axis for representation error plot.
-    plot_pixel_values_width
+    metamer_pixel_values_width
         Relative width of the axis for image pixel intensities histograms.
 
     Returns
@@ -792,28 +792,28 @@ def _setup_synthesis_fig(
     n_subplots = 0
     axes_idx = axes_idx.copy()
     width_ratios = []
-    if "display_metamer" in included_plots:
+    if "metamer_image" in included_plots:
         n_subplots += 1
-        width_ratios.append(display_metamer_width)
-        if "display_metamer" not in axes_idx:
-            axes_idx["display_metamer"] = tensors._find_min_int(axes_idx.values())
-    if "plot_loss" in included_plots:
+        width_ratios.append(metamer_image_width)
+        if "metamer_image" not in axes_idx:
+            axes_idx["metamer_image"] = tensors._find_min_int(axes_idx.values())
+    if "metamer_loss" in included_plots:
         n_subplots += 1
-        width_ratios.append(plot_loss_width)
-        if "plot_loss" not in axes_idx:
-            axes_idx["plot_loss"] = tensors._find_min_int(axes_idx.values())
-    if "plot_representation_error" in included_plots:
+        width_ratios.append(metamer_loss_width)
+        if "metamer_loss" not in axes_idx:
+            axes_idx["metamer_loss"] = tensors._find_min_int(axes_idx.values())
+    if "metamer_representation_error" in included_plots:
         n_subplots += 1
-        width_ratios.append(plot_representation_error_width)
-        if "plot_representation_error" not in axes_idx:
-            axes_idx["plot_representation_error"] = tensors._find_min_int(
+        width_ratios.append(metamer_representation_error_width)
+        if "metamer_representation_error" not in axes_idx:
+            axes_idx["metamer_representation_error"] = tensors._find_min_int(
                 axes_idx.values()
             )
-    if "plot_pixel_values" in included_plots:
+    if "metamer_pixel_values" in included_plots:
         n_subplots += 1
-        width_ratios.append(plot_pixel_values_width)
-        if "plot_pixel_values" not in axes_idx:
-            axes_idx["plot_pixel_values"] = tensors._find_min_int(axes_idx.values())
+        width_ratios.append(metamer_pixel_values_width)
+        if "metamer_pixel_values" not in axes_idx:
+            axes_idx["metamer_pixel_values"] = tensors._find_min_int(axes_idx.values())
     if fig is None:
         width_ratios = np.array(width_ratios)
         if figsize is None:
@@ -847,7 +847,7 @@ def _setup_synthesis_fig(
     return fig, axes, axes_idx
 
 
-def plot_synthesis_status(
+def metamer_synthesis_status(
     metamer: Metamer,
     batch_idx: int = 0,
     channel_idx: int | None = None,
@@ -860,9 +860,9 @@ def plot_synthesis_status(
     axes_idx: dict[str, int] = {},
     figsize: tuple[float, float] | None = None,
     included_plots: list[str] = [
-        "display_metamer",
-        "plot_loss",
-        "plot_representation_error",
+        "metamer_image",
+        "metamer_loss",
+        "metamer_representation_error",
     ],
     width_ratios: dict[str, float] = {},
 ) -> tuple[mpl.figure.Figure, dict[str, int]]:
@@ -889,9 +889,9 @@ def plot_synthesis_status(
         iteration), then we show the cached metamer from the nearest iteration.
     ylim
         The ylimit to use for the representation_error plot. We pass
-        this value directly to ``plot_representation_error``.
+        this value directly to :func:`metamer_representation_error`.
     vrange
-        The vrange option to pass to :func:`display_metamer()`. See
+        The vrange option to pass to :func:`metamer_image()`. See
         docstring of :func:`~plenoptic.tools.display.imshow` for possible values.
     zoom
         How much to zoom in / enlarge the metamer, the ratio
@@ -902,7 +902,7 @@ def plot_synthesis_status(
         have no way to determine whether it should be represented as an RGB
         image or not, so the user must set this flag to tell us. It will be
         ignored if the response doesn't look image-like or if the
-        model has its own plot_representation_error() method. Else, it will
+        model has its own ``plot_representation()`` method. Else, it will
         be passed to :func:`~plenoptic.tools.display.imshow`, see that method's
         docstring for details.
     fig
@@ -912,8 +912,8 @@ def plot_synthesis_status(
     axes_idx
         Dictionary specifying which axes contains which type of plot, allows
         for more fine-grained control of the resulting figure. Probably only
-        helpful if fig is also defined. Possible keys: ``'display_metamer',
-        'plot_loss', 'plot_representation_error', 'plot_pixel_values',
+        helpful if fig is also defined. Possible keys: ``'metamer_image',
+        'metamer_loss', 'metamer_representation_error', 'metamer_pixel_values',
         'misc'``. Values should all be ints. If you tell this function to
         create a plot that doesn't have a corresponding key, we find the lowest
         int that is not already in the dict, so if you have axes that you want
@@ -923,8 +923,8 @@ def plot_synthesis_status(
         playing around to find a reasonable value. If ``None``, we attempt to
         make our best guess, aiming to have each axis be of size ``(5, 5)``.
     included_plots
-        Which plots to include. Must be some subset of ``'display_metamer',
-        'plot_loss', 'plot_representation_error', 'plot_pixel_values'``.
+        Which plots to include. Must be some subset of ``'metamer_image',
+        'metamer_loss', 'metamer_representation_error', 'metamer_pixel_values'``.
     width_ratios
         If ``width_ratios`` is an empty dictionary, all plots will have the
         same width. To change that, specify their relative widths; keys should
@@ -955,19 +955,19 @@ def plot_synthesis_status(
 
     See Also
     --------
-    display_metamer
+    metamer_image
         One of this function's axis-level component functions: display metamer at
         a given synthesis iteration.
-    plot_loss
+    metamer_loss
         One of this function's axis-level component functions: plot synthesis loss
         over iterations.
-    plot_representation_error
+    metamer_representation_error
         One of this function's axis-level component functions: plot error in model
         representation at a given synthesis iteration.
-    plot_pixel_values
+    metamer_pixel_values
         One of this function's axis-level component functions: plot histogram of
         pixel values in target image and metamer at a given synthesis iteration.
-    animate
+    metamer_animate
         Create a video that animates this figure over synthesis iteration.
 
     Examples
@@ -984,7 +984,7 @@ def plot_synthesis_status(
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
       >>> po.synth.metamer.plot_synthesis_status(met)
-      (<Figure size ...>, {'display_metamer': 0, ...})
+      (<Figure size ...>, {'metamer_image': 0, ...})
 
     If model has its own ``plot_representation`` method, this function will use it
     for plotting the representation error (see
@@ -1000,14 +1000,14 @@ def plot_synthesis_status(
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
       >>> po.synth.metamer.plot_synthesis_status(met)
-      (<Figure size ...>, {'display_metamer': 0, ...})
+      (<Figure size ...>, {'metamer_image': 0, ...})
 
     Change the included plots:
 
     .. plot::
       :context: close-figs
 
-      >>> included_plots = ["plot_loss", "plot_pixel_values"]
+      >>> included_plots = ["metamer_loss", "metamer_pixel_values"]
       >>> po.synth.metamer.plot_synthesis_status(met, included_plots=included_plots)
       (<Figure size ...>, {'plot_loss': 0, ...})
 
@@ -1016,9 +1016,9 @@ def plot_synthesis_status(
     .. plot::
       :context: close-figs
 
-      >>> width_ratios = {"plot_representation_error": 3}
+      >>> width_ratios = {"metamer_representation_error": 3}
       >>> po.synth.metamer.plot_synthesis_status(met, width_ratios=width_ratios)
-      (<Figure size ...>, {'display_metamer': 0, ...})
+      (<Figure size ...>, {'metamer_image': 0, ...})
 
     Plot on existing figure, ignoring some axes and rearranging others:
 
@@ -1026,7 +1026,7 @@ def plot_synthesis_status(
       :context: close-figs
 
       >>> fig, axes = plt.subplots(1, 5, figsize=(16, 4))
-      >>> axes_idx = {"misc": [0, 3], "plot_loss": 4}
+      >>> axes_idx = {"misc": [0, 3], "metamer_loss": 4}
       >>> po.synth.metamer.plot_synthesis_status(met, fig=fig, axes_idx=axes_idx)
       (<Figure size ...>, {'misc': [0, 3], ...})
     """
@@ -1038,7 +1038,7 @@ def plot_synthesis_status(
         )
     if metamer.metamer.ndim not in [3, 4]:
         raise ValueError(
-            "plot_synthesis_status() expects 3 or 4d data;"
+            "metamer_synthesis_status() expects 3 or 4d data;"
             "unexpected behavior will result otherwise!"
         )
     _check_included_plots(included_plots, "included_plots")
@@ -1077,24 +1077,24 @@ def plot_synthesis_status(
                 if i == j:
                     return True
 
-    if "display_metamer" in included_plots:
-        display_metamer(
+    if "metamer_image" in included_plots:
+        metamer_image(
             metamer,
             batch_idx=batch_idx,
             channel_idx=channel_idx,
             iteration=iteration,
-            ax=axes[axes_idx["display_metamer"]],
+            ax=axes[axes_idx["metamer_image"]],
             zoom=zoom,
             vrange=vrange,
         )
-    if "plot_loss" in included_plots:
-        plot_loss(metamer, iteration=iteration, ax=axes[axes_idx["plot_loss"]])
-    if "plot_representation_error" in included_plots:
-        plot_representation_error(
+    if "metamer_loss" in included_plots:
+        metamer_loss(metamer, iteration=iteration, ax=axes[axes_idx["metamer_loss"]])
+    if "metamer_representation_error" in included_plots:
+        metamer_representation_error(
             metamer,
             batch_idx=batch_idx,
             iteration=iteration,
-            ax=axes[axes_idx["plot_representation_error"]],
+            ax=axes[axes_idx["metamer_representation_error"]],
             ylim=ylim,
             as_rgb=plot_representation_error_as_rgb,
         )
@@ -1104,20 +1104,20 @@ def plot_synthesis_status(
             i
             for i, _ in enumerate(fig.axes)
             if not check_iterables(i, axes_idx.values())
-        ] + [axes_idx["plot_representation_error"]]
-        axes_idx["plot_representation_error"] = new_axes
-    if "plot_pixel_values" in included_plots:
-        plot_pixel_values(
+        ] + [axes_idx["metamer_representation_error"]]
+        axes_idx["metamer_representation_error"] = new_axes
+    if "metamer_pixel_values" in included_plots:
+        metamer_pixel_values(
             metamer,
             batch_idx=batch_idx,
             channel_idx=channel_idx,
             iteration=iteration,
-            ax=axes[axes_idx["plot_pixel_values"]],
+            ax=axes[axes_idx["metamer_pixel_values"]],
         )
     return fig, axes_idx
 
 
-def animate(
+def metamer_animate(
     metamer: Metamer,
     framerate: int = 10,
     batch_idx: int = 0,
@@ -1130,9 +1130,9 @@ def animate(
     axes_idx: dict[str, int] = {},
     figsize: tuple[float, float] | None = None,
     included_plots: list[str] = [
-        "display_metamer",
-        "plot_loss",
-        "plot_representation_error",
+        "metamer_image",
+        "metamer_loss",
+        "metamer_representation_error",
     ],
     width_ratios: dict[str, float] = {},
 ) -> mpl.animation.FuncAnimation:
@@ -1140,7 +1140,7 @@ def animate(
     Animate synthesis progress.
 
     This is essentially the figure produced by
-    ``metamer.plot_synthesis_status`` animated over time, for each stored
+    :func:`metamer_synthesis_status` animated over time, for each stored
     iteration.
 
     This functions returns a matplotlib FuncAnimation object. See our
@@ -1180,7 +1180,7 @@ def animate(
           animation.
 
     vrange
-        The vrange option to pass to :func:`display_metamer()`. See
+        The vrange option to pass to :func:`metamer_image()`. See
         docstring of :func:`~plenoptic.tools.display.imshow` for possible values.
     zoom
         How much to zoom in / enlarge the metamer, the ratio
@@ -1191,7 +1191,7 @@ def animate(
         have no way to determine whether it should be represented as an RGB
         image or not, so the user must set this flag to tell us. It will be
         ignored if the representation doesn't look image-like or if the
-        model has its own ``plot_representation_error()`` method. Else, it will
+        model has its own ``plot_representation()`` method. Else, it will
         be passed to :func:`~plenoptic.tools.display.imshow`, see that method's
         docstring for details.
     fig
@@ -1201,8 +1201,8 @@ def animate(
     axes_idx
         Dictionary specifying which axes contains which type of plot, allows
         for more fine-grained control of the resulting figure. Probably only
-        helpful if fig is also defined. Possible keys: ``'display_metamer',
-        'plot_loss', 'plot_representation_error', 'plot_pixel_values',
+        helpful if fig is also defined. Possible keys: ``'metamer_image',
+        'metamer_loss', 'metamer_representation_error', 'metamer_pixel_values',
         'misc'``. Values should all be ints. If you tell this function to
         create a plot that doesn't have a corresponding key, we find the lowest
         int that is not already in the dict, so if you have axes that you want
@@ -1212,8 +1212,8 @@ def animate(
         playing around to find a reasonable value. If ``None``, we attempt to
         make our best guess, aiming to have each axis be of size ``(5, 5)``.
     included_plots :
-        Which plots to include. Must be some subset of ``'display_metamer',
-        'plot_loss', 'plot_representation_error', 'plot_pixel_values'``.
+        Which plots to include. Must be some subset of ``'metamer_image',
+        'metamer_loss', 'metamer_representation_error', 'metamer_pixel_values'``.
     width_ratios
         If ``width_ratios`` is an empty dictionary, all plots will have the
         same width. To change that, specify their relative widths; keys should
@@ -1237,19 +1237,19 @@ def animate(
 
     See Also
     --------
-    display_metamer
+    metamer_image
         One of this function's axis-level component functions: display metamer at
         a given synthesis iteration.
-    plot_loss
+    metamer_loss
         One of this function's axis-level component functions: plot synthesis loss
         over iterations.
-    plot_representation_error
+    metamer_representation_error
         One of this function's axis-level component functions: plot error in model
         representation at a given synthesis iteration.
-    plot_pixel_values
+    metamer_pixel_values
         One of this function's axis-level component functions: plot histogram of
         pixel values in target image and metamer at a given synthesis iteration.
-    plot_synthesis_status
+    metamer_synthesis_status
         Create a figure that shows a frame from this movie: the synthesis status at
         a given iteration.
 
@@ -1321,7 +1321,7 @@ def animate(
     .. plot::
       :context: close-figs
 
-      >>> included_plots = ["plot_loss", "plot_pixel_values"]
+      >>> included_plots = ["metamer_loss", "metamer_pixel_values"]
       >>> ani = po.synth.metamer.animate(met, included_plots=included_plots)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-3.gif")
@@ -1333,7 +1333,7 @@ def animate(
     .. plot::
       :context: close-figs
 
-      >>> width_ratios = {"plot_representation_error": 3}
+      >>> width_ratios = {"metamer_representation_error": 3}
       >>> ani = po.synth.metamer.animate(met, width_ratios=width_ratios)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-4.gif")
@@ -1346,7 +1346,7 @@ def animate(
       :context: close-figs
 
       >>> fig, axes = plt.subplots(1, 5, figsize=(16, 4))
-      >>> axes_idx = {"misc": [0, 3], "plot_loss": 4}
+      >>> axes_idx = {"misc": [0, 3], "metamer_loss": 4}
       >>> ani = po.synth.metamer.animate(met, fig=fig, axes_idx=axes_idx)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-5.gif")
@@ -1384,11 +1384,11 @@ def animate(
     except AttributeError:
         # this way we'll never rescale
         ylim_rescale_interval = len(metamer.saved_metamer) + 1
-    # we run plot_synthesis_status to initialize the figure if either fig is
+    # we run metamer_synthesis_status to initialize the figure if either fig is
     # None or if there are no titles on any axes, which we assume means that
     # it's an empty figure
     if fig is None or not any([ax.get_title() for ax in fig.axes]):
-        fig, axes_idx = plot_synthesis_status(
+        fig, axes_idx = metamer_synthesis_status(
             metamer=metamer,
             batch_idx=batch_idx,
             channel_idx=channel_idx,
@@ -1406,25 +1406,25 @@ def animate(
     # grab the artist for the second plot (we don't need to do this for the
     # metamer or representation plot, because we use the update_plot
     # function for that)
-    if "plot_loss" in included_plots:
-        scat = fig.axes[axes_idx["plot_loss"]].collections[0]
+    if "metamer_loss" in included_plots:
+        scat = fig.axes[axes_idx["metamer_loss"]].collections[0]
     # can have multiple plots
-    if "plot_representation_error" in included_plots:
+    if "metamer_representation_error" in included_plots:
         try:
             rep_error_axes = [
-                fig.axes[i] for i in axes_idx["plot_representation_error"]
+                fig.axes[i] for i in axes_idx["metamer_representation_error"]
             ]
         except TypeError:
-            # in this case, axes_idx['plot_representation_error'] is not iterable and
+            # in this case, axes_idx['metamer_representation_error'] is not iterable and
             # so is a single value
-            rep_error_axes = [fig.axes[axes_idx["plot_representation_error"]]]
+            rep_error_axes = [fig.axes[axes_idx["metamer_representation_error"]]]
     else:
         rep_error_axes = []
-    if "display_metamer" in included_plots:
-        fig.axes[axes_idx["display_metamer"]].set_title("Metamer")
+    if "metamer_image" in included_plots:
+        fig.axes[axes_idx["metamer_image"]].set_title("Metamer")
 
     if metamer.target_representation.ndimension() == 4:
-        if "plot_representation_error" in included_plots:
+        if "metamer_representation_error" in included_plots:
             warnings.warn(
                 "Looks like representation is image-like, haven't fully"
                 " thought out how to best handle rescaling color ranges yet!"
@@ -1457,15 +1457,15 @@ def animate(
                 "ignore", message="loss iteration and iteration for"
             )
             artists = []
-            if "display_metamer" in included_plots:
+            if "metamer_image" in included_plots:
                 artists.extend(
                     display.update_plot(
-                        fig.axes[axes_idx["display_metamer"]],
+                        fig.axes[axes_idx["metamer_image"]],
                         data=metamer.saved_metamer[i],
                         batch_idx=batch_idx,
                     )
                 )
-            if "plot_representation_error" in included_plots:
+            if "metamer_representation_error" in included_plots:
                 rep_error = _representation_error(
                     metamer,
                     iteration=min(i * metamer.store_progress, len(metamer.losses) - 1),
@@ -1489,20 +1489,20 @@ def animate(
                 ):
                     display.rescale_ylim(rep_error_axes, rep_error)
 
-            if "plot_pixel_values" in included_plots:
+            if "metamer_pixel_values" in included_plots:
                 # this is the dumbest way to do this, but it's simple --
                 # clearing the axes can cause problems if the user has, for
                 # example, changed the tick locator or formatter. not sure how
                 # to handle this best right now
-                fig.axes[axes_idx["plot_pixel_values"]].clear()
-                plot_pixel_values(
+                fig.axes[axes_idx["metamer_pixel_values"]].clear()
+                metamer_pixel_values(
                     metamer,
                     batch_idx=batch_idx,
                     channel_idx=channel_idx,
                     iteration=min(i * metamer.store_progress, len(metamer.losses) - 1),
-                    ax=fig.axes[axes_idx["plot_pixel_values"]],
+                    ax=fig.axes[axes_idx["metamer_pixel_values"]],
                 )
-            if "plot_loss" in included_plots:
+            if "metamer_loss" in included_plots:
                 # loss always contains values from every iteration, but everything
                 # else will be subsampled.
                 x_val = metamer._convert_iteration(i, False)

@@ -13,8 +13,8 @@ from ..synthesize import Eigendistortion
 from .display import imshow
 
 __all__ = [
-    "display_eigendistortion",
-    "display_eigendistortion_all",
+    "eigendistortion_image",
+    "eigendistortion_image_all",
 ]
 
 
@@ -22,7 +22,7 @@ def __dir__() -> list[str]:
     return __all__
 
 
-def display_eigendistortion(
+def eigendistortion_image(
     eigendistortion: Eigendistortion,
     eigenindex: int = 0,
     alpha: float = 5.0,
@@ -72,7 +72,7 @@ def display_eigendistortion(
 
     See Also
     --------
-    display_eigendistortion_all
+    eigendistortion_image_all
         Display base image and multiple eigendistortions, alone and added to image.
     """
     # reshape so channel dim is last
@@ -92,7 +92,7 @@ def display_eigendistortion(
     return fig
 
 
-def display_eigendistortion_all(
+def eigendistortion_image_all(
     eigendistortion: Eigendistortion,
     eigenindex: int | list[int] = [0, -1],
     alpha: float | list[float] = 5.0,
@@ -163,7 +163,7 @@ def display_eigendistortion_all(
 
     See Also
     --------
-    display_eigendistortion
+    eigendistortion_image
         Display single eigendistortion added to image.
 
     Examples
