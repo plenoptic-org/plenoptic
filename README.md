@@ -55,7 +55,7 @@ issue](https://github.com/plenoptic-org/plenoptic/issues) and we'll
 try to help you figure out the problem!
 
 See the [installation
-page](https://docs.plenoptic.org/docs/branch/main/install.html) for more details,
+page](https://docs.plenoptic.org/docs/branch/main/getting_started/install.html) for more details,
 including how to set up a virtual environment and jupyter.
 
 ### ffmpeg and videos
@@ -136,7 +136,7 @@ citation for the code, or use the following:
   ```
 
 See the [citation
-guide](https://docs.plenoptic.org/docs/branch/main/citation.html) for more
+guide](https://docs.plenoptic.org/docs/branch/main/reference/citation.html) for more
 details, including citations for the different synthesis methods and
 computational moels included in plenoptic.
 
