@@ -17,6 +17,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check_imports:
+    runs-on: ubuntu-latest
+    name: Eager import to check they're all working correctly
+    steps:
+    - uses: actions/checkout@v5
+    - name: Install Python 3
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+        cache: pip
+        cache-dependency-path: setup.py
+    - name: Install dependencies
+      run: |
+        # using the --upgrade and --upgrade-strategy eager flags ensures that
+        # pip will always install the latest allowed version of all
+        # dependencies, to make sure the cache doesn't go stale
+        pip install --upgrade --upgrade-strategy eager .[docs] --extra-index-url https://download.pytorch.org/whl/cpu
+    - name: Check improts
+      run: |
+        EAGER_IMPORT=1 python -c "import plenoptic"
   notebooks_cpu:
     runs-on: ubuntu-latest
     strategy:
