@@ -64,7 +64,6 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # so that relative sizes of axes created by po.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
-%matplotlib inline
 
 plt.rcParams["animation.html"] = "html5"
 # use single-threaded ffmpeg for animation writer
