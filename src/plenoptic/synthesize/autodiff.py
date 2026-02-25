@@ -11,7 +11,7 @@ import torch
 from torch import Tensor
 
 
-def jacobian(y: Tensor, x: Tensor) -> Tensor:
+def _jacobian(y: Tensor, x: Tensor) -> Tensor:
     """
     Explicitly compute the full Jacobian matrix.
 
@@ -65,7 +65,7 @@ def jacobian(y: Tensor, x: Tensor) -> Tensor:
     return J.detach()
 
 
-def vector_jacobian_product(
+def _vector_jacobian_product(
     y: Tensor,
     x: Tensor,
     U: Tensor,
@@ -95,7 +95,7 @@ def vector_jacobian_product(
         Direction, shape is ``torch.Size([m, k])``, i.e. same dim as output tensor.
         ``k`` is the number of directions.
     retain_graph
-        Whether or not to keep graph after doing one :meth:`vector_jacobian_product`.
+        Whether or not to keep graph after doing one :meth:`_vector_jacobian_product`.
         Must be set to ``True`` if ``k>1``.
     create_graph
         Whether or not to create computational graph. Usually should be set to ``True``
@@ -135,7 +135,7 @@ def vector_jacobian_product(
         return vJ
 
 
-def jacobian_vector_product(
+def _jacobian_vector_product(
     y: Tensor, x: Tensor, V: Tensor, dummy_vec: Tensor = None
 ) -> Tensor:
     r"""
@@ -145,7 +145,7 @@ def jacobian_vector_product(
     support this operation; this function essentially calls backward mode autodiff
     twice, as described in [1]_.
 
-    See :meth:`vector_jacobian_product()` docstring on why we and pass arguments for
+    See :meth:`_vector_jacobian_product()` docstring on why we and pass arguments for
     ``retain_graph`` and ``create_graph``.
 
     Parameters
@@ -180,11 +180,81 @@ def jacobian_vector_product(
 
     # do vjp twice to get jvp; set detach = False first; dummy_vec must be non-zero and
     # is only there as a helper
-    g = vector_jacobian_product(
+    g = _vector_jacobian_product(
         y, x, dummy_vec, retain_graph=True, create_graph=True, detach=False
     )
-    Jv = vector_jacobian_product(
+    Jv = _vector_jacobian_product(
         g, dummy_vec, V, retain_graph=True, create_graph=False, detach=True
     )
 
     return Jv
+
+
+def _fisher_info_matrix_vector_product(
+    y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor
+) -> Tensor:
+    r"""
+    Compute Fisher Information Matrix Vector Product: :math:`Fv`.
+
+    Parameters
+    ----------
+    y
+        Output tensor with gradient attached.
+    x
+        Input tensor with gradient attached.
+    v
+        The vectors with which to compute Fisher vector products.
+    dummy_vec
+        Dummy vector for Jacobian vector product trick.
+
+    Returns
+    -------
+    Fv
+        Vector, Fisher vector product.
+
+    Notes
+    -----
+    Under white Gaussian noise assumption, :math:`F` is matrix multiplication
+    of Jacobian transpose and Jacobian:
+    :math:`F = J^T J`. Hence:
+    :math:`Fv = J^T (Jv)`
+    """  # numpydoc ignore=ES01
+    Jv = _jacobian_vector_product(y, x, v, dummy_vec)
+    Fv = _vector_jacobian_product(y, x, Jv, detach=True)
+
+    return Fv
+
+
+def _fisher_info_matrix_eigenvalue(
+    y: Tensor, x: Tensor, v: Tensor, dummy_vec: Tensor | None = None
+) -> Tensor:
+    r"""
+    Compute eigenvalues of Fisher vector products.
+
+    We compute the Fisher Information Matrix corresponding to eigenvectors in ``v``:
+    :math:`\lambda= v^T F v`.
+
+    Parameters
+    ----------
+    y
+        Output tensor with gradient attached.
+    x
+        Input tensor with gradient attached.
+    v
+        The vectors with which to compute Fisher vector products.
+    dummy_vec
+        Dummy vector for Jacobian vector product trick.
+
+    Returns
+    -------
+    lmbda
+        The computed eigenvalues.
+    """
+    if dummy_vec is None:
+        dummy_vec = torch.ones_like(y, requires_grad=True)
+
+    Fv = _fisher_info_matrix_vector_product(y, x, v, dummy_vec)
+
+    # compute eigenvalues for all vectors in v
+    lmbda = torch.stack([a.dot(b) for a, b in zip(v.T, Fv.T)])
+    return lmbda

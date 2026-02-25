@@ -1,7 +1,12 @@
 """
-Run MAD Competition.
+Maximum Differentiation Competition.
 
-Classes to perform the synthesis of Maximum Differentiation Competition.
+Maximum Differentiation Competition synthesizes images which maximally distinguish
+between a pair of metrics. Generally speaking, they are synthesized in pairs (two images
+that one metric considers identical and the other considers as different as possible) or
+groups of four (a pair of such pairs, one for each of the two metrics). They emphasize
+the features that distinguish metrics, highlighting the features that one metric
+considers important that the other is invariant to.
 """
 
 import contextlib
@@ -19,7 +24,7 @@ from torch import Tensor
 from tqdm.auto import tqdm
 
 from ..tools import data, display, regularization
-from ..tools.convergence import loss_convergence
+from ..tools.convergence import _loss_convergence
 from ..tools.validate import validate_input, validate_metric
 from .synthesis import OptimizedSynthesis
 
@@ -277,9 +282,9 @@ class MADCompetition(OptimizedSynthesis):
         ``optimized_metric(image, mad_image)`` while keeping the value of
         ``reference_metric(image, mad_image)`` constant.
 
-        We run this until either we reach ``max_iter`` or the change over the
-        past ``stop_iters_to_check`` iterations is less than
-        ``stop_criterion``, whichever comes first.
+        We run this until either we reach ``max_iter`` or the loss changes less than
+        ``stop_criterion`` over the past ``stop_iters_to_check`` iterations,
+        whichever comes first.
 
         Parameters
         ----------
@@ -526,7 +531,7 @@ class MADCompetition(OptimizedSynthesis):
         r"""
         Check whether the loss has stabilized and, if so, return True.
 
-        Uses :func:`loss_convergence`.
+        Uses :func:`~plenoptic.tools.convergence._loss_convergence`.
 
         Parameters
         ----------
@@ -542,7 +547,7 @@ class MADCompetition(OptimizedSynthesis):
         loss_stabilized
             Whether the loss has stabilized or not.
         """
-        return loss_convergence(self, stop_criterion, stop_iters_to_check)
+        return _loss_convergence(self, stop_criterion, stop_iters_to_check)
 
     def _store(self, i: int) -> bool:
         """
@@ -596,18 +601,24 @@ class MADCompetition(OptimizedSynthesis):
 
         This can be called as
 
-        .. function:: to(device=None, dtype=None, non_blocking=False)
+        .. code:: python
 
-        .. function:: to(dtype, non_blocking=False)
+            to(device=None, dtype=None, non_blocking=False)
 
-        .. function:: to(tensor, non_blocking=False)
+        .. code:: python
+
+            to(dtype, non_blocking=False)
+
+        .. code:: python
+
+            to(tensor, non_blocking=False)
 
         Its signature is similar to :meth:`torch.Tensor.to`, but only accepts
-        floating point desired :attr:`dtype` s. In addition, this method will
-        only cast the floating point parameters and buffers to :attr:`dtype`
+        floating point desired ``dtype``. In addition, this method will
+        only cast the floating point parameters and buffers to ``dtype``
         (if given). The integral parameters and buffers will be moved
-        :attr:`device`, if that is given, but with dtypes unchanged. When
-        :attr:`non_blocking` is set, it tries to convert/move asynchronously
+        ``device``, if that is given, but with dtypes unchanged. When
+        `on_blocking`` is set, it tries to convert/move asynchronously
         with respect to the host if possible, e.g., moving CPU Tensors with
         pinned memory to CUDA devices.
 

@@ -78,6 +78,18 @@ repos:
       types_or: ["markdown"]
       entry: python linting/check_regression_tests.py tests/test_uploaded_files.py
       files: ^docs/tutorials
+    - id: check-api-docs
+      language: system
+      name: Ensure all public functions / classes are included in API docs
+      types_or: ["markdown"]
+      entry: python linting/check_apidocs.py
+      files: ^docs/tutorials
+    - id: check-inline
+      language: python
+      name: Check for matplotlib inline directive in md notebooks
+      types_or: ["markdown"]
+      files: ^docs/
+      entry: linting/check_mpl_inline.py
 
 - repo: https://github.com/codespell-project/codespell
   # Configuration for codespell is in pyproject.toml

@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 import pytest
 import scipy.io as sio
@@ -16,7 +14,7 @@ def test_files_dir():
 
 
 def test_find_files(test_files_dir):
-    assert os.path.exists(os.path.join(test_files_dir, "buildSCFpyr0.mat"))
+    assert (test_files_dir / "buildSCFpyr0.mat").exists()
 
 
 @pytest.fixture()
@@ -139,9 +137,7 @@ class TestPerceptualMetrics:
 
     @pytest.fixture
     def ssim_base_img(self, ssim_images, ssim_analysis):
-        return po.load_images(os.path.join(ssim_images, ssim_analysis["base_img"])).to(
-            DEVICE
-        )
+        return po.load_images(ssim_images / ssim_analysis["base_img"]).to(DEVICE)
 
     @pytest.mark.parametrize("weighted", [True, False])
     @pytest.mark.parametrize("other_img", np.arange(1, 11))
@@ -149,9 +145,7 @@ class TestPerceptualMetrics:
         self, weighted, other_img, ssim_images, ssim_analysis, ssim_base_img
     ):
         mat_type = {True: "weighted", False: "standard"}[weighted]
-        other = po.load_images(os.path.join(ssim_images, f"samp{other_img}.tif")).to(
-            DEVICE
-        )
+        other = po.load_images(ssim_images / f"samp{other_img}.tif").to(DEVICE)
         # dynamic range is 1 for these images, because po.load_images
         # automatically re-ranges them. They were computed with
         # dynamic_range=255 in MATLAB, and by correctly setting this value,
@@ -173,11 +167,9 @@ class TestPerceptualMetrics:
             device=DEVICE,
         )
         computed_values = torch.zeros_like(true_values)
-        base_img = po.load_images(os.path.join(msssim_images, "samp0.tiff")).to(DEVICE)
+        base_img = po.load_images(msssim_images / "samp0.tiff").to(DEVICE)
         for i in range(len(true_values)):
-            other_img = po.load_images(os.path.join(msssim_images, f"samp{i}.tiff")).to(
-                DEVICE
-            )
+            other_img = po.load_images(msssim_images / f"samp{i}.tiff").to(DEVICE)
             computed_values[i] = po.metric.ms_ssim(base_img, other_img)
         assert torch.allclose(true_values, computed_values)
 
@@ -189,7 +181,8 @@ class TestPerceptualMetrics:
     @pytest.mark.parametrize("model", ["frontend.OnOff"], indirect=True)
     def test_model_metric_grad(self, einstein_img, curie_img, model):
         curie_img.requires_grad_()
-        assert po.metric.model_metric(einstein_img, curie_img, model).requires_grad
+        model_metric = po.metric.model_metric_factory(model)
+        assert model_metric(einstein_img, curie_img).requires_grad
         curie_img.requires_grad_(False)
 
     def test_ssim_dtype(self, einstein_img, curie_img):

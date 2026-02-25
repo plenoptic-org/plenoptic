@@ -6,12 +6,7 @@
 
 # -- Path setup --------------------------------------------------------------
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#
 import glob
-import inspect
 import os
 import pathlib
 import sys
@@ -19,10 +14,11 @@ from importlib.metadata import version
 
 import torch
 
-import plenoptic
+# by default, torch uses all avail threads which slows things run in parallel
+torch.set_num_threads(1)
 
-sys.path.insert(0, os.path.abspath(".."))
-sys.path.insert(0, os.path.abspath("./tutorials/"))
+sys.path.insert(0, pathlib.Path("..").resolve())
+sys.path.insert(0, pathlib.Path("./tutorials/").resolve())
 
 
 # -- Project information -----------------------------------------------------
@@ -44,12 +40,10 @@ version: str = ".".join(release.split(".")[:3])
 extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
-    "numpydoc",
-    "matplotlib.sphinxext.plot_directive",
     "matplotlib.sphinxext.mathmpl",
+    "sphinx.ext.autosummary",
     "sphinx.ext.autodoc",
     "sphinx_autodoc_typehints",
-    "sphinxcontrib.apidoc",
     "sphinx.ext.intersphinx",
     "sphinx_copybutton",
     "sphinx_togglebutton",
@@ -59,7 +53,13 @@ extensions = [
     "sphinx.ext.viewcode",
 ]
 
+if not os.environ.get("SKIP_MPL"):
+    extensions.append("matplotlib.sphinxext.plot_directive")
+
+numfig = True
 add_module_names = False
+
+nitpicky = True
 
 intersphinx_mapping = {
     "torch": ("https://docs.pytorch.org/docs/stable/", None),
@@ -83,8 +83,13 @@ master_doc = "index"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
-
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    "**.ipynb_checkpoints",
+    ".jupyter_cache",
+]
 
 # Napoleon settings
 napoleon_google_docstring = False
@@ -97,68 +102,82 @@ napoleon_use_admonition_for_notes = False
 napoleon_use_admonition_for_references = False
 napoleon_use_ivar = False
 napoleon_use_param = True
+# when napoleon_use_rtype is true, the return type is often confused. setting this to
+# false let's sphinx-autodoc-typehints handle it instead.
 napoleon_use_rtype = False
 
-numfig = True
+# SPHINX AUTODOC TYPEHINTS
+
+always_use_bars_union = True
+typehints_defaults = "braces"
 
 # SPHINX CROSS REFERENCES
 
 add_function_parentheses = False
 
-# numpydoc
+# AUTOSUMMARY / AUTODOC
 
-
-# find whether the object is part of plenoptic
-def is_part_of_plenoptic(obj):
-    try:
-        return obj.__module__.startswith("plenoptic")
-    except AttributeError:
-        # then it's a module
-        return obj.__name__.startswith("plenoptic")
-
-
-def is_interesting(obj):
-    # find whether the object is a class or a module
-    is_right_object = inspect.isclass(obj) or inspect.ismodule(obj)
-    return is_right_object and is_part_of_plenoptic(obj)
-
-
-def find_module(obj):
-    members = inspect.getmembers(obj, is_interesting)
-    to_return = []
-    for name, mem in set(members):
-        if inspect.ismodule(mem):
-            # go through the modules recursively
-            to_return.extend(find_module(mem))
-        else:
-            # if they inherit torch Module
-            if issubclass(mem, torch.nn.Module):
-                to_return.append(f"{mem.__module__}.{name}")
-    # remove duplicates
-    return set(to_return)
-
-
-# avoid showing all the torch.nn.Module attributes and methods
-numpydoc_show_inherited_class_members = {k: False for k in find_module(plenoptic)}
-
-# to avoid this issue https://stackoverflow.com/a/73294408/4659293
-numpydoc_class_members_toctree = False
+autodoc_default_options = {
+    "members": True,
+    "show-inheritance": True,
+    "member-order": "groupwise",
+}
 
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
+html_theme = "pydata_sphinx_theme"
 
-# these are for the sphinx_rtd_theme
+html_favicon = "_static/plenoptic.ico"
+
 html_theme_options = {
-    "display_version": True,
+    "icon_links": [
+        {
+            "name": "Home",
+            "url": "https://plenoptic.org",
+            "icon": "fa-solid fa-house",
+        },
+        {
+            "name": "GitHub",
+            "url": "https://github.com/plenoptic-org/plenoptic",
+            "icon": "fab fa-github",
+        },
+        {
+            "name": "PyPI",
+            "url": "https://pypi.org/project/plenoptic",
+            "icon": "fa-custom fa-pypi",
+        },
+    ],
+    "logo": {
+        "image_light": "_static/images/Plenoptic_Logo_CMYK_Full_Wide.svg",
+        "image_dark": "_static/images/Plenoptic_Logo_CMYK_Full_DarkMode_Wide.svg",
+    },
+    "show_prev_next": True,
+    "secondary_sidebar_items": {
+        "**": ["page-toc"],
+    },
+    "show_nav_level": 2,
+    "header_links_before_dropdown": 4,
+    "navbar_align": "left",
+    "navbar_start": ["navbar-logo", "version-switcher"],
+    "show_version_warning_banner": True,
+    "switcher": {
+        "json_url": "https://docs.plenoptic.org/docs/branch/main/_static/version_switcher.json",
+        "version_match": version,
+    },
+}
+
+html_sidebars = {
+    "api": [],
+    "generated/*": [],
 }
 
 # Path for static files (custom stylesheets or JavaScript)
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
+html_js_files = ["custom-icon.js"]
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
@@ -241,9 +260,6 @@ epub_exclude_files = ["search.html"]
 
 
 # -- Extension configuration -------------------------------------------------
-#
-# APIDOC
-apidoc_module_dir = "../src/plenoptic"
 
 # MATPLOTLIB
 # because of the examples in the docstrings, want to default to showing source and not
@@ -258,6 +274,7 @@ myst_enable_extensions = [
     "dollarmath",
     "amsmath",
     "attrs_block",
+    "linkify",
 ]
 
 # SPHINXCONTRIB-BIBTEX
@@ -265,7 +282,10 @@ bibtex_bibfiles = ["references.bib"]
 bibtex_reference_style = "author_year"
 
 # SPHINX COPYBUTTON
-copybutton_exclude = ".linenos, .gp"
+
+# skip prompt characters and console outputs when copying
+# https://sphinx-copybutton.readthedocs.io/en/latest/use.html#automatic-exclusion-of-prompts-from-the-copies
+copybutton_exclude = ".linenos, .gp, .go"
 
 # MYST_NB
 
@@ -278,8 +298,12 @@ if run_nb := os.environ.get("RUN_NB"):
         nb_execution_excludepatterns = []
         print("Running all notebooks, things will take longer...")
     else:
-        all_nbs = glob.glob("tutorials/**/*md", recursive=True)
-        all_nbs = [pathlib.Path(n).stem for n in all_nbs]
+        all_md = pathlib.Path(".").glob("**/*md")
+        all_nbs = [
+            pathlib.Path(n).stem
+            for n in all_md
+            if n.read_text().startswith("---\njupytext")
+        ]
         run_globs = [f"*{n}*" for n in run_nb.split(",")]
         nb_execution_excludepatterns = [
             f"*{n}*"
@@ -293,3 +317,4 @@ else:
 
 nb_execution_mode = os.environ.get("NB_EXECUTION_MODE", "cache")
 nb_execution_raise_on_error = True
+nb_execution_cache_path = ".jupyter_cache"

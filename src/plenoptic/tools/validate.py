@@ -67,7 +67,7 @@ def validate_input(
 
     >>> import plenoptic as po
     >>> img = po.data.einstein() * 5.0
-    >>> po.tools.validate.validate_input(img)  # doctest: +ELLIPSIS
+    >>> po.tools.validate.validate_input(img)
     """
     # validate dtype
     if input_tensor.dtype not in [
@@ -195,7 +195,7 @@ def validate_model(
     ...     def forward(self, x):
     ...         x = x.detach().numpy()
     ...         return torch.as_tensor(x)
-    >>> po.tools.validate.validate_model(FailureModel())  # doctest: +ELLIPSIS
+    >>> po.tools.validate.validate_model(FailureModel())
     Traceback (most recent call last):
     ValueError: model strips gradient from input, ...
     """
@@ -325,7 +325,7 @@ def validate_coarse_to_fine(
     ...         return self.model(x)
     >>> shape = (1, 1, 256, 256)
     >>> model = FailureModel()
-    >>> po.tools.validate.validate_coarse_to_fine(model, shape)  # doctest: +ELLIPSIS
+    >>> po.tools.validate.validate_coarse_to_fine(model, shape)
     Traceback (most recent call last):
     AttributeError: model has no scales attribute ...
     """
@@ -409,7 +409,7 @@ def validate_metric(
     whereas we need metric=0 to mean *identical*):
 
     >>> import plenoptic as po
-    >>> po.tools.validate.validate_metric(po.metric.ssim)  # doctest: +ELLIPSIS
+    >>> po.tools.validate.validate_metric(po.metric.ssim)
     Traceback (most recent call last):
     ValueError: metric should return ...
     """
@@ -606,7 +606,7 @@ def remove_grad(model: torch.nn.Module):
     --------
     >>> import plenoptic as po
     >>> model = po.simul.OnOff(31, pretrained=True, cache_filt=True).eval()
-    >>> po.tools.validate.validate_model(model)  # doctest: +ELLIPSIS
+    >>> po.tools.validate.validate_model(model)
     Traceback (most recent call last):
     ValueError: model adds gradient to input, ...
     >>> po.tools.remove_grad(model)
@@ -690,7 +690,7 @@ def validate_convert_tensor_dict(
     ...         )
     >>> shape = (1, 1, 256, 256)
     >>> model = FailureModel()
-    >>> po.tools.validate.validate_convert_tensor_dict(model)  # doctest: +ELLIPSIS
+    >>> po.tools.validate.validate_convert_tensor_dict(model)
     Traceback (most recent call last):
     ValueError: On random image 0, model.convert_to_dict did not invert...
     """
