@@ -7,6 +7,7 @@
 # -- Path setup --------------------------------------------------------------
 
 import glob
+import inspect
 import os
 import pathlib
 from importlib.metadata import version
@@ -364,3 +365,37 @@ for api_rst in api_order:
     api_index += "\n".join(contents)
 
 (api_dir / "index.rst").write_text(api_index)
+
+
+# this sphinx event allows us to have fine-grained control over whether to document
+# objects or not
+# https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#event-autodoc-skip-member
+# however, we need an extra step to determine which of *our* objects the
+# object-to-document is attached to (https://github.com/sphinx-doc/sphinx/issues/9533)
+def skip_torch_inherited_methods(app, obj_type, name, obj, skip, options):
+    if obj_type == "method":
+        docobj = None
+        for frame in inspect.stack():
+            if frame.function == "_get_members":
+                docobj = frame.frame.f_locals["obj"]
+        if docobj is None:
+            raise Exception(
+                "Stack of sphinx events has changed, so unsure how to"
+                " grab object that corresponds to this method! See "
+                "PR #413 for discussion."
+            )
+        # we skip the methods inherited from torch.nn.Module for our models and
+        # model_components (we probably never want to show these methods, but this is a
+        # more conservative way of doing this)
+        docobj_module = getattr(docobj, "__module__", "")
+        if docobj_module is not None and docobj_module.startswith("plenoptic.simulate"):
+            obj_module = getattr(obj, "__module__", "")
+            if obj_module is not None and obj_module.startswith("torch.nn.modules"):
+                return True
+    return None
+
+
+# connect our custom method to the sphinx events callback API:
+# https://www.sphinx-doc.org/en/master/extdev/event_callbacks.html
+def setup(app):
+    app.connect("autodoc-skip-member", skip_torch_inherited_methods)

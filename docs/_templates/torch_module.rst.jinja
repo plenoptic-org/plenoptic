@@ -8,3 +8,35 @@
    from that class, even though they are not documented here (to avoid cluttering this page).
 
 .. autoclass:: {{ objname }}
+
+   {% block methods %}
+
+   {% if methods %}
+   .. rubric:: {{ _('Methods') }}
+
+   .. autosummary::
+   {% for item in methods %}
+      {% if item != "__init__" %}
+         ~{{ name }}.{{ item }}
+      {% endif %}
+   {%- endfor %}
+   {% endif %}
+   {% endblock %}
+
+   {% block attributes %}
+      {% set doc_attributes = [] %}
+      {% for item in attributes %}
+         {# for some reason, training attribute not included inherited_members, so skip it manually #}
+         {%- if item not in inherited_members and item != "training" -%}
+            {%- set _ = doc_attributes.append(item) -%}
+         {%- endif -%}
+      {%- endfor %}
+   {% if doc_attributes %}
+   .. rubric:: {{ _('Attributes') }}
+
+   .. autosummary::
+   {% for item in doc_attributes %}
+      ~{{ name }}.{{ item }}
+   {%- endfor %}
+   {% endif %}
+   {% endblock %}
