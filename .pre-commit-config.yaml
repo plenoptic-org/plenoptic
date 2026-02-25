@@ -84,6 +84,12 @@ repos:
       types_or: ["markdown"]
       entry: python linting/check_apidocs.py
       files: ^docs/tutorials
+    - id: check-inline
+      language: python
+      name: Check for matplotlib inline directive in md notebooks
+      types_or: ["markdown"]
+      files: ^docs/
+      entry: linting/check_mpl_inline.py
 
 - repo: https://github.com/codespell-project/codespell
   # Configuration for codespell is in pyproject.toml
