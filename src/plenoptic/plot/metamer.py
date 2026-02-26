@@ -859,7 +859,7 @@ def metamer_synthesis_status(
     ylim: tuple[float, float] | None | Literal[False] = None,
     vrange: tuple[float, float] | str = "indep1",
     zoom: float | None = None,
-    plot_representation_error_as_rgb: bool = False,
+    metamer_representation_error_as_rgb: bool = False,
     fig: mpl.figure.Figure | None = None,
     axes_idx: dict[str, int] = {},
     figsize: tuple[float, float] | None = None,
@@ -901,7 +901,7 @@ def metamer_synthesis_status(
         How much to zoom in / enlarge the metamer, the ratio
         of display pixels to image pixels. If ``None``, we
         attempt to find the best value ourselves.
-    plot_representation_error_as_rgb
+    metamer_representation_error_as_rgb
         The representation can be image-like with multiple channels, and we
         have no way to determine whether it should be represented as an RGB
         image or not, so the user must set this flag to tell us. It will be
@@ -1100,7 +1100,7 @@ def metamer_synthesis_status(
             iteration=iteration,
             ax=axes[axes_idx["metamer_representation_error"]],
             ylim=ylim,
-            as_rgb=plot_representation_error_as_rgb,
+            as_rgb=metamer_representation_error_as_rgb,
         )
         # this can add a bunch of axes, so this will try and figure
         # them out
@@ -1129,7 +1129,7 @@ def metamer_animate(
     ylim: str | None | tuple[float, float] | Literal[False] = None,
     vrange: tuple[float, float] | str = (0, 1),
     zoom: float | None = None,
-    plot_representation_error_as_rgb: bool = False,
+    metamer_representation_error_as_rgb: bool = False,
     fig: mpl.figure.Figure | None = None,
     axes_idx: dict[str, int] = {},
     figsize: tuple[float, float] | None = None,
@@ -1190,7 +1190,7 @@ def metamer_animate(
         How much to zoom in / enlarge the metamer, the ratio
         of display pixels to image pixels. If ``None``, we
         attempt to find the best value ourselves.
-    plot_representation_error_as_rgb
+    metamer_representation_error_as_rgb
         The representation can be image-like with multiple channels, and we
         have no way to determine whether it should be represented as an RGB
         image or not, so the user must set this flag to tell us. It will be
@@ -1407,7 +1407,7 @@ def metamer_animate(
             fig=fig,
             axes_idx=axes_idx,
             included_plots=included_plots,
-            plot_representation_error_as_rgb=plot_representation_error_as_rgb,
+            metamer_representation_error_as_rgb=metamer_representation_error_as_rgb,
             width_ratios=width_ratios,
         )
     # grab the artist for the second plot (we don't need to do this for the
