@@ -24,14 +24,7 @@
    {% endblock %}
 
    {% block attributes %}
-      {% set doc_attributes = [] %}
-      {% for item in attributes %}
-         {# for some reason, training attribute not included inherited_members, so skip it manually #}
-         {%- if item not in inherited_members and item != "training" -%}
-            {%- set _ = doc_attributes.append(item) -%}
-         {%- endif -%}
-      {%- endfor %}
-   {% if doc_attributes %}
+   {% if attributes %}
    .. rubric:: {{ _('Attributes') }}
 
    .. autosummary::

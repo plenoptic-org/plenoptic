@@ -373,7 +373,7 @@ for api_rst in api_order:
 # however, we need an extra step to determine which of *our* objects the
 # object-to-document is attached to (https://github.com/sphinx-doc/sphinx/issues/9533)
 def skip_torch_inherited_methods(app, obj_type, name, obj, skip, options):
-    if obj_type == "method":
+    if obj_type in ("method", "property", "attribute"):
         docobj = None
         for frame in inspect.stack():
             if frame.function == "_get_members":
@@ -384,14 +384,39 @@ def skip_torch_inherited_methods(app, obj_type, name, obj, skip, options):
                 " grab object that corresponds to this method! See "
                 "PR #413 for discussion."
             )
-        # we skip the methods inherited from torch.nn.Module for our models and
-        # model_components (we probably never want to show these methods, but this is a
-        # more conservative way of doing this)
         docobj_module = getattr(docobj, "__module__", "")
-        if docobj_module is not None and docobj_module.startswith("plenoptic.simulate"):
-            obj_module = getattr(obj, "__module__", "")
-            if obj_module is not None and obj_module.startswith("torch.nn.modules"):
-                return True
+        if obj_type == "method":
+            # we skip the methods inherited from torch.nn.Module for our models and
+            # model_components (we probably never want to show these methods, but this
+            # is a more conservative way of doing this)
+            if docobj_module is not None and docobj_module.startswith(
+                "plenoptic.simulate"
+            ):
+                obj_module = getattr(obj, "__module__", "")
+                if obj_module is not None and obj_module.startswith("torch.nn.modules"):
+                    return True
+        else:
+            # we skip the attributes inherited from torch.nn.Module for our models and
+            # model_components (we probably never want to show these attributes, but
+            # this is a more conservative way of doing this)
+            if docobj_module is not None and docobj_module.startswith(
+                "plenoptic.simulate"
+            ):
+                # for some reason, training doesn't show up as inherited (in the
+                # following set up or as part of the autodoc's inherited_members that we
+                # have access to in the jinja templates), so we exclude it manually
+                if name == "training":
+                    return True
+                # unlike methods, can't just check the module of an attribute, since it
+                # will typically be a basic type (e.g., bool). instead, we go through
+                # all the classes of docobj and see which one contains the attribute
+                # (https://stackoverflow.com/a/42503785/4659293)
+                obj_module = None
+                for cls in docobj.mro():
+                    if name in vars(cls):
+                        obj_module = cls.__module__
+                if obj_module is not None and obj_module.startswith("torch.nn.modules"):
+                    return True
     return None
 
 
