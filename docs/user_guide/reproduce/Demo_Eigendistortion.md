@@ -39,8 +39,6 @@ Our perception is influenced by our internal representation (neural responses) o
 import torch
 
 import plenoptic as po
-from plenoptic.simulate.models import OnOff
-from plenoptic.synthesize import Eigendistortion
 
 # this notebook uses torchvision, which is an optional dependency.
 # if this fails, install torchvision in your plenoptic environment
@@ -76,7 +74,9 @@ Since the Front-end OnOff model only has two channel outputs, we can easily visu
 We'll apply a circular mask to this model's inputs to avoid edge artifacts in the synthesis.
 
 ```{code-cell} ipython3
-mdl_f = OnOff(kernel_size=(31, 31), pretrained=True, apply_mask=True, cache_filt=True)
+mdl_f = po.models.OnOff(
+    kernel_size=(31, 31), pretrained=True, apply_mask=True, cache_filt=True
+)
 po.tools.remove_grad(mdl_f)
 mdl_f = mdl_f.to(DEVICE).to(image_tensor.dtype)
 mdl_f.eval()
@@ -97,7 +97,7 @@ The paper synthesizes the top and bottom `k=1` eigendistortions, but we'll set `
 
 ```{code-cell} ipython3
 # synthesize the top and bottom k distortions
-eigendist_f = Eigendistortion(image=image_tensor, model=mdl_f)
+eigendist_f = po.Eigendistortion(image=image_tensor, model=mdl_f)
 # this synthesis takes a long time to run, so we load in a cached version.
 # see the following admonition for how to run this yourself
 eigendist_f.load(
@@ -171,7 +171,7 @@ mdl_v = TorchVision(vgg, "features.11").to(DEVICE).to(image_tensor.dtype)
 po.tools.remove_grad(mdl_v)
 mdl_v.eval()
 
-eigendist_v = Eigendistortion(image=image_tensor3, model=mdl_v)
+eigendist_v = po.Eigendistortion(image=image_tensor3, model=mdl_v)
 # this synthesis takes a long time to run, so we load in a cached version.
 # see the following admonition for how to run this yourself
 eigendist_v.load(

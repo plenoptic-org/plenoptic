@@ -32,7 +32,6 @@ import pyrtools as pt
 import torch
 
 import plenoptic as po
-from plenoptic.tools import to_numpy
 
 # this notebook runs just about as fast with GPU and CPU
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -112,20 +111,20 @@ This looks pretty good -- the L1 norm line is flat in the left column, while the
 Since our images only have two pixels, we can get a better sense of what's going on by plotting them in pixel space: first pixel value on the x-axis, second on the y-axis. We can use this to visualize the points and how far they are from each other. We also know what the level curves look like for the $L_1$ and $L_2$ norms (a diamond and a circle centered on our reference image, respectively), so we can add them as well.
 
 ```{code-cell} ipython3
-l1 = to_numpy(
+l1 = po.to_numpy(
     torch.linalg.vector_norm(
         all_mad["l2_norm_max"].image - all_mad["l2_norm_max"].initial_image,
         ord=1,
     )
 )
-l2 = to_numpy(
+l2 = po.to_numpy(
     torch.linalg.vector_norm(
         all_mad["l2_norm_max"].image - all_mad["l2_norm_max"].initial_image,
         ord=2,
     )
 )
-ref = to_numpy(all_mad["l2_norm_max"].image)
-init = to_numpy(all_mad["l2_norm_max"].initial_image)
+ref = po.to_numpy(all_mad["l2_norm_max"].image)
+init = po.to_numpy(all_mad["l2_norm_max"].initial_image)
 
 
 def circle(origin, r, n=1000):

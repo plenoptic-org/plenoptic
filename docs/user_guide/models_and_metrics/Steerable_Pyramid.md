@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -38,8 +38,6 @@ from torch import nn
 from tqdm.auto import tqdm
 
 import plenoptic as po
-from plenoptic.simulate import SteerablePyramidFreq
-from plenoptic.tools.data import to_numpy
 
 # this notebook uses torchvision, which is an optional dependency.
 # if this fails, install torchvision in your plenoptic environment
@@ -89,9 +87,9 @@ Because of this we don't have direct access to a set of spatial filters for visu
 ```{code-cell} ipython3
 order = 3
 imsize = 64
-pyr = SteerablePyramidFreq(height=3, image_shape=[imsize, imsize], order=order).to(
-    DEVICE
-)
+pyr = po.model_components.SteerablePyramidFreq(
+    height=3, image_shape=[imsize, imsize], order=order
+).to(DEVICE)
 empty_image = torch.zeros((1, 1, imsize, imsize), dtype=dtype).to(DEVICE)
 pyr_coeffs = pyr.forward(empty_image)
 
@@ -122,9 +120,9 @@ print(im_batch.shape)
 po.imshow(im_batch)
 order = 3
 dim_im = 256
-pyr = SteerablePyramidFreq(height=4, image_shape=[dim_im, dim_im], order=order).to(
-    DEVICE
-)
+pyr = po.model_components.SteerablePyramidFreq(
+    height=4, image_shape=[dim_im, dim_im], order=order
+).to(DEVICE)
 pyr_coeffs = pyr(im_batch)
 ```
 
@@ -152,7 +150,7 @@ The above pyramid was the real pyramid but in many applications we might want th
 order = 3
 height = 3
 
-pyr_complex = SteerablePyramidFreq(
+pyr_complex = po.model_components.SteerablePyramidFreq(
     height=height, image_shape=[256, 256], order=order, is_complex=True
 )
 pyr_complex.to(DEVICE)
@@ -176,7 +174,7 @@ The steerable pyramid included in plenoptic operates in the frequency domain and
 class PaddedSteerPyr(torch.nn.Module):
     def __init__(self, image_shape, padding_pixels=12, height="auto", order=3):
         super().__init__()
-        self.pyr = SteerablePyramidFreq(
+        self.pyr = po.model_components.SteerablePyramidFreq(
             [s + 2 * padding_pixels for s in image_shape], height=height, order=order
         )
         self.padder = torch.nn.ZeroPad2d(padding_pixels)
@@ -200,7 +198,7 @@ You can see the boundary effect in the above coefficients, as a faint "frame". F
 class PaddedCroppedSteerPyr(torch.nn.Module):
     def __init__(self, image_shape, padding_pixels=10, height="auto", order=3):
         super().__init__()
-        self.pyr = SteerablePyramidFreq(
+        self.pyr = po.model_components.SteerablePyramidFreq(
             [s + 2 * padding_pixels for s in image_shape], height=height, order=order
         )
         self.padder = torch.nn.ZeroPad2d(padding_pixels)
@@ -232,7 +230,7 @@ class PaddedCroppedSteerPyr(torch.nn.Module):
 ```{code-cell} ipython3
 pcpyr = PaddedCroppedSteerPyr(im_batch.shape[-2:], height=3)
 pcpyr.to(DEVICE)
-pyr = SteerablePyramidFreq(im_batch.shape[-2:], height=3)
+pyr = po.model_components.SteerablePyramidFreq(im_batch.shape[-2:], height=3)
 pyr.to(DEVICE)
 # check that the coefficients are the same shape as when you have no padding
 pcpyr_coeffs = pcpyr(im_batch)
@@ -249,9 +247,9 @@ Below we steer a set of coefficients through a series of angles and visualize ho
 ```{code-cell} ipython3
 # note that steering is currently only implemented for real pyramids, so the is_complex
 # argument must be False (as it is by default)
-pyr = SteerablePyramidFreq(height=3, image_shape=[256, 256], order=3, twidth=1).to(
-    DEVICE
-)
+pyr = po.model_components.SteerablePyramidFreq(
+    height=3, image_shape=[256, 256], order=3, twidth=1
+).to(DEVICE)
 coeffs = pyr(im_batch)
 
 resteered_coeffs, _ = pyr.steer_coeffs(coeffs, torch.linspace(0, 2 * torch.pi, 64))
@@ -276,7 +274,7 @@ Most standard model architectures only accept channels with fixed shape, but eac
 ```{code-cell} ipython3
 height = 3
 order = 3
-pyr_fixed = SteerablePyramidFreq(
+pyr_fixed = po.model_components.SteerablePyramidFreq(
     height=height,
     image_shape=[256, 256],
     order=order,
@@ -317,7 +315,7 @@ However, the energy in each band should be preserved between the two pyramids an
 
 ```{code-cell} ipython3
 # the following passes with tight_frame=True or tight_frame=False, either way.
-pyr_not_downsample = SteerablePyramidFreq(
+pyr_not_downsample = po.model_components.SteerablePyramidFreq(
     height=height,
     image_shape=[256, 256],
     order=order,
@@ -328,7 +326,7 @@ pyr_not_downsample = SteerablePyramidFreq(
 )
 pyr_not_downsample.to(DEVICE)
 
-pyr_downsample = SteerablePyramidFreq(
+pyr_downsample = po.model_components.SteerablePyramidFreq(
     height=height,
     image_shape=[256, 256],
     order=order,
@@ -342,8 +340,8 @@ pyr_coeffs_downsample = pyr_downsample(im_batch.to(DEVICE))
 pyr_coeffs_not_downsample = pyr_not_downsample(im_batch.to(DEVICE))
 for i in range(len(pyr_coeffs_downsample.keys())):
     k = list(pyr_coeffs_downsample.keys())[i]
-    v1 = to_numpy(pyr_coeffs_downsample[k])
-    v2 = to_numpy(pyr_coeffs_not_downsample[k])
+    v1 = po.to_numpy(pyr_coeffs_downsample[k])
+    v2 = po.to_numpy(pyr_coeffs_not_downsample[k])
     v1 = v1.squeeze()
     v2 = v2.squeeze()
     # check if energies match in each band between downsampled and fixed size pyramid
@@ -390,7 +388,7 @@ class PyrConvFull(nn.Module):
         self.is_complex = is_complex
 
         self.rect = nn.ReLU()
-        self.pyr = SteerablePyramidFreq(
+        self.pyr = po.model_components.SteerablePyramidFreq(
             height=self.scales,
             image_shape=self.imshape,
             order=self.order,

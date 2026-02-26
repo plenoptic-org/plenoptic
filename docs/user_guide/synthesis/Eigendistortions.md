@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -66,7 +66,6 @@ import torch
 from torch import nn
 
 import plenoptic as po
-from plenoptic.synthesize.eigendistortion import Eigendistortion
 
 # this notebook runs just about as fast with GPU and CPU
 DEVICE = torch.device("cpu")
@@ -147,7 +146,7 @@ To compute the eigendistortions of this model, we can instantiate an {class}`~pl
 
 ```{code-cell} ipython3
 # instantiate Eigendistortion object using an input and model
-eig_jac = Eigendistortion(x0, mdl_linear)
+eig_jac = po.Eigendistortion(x0, mdl_linear)
 # compute the entire Jacobian exactly
 eig_jac.synthesize(method="exact")
 ```
@@ -192,7 +191,7 @@ The first eigenvector (with the largest eigenvalue) is the direction in which we
 In most cases, our input would be much larger. An $n\times n$ image has $n^2$ entries, meaning the Fisher matrix is $n^2 \times n^2$, and therefore $n^2$ possible eigendistortions -- certainly too large to store in memory. We need to instead resort to numerical methods to compute the eigendistortions. To do this, we can just set our synthesis `method='power'` to estimate the first eigenvector (most noticeable distortion) and last eigenvector (least noticeable distortion) for the image.
 
 ```{code-cell} ipython3
-eig_pow = Eigendistortion(x0, mdl_linear)
+eig_pow = po.Eigendistortion(x0, mdl_linear)
 eig_pow.synthesize(method="power", max_iter=1000)
 eigdist_pow = eig_pow.eigendistortions
 
@@ -251,7 +250,7 @@ Different inputs should in general have different sets of eigendistortions -- a 
 # generate some random input
 x1 = torch.randn_like(x0)
 
-eig_jac2 = Eigendistortion(x1, model=mdl_linear)
+eig_jac2 = po.Eigendistortion(x1, model=mdl_linear)
 eig_jac2.synthesize(method="exact")
 
 # since the model is linear, the Jacobian should be the exact same as before
@@ -305,8 +304,8 @@ resnet18_b = TorchVision(resnet, "layer2")
 po.tools.remove_grad(resnet18_b)
 resnet18_b.eval()
 
-ed_resneta = Eigendistortion(img, resnet18_a)
-ed_resnetb = Eigendistortion(img, resnet18_b)
+ed_resneta = po.Eigendistortion(img, resnet18_a)
+ed_resnetb = po.Eigendistortion(img, resnet18_b)
 ```
 
 ### 2.3 - Synthesizing distortions
@@ -363,8 +362,8 @@ img = po.tools.center_crop(img, n)
 # need to duplicate along the color dimension
 img3 = torch.repeat_interleave(img, 3, dim=1)
 
-ed_resneta = Eigendistortion(img3, resnet18_a)
-ed_resnetb = Eigendistortion(img3, resnet18_b)
+ed_resneta = po.Eigendistortion(img3, resnet18_a)
+ed_resnetb = po.Eigendistortion(img3, resnet18_b)
 
 ed_resneta.synthesize(method="power", max_iter=400)
 ed_resnetb.synthesize(method="power", max_iter=400)

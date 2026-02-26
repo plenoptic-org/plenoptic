@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -51,13 +51,11 @@ import plenoptic as po
 import contextlib
 import os
 
-from plenoptic.data.fetch import fetch_data
-
 # the contextlib.redirect_stderr here is so that we don't print out the progressbar.
 # If you would like to see it, remove this line.
 with contextlib.redirect_stderr(open(os.devnull, "w")):
-    fetch_data("MAD_results.tar.gz")
-    fetch_data("ssim_images.tar.gz")
+    po.data.fetch_data("MAD_results.tar.gz")
+    po.data.fetch_data("ssim_images.tar.gz")
 ```
 
 ## SSIM
