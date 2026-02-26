@@ -44,7 +44,7 @@ import plenoptic as po
 # We need to download some additional images for this notebook.
 IMG_PATH = po.data.fetch_data("portilla_simoncelli_images.tar.gz")
 
-# so that relative sizes of axes created by po.imshow and others look right
+# so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 ```
 
@@ -54,7 +54,7 @@ The simplest definition of a texture is a repeating visual pattern. Textures enc
 # Load and display a set of visual textures
 def display_images(im_files, title=None):
     images = po.tools.load_images(im_files)
-    fig = po.imshow(images, col_wrap=4, title=None)
+    fig = po.plot.imshow(images, col_wrap=4, title=None)
     if title is not None:
         fig.suptitle(title, y=1.05)
 

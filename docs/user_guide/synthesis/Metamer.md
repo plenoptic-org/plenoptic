@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -39,7 +39,7 @@ For the purposes of `plenoptic`, wherever we say "metamers", we mean "model meta
 
 In the Lab for Computational Vision, this goes back to [Portilla and Simoncelli, 2001](https://www.cns.nyu.edu/pub/eero/portilla99-reprint.pdf), where the authors created a parametric model of textures and synthesized novel images as a way of demonstrating the cases where the model succeeded and failed. In that paper, the model did purport to have anything to do with human vision, and they did not refer to their images as "metamers", that term did not appear until [Freeman and Simoncelli, 2011](https://www.cns.nyu.edu/pub/eero/freeman10-reprint.pdf), where the authors pool the Portilla and Simoncelli texture statistics in windows laid out in a log-polar fashion to generate putative human perceptual metamers.
 
-This notebook demonstrates how to use the {class}`~plenoptic.synthesize.metamer.Metamer` class to generate model metamers.
+This notebook demonstrates how to use the {class}`~plenoptic.Metamer` class to generate model metamers.
 
 ```{code-cell} ipython3
 import imageio
@@ -52,7 +52,7 @@ import plenoptic as po
 # this notebook runs just about as fast with GPU and CPU
 DEVICE = torch.device("cpu")
 
-# so that relative sizes of axes created by po.imshow and others look right
+# so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 # Animation-related settings
 plt.rcParams["animation.html"] = "html5"
@@ -72,60 +72,58 @@ As with all our synthesis methods, we start by grabbing a target image and initi
 
 ```{code-cell} ipython3
 img = po.data.curie().to(DEVICE)
-po.imshow(img);
+po.plot.imshow(img);
 ```
 
 For the model, we'll use a simple On-Off model of visual neurons
 
 ```{code-cell} ipython3
-model = po.simul.OnOff((7, 7))
+model = po.models.OnOff((7, 7))
 model.to(DEVICE)
 model.eval()
-po.tools.remove_grad(model)
+po.remove_grad(model)
 ```
 
-When this model is called on the image, it returns a 4d tensor. This representation is what the {class}`~plenoptic.synthesize.metamer.Metamer` class will try to match.
+When this model is called on the image, it returns a 4d tensor. This representation is what the {class}`~plenoptic.Metamer` class will try to match.
 
 ```{code-cell} ipython3
 print(model(img))
 ```
 
-In order to visualize this, we can use the helper function {func}`~plenoptic.tools.display.plot_representation` (see [Display notebook](display-nb) for more details here). In this case, the representation looks like two images, and so we plot it as such:
+In order to visualize this, we can use the helper function {func}`~plenoptic.plot.plot_representation` (see [Display notebook](display-nb) for more details here). In this case, the representation looks like two images, and so we plot it as such:
 
 ```{code-cell} ipython3
-po.tools.display.plot_representation(data=model(img), figsize=(11, 5))
+po.plot.plot_representation(data=model(img), figsize=(11, 5))
 ```
 
-At the simplest, to use {class}`~plenoptic.synthesize.metamer.Metamer`, simply initialize it with the target image and the model, then call {func}`~plenoptic.synthesize.metamer.Metamer.synthesize`. By setting `store_progress=True`, we update a variety of attributes (all of which start with `saved_`) on each iteration so we can later examine, for example, the synthesized image over time.
+At the simplest, to use {class}`~plenoptic.Metamer`, simply initialize it with the target image and the model, then call {func}`~plenoptic.Metamer.synthesize`. By setting `store_progress=True`, we update a variety of attributes (all of which start with `saved_`) on each iteration so we can later examine, for example, the synthesized image over time.
 
 ```{code-cell} ipython3
-met = po.synth.Metamer(img, model)
+met = po.Metamer(img, model)
 met.synthesize(store_progress=True, max_iter=50)
 ```
 
-We then call the {func}`~plenoptic.synthesize.metamer.plot_synthesis_status` function to see how things are doing. The image on the left shows the metamer at this moment, while the center plot shows the loss over time, with the red dot pointing out the current loss, and the rightmost plot shows the representation error. If a model has a `plot_representation` <!-- skip-lint --> method, this plot can be more informative, but this plot can always be created.
+We then call the {func}`~plenoptic.plot.metamer_synthesis_status` function to see how things are doing. The image on the left shows the metamer at this moment, while the center plot shows the loss over time, with the red dot pointing out the current loss, and the rightmost plot shows the representation error. If a model has a `plot_representation` <!-- skip-lint --> method, this plot can be more informative, but this plot can always be created.
 
 ```{code-cell} ipython3
 # model response error plot has two subplots, so we increase its relative width
-po.synth.metamer.plot_synthesis_status(
-    met, width_ratios={"plot_representation_error": 2}
-)
+po.plot.metamer_synthesis_status(met, width_ratios={"metamer_representation_error": 2})
 ```
 
-{func}`~plenoptic.synthesize.metamer.plot_synthesis_status` is a helper function to show all of this at once, but the individual components can be created separately:
+{func}`~plenoptic.plot.metamer_synthesis_status` is a helper function to show all of this at once, but the individual components can be created separately:
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(1, 3, figsize=(25, 5), gridspec_kw={"width_ratios": [1, 1, 2]})
-po.synth.metamer.display_metamer(met, ax=axes[0])
-po.synth.metamer.plot_loss(met, ax=axes[1])
-po.synth.metamer.plot_representation_error(met, ax=axes[2])
+po.plot.metamer_image(met, ax=axes[0])
+po.plot.metamer_loss(met, ax=axes[1])
+po.plot.metamer_representation_error(met, ax=axes[2])
 ```
 
 The loss is decreasing, but clearly there's much more to go. So let's continue.
 
 You can resume synthesis as long as you pass the same argument to `store_progress` <!-- skip-lint --> on each run.
 
-Everything that stores the progress of the optimization ({attr}`~plenoptic.synthesize.metamer.Metamer.losses`, {attr}`~plenoptic.synthesize.metamer.Metamer.saved_metamer`) will persist between calls and so potentially get very large.
+Everything that stores the progress of the optimization ({attr}`~plenoptic.Metamer.losses`, {attr}`~plenoptic.Metamer.saved_metamer`) will persist between calls and so potentially get very large.
 
 ```{code-cell} ipython3
 met.synthesize(store_progress=True, max_iter=100)
@@ -134,15 +132,15 @@ met.synthesize(store_progress=True, max_iter=100)
 Let's examine the status again. But instead of looking at the latest iteration, let's look at 10 from the end:
 
 ```{code-cell} ipython3
-po.synth.metamer.plot_synthesis_status(
-    met, iteration=-10, width_ratios={"plot_representation_error": 2}
+po.plot.metamer_synthesis_status(
+    met, iteration=-10, width_ratios={"metamer_representation_error": 2}
 )
 ```
 
 Since we have the ability to select which iteration to plot (as long as we've been storing the information), we can create an animation showing the synthesis over time. This {class}`~matplotlib.animation.FuncAnimation` object can either be viewed in the notebook (note that this requires the matplotlib configuration options in the first cell of this notebook) or saved as some video format (e.g., `anim.save('test.mp4'`).
 
 ```{code-cell} ipython3
-anim = po.synth.metamer.animate(met, width_ratios={"plot_representation_error": 2})
+anim = po.plot.metamer_animate(met, width_ratios={"metamer_representation_error": 2})
 anim
 ```
 
@@ -150,42 +148,42 @@ Generally speaking, synthesis will run until you hit `max_iter` iterations. Howe
 
 ### Moving between devices
 
-{class}`~plenoptic.synthesize.metamer.Metamer` has a {func}`~plenoptic.synthesize.metamer.Metamer.to` method for moving the object between devices or dtypes. Call it as you would call any {meth}`torch.Tensor.to` and it will move over the necessary attributes.
+{class}`~plenoptic.Metamer` has a {func}`~plenoptic.Metamer.to` method for moving the object between devices or dtypes. Call it as you would call any {meth}`torch.Tensor.to` and it will move over the necessary attributes.
 
 ### Saving and loading
 
-Finally, you probably want to save the results of your synthesis. As mentioned above, you can save the synthesis animation, and all of the plots return regular `matplotlib` Figures and can be manipulated as expected. The synthesized image itself is a tensor and can be detached, converted to a numpy array, and saved (either as an image or array) as you'd expect. {func}`~plenoptic.tools.to_numpy` is a convenience function we provide for operations like this, which detaches the tensor, sends it to the CPU, and converts it to a numpy array with appropriate dtype. Note that it doesn't squeeze the tensor, so you may want to do that yourself.
+Finally, you probably want to save the results of your synthesis. As mentioned above, you can save the synthesis animation, and all of the plots return regular `matplotlib` Figures and can be manipulated as expected. The synthesized image itself is a tensor and can be detached, converted to a numpy array, and saved (either as an image or array) as you'd expect. {func}`~plenoptic.to_numpy` is a convenience function we provide for operations like this, which detaches the tensor, sends it to the CPU, and converts it to a numpy array with appropriate dtype. Note that it doesn't squeeze the tensor, so you may want to do that yourself.
 
 ```{code-cell} ipython3
 met_image = po.to_numpy(met.metamer).squeeze()
 # convert from array to int8 for saving as an image
 print(f"Metamer range: ({met_image.min()}, {met_image.max()})")
-met_image = po.tools.convert_float_to_int(np.clip(met_image, 0, 1))
+met_image = po.convert_float_to_int(np.clip(met_image, 0, 1))
 imageio.imwrite("test.png", met_image)
 ```
 
 The metamer lies slightly outside the range `[0, 1]`, so we clip before saving as an image. Metamer's objective function has a quadratic penalty on the synthesized image's range, and the weight on this penalty can be adjusted by changing the value of `range_penalty_lambda` <!-- skip-lint --> at initialization.
 
-You can also save the entire {class}`~plenoptic.synthesize.metamer.Metamer` object with its {func}`~plenoptic.synthesize.metamer.Metamer.save` method. This can be fairly large (depending on how many iterations you ran it for and how frequently you stored progress), but stores all information:
+You can also save the entire {class}`~plenoptic.Metamer` object with its {func}`~plenoptic.Metamer.save` method. This can be fairly large (depending on how many iterations you ran it for and how frequently you stored progress), but stores all information:
 
 ```{code-cell} ipython3
 met.save("test.pt")
 ```
 
-You can then load it back in using the method {func}`~plenoptic.synthesize.metamer.Metamer.load`. Note that you need to first instantiate the {class}`~plenoptic.synthesize.metamer.Metamer` object and then call {func}`~plenoptic.synthesize.metamer.Metamer.load` --- it must be instantiated with the same image, model, and loss function in order to load it in!
+You can then load it back in using the method {func}`~plenoptic.Metamer.load`. Note that you need to first instantiate the {class}`~plenoptic.Metamer` object and then call {func}`~plenoptic.Metamer.load` --- it must be instantiated with the same image, model, and loss function in order to load it in!
 
 ```{code-cell} ipython3
-met_copy = po.synth.Metamer(img, model)
+met_copy = po.Metamer(img, model)
 # it's modified in place, so this method doesn't return anything
 met_copy.load("test.pt")
 (met_copy.saved_metamer == met.saved_metamer).all()
 ```
 
-Because the model itself can be quite large, we do not save it along with the {class}`~plenoptic.synthesize.metamer.Metamer` object. This is why you must initialize it before loading from disk.
+Because the model itself can be quite large, we do not save it along with the {class}`~plenoptic.Metamer` object. This is why you must initialize it before loading from disk.
 
 ## Reproducibility
 
-You can set the seed before you call {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` for reproducibility by using {func}`~plenoptic.tools.optim.set_seed`. This will set both the `pytorch` and `numpy` seeds, but note that we can't guarantee complete reproducibility: see [](reproduce) for some caveats.
+You can set the seed before you call {func}`~plenoptic.Metamer.synthesize` for reproducibility by using {func}`~plenoptic.set_seed`. This will set both the `pytorch` and `numpy` seeds, but note that we can't guarantee complete reproducibility: see [](reproduce) for some caveats.
 
 Also note that pytorch does not guarantee identical results between CPU and GPU, even with the same seed.
 
@@ -195,19 +193,19 @@ The solution found by the end of the [Basic usage section](metamer-basic-usage) 
 
 ### Initialization
 
-By default, we initialize the {attr}`~plenoptic.synthesize.metamer.Metamer.metamer` attribute with with uniformly-distributed random noise between 0 and 1. If you wish to use some other image for initialization, you can initialize it yourself (it must be the same shape as `target_signal`) and pass to the optional {func}`~plenoptic.synthesize.metamer.Metamer.setup` method before calling {func}`~plenoptic.synthesize.metamer.Metamer.synthesize`.
+By default, we initialize the {attr}`~plenoptic.Metamer.metamer` attribute with with uniformly-distributed random noise between 0 and 1. If you wish to use some other image for initialization, you can initialize it yourself (it must be the same shape as `target_signal`) and pass to the optional {func}`~plenoptic.Metamer.setup` method before calling {func}`~plenoptic.Metamer.synthesize`.
 
 ### Optimization basics
 
-You can set all the various optimization parameters you'd expect. {func}`~plenoptic.synthesize.metamer.Metamer.setup` has an `optimizer` argument, which accepts an uninitialized pytorch optimizer, and an `optimizer_kwargs` arg, which accepts a dictionary. You can therefore change the optimizer from the default `Adam` and/or specify any of the arguments you would like:
+You can set all the various optimization parameters you'd expect. {func}`~plenoptic.Metamer.setup` has an `optimizer` argument, which accepts an uninitialized pytorch optimizer, and an `optimizer_kwargs` arg, which accepts a dictionary. You can therefore change the optimizer from the default `Adam` and/or specify any of the arguments you would like:
 
 ```{code-cell} ipython3
-met = po.synth.Metamer(img, model)
+met = po.Metamer(img, model)
 met.setup(optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.001})
 met.synthesize()
 ```
 
-{func}`~plenoptic.synthesize.metamer.Metamer.setup` also accepts a `scheduler` argument, so that you can pass a [pytorch scheduler](https://docs.pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate), which modifies the learning rate during optimization.
+{func}`~plenoptic.Metamer.setup` also accepts a `scheduler` argument, so that you can pass a [pytorch scheduler](https://docs.pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate), which modifies the learning rate during optimization.
 
 (metamer-coarse-to-fine)=
 ### Coarse-to-fine optimization
@@ -217,14 +215,14 @@ Some models, such as the Portilla-Simoncelli texture statistics, have a multisca
 We provide the option to use coarse-to-fine optimization, such that you optimize the different scales separately (starting with the coarsest and then moving progressively finer) and then, at the end, optimizing all of them simultaneously. This was first used in Portilla and Simoncelli, 2000, and can help avoid local optima in image space. Unlike everything else described in this notebook, it will not work for all models. There are two specifications the model must meet (see [Model requirements page](models-coarse-to-fine) for more details):
 
 1. It must have a `scales` <!-- skip-lint --> attribute that gives the scales in the order they should be optimized.
-2. Its `forward` <!-- skip-lint --> method must accept a `scales` keyword argument, which accepts a list and causes the model to return only the scale(s) included. See {func}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.forward` for an example.
+2. Its `forward` <!-- skip-lint --> method must accept a `scales` keyword argument, which accepts a list and causes the model to return only the scale(s) included. See {func}`~plenoptic.models.PortillaSimoncelli.forward` for an example.
 
-We can see that the included {class}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` model satisfies these constraints, and that the model returns a subset of its output when the `scales` argument is passed to {func}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.forward`:
+We can see that the included {class}`~plenoptic.models.PortillaSimoncelli` model satisfies these constraints, and that the model returns a subset of its output when the `scales` argument is passed to {func}`~plenoptic.models.PortillaSimoncelli.forward`:
 
 ```{code-cell} ipython3
 # we change images to a texture, which the PS model can do a good job capturing
 img = po.data.reptile_skin()
-ps = po.simul.PortillaSimoncelli(img.shape[-2:])
+ps = po.models.PortillaSimoncelli(img.shape[-2:])
 print(ps.scales)
 print(ps.forward(img).shape)
 print(ps.forward(img, scales=[0]).shape)
@@ -232,12 +230,10 @@ print(ps.forward(img, scales=[0]).shape)
 
 There are two choices for how to handle coarse-to-fine optimization: `'together'` or `'separate'`. In `'together'` (recommended), we start with the coarsest scale and then gradually add each finer scale (this is like blurring the objective function and then gradually adding details). In `'separate'`, we compute the gradient with respect to each scale separately (ignoring the others), then with respect to all of them at the end.
 
-If our model meets the above requirements, then we can use the {class}`~plenoptic.synthesize.metamer.MetamerCTF` class, which uses this coarse-to-fine procedure. We specify which of the two above options are used during initialization, and it will work through the scales as described above (and will resume correctly if you resume synthesis). Note that the progress bar now specifies which scale we're on.
+If our model meets the above requirements, then we can use the {class}`~plenoptic.MetamerCTF` class, which uses this coarse-to-fine procedure. We specify which of the two above options are used during initialization, and it will work through the scales as described above (and will resume correctly if you resume synthesis). Note that the progress bar now specifies which scale we're on.
 
 ```{code-cell} ipython3
-met = po.synth.MetamerCTF(
-    img, ps, loss_function=po.tools.optim.l2_norm, coarse_to_fine="together"
-)
+met = po.MetamerCTF(img, ps, loss_function=po.optim.l2_norm, coarse_to_fine="together")
 met.synthesize(store_progress=True, max_iter=100)
 # we don't show our synthesized image here, because it hasn't gone through all the
 # scales, and so hasn't finished synthesizing
@@ -248,10 +244,10 @@ In order to control when synthesis considers a scale to be "done" and move on to
 ```{code-cell} ipython3
 # initialize with some noise that is approximately mean-matched and with low variance
 im_init = torch.rand_like(img) * 0.1 + img.mean()
-met = po.synth.MetamerCTF(
+met = po.MetamerCTF(
     img,
     ps,
-    loss_function=po.tools.optim.l2_norm,
+    loss_function=po.optim.l2_norm,
     coarse_to_fine="together",
 )
 met.setup(im_init)
@@ -261,7 +257,7 @@ met.synthesize(
     change_scale_criterion=None,
     ctf_iters_to_check=7,
 )
-po.imshow(
+po.plot.imshow(
     [met.image, met.metamer],
     title=["Target image", "Synthesized metamer"],
     vrange="auto1",
@@ -271,14 +267,14 @@ po.imshow(
 And we can see these shifts happening in the animation of synthesis:
 
 ```{code-cell} ipython3
-po.synth.metamer.animate(met)
+po.plot.metamer_animate(met)
 ```
 
-{class}`~plenoptic.synthesize.metamer.MetamerCTF` has several attributes which are used in the course of coarse-to-fine synthesis:
+{class}`~plenoptic.MetamerCTF` has several attributes which are used in the course of coarse-to-fine synthesis:
 
-- {attr}`~plenoptic.synthesize.metamer.MetamerCTF.scales_loss`: this list contains the scale-specific loss at each iteration (that is, the loss computed on just the scale(s) we're optimizing on that iteration; which we use to determine when to switch scales).
-- {attr}`~plenoptic.synthesize.metamer.MetamerCTF.scales`: this is a list of the scales in optimization order (i.e., from coarse to fine). The last entry will be `'all'` (since after we've optimized each individual scale, we move on to optimizing all at once). This attribute will be modified by the {func}`~plenoptic.synthesize.metamer.MetamerCTF.synthesize` method and is used to track which scale we're currently optimizing (the first one). When we've gone through all the scales present, this will just contain a single value: `'all'`.
-- {attr}`~plenoptic.synthesize.metamer.MetamerCTF.scales_timing`: this is a dictionary whose keys are the values of scales. The values are lists, with 0 through 2 entries: the first entry is the iteration where we started optimizing this scale, the second is when we stopped (thus if it's an empty list, we haven't started optimizing it yet).
-- {attr}`~plenoptic.synthesize.metamer.MetamerCTF.scales_finished`: this is a list of the scales that we've finished optimizing (in the order we've finished). The union of this and {attr}`~plenoptic.synthesize.metamer.MetamerCTF.scales` will be the same as `metamer.model.scales` (e.g., {attr}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.scales`).
+- {attr}`~plenoptic.MetamerCTF.scales_loss`: this list contains the scale-specific loss at each iteration (that is, the loss computed on just the scale(s) we're optimizing on that iteration; which we use to determine when to switch scales).
+- {attr}`~plenoptic.MetamerCTF.scales`: this is a list of the scales in optimization order (i.e., from coarse to fine). The last entry will be `'all'` (since after we've optimized each individual scale, we move on to optimizing all at once). This attribute will be modified by the {func}`~plenoptic.MetamerCTF.synthesize` method and is used to track which scale we're currently optimizing (the first one). When we've gone through all the scales present, this will just contain a single value: `'all'`.
+- {attr}`~plenoptic.MetamerCTF.scales_timing`: this is a dictionary whose keys are the values of scales. The values are lists, with 0 through 2 entries: the first entry is the iteration where we started optimizing this scale, the second is when we stopped (thus if it's an empty list, we haven't started optimizing it yet).
+- {attr}`~plenoptic.MetamerCTF.scales_finished`: this is a list of the scales that we've finished optimizing (in the order we've finished). The union of this and {attr}`~plenoptic.MetamerCTF.scales` will be the same as `metamer.model.scales` (e.g., {attr}`~plenoptic.models.PortillaSimoncelli.scales`).
 
 A small wrinkle: if `coarse_to_fine=='together'`, then none of these will ever contain the final, finest scale, since that is equivalent to `'all'`.

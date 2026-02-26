@@ -25,7 +25,7 @@ The eigendistortion synthesis investigated in this notebook takes a long time to
 # Reproducing Berardino et al., 2017 (Eigendistortions)
 Author: Lyndon Duong, Jan 2021
 
-In this demo, we will be reproducing eigendistortions first presented in [Berardino et al 2017](https://arxiv.org/abs/1710.02266). We'll be using a Front End model of the human visual system (called "On-Off" in the paper), as well as an early layer of VGG16. The [Front End model](plenoptic.simulate.models.frontend.OnOff) is a simple convolutional neural network with a normalization nonlinearity, loosely based on biological retinal/geniculate circuitry.
+In this demo, we will be reproducing eigendistortions first presented in [Berardino et al 2017](https://arxiv.org/abs/1710.02266). We'll be using a Front End model of the human visual system (called "On-Off" in the paper), as well as an early layer of VGG16. The [Front End model](plenoptic.models.OnOff) is a simple convolutional neural network with a normalization nonlinearity, loosely based on biological retinal/geniculate circuitry.
 
 ![Front-end model](/_static/images/front_end_model.png)
 
@@ -33,7 +33,7 @@ This signal-flow diagram shows an input being decomposed into two channels, with
 
 ## What do eigendistortions tell us?
 
-Our perception is influenced by our internal representation (neural responses) of the external world. Eigendistortions are rank-ordered directions in image space, along which a model's responses are more sensitive. `Plenoptic`'s {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion` provides an easy way to synthesize eigendistortions for any PyTorch model.
+Our perception is influenced by our internal representation (neural responses) of the external world. Eigendistortions are rank-ordered directions in image space, along which a model's responses are more sensitive. `Plenoptic`'s {class}`~plenoptic.Eigendistortion` provides an easy way to synthesize eigendistortions for any PyTorch model.
 
 ```{code-cell} ipython3
 import torch
@@ -63,11 +63,13 @@ Let's load the parrot image used in the paper and display it:
 ```{code-cell} ipython3
 # crop the image to be square:
 image_tensor = po.data.parrot().to(DEVICE).to(torch.float64)
-image_tensor = po.tools.center_crop(image_tensor, min(image_tensor.shape[-2:]))
+image_tensor = po.model_components.center_crop(
+    image_tensor, min(image_tensor.shape[-2:])
+)
 
 print("Torch image shape:", image_tensor.shape)
 
-po.imshow(image_tensor);
+po.plot.imshow(image_tensor);
 ```
 
 Since the Front-end OnOff model only has two channel outputs, we can easily visualize the feature maps.
@@ -77,12 +79,12 @@ We'll apply a circular mask to this model's inputs to avoid edge artifacts in th
 mdl_f = po.models.OnOff(
     kernel_size=(31, 31), pretrained=True, apply_mask=True, cache_filt=True
 )
-po.tools.remove_grad(mdl_f)
+po.remove_grad(mdl_f)
 mdl_f = mdl_f.to(DEVICE).to(image_tensor.dtype)
 mdl_f.eval()
 
 response_f = mdl_f(image_tensor)
-po.imshow(
+po.plot.imshow(
     response_f,
     title=["on channel response", "off channel response"],
 );
@@ -91,7 +93,7 @@ po.imshow(
 ## Synthesizing eigendistortions
 
 ### Front-end model: eigendistortion synthesis
-Now that we have our Front End model set up, we can synthesize eigendistortions! This is done easily just by calling {func}`~plenoptic.synthesize.eigendistortion.Eigendistortion.synthesize` after instantiating the {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion` object. We'll synthesize the top and bottom `k`, representing the most- and least-noticeable eigendistortions for this model.
+Now that we have our Front End model set up, we can synthesize eigendistortions! This is done easily just by calling {func}`~plenoptic.Eigendistortion.synthesize` after instantiating the {class}`~plenoptic.Eigendistortion` object. We'll synthesize the top and bottom `k`, representing the most- and least-noticeable eigendistortions for this model.
 
 The paper synthesizes the top and bottom `k=1` eigendistortions, but we'll set `k>1` so the algorithm converges/stabilizes faster.
 
@@ -119,10 +121,10 @@ eigendist_f.synthesize(k=3, method="power", max_iter=2000)
 
 ### Front-end model: eigendistortion display
 
-Once synthesized, we can plot the distortion on the image using {func}`~plenoptic.synthesize.eigendistortion.display_eigendistortion_all`. Feel free to adjust the constant `alpha` that scales the amount of each distortion on the image.
+Once synthesized, we can plot the distortion on the image using {func}`~plenoptic.plot.eigendistortion_image_all`. Feel free to adjust the constant `alpha` that scales the amount of each distortion on the image.
 
 ```{code-cell} ipython3
-po.synth.eigendistortion.display_eigendistortion_all(
+po.plot.eigendistortion_image_all(
     eigendist_f,
     [0, -1],
     alpha=3,
@@ -168,7 +170,7 @@ image_tensor3 = image_tensor.repeat(1, 3, 1, 1)
 # "layer 3" according to Berardino et al (2017)
 vgg = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1, progress=False)
 mdl_v = TorchVision(vgg, "features.11").to(DEVICE).to(image_tensor.dtype)
-po.tools.remove_grad(mdl_v)
+po.remove_grad(mdl_v)
 mdl_v.eval()
 
 eigendist_v = po.Eigendistortion(image=image_tensor3, model=mdl_v)
@@ -203,7 +205,7 @@ def unnormalize(x):
     return x * orig_std.to(x.device) + orig_mean.to(x.device)
 
 
-po.synth.eigendistortion.display_eigendistortion_all(
+po.plot.eigendistortion_image_all(
     eigendist_v,
     [0, -1],
     alpha=[15, 100],

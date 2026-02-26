@@ -69,18 +69,18 @@ CACHE_DIR = po.data.fetch_data("ps_regression.tar.gz")
 # use GPU if available
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# so that relative sizes of axes created by po.imshow and others look right
+# so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
 # set seed for reproducibility
-po.tools.set_seed(1)
+po.set_seed(1)
 ```
 
 :::{admonition} This notebook retrieves cached synthesis results
 :class: warning dropdown
 This notebook contains many metamers and, while any one synthesis operation does not take too long, all of them combined result in a lengthy notebook. Therefore, instead of performing synthesis in this notebook, we have cached the result of most of these syntheses online and only download them for investigation.
 
-Additionally, while you can normally call {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` again to pick up where we left out, the cached version of the results shown here discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
+Additionally, while you can normally call {func}`~plenoptic.Metamer.synthesize` again to pick up where we left out, the cached version of the results shown here discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
 
 :::
 
@@ -103,7 +103,7 @@ In the following, we mask out the boundaries of an image and use the texture mod
 # by a mask.
 
 
-class PortillaSimoncelliMask(po.simul.PortillaSimoncelli):
+class PortillaSimoncelliMask(po.models.PortillaSimoncelli):
     r"""Extend the PortillaSimoncelli model to operate on masked images.
 
     Additional Parameters
@@ -182,8 +182,8 @@ ctr_dim = (img.shape[-2] // 4, img.shape[-1] // 4)
 mask[..., ctr_dim[0] : 3 * ctr_dim[0], ctr_dim[1] : 3 * ctr_dim[1]] = True
 
 model = PortillaSimoncelliMask(img.shape[-2:], target=img, mask=mask).to(DEVICE)
-loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
-met = po.synth.Metamer(
+loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+met = po.Metamer(
     img,
     model,
     loss_function=loss,
@@ -209,7 +209,7 @@ met.synthesize(max_iter=100)
 :::
 
 ```{code-cell} ipython3
-po.imshow(
+po.plot.imshow(
     [met.image, mask * met.image, model.texture_masked_image(met.metamer)],
     vrange="auto1",
     title=["Full target image", "Masked target", "synthesized image"],
@@ -236,9 +236,9 @@ img_files = [IMG_PATH / f"{f}.jpg" for f in fig_names]
 img = po.tools.load_images(img_files).to(DEVICE).to(torch.float64)
 img = torch.cat([img[:1, ..., 128:], img[1:, ..., :128]], -1)
 
-model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
-loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
-met = po.synth.Metamer(
+model = po.models.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
+loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+met = po.Metamer(
     img,
     model,
     loss_function=loss,
@@ -264,7 +264,7 @@ met.synthesize(max_iter=100)
 :::
 
 ```{code-cell} ipython3
-po.imshow(
+po.plot.imshow(
     [met.image, met.metamer],
     vrange="auto1",
     title=["Target image", "Synthesized Mixture Metamer"],

@@ -4,11 +4,11 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.3
 kernelspec:
-  name: python3
   display_name: Python 3 (ipykernel)
   language: python
+  name: python3
 ---
 
 :::{admonition} Download
@@ -29,7 +29,7 @@ import torch
 
 import plenoptic as po
 
-# so that relative sizes of axes created by po.imshow and others look right
+# so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
 %matplotlib inline
@@ -46,7 +46,7 @@ All `plenoptic` methods require a "reference" or "target" image --- for Metamer 
 
 ```{code-cell} ipython3
 im = po.data.einstein().to(DEVICE)
-fig = po.imshow(im)
+fig = po.plot.imshow(im)
 ```
 
 Models can be really simple, as this demonstrates. It needs to inherit {class}`torch.nn.Module` and just needs two methods: `__init__` (so it's an object) and `forward` <!-- skip-lint --> (so it can take an image). See the [Models page](models-doc) of the documentation for more details.
@@ -54,12 +54,6 @@ Models can be really simple, as this demonstrates. It needs to inherit {class}`t
 For this notebook, we'll initialize a simple plenoptic-compatible model and call its forward method. This model just convolves a 2d gaussian filter across an image, so it's a low-pass model, preserving low frequency information while discarding the high frequencies.
 
 ```{code-cell} ipython3
-# this is a convenience function for creating a simple Gaussian kernel
-from plenoptic.simulate.canonical_computations.filters import (
-    circular_gaussian2d,
-)
-
-
 # Simple rectified Gaussian convolutional model
 class SimpleModel(torch.nn.Module):
     # in __init__, we create the object, initializing the convolutional weights and
@@ -70,13 +64,15 @@ class SimpleModel(torch.nn.Module):
         self.conv = torch.nn.Conv2d(
             1, 1, kernel_size=kernel_size, padding=(0, 0), bias=False
         )
-        self.conv.weight.data[0, 0] = circular_gaussian2d(kernel_size, 3.0)
+        self.conv.weight.data[0, 0] = po.model_components.circular_gaussian2d(
+            kernel_size, 3.0
+        )
 
     # the forward pass of the model defines how to get from an image to the model's
     # representation
     def forward(self, x):
         # use circular padding so our output is the same size as our input
-        x = po.tools.conv.same_padding(x, self.kernel_size, pad_mode="circular")
+        x = po.model_components.same_padding(x, self.kernel_size, pad_mode="circular")
         return self.conv(x)
 
 
@@ -100,7 +96,7 @@ There are also several more abstract constraints (e.g., model must accept real-v
 The following shows the image and the model output. We can see that output is a blurred version of the input, as we would expect from a low-pass model.
 
 ```{code-cell} ipython3
-fig = po.imshow(torch.cat([im, rep]), title=["Original image", "Model output"])
+fig = po.plot.imshow(torch.cat([im, rep]), title=["Original image", "Model output"])
 ```
 
 Before moving forward, let's think about this model. It's a simple Gaussian convolution which throws out high-frequency information, as we can see in the representation above. Metamers provide a tool for exploring a model's insensitivities, so any metamers we synthesize should capitalize on this: they should differ from the original image in the high frequencies.
@@ -108,13 +104,13 @@ Before moving forward, let's think about this model. It's a simple Gaussian conv
 There's one final step before we're ready for synthesis. Most `pytorch` models will have learnable parameters, such as the weight on the convolution filter we created above, because the focus is generally on training the model to best perform some task. In `plenoptic`, models are *fixed* because we take the opposite approach: generating some new stimulus to better a understand a given model. Thus, all synthesis methods will raise a `ValueError` if given a model with any learnable parameters. We provide a helper function to remove these gradients:
 
 ```{code-cell} ipython3
-po.tools.remove_grad(model)
+po.remove_grad(model)
 ```
 
 Okay, now we're ready to start with metamer synthesis. To initialize, we only need the model and the image (there are some additional options, but the defaults are fine in this case; see the [Metamer notebook](metamer-nb) if you're interested). In general, you'll probably need to play with these options to find a good solution. It's also probably a good idea, while getting started, to set the `store_progress` argument to `True` (to store every iteration) or some `int` (to store every `int` iterations) so you can examine synthesis progress.
 
 ```{code-cell} ipython3
-metamer = po.synth.Metamer(im, model)
+metamer = po.Metamer(im, model)
 
 matched_im = metamer.synthesize(store_progress=True, max_iter=20)
 # if we call synthesize again, we resume where we left off
@@ -124,7 +120,7 @@ matched_im = metamer.synthesize(store_progress=True, max_iter=150)
 We can then examine the loss over time. There's a convenience function for this, but you could also call `plt.semilogy(metamer.losses)` to create it yourself.
 
 ```{code-cell} ipython3
-po.synth.metamer.plot_loss(metamer)
+po.plot.metamer_loss(metamer)
 ```
 
 The loss decreases steadily and has reached a very low value. In fact, based on our convergence criterion (one of the optional arguments), it looks as though we've converged (we could change this argument to continue synthesis).
@@ -132,7 +128,7 @@ The loss decreases steadily and has reached a very low value. In fact, based on 
 We can then look at the reference and metamer images, as well as the model's outputs on the two images:
 
 ```{code-cell} ipython3
-fig = po.imshow(
+fig = po.plot.imshow(
     [im, rep, metamer.metamer, model(metamer.metamer)],
     col_wrap=2,
     vrange="auto1",
@@ -152,8 +148,8 @@ It may seem strange that the synthesized image looks like it has high-frequency 
 We can also view a movie of our progress so far.
 
 ```{code-cell} ipython3
-po.synth.metamer.animate(
-    metamer, included_plots=["display_metamer", "plot_loss"], figsize=(12, 5)
+po.plot.metamer_animate(
+    metamer, included_plots=["metamer_image", "metamer_loss"], figsize=(12, 5)
 )
 ```
 
@@ -161,11 +157,11 @@ We can see the model's insensitivity to high frequencies more dramatically by in
 
 ```{code-cell} ipython3
 curie = po.data.curie().to(DEVICE)
-po.imshow(curie);
+po.plot.imshow(curie);
 ```
 
 ```{code-cell} ipython3
-metamer = po.synthesize.Metamer(
+metamer = po.Metamer(
     im,
     model,
 )
@@ -180,13 +176,13 @@ synth_image = metamer.synthesize(max_iter=500, stop_criterion=1e-6)
 Let's double-check that our synthesis looks like it's reached a good solution by checking the loss curve:
 
 ```{code-cell} ipython3
-po.synth.metamer.plot_loss(metamer)
+po.plot.metamer_loss(metamer)
 ```
 
 Good, now let's examine our synthesized metamer and the model output, as before:
 
 ```{code-cell} ipython3
-fig = po.imshow(
+fig = po.plot.imshow(
     [im, rep, metamer.metamer, model(metamer.metamer)],
     col_wrap=2,
     vrange="auto1",
@@ -201,19 +197,19 @@ fig = po.imshow(
 
 We see that the synthesized metamer here looks quite different from both the original and from our previous metamer, while the model outputs look very similar. Here, our synthesized model metamer looks like a blurry picture of Einstein with a high-frequency "shadow" of Curie added on top. Again, this is because the Gaussian model is insensitive to high frequencies, and thus a model metamer can include any high frequency information.
 
-By generating model metamers, we've gained a better understanding of the information our model is invariant to, but what if we want a better understanding of what our model is sensitive to? We can use {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion` for that.
+By generating model metamers, we've gained a better understanding of the information our model is invariant to, but what if we want a better understanding of what our model is sensitive to? We can use {class}`~plenoptic.Eigendistortion` for that.
 
-Like {class}`~plenoptic.synthesize.metamer.Metamer`, {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion` accepts an image and a model as its inputs. By default, it synthesizes the top and bottom eigendistortion, that is, the changes to the input image that the model finds most and least noticeable.
+Like {class}`~plenoptic.Metamer`, {class}`~plenoptic.Eigendistortion` accepts an image and a model as its inputs. By default, it synthesizes the top and bottom eigendistortion, that is, the changes to the input image that the model finds most and least noticeable.
 
 ```{code-cell} ipython3
-eig = po.synthesize.Eigendistortion(im, model)
+eig = po.Eigendistortion(im, model)
 eig.synthesize()
 ```
 
 Let's examine those distortions:
 
 ```{code-cell} ipython3
-po.imshow(
+po.plot.imshow(
     eig.eigendistortions,
     title=["Maximum eigendistortion", "Minimum eigendistortion"],
 );

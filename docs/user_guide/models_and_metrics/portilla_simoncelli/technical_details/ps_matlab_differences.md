@@ -60,18 +60,18 @@ CACHE_DIR = po.data.fetch_data("ps_regression.tar.gz")
 # use GPU if available
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# so that relative sizes of axes created by po.imshow and others look right
+# so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
 # set seed for reproducibility
-po.tools.set_seed(1)
+po.set_seed(1)
 ```
 
 :::{admonition} This notebook retrieves cached synthesis results
 :class: warning dropdown
 As with the other Portilla-Simoncelli notebooks, we have cached the results of synthesis online and only download them for investigation in this notebook.
 
-Additionally, while you can normally call {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` again to pick up where we left out, the cached version of the results discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
+Additionally, while you can normally call {func}`~plenoptic.Metamer.synthesize` again to pick up where we left out, the cached version of the results discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
 
 :::
 
@@ -79,7 +79,7 @@ Additionally, while you can normally call {func}`~plenoptic.synthesize.metamer.M
 
     Why does this matter? We have qualitatively reproduced the results but cannot guarantee exact reproducibility of synthesis from the matlab implementation. This means that, in general, metamers synthesized by the two versions will differ, though we believe that the metamers synthesized by plenoptic have a lower loss (see [](ps-optimization) for more discussion).
 
-    In particular, in order for synthesis to find good results, we use a custom loss function that reweights the model's output. This is described in more detail in the [](ps-optimization) notebook, but in short: we upweight the variance of the highpass residuals and remove the pixel minimum and maximum from the gradient computation (this constraint is instead captured through the range penalty that is built into the {class}`~plenoptic.synthesize.metamer.Metamer` class).
+    In particular, in order for synthesis to find good results, we use a custom loss function that reweights the model's output. This is described in more detail in the [](ps-optimization) notebook, but in short: we upweight the variance of the highpass residuals and remove the pixel minimum and maximum from the gradient computation (this constraint is instead captured through the range penalty that is built into the {class}`~plenoptic.Metamer` class).
 
 3. **Lack of redundant statistics**. As described [below](ps-redundant-stats), we output a different number of statistics than the Matlab implementation. The number of statistics returned in `plenoptic` matches the number of statistics reported in the paper, unlike the Matlab implementation. That is because the Matlab implementation included many redundant statistics, which were either exactly redundant (e.g., symmetric values in an auto-correlation matrix), placeholders (e.g., some 0s to make the shapes of the output work out), or not mentioned in the paper. The implementation included in `plenoptic` returns only the necessary statistics.
 
@@ -124,7 +124,7 @@ img = po.tools.load_images(IMG_PATH / "fig4a.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # Initialize the minimal model. Use same params as paper
-model = po.simul.PortillaSimoncelli(
+model = po.models.PortillaSimoncelli(
     img.shape[-2:], n_scales=4, n_orientations=4, spatial_corr_width=7
 ).to(DEVICE)
 
@@ -229,7 +229,7 @@ To demonstrate this, we will create a modified version of the `PortillaSimoncell
 First, let's create the modified model:
 
 ```{code-cell} ipython3
-class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
+class PortillaSimoncelliMagMeans(po.models.PortillaSimoncelli):
     r"""Include the magnitude means in the PS texture representation.
 
     Parameters
@@ -317,26 +317,26 @@ Now, let's initialize our models and images for synthesis:
 
 ```{code-cell} ipython3
 img = po.tools.load_images(IMG_PATH / "fig4a.jpg").to(DEVICE).to(torch.float64)
-model = po.simul.PortillaSimoncelli(img.shape[-2:], spatial_corr_width=7).to(DEVICE)
-loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
+model = po.models.PortillaSimoncelli(img.shape[-2:], spatial_corr_width=7).to(DEVICE)
+loss = po.optim.portilla_simoncelli_loss_factory(model, img)
 model_mag_means = PortillaSimoncelliMagMeans(img.shape[-2:]).to(DEVICE)
-loss_mag_means = po.tools.optim.portilla_simoncelli_loss_factory(model_mag_means, img)
+loss_mag_means = po.optim.portilla_simoncelli_loss_factory(model_mag_means, img)
 ```
 
 And run the synthesis with the regular model, which does not include the mean of the steerable pyramid magnitudes, and then the augmented model, which does.
 
 ```{code-cell} ipython3
 # Set the RNG seed to make the two synthesis procedures as similar as possible.
-po.tools.set_seed(100)
-met = po.synth.Metamer(
+po.set_seed(100)
+met = po.Metamer(
     img,
     model,
     loss_function=loss,
 )
 met.load(CACHE_DIR / "ps_mag_means-False.pt", map_location=DEVICE)
 
-po.tools.set_seed(100)
-met_mag_means = po.synth.Metamer(
+po.set_seed(100)
+met_mag_means = po.Metamer(
     img,
     model_mag_means,
     loss_function=loss_mag_means,
@@ -360,7 +360,7 @@ met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
 met.synthesize(max_iter=100)
 ```
 
-Call the {func}`~plenoptic.synthesize.metamer.Metamer.setup` and {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` methods of `met_mag_means` with the same arguments.
+Call the {func}`~plenoptic.Metamer.setup` and {func}`~plenoptic.Metamer.synthesize` methods of `met_mag_means` with the same arguments.
 
 :::
 
@@ -374,7 +374,7 @@ fig, axes = plt.subplots(2, 2, figsize=(21, 11), gridspec_kw={"width_ratios": [1
 for ax, im, info in zip(
     axes[:, 0], [met.metamer, met_mag_means.metamer], ["without", "with"]
 ):
-    po.imshow(im, ax=ax, title=f"Metamer {info} magnitude means")
+    po.plot.imshow(im, ax=ax, title=f"Metamer {info} magnitude means")
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
 

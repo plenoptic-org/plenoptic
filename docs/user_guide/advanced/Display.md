@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -33,7 +33,7 @@ import torch
 
 import plenoptic as po
 
-# so that relative sizes of axes created by po.imshow and others look right
+# so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 # Animation-related settings
 plt.rcParams["animation.html"] = "html5"
@@ -54,28 +54,30 @@ plt.rcParams["figure.dpi"] = 72
 
 ## General
 
-We include two wrappers of display code from [pyrtools](inv:pyrtools:std:doc#index), adapting them for use with tensors. These {func}`~plenoptic.tools.display.imshow` and {func}`~plenoptic.tools.display.animshow` functions, which accept tensors of real- or complex-valued images or videos (respectively) and properly convert them to arrays for display purposes. These are not the most flexible functions (for example, {func}`~plenoptic.tools.display.imshow` requires that real-valued tensors be 4d) but, assuming you follow our API, should work relatively painlessly. The main reason for using them is that we guarantee fidelity to image size: a value in the tensor corresponds to a pixel or an integer number of pixels in the image (if upsampling); if downsampling, we can only down-sample by factors of two. This way, you can be sure that any strange appearance of the image is not due to aliasing in the plotting.
+We include two wrappers of display code from [pyrtools](inv:pyrtools:std:doc#index), adapting them for use with tensors. These {func}`~plenoptic.plot.imshow` and {func}`~plenoptic.plot.animshow` functions, which accept tensors of real- or complex-valued images or videos (respectively) and properly convert them to arrays for display purposes. These are not the most flexible functions (for example, {func}`~plenoptic.plot.imshow` requires that real-valued tensors be 4d) but, assuming you follow our API, should work relatively painlessly. The main reason for using them is that we guarantee fidelity to image size: a value in the tensor corresponds to a pixel or an integer number of pixels in the image (if upsampling); if downsampling, we can only down-sample by factors of two. This way, you can be sure that any strange appearance of the image is not due to aliasing in the plotting.
 
-For {func}`~plenoptic.tools.display.imshow`, we require that real-valued tensors be 4d: `(batch, channel, height, width)`. If you're showing images, they're likely to be grayscale (in which case there's only 1 channel) or RGB(A) (in which case there's 3 or 4, depending on whether it includes the alpha channel). We plot grayscale images without a problem:
+For {func}`~plenoptic.plot.imshow`, we require that real-valued tensors be 4d: `(batch, channel, height, width)`. If you're showing images, they're likely to be grayscale (in which case there's only 1 channel) or RGB(A) (in which case there's 3 or 4, depending on whether it includes the alpha channel). We plot grayscale images without a problem:
 
 ```{code-cell} ipython3
 img = torch.cat([po.data.einstein(), po.data.curie()], axis=0)
 print(img.shape)
-fig = po.imshow(img);
+fig = po.plot.imshow(img);
 ```
 
-We need to tell {func}`~plenoptic.tools.display.imshow` that the image(s) are RGB in order for it to be plot correctly.
+We need to tell {func}`~plenoptic.plot.imshow` that the image(s) are RGB in order for it to be plot correctly.
 
 ```{code-cell} ipython3
 rgb = torch.rand(2, 3, 256, 256)
 print(rgb.shape)
-fig = po.imshow(rgb, as_rgb=True);
+fig = po.plot.imshow(rgb, as_rgb=True);
 ```
 
  This is because we don't want to assume that a tensor with 3 or 4 channels is always RGB. To pick a somewhat-contrived example, imagine the following steerable pyramid:
 
 ```{code-cell} ipython3
-pyr = po.simul.SteerablePyramidFreq(img.shape[-2:], downsample=False, height=1, order=2)
+pyr = po.model_components.SteerablePyramidFreq(
+    img.shape[-2:], downsample=False, height=1, order=2
+)
 ```
 
 ```{code-cell} ipython3
@@ -87,22 +89,22 @@ print(coeffs.shape)
 The first and last channels are residuals, so if we only wanted to look at the coefficients, we'd do the following:
 
 ```{code-cell} ipython3
-po.imshow(coeffs[:, 1:-1], batch_idx=0)
-po.imshow(coeffs[:, 1:-1], batch_idx=1);
+po.plot.imshow(coeffs[:, 1:-1], batch_idx=0)
+po.plot.imshow(coeffs[:, 1:-1], batch_idx=1);
 ```
 
 We really don't want to interpret those values as RGB.
 
-Note that in the above {func}`~plenoptic.tools.display.imshow` calls, we had to specify the `batch_idx`. This function expects a 4d tensor, but if it has more than one channel and more than one batch (and it's not RGB), we can't display everything. The user must therefore specify either `batch_idx` or `channel_idx`.
+Note that in the above {func}`~plenoptic.plot.imshow` calls, we had to specify the `batch_idx`. This function expects a 4d tensor, but if it has more than one channel and more than one batch (and it's not RGB), we can't display everything. The user must therefore specify either `batch_idx` or `channel_idx`.
 
 ```{code-cell} ipython3
-po.imshow(coeffs[:, 1:-1], channel_idx=0);
+po.plot.imshow(coeffs[:, 1:-1], channel_idx=0);
 ```
 
-{func}`~plenoptic.tools.display.animshow` works analogously to {func}`~plenoptic.tools.display.imshow`, but expecting a 5d tensor: `(batch, channel, time, height, width)`. It returns a `matplotlib.animation.FuncAnimation` object, which can be saved as an mp4 or converted to an html object for display in a Jupyter notebook (because of the matplotlib configuration options set in the first cell of this notebook, and others in our documentation that make use of them, this happens automatically).
+{func}`~plenoptic.plot.animshow` works analogously to {func}`~plenoptic.plot.imshow`, but expecting a 5d tensor: `(batch, channel, time, height, width)`. It returns a `matplotlib.animation.FuncAnimation` object, which can be saved as an mp4 or converted to an html object for display in a Jupyter notebook (because of the matplotlib configuration options set in the first cell of this notebook, and others in our documentation that make use of them, this happens automatically).
 
 ```{code-cell} ipython3
-pyr = po.simul.SteerablePyramidFreq(
+pyr = po.model_components.SteerablePyramidFreq(
     img.shape[-2:],
     downsample=False,
     height="auto",
@@ -114,7 +116,7 @@ coeffs, _ = pyr.convert_pyr_to_tensor(pyr(img), split_complex=False)
 print(coeffs.shape)
 # because coeffs is 4d, we add a dummy dimension for the channel in order to make
 # animshow happy
-po.animshow(coeffs.unsqueeze(1), batch_idx=0, vrange="indep1")
+po.plot.animshow(coeffs.unsqueeze(1), batch_idx=0, vrange="indep1")
 ```
 
 ## Synthesis-specific
@@ -123,7 +125,7 @@ Each synthesis method has a variety of display code to visualize the state and p
 
 ```{code-cell} ipython3
 img = po.data.einstein().to(DEVICE)
-model = po.simul.OnOff((7, 7)).to(DEVICE)
+model = po.models.OnOff((7, 7)).to(DEVICE)
 model.eval()
 rep = model(img)
 ```
@@ -131,49 +133,49 @@ rep = model(img)
 As long as your model returns a 3d or 4d vector (first two dimensions corresponding to `batch` and `channel`), then our plotting code should work automatically. If it returns a 3d representation, we plot a stem plot; if it's 4d, an image.
 
 ```{code-cell} ipython3
-po.tools.display.plot_representation(data=rep, figsize=(11, 5))
+po.plot.plot_representation(data=rep, figsize=(11, 5))
 ```
 
 This also gets used in the plotting code built into our synthesis methods.
 
 ```{code-cell} ipython3
-po.tools.remove_grad(model)
-met = po.synth.Metamer(img, model)
+po.remove_grad(model)
+met = po.Metamer(img, model)
 met.synthesize(
     max_iter=100,
     store_progress=True,
 )
 ```
 
-After we've run synthesis for a while, we want to investigate how close we are. We can examine the numbers printed out above, but it's probably useful to plot something. We provide the {func}`~plenoptic.synthesize.metamer.plot_synthesis_status` function for doing this. By default, it includes the synthesized image, the loss, and the representation error. That lost plot is the same as the one above, except it plots `data = base_representation - synthesized_representation`.
+After we've run synthesis for a while, we want to investigate how close we are. We can examine the numbers printed out above, but it's probably useful to plot something. We provide the {func}`~plenoptic.plot.metamer_synthesis_status` function for doing this. By default, it includes the synthesized image, the loss, and the representation error. That lost plot is the same as the one above, except it plots `data = base_representation - synthesized_representation`.
 
 ```{code-cell} ipython3
 # we have two image plots for representation error, so that bit should be 2x wider
-fig = po.synth.metamer.plot_synthesis_status(
-    met, width_ratios={"plot_representation_error": 2.1}
+fig = po.plot.metamer_synthesis_status(
+    met, width_ratios={"metamer_representation_error": 2.1}
 )
 ```
 
 You can also create this plot at different iterations, in order to try and better understand what's happening
 
 ```{code-cell} ipython3
-fig = po.synth.metamer.plot_synthesis_status(
-    met, iteration=10, width_ratios={"plot_representation_error": 2.1}
+fig = po.plot.metamer_synthesis_status(
+    met, iteration=10, width_ratios={"metamer_representation_error": 2.1}
 )
 ```
 
 The appearance of this figure is very customizable. There are several additional plots that can be included, and all plots are optional. The additional plot below is two histograms comparing the pixel values of the synthesized and base signal.
 
 ```{code-cell} ipython3
-fig = po.synth.metamer.plot_synthesis_status(
+fig = po.plot.metamer_synthesis_status(
     met,
     included_plots=[
-        "display_metamer",
-        "plot_loss",
-        "plot_representation_error",
-        "plot_pixel_values",
+        "metamer_image",
+        "metamer_loss",
+        "metamer_representation_error",
+        "metamer_pixel_values",
     ],
-    width_ratios={"plot_representation_error": 2.1},
+    width_ratios={"metamer_representation_error": 2.1},
 )
 ```
 
@@ -181,9 +183,9 @@ In addition to being able to customize which plots to include, you can also pre-
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 2, figsize=(12, 12))
-fig = po.synth.metamer.plot_synthesis_status(
+fig = po.plot.metamer_synthesis_status(
     met,
-    included_plots=["display_metamer", "plot_loss", "plot_pixel_values"],
+    included_plots=["metamer_image", "metamer_loss", "metamer_pixel_values"],
     fig=fig,
 )
 ```
@@ -192,10 +194,10 @@ For even more flexibility, you can specify which plot should go in which axes, b
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 2, figsize=(12, 12))
-axes_idx = {"display_metamer": 3, "plot_pixel_values": 0}
-fig = po.synth.metamer.plot_synthesis_status(
+axes_idx = {"metamer_image": 3, "metamer_pixel_values": 0}
+fig = po.plot.metamer_synthesis_status(
     met,
-    included_plots=["display_metamer", "plot_loss", "plot_pixel_values"],
+    included_plots=["metamer_image", "metamer_loss", "metamer_pixel_values"],
     fig=fig,
     axes_idx=axes_idx,
 )
@@ -205,8 +207,8 @@ This allows enables you to create more complicated figures, with axes containing
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 3, figsize=(17, 12))
-# to tell plot_synthesis_status to ignore plots, add them to the misc keys
-axes_idx = {"display_metamer": 5, "misc": [0, 4]}
+# to tell metamer_synthesis_status to ignore plots, add them to the misc keys
+axes_idx = {"metamer_image": 5, "misc": [0, 4]}
 axes[0, 0].text(0.5, 0.5, "SUPER COOL TEXT", color="r")
 axes[1, 0].arrow(
     0,
@@ -215,20 +217,20 @@ axes[1, 0].arrow(
     0.25,
 )
 axes[0, 0].plot(np.linspace(0, 1), np.random.rand(50))
-fig = po.synth.metamer.plot_synthesis_status(
+fig = po.plot.metamer_synthesis_status(
     met,
-    included_plots=["display_metamer", "plot_loss", "plot_pixel_values"],
+    included_plots=["metamer_image", "metamer_loss", "metamer_pixel_values"],
     fig=fig,
     axes_idx=axes_idx,
 )
 ```
 
-We similarly have an {func}`~plenoptic.synthesize.metamer.animate` function, which animates the above plots over time, and everything that I said above also holds for them. Note that {func}`~plenoptic.synthesize.metamer.animate` will take a fair amount of time to run and requires [ffmpeg](https://ffmpeg.org/download.html) on your system for most file formats (see [matplotlib docs](https://matplotlib.org/stable/api/animation_api.html#writer-classes) for more details).
+We similarly have an {func}`~plenoptic.plot.metamer_animate` function, which animates the above plots over time, and everything that I said above also holds for them. Note that {func}`~plenoptic.plot.metamer_animate` will take a fair amount of time to run and requires [ffmpeg](https://ffmpeg.org/download.html) on your system for most file formats (see [matplotlib docs](https://matplotlib.org/stable/api/animation_api.html#writer-classes) for more details).
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 3, figsize=(17, 12))
-# to tell plot_synthesis_status to ignore plots, add them to the misc keys
-axes_idx = {"display_metamer": 5, "misc": [0, 4]}
+# to tell metamer_synthesis_status to ignore plots, add them to the misc keys
+axes_idx = {"metamer_image": 5, "misc": [0, 4]}
 axes[0, 0].text(0.5, 0.5, "SUPER COOL TEXT", color="r")
 axes[1, 0].arrow(
     0,
@@ -237,9 +239,9 @@ axes[1, 0].arrow(
     0.25,
 )
 axes[0, 0].plot(np.linspace(0, 1), np.random.rand(50))
-po.synth.metamer.animate(
+po.plot.metamer_animate(
     met,
-    included_plots=["display_metamer", "plot_loss", "plot_pixel_values"],
+    included_plots=["metamer_image", "metamer_loss", "metamer_pixel_values"],
     fig=fig,
     axes_idx=axes_idx,
 )
@@ -247,13 +249,13 @@ po.synth.metamer.animate(
 
 ## More complicated model representation plots
 
-While this provides a starting point, it's not always super useful. In the example above, the {class}`~plenoptic.simulate.models.frontend.LinearNonlinear` model returns the output of several convolutional kernels across the image, and so plotting as a series of images is pretty decent. The representation of the {class}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` model below, however, has several distinct components at multiple spatial scales and orientations. That structure is lost in a single stem plot:
+While this provides a starting point, it's not always super useful. In the example above, the {class}`~plenoptic.models.LinearNonlinear` model returns the output of several convolutional kernels across the image, and so plotting as a series of images is pretty decent. The representation of the {class}`~plenoptic.models.PortillaSimoncelli` model below, however, has several distinct components at multiple spatial scales and orientations. That structure is lost in a single stem plot:
 
 ```{code-cell} ipython3
 img = po.data.reptile_skin().to(DEVICE)
-ps = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
+ps = po.models.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
 rep = ps(img)
-po.tools.display.plot_representation(data=rep);
+po.plot.plot_representation(data=rep);
 ```
 
 Trying to guess this advanced structure would be impossible for our generic plotting functions. However, if your model has a `plot_representation` <!-- skip-lint --> method, we can make use of it:
@@ -262,16 +264,14 @@ Trying to guess this advanced structure would be impossible for our generic plot
 ps.plot_representation(data=rep, ylim=False);
 ```
 
-Our {func}`~plenoptic.tools.display.plot_representation` function can make use of this method if you pass it the model; note how the plot below is identical to the one above. This might not seem very useful, but we make use of this in the different plotting methods used by our synthesis classes explained above.
+Our {func}`~plenoptic.plot.plot_representation` function can make use of this method if you pass it the model; note how the plot below is identical to the one above. This might not seem very useful, but we make use of this in the different plotting methods used by our synthesis classes explained above.
 
 ```{code-cell} ipython3
-po.tools.display.plot_representation(ps, rep);
+po.plot.plot_representation(ps, rep);
 ```
 
 ```{code-cell} ipython3
-met = po.synth.MetamerCTF(
-    img, ps, loss_function=po.tools.optim.l2_norm, coarse_to_fine="together"
-)
+met = po.MetamerCTF(img, ps, loss_function=po.optim.l2_norm, coarse_to_fine="together")
 met.synthesize(
     max_iter=400,
     store_progress=10,
@@ -281,11 +281,11 @@ met.synthesize(
 ```
 
 ```{code-cell} ipython3
-fig, _ = po.synth.metamer.plot_synthesis_status(met)
+fig, _ = po.plot.metamer_synthesis_status(met)
 ```
 
 And again, we can animate this over time:
 
 ```{code-cell} ipython3
-po.synth.metamer.animate(met)
+po.plot.metamer_animate(met)
 ```

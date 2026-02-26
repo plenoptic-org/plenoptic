@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -36,14 +36,14 @@ import plenoptic as po
 # this notebook runs just about as fast with GPU and CPU
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# so that relative sizes of axes created by po.imshow and others look right
+# so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
 %load_ext autoreload
 %autoreload 2
 ```
 
-First we pick our metrics and run our synthesis. We create four different {class}`~plenoptic.synthesize.mad_competition.MADCompetition` instances, in order to create the full set of images.
+First we pick our metrics and run our synthesis. We create four different {class}`~plenoptic.MADCompetition` instances, in order to create the full set of images.
 
 ```{code-cell} ipython3
 img = torch.as_tensor([0.5, 0.5], device=DEVICE, dtype=torch.float32)
@@ -53,7 +53,7 @@ def l1_norm(x, y):
     return torch.linalg.vector_norm(x - y, ord=1)
 
 
-metrics = [po.tools.optim.l2_norm, l1_norm]
+metrics = [po.optim.l2_norm, l1_norm]
 all_mad = {}
 
 # this gets us all four possibilities
@@ -61,8 +61,8 @@ for t, (m1, m2) in itertools.product(["min", "max"], zip(metrics, metrics[::-1])
     name = f"{m1.__name__}_{t}"
     # we set the seed like this to ensure that all four MADCompetition instances have
     # the same initial_image. Try different seed values!
-    po.tools.set_seed(115)
-    all_mad[name] = po.synth.MADCompetition(img, m1, m2, t, metric_tradeoff_lambda=1e4)
+    po.set_seed(115)
+    all_mad[name] = po.MADCompetition(img, m1, m2, t, metric_tradeoff_lambda=1e4)
     all_mad[name].setup(optimizer_kwargs={"lr": 0.0001})
     print(f"Synthesizing {name}")
     all_mad[name].synthesize(
@@ -200,7 +200,7 @@ def create_checkerboard(image_size, period, values=[0, 1]):
 # by setting the image to lie between 0 and 255 and be slightly within the max possible
 # range, we make the optimizatio a bit easier.
 img = 255 * create_checkerboard((64, 64), 16, [0.1, 0.9]).to(DEVICE)
-po.imshow(img, vrange=(0, 255), zoom=4);
+po.plot.imshow(img, vrange=(0, 255), zoom=4);
 # you could also do this with another natural image, give it a try!
 ```
 
@@ -211,7 +211,7 @@ def l1_norm(x, y):
     return torch.linalg.vector_norm(x - y, ord=1)
 
 
-metrics = [po.tools.optim.l2_norm, l1_norm]
+metrics = [po.optim.l2_norm, l1_norm]
 tradeoffs = {
     "l2_norm_max": 1e-4,
     "l2_norm_min": 1e-4,
@@ -227,8 +227,8 @@ for t, (m1, m2) in itertools.product(["min", "max"], zip(metrics, metrics[::-1])
     name = f"{m1.__name__}_{t}"
     # we set the seed like this to ensure that all four MADCompetition instances have
     # the same initial_image. Try different seed values!
-    po.tools.set_seed(0)
-    all_mad[name] = po.synth.MADCompetition(
+    po.set_seed(0)
+    all_mad[name] = po.MADCompetition(
         img,
         m1,
         m2,
@@ -257,7 +257,7 @@ assert all(
 We're going to visualize these slightly different to the above, since they have such different scales. The left axis shows the L1 norm loss, while the right one shows the L2 norm loss. Each of the four lines is a separate synthesis target, with the colors the same as above (note that `l1_norm_min` looks like it hasn't quite converged yet -- you can decrease the `stop_criterion` value and increase `max_iter` above to let it run longer, but the above is sufficient for demonstrative purposes).
 
 ```{code-cell} ipython3
-po.synth.mad_competition.plot_loss_all(*all_mad.values());
+po.plot.mad_loss_all(*all_mad.values());
 ```
 
 :::{admonition} Synthesis duration
@@ -269,9 +269,7 @@ If you look at the loss curves above, you can see that the "Minimize l1_norm" cu
 Now we'll show all the synthesized MAD images. In the following, the top row shows the reference and initial images, then the MAD images:
 
 ```{code-cell} ipython3
-po.synth.mad_competition.display_mad_image_all(
-    *all_mad.values(), zoom=4, vrange=(0, 255)
-);
+po.plot.mad_image_all(*all_mad.values(), zoom=4, vrange=(0, 255));
 ```
 
 If we go through them following the same logic as on the two-pixel case, we can see that our conclusions still hold. The following plots the difference between each of the above images and the reference image, to make the following points explicit:
@@ -281,7 +279,7 @@ If we go through them following the same logic as on the two-pixel case, we can 
 
 ```{code-cell} ipython3
 keys = ["l2_norm_min", "l2_norm_max", "l1_norm_min", "l1_norm_max"]
-po.imshow(
+po.plot.imshow(
     [all_mad[k].mad_image - all_mad[k].image for k in keys],
     title=keys,
     zoom=4,

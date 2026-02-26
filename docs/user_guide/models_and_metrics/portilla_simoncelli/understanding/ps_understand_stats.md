@@ -77,18 +77,18 @@ CACHE_DIR = po.data.fetch_data("ps_regression.tar.gz")
 # use GPU if available
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# so that relative sizes of axes created by po.imshow and others look right
+# so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
 # set seed for reproducibility
-po.tools.set_seed(1)
+po.set_seed(1)
 ```
 
 :::{admonition} This notebook retrieves cached synthesis results
 :class: warning dropdown
 This notebook contains many metamers and, while any one synthesis operation does not take too long, all of them combined result in a lengthy notebook. Therefore, instead of performing synthesis in this notebook, we have cached the result of most of these syntheses online and only download them for investigation.
 
-Additionally, while you can normally call {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` again to pick up where we left out, the cached version of the results shown here discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
+Additionally, while you can normally call {func}`~plenoptic.Metamer.synthesize` again to pick up where we left out, the cached version of the results shown here discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
 
 :::
 
@@ -102,7 +102,7 @@ In order to do reproduce those results, we create a version of the Portilla Simo
 # can examine the consequences of the absence of specific statistics.
 
 
-class PortillaSimoncelliRemove(po.simul.PortillaSimoncelli):
+class PortillaSimoncelliRemove(po.models.PortillaSimoncelli):
     r"""Model for measuring a subset of texture statistics reported by
     PortillaSimoncelli
 
@@ -196,11 +196,11 @@ img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
-model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
-loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
+model = po.models.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
+loss = po.optim.portilla_simoncelli_loss_factory(model, img)
 # to avoid running so many syntheses in this notebook, we load a cached version. see the
 # following admonition for how to run this yourself
-met = po.synth.Metamer(
+met = po.Metamer(
     img,
     model,
     loss_function=loss,
@@ -211,8 +211,8 @@ met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVIC
 model_remove = PortillaSimoncelliRemove(
     img.shape[-2:], remove_keys=remove_statistics
 ).to(DEVICE)
-loss_remove = po.tools.optim.portilla_simoncelli_loss_factory(model_remove, img)
-met_remove = po.synth.Metamer(
+loss_remove = po.optim.portilla_simoncelli_loss_factory(model_remove, img)
+met_remove = po.Metamer(
     img,
     model_remove,
     loss_function=loss_remove,
@@ -236,7 +236,7 @@ met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
 met.synthesize(max_iter=100)
 ```
 
-Call the {func}`~plenoptic.synthesize.metamer.Metamer.setup` and {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` methods of `met_remove` with the same arguments.
+Call the {func}`~plenoptic.Metamer.setup` and {func}`~plenoptic.Metamer.synthesize` methods of `met_remove` with the same arguments.
 
 :::
 
@@ -244,7 +244,7 @@ In the following figure, we can see that not only does the metamer created with 
 
 ```{code-cell} ipython3
 # visualize results
-fig = po.imshow(
+fig = po.plot.imshow(
     [met.image, met.metamer, met_remove.metamer],
     title=["Target image", "Full Statistics", "Without Marginal Statistics"],
     vrange="auto1",
@@ -253,9 +253,9 @@ fig = po.imshow(
 fig.add_axes([0.33, -1, 0.33, 0.9])
 fig.add_axes([0.67, -1, 0.33, 0.9])
 # this helper function expects a metamer object. see the metamer notebook for details.
-po.synth.metamer.plot_pixel_values(met, ax=fig.axes[3])
+po.plot.metamer_pixel_values(met, ax=fig.axes[3])
 fig.axes[3].set_title("Full statistics")
-po.synth.metamer.plot_pixel_values(met_remove, ax=fig.axes[4])
+po.plot.metamer_pixel_values(met_remove, ax=fig.axes[4])
 fig.axes[4].set_title("Without marginal statistics")
 ```
 
@@ -283,7 +283,7 @@ img = img.to(DEVICE).to(torch.float64)
 
 # We reuse the model and loss definition from the first section; the only difference
 # is the image.
-met = po.synth.Metamer(
+met = po.Metamer(
     img,
     model,
     loss_function=loss,
@@ -295,8 +295,8 @@ met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVIC
 model_remove = PortillaSimoncelliRemove(
     img.shape[-2:], remove_keys=remove_statistics
 ).to(DEVICE)
-loss_remove = po.tools.optim.portilla_simoncelli_loss_factory(model_remove, img)
-met_remove = po.synth.Metamer(
+loss_remove = po.optim.portilla_simoncelli_loss_factory(model_remove, img)
+met_remove = po.Metamer(
     img,
     model_remove,
     loss_function=loss_remove,
@@ -320,13 +320,13 @@ met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
 met.synthesize(max_iter=100)
 ```
 
-Call the {func}`~plenoptic.synthesize.metamer.Metamer.setup` and {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` methods of `met_remove` with the same arguments.
+Call the {func}`~plenoptic.Metamer.setup` and {func}`~plenoptic.Metamer.synthesize` methods of `met_remove` with the same arguments.
 
 :::
 
 ```{code-cell} ipython3
 # visualize results
-po.imshow(
+po.plot.imshow(
     [met.image, met.metamer, met_remove.metamer],
     title=[
         "Target image",
@@ -382,7 +382,7 @@ img = img.to(DEVICE).to(torch.float64)
 
 # We reuse the model and loss definition from the previous section; the only difference
 # is the image.
-met = po.synth.Metamer(
+met = po.Metamer(
     img,
     model,
     loss_function=loss,
@@ -394,8 +394,8 @@ met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVIC
 model_remove = PortillaSimoncelliRemove(
     img.shape[-2:], remove_keys=remove_statistics
 ).to(DEVICE)
-loss_remove = po.tools.optim.portilla_simoncelli_loss_factory(model_remove, img)
-met_remove = po.synth.Metamer(
+loss_remove = po.optim.portilla_simoncelli_loss_factory(model_remove, img)
+met_remove = po.Metamer(
     img,
     model_remove,
     loss_function=loss_remove,
@@ -419,13 +419,13 @@ met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
 met.synthesize(max_iter=100)
 ```
 
-Call the {func}`~plenoptic.synthesize.metamer.Metamer.setup` and {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` methods of `met_remove` with the same arguments.
+Call the {func}`~plenoptic.Metamer.setup` and {func}`~plenoptic.Metamer.synthesize` methods of `met_remove` with the same arguments.
 
 :::
 
 ```{code-cell} ipython3
 # visualize results
-po.imshow(
+po.plot.imshow(
     [met.image, met.metamer, met_remove.metamer],
     title=["Target image", "Full Statistics", "Without Magnitude Statistics"],
     vrange="auto1",
@@ -470,7 +470,7 @@ img = img.to(DEVICE).to(torch.float64)
 
 # We reuse the model and loss definition from the first section; the only difference
 # is the image.
-met = po.synth.Metamer(
+met = po.Metamer(
     img,
     model,
     loss_function=loss,
@@ -481,8 +481,8 @@ met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVIC
 model_remove = PortillaSimoncelliRemove(
     img.shape[-2:], remove_keys=remove_statistics
 ).to(DEVICE)
-loss_remove = po.tools.optim.portilla_simoncelli_loss_factory(model_remove, img)
-met_remove = po.synth.Metamer(
+loss_remove = po.optim.portilla_simoncelli_loss_factory(model_remove, img)
+met_remove = po.Metamer(
     img,
     model_remove,
     loss_function=loss_remove,
@@ -506,13 +506,13 @@ met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
 met.synthesize(max_iter=100)
 ```
 
-Call the {func}`~plenoptic.synthesize.metamer.Metamer.setup` and {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` methods of `met_remove` with the same arguments.
+Call the {func}`~plenoptic.Metamer.setup` and {func}`~plenoptic.Metamer.synthesize` methods of `met_remove` with the same arguments.
 
 :::
 
 ```{code-cell} ipython3
 # visualize results
-po.imshow(
+po.plot.imshow(
     [met.image, met.metamer, met_remove.metamer],
     title=[
         "Target image",

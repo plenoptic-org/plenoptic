@@ -33,7 +33,7 @@ Download this notebook: **{nb-download}`ps_basic_synthesis.ipynb`**!
 
 The original {cite:alp}`Portilla2000-param-textur` publication was accompanied by [matlab code](https://github.com/LabForComputationalVision/textureSynth/) which computed the model's output ("analysis") and generated new metamers for the model ("synthesis"). This code was hyper-specific for the Portilla-Simoncelli texture model and would not work with any other models.
 
-`plenoptic` includes an implementation of the original model which is compatible with our gradient-based synthesis methods. In this notebook, we will introduce the {class}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` class and how to use it with the {class}`~plenoptic.synthesize.metamer.Metamer` class to synthesize model metamers.
+`plenoptic` includes an implementation of the original model which is compatible with our gradient-based synthesis methods. In this notebook, we will introduce the {class}`~plenoptic.models.PortillaSimoncelli` class and how to use it with the {class}`~plenoptic.Metamer` class to synthesize model metamers.
 
 :::{admonition} Reproducing the metamers in this notebook
 :class: warning dropdown
@@ -61,11 +61,11 @@ IMG_PATH = po.data.fetch_data("portilla_simoncelli_images.tar.gz")
 # use GPU if available
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# so that relative sizes of axes created by po.imshow and others look right
+# so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
 # set seed for reproducibility
-po.tools.set_seed(1)
+po.set_seed(1)
 ```
 
 ## A quick reminder of what metamers are and why we are calculating them
@@ -76,11 +76,11 @@ In the metamer paradigm they eventually arrived at, the authors generated sets o
 
 ## Plenoptic's PortillaSimoncelli class
 
-Before synthesizing a model metamer, let's spend a bit of time with the {class}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` class. First, let's grab a texture image:
+Before synthesizing a model metamer, let's spend a bit of time with the {class}`~plenoptic.models.PortillaSimoncelli` class. First, let's grab a texture image:
 
 ```{code-cell} ipython3
 img = po.tools.load_images(IMG_PATH / "fig4a.jpg")
-po.imshow(img);
+po.plot.imshow(img);
 ```
 
 Now let's create an instance of the PortillaSimoncelli model with the following parameters:
@@ -92,7 +92,7 @@ Now let's create an instance of the PortillaSimoncelli model with the following 
 Running the model on an image will return a tensor of numbers summarizing the "texturiness" of that image, which we refer to as the model's representation. These statistics are measurements of different properties that the authors considered relevant to a texture's appearance (where a texture is defined above), and capture some of the repeating properties of these types of images.
 
 ```{code-cell} ipython3
-model = po.simul.PortillaSimoncelli(
+model = po.models.PortillaSimoncelli(
     img.shape[-2:], n_scales=4, n_orientations=3, spatial_corr_width=9
 )
 representation = model(img)
@@ -105,7 +105,7 @@ print(representation[..., :10])
 
 The model's representation consists of several different classes of statistics. We will explore these statistics and how they relate to visual textures in more detail in the [](ps-model-stats) notebook, but the class has two methods which can help you better understand the representation:
 
-- {func}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.convert_to_dict` will turn the representation tensor into a dictionary with informative keys:
+- {func}`~plenoptic.models.PortillaSimoncelli.convert_to_dict` will turn the representation tensor into a dictionary with informative keys:
 
 ```{code-cell} ipython3
 rep_dict = model.convert_to_dict(representation)
@@ -115,7 +115,7 @@ for k, v in rep_dict.items():
 
 The statistics have also been reshaped so that e.g., the `auto_correlation_magnitude` representation has shape `(batch, channel, spatial_corr_width, spatial_corr_width, n_orientations, n_scales)`, which might make understanding the values easier.
 
-- {func}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.plot_representation` will plot a summarized version of the representation tensor:
+- {func}`~plenoptic.models.PortillaSimoncelli.plot_representation` will plot a summarized version of the representation tensor:
 
 ```{code-cell} ipython3
 model.plot_representation(representation)
@@ -123,14 +123,14 @@ model.plot_representation(representation)
 
 This plot will be also useful when investigating metamer synthesis progress, so that we can see which statistics are matched and which still differ.
 
-When the model representation of two images match, the model considers the two images identical and we say that those two images are model metamers. Synthesizing a novel image that matches the representation of some arbitrary input is the goal of the {class}`~plenoptic.synthesize.metamer.Metamer` class, as described in the next section.
+When the model representation of two images match, the model considers the two images identical and we say that those two images are model metamers. Synthesizing a novel image that matches the representation of some arbitrary input is the goal of the {class}`~plenoptic.Metamer` class, as described in the next section.
 
 ## Synthesizing Portilla-Simoncelli Texture Model Metamers
 
 Synthesizing Portilla-Simoncelli model metamers require some additional options compared to the [basic Metamer usage](metamer-nb). This section will demonstrate how to synthesize a model metamer for this wicker basket texture:
 
 ```{code-cell} ipython3
-po.imshow(img);
+po.plot.imshow(img);
 ```
 
 The following settings seem to reliably find good metamers for this model. Here, we just give a brief overview of these options; see the [](ps-optimization) notebook for more information.
@@ -145,9 +145,9 @@ This process takes about 4 minutes on my laptop without a GPU. How long it will 
 # send image and PS model to GPU, if available. then Metamer will also
 # use GPU
 img = img.to(DEVICE)
-model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
-loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
-met = po.synth.Metamer(
+model = po.models.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
+loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+met = po.Metamer(
     img,
     model,
     loss_function=loss,
@@ -166,20 +166,20 @@ met.synthesize(max_iter=100)
 Now we can visualize the output of the synthesis optimization. First we compare the *Target image* and the *Synthesized image* side-by-side. We can see that they appear perceptually similar --- that is, for this texture image, matching the Portilla-Simoncelli texture stats gives you an image that the human visual system *also* considers similar.
 
 ```{code-cell} ipython3
-po.imshow(
+po.plot.imshow(
     [met.image, met.metamer],
     title=["Target image", "Synthesized metamer"],
     vrange="auto1",
 );
 ```
 
-We can also use plenoptic's {func}`~plenoptic.synthesize.metamer.plot_synthesis_status` method to see how things are going. The image on the left shows the metamer at this moment in synthesis, while the center plot shows the loss over time, with the red dot pointing out the current loss, and the rightmost plot shows the representation error (i.e., the {func}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.plot_representation` figure from above, but for `model(target image) - model(synthesized image)`).
+We can also use plenoptic's {func}`~plenoptic.plot.metamer_synthesis_status` method to see how things are going. The image on the left shows the metamer at this moment in synthesis, while the center plot shows the loss over time, with the red dot pointing out the current loss, and the rightmost plot shows the representation error (i.e., the {func}`~plenoptic.models.PortillaSimoncelli.plot_representation` figure from above, but for `model(target image) - model(synthesized image)`).
 
 We can see the synthesized texture on the leftmost plot. The overall synthesis error decreases over the synthesis iterations (subplot 2).  The remaining plots show us the error broken out by the different texture statistics; see [](ps-model-stats) to better understand them.
 
 ```{code-cell} ipython3
-po.synth.metamer.plot_synthesis_status(
-    met, width_ratios={"plot_representation_error": 3.1}
+po.plot.metamer_synthesis_status(
+    met, width_ratios={"metamer_representation_error": 3.1}
 )
 ```
 
