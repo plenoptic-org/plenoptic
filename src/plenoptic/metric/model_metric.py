@@ -49,7 +49,7 @@ def model_metric_factory(model: torch.nn.Module) -> torch.Tensor:
     >>> import plenoptic as po
     >>> einstein_img = po.data.einstein()
     >>> curie_img = po.data.curie()
-    >>> model = po.simul.Gaussian(30)
+    >>> model = po.models.Gaussian(30)
     >>> model_metric = po.metric.model_metric_factory(model)
     >>> model_metric(einstein_img, curie_img)
     tensor(0.3128, grad_fn=<SqrtBackward0>)

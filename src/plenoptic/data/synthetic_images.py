@@ -182,14 +182,16 @@ def disk(
 
       >>> import plenoptic as po
       >>> import torch
-      >>> disk = po.tools.make_disk((256, 256), outer_radius=50, inner_radius=25)
+      >>> disk = po.data.disk((256, 256), outer_radius=50, inner_radius=25)
       >>> # we can add batch and color dimensions
       >>> # (this is equivalent to using .unsqueeze(0) twice)
       >>> disk = disk[None, None]
       >>> # we can use the disk as a mask to apply to an image
       >>> img = po.data.einstein()
       >>> masked_img = img * disk
-      >>> po.imshow([disk, img, masked_img], title=["disk", "image", "mask applied"])
+      >>> po.plot.imshow(
+      ...     [disk, img, masked_img], title=["disk", "image", "mask applied"]
+      ... )
       <PyrFigure ...>
     """
     if isinstance(img_size, int):

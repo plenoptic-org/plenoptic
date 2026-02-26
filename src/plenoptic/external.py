@@ -66,15 +66,15 @@ def plot_MAD_results(
         ``None``, we download them.
     zoom
         Ratio of display pixels to image pixels, passed to
-        :func:`~plenoptic.tools.display.imshow`. If >1, must be an integer. If <1, must
+        :func:`~plenoptic.plot.imshow`. If >1, must be an integer. If <1, must
         be 1/d where d is a a divisor of the size of the largest image.
     vrange
         How to map image values to colormap. In addition to the values accepted by
-        :func:`~plenoptic.tools.display.imshow`, we also accept ``"row0/1/2/3"``, which
+        :func:`~plenoptic.plot.imshow`, we also accept ``"row0/1/2/3"``, which
         is the same as ``"auto0/1/2/3"``, except that we do it on a per-row basis (all
         images with same noise level).
     **kwargs
-        Passed to :func:`~plenoptic.tools.display.imshow`. Note that we call imshow
+        Passed to :func:`~plenoptic.plot.imshow`. Note that we call imshow
         separately on each image and so any argument that relies on imshow having
         access to all images will probably not work as expected.
 

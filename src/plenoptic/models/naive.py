@@ -33,7 +33,7 @@ class Identity(torch.nn.Module):
     Examples
     --------
     >>> import plenoptic as po
-    >>> identity_model = po.simul.Identity()
+    >>> identity_model = po.models.Identity()
     >>> identity_model
     Identity()
     """
@@ -60,11 +60,11 @@ class Identity(torch.nn.Module):
         .. plot::
 
            >>> import plenoptic as po
-           >>> identity_model = po.simul.Identity()
+           >>> identity_model = po.models.Identity()
            >>> img = po.data.curie()
            >>> y = identity_model.forward(img)
            >>> titles = ["Input", "Output (identical)"]
-           >>> po.imshow([img, y], title=titles)
+           >>> po.plot.imshow([img, y], title=titles)
            <PyrFigure ...>
         """  # numpydoc ignore=ES01
         y = 1 * x
@@ -96,7 +96,7 @@ class Linear(nn.Module):
     Examples
     --------
     >>> import plenoptic as po
-    >>> linear_model = po.simul.Linear()
+    >>> linear_model = po.models.Linear()
     >>> linear_model
     Linear(
       (conv): Conv2d(1, 2, kernel_size=(3, 3), stride=(1, 1), bias=False)
@@ -104,7 +104,7 @@ class Linear(nn.Module):
 
     To specify the kernel size :
 
-    >>> linear_model = po.simul.Linear(kernel_size=(5, 5))
+    >>> linear_model = po.models.Linear(kernel_size=(5, 5))
     >>> linear_model
     Linear(
       (conv): Conv2d(1, 2, kernel_size=(5, 5), stride=(1, 1), bias=False)
@@ -158,10 +158,10 @@ class Linear(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> linear_model = po.simul.Linear()
+          >>> linear_model = po.models.Linear()
           >>> img = po.data.curie()
           >>> y = linear_model.forward(img)
-          >>> po.imshow(
+          >>> po.plot.imshow(
           ...     [img, y],
           ...     title=[
           ...         "Input image",
@@ -210,7 +210,7 @@ class Gaussian(nn.Module):
     Examples
     --------
     >>> import plenoptic as po
-    >>> gaussian_model = po.simul.Gaussian(kernel_size=10)
+    >>> gaussian_model = po.models.Gaussian(kernel_size=10)
     >>> gaussian_model
     Gaussian()
     """
@@ -270,10 +270,10 @@ class Gaussian(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> gaussian_model = po.simul.Gaussian(kernel_size=10)
+          >>> gaussian_model = po.models.Gaussian(kernel_size=10)
           >>> img = po.data.curie()
           >>> y = gaussian_model.forward(img)
-          >>> po.imshow([img, y], title=["Input image", "Output"])
+          >>> po.plot.imshow([img, y], title=["Input image", "Output"])
           <PyrFigure size...>
 
         Multiple output channels with different standard deviations.
@@ -281,12 +281,12 @@ class Gaussian(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> gaussian_model = po.simul.Gaussian(
+          >>> gaussian_model = po.models.Gaussian(
           ...     kernel_size=10, std=[2, 5], out_channels=2
           ... )
           >>> img = po.data.curie()
           >>> y = gaussian_model.forward(img)
-          >>> po.imshow(
+          >>> po.plot.imshow(
           ...     [img, y],
           ...     title=["Input image", "Output Channel 0", "Output Channel 1"],
           ... )
@@ -356,14 +356,14 @@ class CenterSurround(nn.Module):
     Examples
     --------
     >>> import plenoptic as po
-    >>> cs_model = po.simul.CenterSurround(kernel_size=10)
+    >>> cs_model = po.models.CenterSurround(kernel_size=10)
     >>> cs_model
     CenterSurround()
 
     Model with both on-center/off-surround and off-center/on-surround:
 
     >>> import plenoptic as po
-    >>> cs_model = po.simul.CenterSurround(10, [True, False])
+    >>> cs_model = po.models.CenterSurround(10, [True, False])
     >>> cs_model
     CenterSurround()
     """
@@ -467,10 +467,10 @@ class CenterSurround(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> cs_model = po.simul.CenterSurround(kernel_size=10)
+          >>> cs_model = po.models.CenterSurround(kernel_size=10)
           >>> img = po.data.curie()
           >>> y = cs_model.forward(img)
-          >>> po.imshow([img, y], title=["Input image", "Output"])
+          >>> po.plot.imshow([img, y], title=["Input image", "Output"])
           <PyrFigure size...>
 
         Model with both on-center/off-surround and off-center/on-surround:
@@ -478,7 +478,7 @@ class CenterSurround(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> cs_model = po.simul.CenterSurround(10, [True, False])
+          >>> cs_model = po.models.CenterSurround(10, [True, False])
           >>> img = po.data.curie()
           >>> y = cs_model.forward(img)
           >>> titles = [
@@ -486,7 +486,7 @@ class CenterSurround(nn.Module):
           ...     "On-center/off-surround",
           ...     "Off-center/on-surround",
           ... ]
-          >>> po.imshow([img, y], title=titles)
+          >>> po.plot.imshow([img, y], title=titles)
           <PyrFigure size...>
         """
         x = same_padding(x, self.kernel_size, pad_mode=self.pad_mode)

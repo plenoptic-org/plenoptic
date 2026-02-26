@@ -186,7 +186,7 @@ class MADCompetition(OptimizedSynthesis):
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> mad = po.synth.MADCompetition(
+        >>> mad = po.MADCompetition(
         ...     img,
         ...     lambda x, y: 1 - po.metric.ssim(x, y),
         ...     po.metric.mse,
@@ -200,7 +200,7 @@ class MADCompetition(OptimizedSynthesis):
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> mad = po.synth.MADCompetition(
+        >>> mad = po.MADCompetition(
         ...     img,
         ...     lambda x, y: 1 - po.metric.ssim(x, y),
         ...     po.metric.mse,
@@ -215,7 +215,7 @@ class MADCompetition(OptimizedSynthesis):
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> mad = po.synth.MADCompetition(
+        >>> mad = po.MADCompetition(
         ...     img,
         ...     lambda x, y: 1 - po.metric.ssim(x, y),
         ...     po.metric.mse,
@@ -225,7 +225,7 @@ class MADCompetition(OptimizedSynthesis):
         >>> mad.setup(1, optimizer=torch.optim.SGD, optimizer_kwargs={"lr": 0.01})
         >>> mad.synthesize(10)
         >>> mad.save("mad_setup.pt")
-        >>> mad = po.synth.MADCompetition(
+        >>> mad = po.MADCompetition(
         ...     img,
         ...     lambda x, y: 1 - po.metric.ssim(x, y),
         ...     po.metric.mse,
@@ -722,7 +722,7 @@ class MADCompetition(OptimizedSynthesis):
 
         See Also
         --------
-        :func:`~plenoptic.tools.io.examine_saved_synthesis`
+        :func:`~plenoptic.io.examine_saved_synthesis`
             Examine metadata from saved object: pytorch and plenoptic versions, name of
             the synthesis object, shapes of tensors, etc.
 
@@ -732,12 +732,12 @@ class MADCompetition(OptimizedSynthesis):
         >>> img = po.data.einstein()
         >>> def ds_ssim(x, y):
         ...     return 1 - po.metric.ssim(x, y)
-        >>> mad = po.synth.MADCompetition(
+        >>> mad = po.MADCompetition(
         ...     img, po.metric.mse, ds_ssim, "min", metric_tradeoff_lambda=10
         ... )
         >>> mad.synthesize(max_iter=5, store_progress=True)
         >>> mad.save("mad.pt")
-        >>> mad_copy = po.synth.MADCompetition(
+        >>> mad_copy = po.MADCompetition(
         ...     img, po.metric.mse, ds_ssim, "min", metric_tradeoff_lambda=10
         ... )
         >>> mad_copy.load("mad.pt")

@@ -395,7 +395,7 @@ class Synthesis(abc.ABC):
                 display_k = k[1:] if k.startswith("_") else k
                 init_attr = getattr(self, k, None)
                 # then check their name has the same final part (e.g.,
-                # "plenoptic.simulate.PortillaSimoncelli" or
+                # "plenoptic.models.PortillaSimoncelli" or
                 # "__main__.PortillaSimoncelli"), since we've already checked
                 # the behavior, keep going (don't update the object's attribute)
                 if init_attr is not None:

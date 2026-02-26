@@ -191,7 +191,7 @@ def _groupwise_l2_norm_weights(
 
     This function returns a tensor that can be used to perform a groupwise reweighting
     of a model's representation. It is used by
-    :func:`~plenoptic.tools.optim.groupwise_relative_l2_norm_factory` and similar
+    :func:`~plenoptic.optim.groupwise_relative_l2_norm_factory` and similar
     functions, which normalize model representations so that all statistics are roughly
     the same scale, which makes optimization easier.
 
@@ -209,7 +209,7 @@ def _groupwise_l2_norm_weights(
     decrease the weight, and 0 will remove it from the calculation entirely.
 
     For an example of a compliant model, see the
-    :class:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` model.
+    :class:`~plenoptic.models.PortillaSimoncelli` model.
 
     Parameters
     ----------
@@ -241,7 +241,7 @@ def _groupwise_l2_norm_weights(
         ``convert_to_tensor`` need to invert each other, which means you should probably
         use an :class:`~collections.OrderedDict`, which guarantees that the order of the
         keys is preserved. You can use
-        :func:`~plenoptic.tools.validate.validate_convert_tensor_dict` to heuristically
+        :func:`~plenoptic.validate.validate_convert_tensor_dict` to heuristically
         check whether your model satisfies this constraint.
     """
     if reweighting_dict is None:
@@ -253,7 +253,7 @@ def _groupwise_l2_norm_weights(
             "model.convert_to_dict did not return an OrderedDict. This might "
             "not be a problem, but convert_to_dict and convert_to_tensor must"
             " invert each other. Calling "
-            "plenoptic.tools.validate.validate_convert_tensor_dict(model)"
+            "plenoptic.validate.validate_convert_tensor_dict(model)"
             " will attempt to validate this constraint."
         )
     if extra_keys := set(reweighting_dict.keys()) - set(rep.keys()):
@@ -277,7 +277,7 @@ def groupwise_relative_l2_norm_factory(
 
     This loss factory returns a callable which should make optimization easier when
     used as the ``loss_function`` when initializing
-    :class:`~plenoptic.synthesize.metamer.Metamer` for synthesizing metamers. The
+    :class:`~plenoptic.Metamer` for synthesizing metamers. The
     resulting loss function will normalize each group within the representation by the
     L2 norm of that group on ``image``, which should be the target image for that
     synthesis.
@@ -297,7 +297,7 @@ def groupwise_relative_l2_norm_factory(
     decrease the weight, and 0 will remove it from the calculation entirely.
 
     For an example of a compliant model, see the
-    :class:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` model.
+    :class:`~plenoptic.models.PortillaSimoncelli` model.
 
     Parameters
     ----------
@@ -327,7 +327,7 @@ def groupwise_relative_l2_norm_factory(
         ``convert_to_tensor`` need to invert each other, which means you should probably
         use an :class:`~collections.OrderedDict`, which guarantees that the order of the
         keys is preserved. You can use
-        :func:`~plenoptic.tools.validate.validate_convert_tensor_dict` to heuristically
+        :func:`~plenoptic.validate.validate_convert_tensor_dict` to heuristically
         check whether your model satisfies this constraint.
 
     Examples
@@ -337,7 +337,7 @@ def groupwise_relative_l2_norm_factory(
     >>> import plenoptic as po
     >>> from collections import OrderedDict
     >>> import torch
-    >>> po.tools.set_seed(0)
+    >>> po.set_seed(0)
     >>> class TestModel(torch.nn.Module):
     ...     def __init__(self):
     ...         super().__init__()
@@ -355,10 +355,10 @@ def groupwise_relative_l2_norm_factory(
     >>> img = po.data.einstein()
     >>> img2 = torch.rand_like(img)
     >>> model = TestModel()
-    >>> loss = po.tools.optim.groupwise_relative_l2_norm_factory(model, img)
+    >>> loss = po.optim.groupwise_relative_l2_norm_factory(model, img)
     >>> loss(model(img), model(img2))
     tensor(0.6512)
-    >>> po.tools.optim.l2_norm(model(img), model(img2))
+    >>> po.optim.l2_norm(model(img), model(img2))
     tensor(78.5674)
 
     Use ``reweighting_dict`` to further tweak weighting.
@@ -366,7 +366,7 @@ def groupwise_relative_l2_norm_factory(
     >>> import plenoptic as po
     >>> from collections import OrderedDict
     >>> import torch
-    >>> po.tools.set_seed(0)
+    >>> po.set_seed(0)
     >>> class TestModel(torch.nn.Module):
     ...     def __init__(self):
     ...         super().__init__()
@@ -385,18 +385,14 @@ def groupwise_relative_l2_norm_factory(
     >>> img2 = torch.rand_like(img)
     >>> model = TestModel()
     >>> reweighting_dict = {"channel_0": 0.5}
-    >>> loss = po.tools.optim.groupwise_relative_l2_norm_factory(
-    ...     model, img, reweighting_dict
-    ... )
+    >>> loss = po.optim.groupwise_relative_l2_norm_factory(model, img, reweighting_dict)
     >>> loss(model(img), model(img2))
     tensor(0.4822)
     >>> # channel_0 is of shape (1, 256, 256)
     >>> channel_0 = torch.ones_like(model.convert_to_dict(model(img))["channel_0"])
     >>> channel_0[..., 128:] = 0
     >>> reweighting_dict = {"channel_0": channel_0}
-    >>> loss = po.tools.optim.groupwise_relative_l2_norm_factory(
-    ...     model, img, reweighting_dict
-    ... )
+    >>> loss = po.optim.groupwise_relative_l2_norm_factory(model, img, reweighting_dict)
     >>> loss(model(img), model(img2))
     tensor(0.5612)
     """
@@ -418,15 +414,15 @@ def portilla_simoncelli_loss_factory(
     Create the loss function required for ``PortillaSimoncelli`` metamer synthesis.
 
     This loss factory returns a callable which should be used as the ``loss_function``
-    when initializing :class:`~plenoptic.synthesize.metamer.Metamer` for synthesizing
+    when initializing :class:`~plenoptic.Metamer` for synthesizing
     metamers with the
-    :class:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` model. It
+    :class:`~plenoptic.models.PortillaSimoncelli` model. It
     zeroes the model's representation of the images' min/max pixel values and increases
     the weight on the variance of the highpass residuals before computing the L2-norm.
 
     The optional ``reweighting_dict`` argument allows users to tweak the weights. If not
     ``None``, keys should be a subset of those found in the output of
-    :func:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.convert_to_dict`
+    :func:`~plenoptic.models.PortillaSimoncelli.convert_to_dict`
     and whose values are Tensors (broadcastable to the shape of the corresponding values
     in ``convert_to_dict`` output) which will be multiplied by the corresponding
     group. Thus, a number greater than 1 will increase its weight in the loss, a number
@@ -441,7 +437,7 @@ def portilla_simoncelli_loss_factory(
     ----------
     model
         An instantiated
-        :class:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli`
+        :class:`~plenoptic.models.PortillaSimoncelli`
         model.
     image
         The target image for metamer synthesis, or an image with the same shape, dtype,
@@ -479,23 +475,23 @@ def portilla_simoncelli_loss_factory(
 
     >>> import plenoptic as po
     >>> import torch
-    >>> po.tools.set_seed(0)
+    >>> po.set_seed(0)
     >>> img = po.data.einstein()
     >>> img2 = torch.rand_like(img)
-    >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
-    >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
+    >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
+    >>> loss = po.optim.portilla_simoncelli_loss_factory(model, img)
     >>> loss(model(img), model(img2))
     tensor(31.9155)
-    >>> po.tools.optim.l2_norm(model(img), model(img2))
+    >>> po.optim.l2_norm(model(img), model(img2))
     tensor(31.5433)
 
     Use the loss function for metamer synthesis.
 
     >>> import plenoptic as po
     >>> img = po.data.einstein()
-    >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
-    >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
-    >>> met = po.synth.Metamer(img, model, loss_function=loss)
+    >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
+    >>> loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+    >>> met = po.Metamer(img, model, loss_function=loss)
 
     Use ``reweighting_dict`` to increase weight on image pixel moments, while keeping
     min/max out of the loss. The model includes 6 pixel stats (see :ref:`ps-model-stats`
@@ -503,17 +499,15 @@ def portilla_simoncelli_loss_factory(
 
     >>> import plenoptic as po
     >>> import torch
-    >>> po.tools.set_seed(0)
+    >>> po.set_seed(0)
     >>> img = po.data.einstein()
     >>> img2 = torch.rand_like(img)
-    >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
+    >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
     >>> rep = model.convert_to_dict(model(img))
     >>> pixel_stats = torch.as_tensor([10, 10, 10, 10, 0, 0])
     >>> pixel_stats = pixel_stats * torch.ones_like(rep["pixel_statistics"])
     >>> reweighting_dict = {"pixel_statistics": pixel_stats}
-    >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(
-    ...     model, img, reweighting_dict
-    ... )
+    >>> loss = po.optim.portilla_simoncelli_loss_factory(model, img, reweighting_dict)
     >>> loss(model(img), model(img2))
     tensor(35.9753)
 
@@ -522,14 +516,12 @@ def portilla_simoncelli_loss_factory(
 
     >>> import plenoptic as po
     >>> import torch
-    >>> po.tools.set_seed(0)
+    >>> po.set_seed(0)
     >>> img = po.data.einstein()
     >>> img2 = torch.rand_like(img)
-    >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
+    >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
     >>> reweighting_dict = {"pixel_statistics": 1, "magnitude_std": 100}
-    >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(
-    ...     model, img, reweighting_dict
-    ... )
+    >>> loss = po.optim.portilla_simoncelli_loss_factory(model, img, reweighting_dict)
     >>> loss(model(img), model(img2))
     tensor(251.5188)
     """

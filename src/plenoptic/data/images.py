@@ -43,7 +43,7 @@ def einstein(as_gray: bool = True) -> torch.Tensor:
       >>> einstein = po.data.einstein()
       >>> einstein.shape
       torch.Size([1, 1, 256, 256])
-      >>> po.imshow(einstein)
+      >>> po.plot.imshow(einstein)
       <PyrFigure size ...>
 
     >>> import plenoptic as po
@@ -76,7 +76,7 @@ def curie(as_gray: bool = True) -> torch.Tensor:
       >>> curie = po.data.curie()
       >>> curie.shape
       torch.Size([1, 1, 256, 256])
-      >>> po.imshow(curie)
+      >>> po.plot.imshow(curie)
       <PyrFigure size ...>
 
     >>> import plenoptic as po
@@ -109,7 +109,7 @@ def parrot(as_gray: bool = True) -> torch.Tensor:
       >>> parrot = po.data.parrot()
       >>> parrot.shape
       torch.Size([1, 1, 254, 266])
-      >>> po.imshow(parrot)
+      >>> po.plot.imshow(parrot)
       <PyrFigure size ...>
 
     >>> import plenoptic as po
@@ -142,7 +142,7 @@ def reptile_skin(as_gray: bool = True) -> torch.Tensor:
       >>> reptile_skin = po.data.reptile_skin()
       >>> reptile_skin.shape
       torch.Size([1, 1, 256, 256])
-      >>> po.imshow(reptile_skin)
+      >>> po.plot.imshow(reptile_skin)
       <PyrFigure size ...>
 
     >>> import plenoptic as po
@@ -175,7 +175,7 @@ def color_wheel(as_gray: bool = False) -> torch.Tensor:
       >>> color_wheel = po.data.color_wheel()
       >>> color_wheel.shape
       torch.Size([1, 3, 600, 600])
-      >>> po.imshow(color_wheel, as_rgb=True, zoom=0.5)
+      >>> po.plot.imshow(color_wheel, as_rgb=True, zoom=0.5)
       <PyrFigure size ...>
 
     .. plot::
@@ -184,7 +184,7 @@ def color_wheel(as_gray: bool = False) -> torch.Tensor:
       >>> color_wheel_gray = po.data.color_wheel(as_gray=True)
       >>> color_wheel_gray.shape
       torch.Size([1, 1, 600, 600])
-      >>> po.imshow(color_wheel_gray, zoom=0.5)
+      >>> po.plot.imshow(color_wheel_gray, zoom=0.5)
       <PyrFigure size ...>
     """  # numpydoc ignore=ES01
     return load_images(FILES / "color_wheel.jpg", as_gray=as_gray)

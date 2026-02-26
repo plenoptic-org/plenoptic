@@ -71,10 +71,10 @@ def correlate_downsample(
       >>> img = po.data.einstein()
       >>> # 2x2 averaging filter
       >>> filt = torch.ones(2, 2) / 4.0
-      >>> downsampled = po.tools.correlate_downsample(img, filt)
+      >>> downsampled = po.model_components.correlate_downsample(img, filt)
       >>> downsampled.shape
       torch.Size([1, 1, 128, 128])
-      >>> po.imshow([img, downsampled], title=["image", "downsampled"])
+      >>> po.plot.imshow([img, downsampled], title=["image", "downsampled"])
       <PyrFigure...>
 
     Note that the dimensions have changed.
@@ -96,11 +96,19 @@ def correlate_downsample(
 
       >>> # Large 50x50 averaging filter to make padding effects visible
       >>> filt = torch.ones(50, 50) / (50 * 50)
-      >>> constant = po.tools.correlate_downsample(img, filt, padding_mode="constant")
-      >>> reflect = po.tools.correlate_downsample(img, filt, padding_mode="reflect")
-      >>> replicate = po.tools.correlate_downsample(img, filt, padding_mode="replicate")
-      >>> circular = po.tools.correlate_downsample(img, filt, padding_mode="circular")
-      >>> po.imshow(
+      >>> constant = po.model_components.correlate_downsample(
+      ...     img, filt, padding_mode="constant"
+      ... )
+      >>> reflect = po.model_components.correlate_downsample(
+      ...     img, filt, padding_mode="reflect"
+      ... )
+      >>> replicate = po.model_components.correlate_downsample(
+      ...     img, filt, padding_mode="replicate"
+      ... )
+      >>> circular = po.model_components.correlate_downsample(
+      ...     img, filt, padding_mode="circular"
+      ... )
+      >>> po.plot.imshow(
       ...     [reflect, constant, replicate, circular],
       ...     title=[
       ...         "reflect padding",
@@ -180,10 +188,10 @@ def upsample_convolve(
       >>> img = po.data.einstein()
       >>> # 2x2 interpolation filter
       >>> filt = torch.ones(2, 2) / 4.0
-      >>> upsampled = po.tools.upsample_convolve(img, odd=[0, 0], filt=filt)
+      >>> upsampled = po.model_components.upsample_convolve(img, odd=[0, 0], filt=filt)
       >>> upsampled.shape
       torch.Size([1, 1, 512, 512])
-      >>> po.imshow([img, upsampled], title=["image", "upsampled"])
+      >>> po.plot.imshow([img, upsampled], title=["image", "upsampled"])
       <PyrFigure...>
 
     Note that the dimensions have changed.
@@ -194,13 +202,17 @@ def upsample_convolve(
     .. plot::
       :context: close-figs
 
-      >>> upsampled_even = po.tools.upsample_convolve(img, odd=[0, 0], filt=filt)
+      >>> upsampled_even = po.model_components.upsample_convolve(
+      ...     img, odd=[0, 0], filt=filt
+      ... )
       >>> upsampled_even.shape
       torch.Size([1, 1, 512, 512])
-      >>> upsampled_odd = po.tools.upsample_convolve(img, odd=[1, 1], filt=filt)
+      >>> upsampled_odd = po.model_components.upsample_convolve(
+      ...     img, odd=[1, 1], filt=filt
+      ... )
       >>> upsampled_odd.shape
       torch.Size([1, 1, 511, 511])
-      >>> upsampled_mixed_odd_even = po.tools.upsample_convolve(
+      >>> upsampled_mixed_odd_even = po.model_components.upsample_convolve(
       ...     img, odd=[1, 0], filt=filt
       ... )
       >>> upsampled_mixed_odd_even.shape
@@ -223,19 +235,19 @@ def upsample_convolve(
 
       >>> # Large 50x50 interpolation filter to make padding effects visible
       >>> filt = torch.ones(50, 50) / (50 * 50)
-      >>> constant = po.tools.upsample_convolve(
+      >>> constant = po.model_components.upsample_convolve(
       ...     img, odd=[0, 0], filt=filt, padding_mode="constant"
       ... )
-      >>> reflect = po.tools.upsample_convolve(
+      >>> reflect = po.model_components.upsample_convolve(
       ...     img, odd=[0, 0], filt=filt, padding_mode="reflect"
       ... )
-      >>> replicate = po.tools.upsample_convolve(
+      >>> replicate = po.model_components.upsample_convolve(
       ...     img, odd=[0, 0], filt=filt, padding_mode="replicate"
       ... )
-      >>> circular = po.tools.upsample_convolve(
+      >>> circular = po.model_components.upsample_convolve(
       ...     img, odd=[0, 0], filt=filt, padding_mode="circular"
       ... )
-      >>> po.imshow(
+      >>> po.plot.imshow(
       ...     [reflect, constant, replicate, circular],
       ...     title=[
       ...         "reflect padding",
@@ -316,7 +328,7 @@ def blur_downsample(
     upsample_blur
         Perform the inverse operation, upsampling and convolving a user-specified number
         of times using a named filter.
-    :func:`~plenoptic.tools.signal.shrink`
+    :func:`~plenoptic.model_components.shrink`
         An alternative downsampling operation.
 
     Examples
@@ -327,10 +339,10 @@ def blur_downsample(
       >>> import plenoptic as po
       >>> import torch
       >>> img = po.data.einstein()
-      >>> downsampled = po.tools.blur_downsample(img)
+      >>> downsampled = po.model_components.blur_downsample(img)
       >>> downsampled.shape
       torch.Size([1, 1, 128, 128])
-      >>> po.imshow([img, downsampled], title=["image", "downsampled"])
+      >>> po.plot.imshow([img, downsampled], title=["image", "downsampled"])
       <PyrFigure...>
 
     Note that the dimensions have changed.
@@ -341,13 +353,13 @@ def blur_downsample(
     .. plot::
       :context: close-figs
 
-      >>> downsampled_2 = po.tools.blur_downsample(img, n_scales=2)
+      >>> downsampled_2 = po.model_components.blur_downsample(img, n_scales=2)
       >>> downsampled_2.shape
       torch.Size([1, 1, 64, 64])
-      >>> downsampled_4 = po.tools.blur_downsample(img, n_scales=4)
+      >>> downsampled_4 = po.model_components.blur_downsample(img, n_scales=4)
       >>> downsampled_4.shape
       torch.Size([1, 1, 16, 16])
-      >>> po.imshow(
+      >>> po.plot.imshow(
       ...     [img, downsampled_2, downsampled_4],
       ...     title=["image", "downsampled x2", "downsampled x4"],
       ... )
@@ -370,10 +382,10 @@ def blur_downsample(
       ...     "qmf5",
       ... ]
       >>> downsampled_filter = [
-      ...     po.tools.blur_downsample(img, n_scales=2, filtname=filt)
+      ...     po.model_components.blur_downsample(img, n_scales=2, filtname=filt)
       ...     for filt in named_filters
       ... ]
-      >>> po.imshow(
+      >>> po.plot.imshow(
       ...     [img] + downsampled_filter,
       ...     title=["image"] + named_filters,
       ...     col_wrap=4,
@@ -409,12 +421,14 @@ def blur_downsample(
     .. plot::
       :context: close-figs
 
-      >>> downsampled_nonscaled = po.tools.blur_downsample(img, scale_filter=False)
+      >>> downsampled_nonscaled = po.model_components.blur_downsample(
+      ...     img, scale_filter=False
+      ... )
       >>> torch.allclose(img.mean(), downsampled.mean(), atol=1e-2)
       True
       >>> torch.allclose(img.mean(), downsampled_nonscaled.mean() / 2, atol=1e-2)
       True
-      >>> po.imshow(
+      >>> po.plot.imshow(
       ...     [img, downsampled, downsampled_nonscaled],
       ...     title=[
       ...         f"original, mean={img.mean().item():.3f}",
@@ -485,7 +499,7 @@ def upsample_blur(
     blur_downsample
         Perform the inverse operation, correlating and downsampling a user-specified
         number of times using a named filter.
-    :func:`~plenoptic.tools.signal.expand`
+    :func:`~plenoptic.model_components.expand`
         An alternative upsampling operation.
 
     Examples
@@ -496,10 +510,10 @@ def upsample_blur(
       >>> import plenoptic as po
       >>> import torch
       >>> img = po.data.einstein()
-      >>> upsampled = po.tools.upsample_blur(img, odd=[0, 0])
+      >>> upsampled = po.model_components.upsample_blur(img, odd=[0, 0])
       >>> upsampled.shape
       torch.Size([1, 1, 512, 512])
-      >>> po.imshow([img, upsampled], title=["image", "upsampled"])
+      >>> po.plot.imshow([img, upsampled], title=["image", "upsampled"])
       <PyrFigure...>
 
     Note that the dimensions have changed.
@@ -510,13 +524,13 @@ def upsample_blur(
     .. plot::
       :context: close-figs
 
-      >>> upsampled_even = po.tools.upsample_blur(img, odd=[0, 0])
+      >>> upsampled_even = po.model_components.upsample_blur(img, odd=[0, 0])
       >>> upsampled_even.shape
       torch.Size([1, 1, 512, 512])
-      >>> upsampled_odd = po.tools.upsample_blur(img, odd=[1, 1])
+      >>> upsampled_odd = po.model_components.upsample_blur(img, odd=[1, 1])
       >>> upsampled_odd.shape
       torch.Size([1, 1, 511, 511])
-      >>> upsampled_mixed_odd_even = po.tools.upsample_blur(img, odd=[1, 0])
+      >>> upsampled_mixed_odd_even = po.model_components.upsample_blur(img, odd=[1, 0])
       >>> upsampled_mixed_odd_even.shape
       torch.Size([1, 1, 511, 512])
 
@@ -526,13 +540,13 @@ def upsample_blur(
     .. plot::
       :context: close-figs
 
-      >>> upsampled_2 = po.tools.upsample_blur(img, odd=[0, 0], n_scales=2)
+      >>> upsampled_2 = po.model_components.upsample_blur(img, odd=[0, 0], n_scales=2)
       >>> upsampled_2.shape
       torch.Size([1, 1, 1024, 1024])
-      >>> upsampled_4 = po.tools.upsample_blur(img, odd=[0, 0], n_scales=4)
+      >>> upsampled_4 = po.model_components.upsample_blur(img, odd=[0, 0], n_scales=4)
       >>> upsampled_4.shape
       torch.Size([1, 1, 4096, 4096])
-      >>> po.imshow(
+      >>> po.plot.imshow(
       ...     [img, upsampled_2, upsampled_4],
       ...     title=["image", "upsampled x2", "upsampled x4"],
       ... )
@@ -555,10 +569,12 @@ def upsample_blur(
       ...     "qmf5",
       ... ]
       >>> upsampled_filter = [
-      ...     po.tools.upsample_blur(img, n_scales=2, odd=[0, 0], filtname=filt)
+      ...     po.model_components.upsample_blur(
+      ...         img, n_scales=2, odd=[0, 0], filtname=filt
+      ...     )
       ...     for filt in named_filters
       ... ]
-      >>> po.imshow(
+      >>> po.plot.imshow(
       ...     [img] + upsampled_filter,
       ...     title=["image"] + named_filters,
       ...     col_wrap=4,
@@ -651,10 +667,10 @@ def same_padding(
       >>> img = po.data.einstein()
       >>> img.shape
       torch.Size([1, 1, 256, 256])
-      >>> padded = po.tools.same_padding(img, kernel_size=(10, 10))
+      >>> padded = po.model_components.same_padding(img, kernel_size=(10, 10))
       >>> padded.shape
       torch.Size([1, 1, 265, 265])
-      >>> po.imshow(padded)
+      >>> po.plot.imshow(padded)
       <PyrFigure...>
 
     The output grows by ``kernel_size - 1`` in each dimension, so that a
@@ -664,8 +680,8 @@ def same_padding(
     The following convolution functions all use this padding function to return outputs
     with the same shape as the input:
 
-    - :func:`~plenoptic.tools.conv.correlate_downsample`
-    - :func:`~plenoptic.tools.conv.blur_downsample`
+    - :func:`~plenoptic.model_components.correlate_downsample`
+    - :func:`~plenoptic.model_components.blur_downsample`
 
     Here, let's apply a convolution manually and verify the shapes:
 
@@ -673,11 +689,11 @@ def same_padding(
       :context: close-figs
 
       >>> kernel = torch.ones(1, 1, 10, 10) / 100
-      >>> padded = po.tools.same_padding(img, kernel_size=(10, 10))
+      >>> padded = po.model_components.same_padding(img, kernel_size=(10, 10))
       >>> convolved = torch.nn.functional.conv2d(padded, kernel)
       >>> convolved.shape
       torch.Size([1, 1, 256, 256])
-      >>> po.imshow(
+      >>> po.plot.imshow(
       ...     [img, convolved],
       ...     title=["original", "after convolution"],
       ... )
@@ -689,10 +705,10 @@ def same_padding(
     .. plot::
       :context: close-figs
 
-      >>> padded_rect = po.tools.same_padding(img, kernel_size=(10, 20))
+      >>> padded_rect = po.model_components.same_padding(img, kernel_size=(10, 20))
       >>> padded_rect.shape
       torch.Size([1, 1, 265, 275])
-      >>> po.imshow(padded_rect)
+      >>> po.plot.imshow(padded_rect)
       <PyrFigure...>
 
     The ``pad_mode`` argument controls how boundary values are filled.
@@ -704,11 +720,11 @@ def same_padding(
       >>> pad = 50
       >>> pad_modes = ["circular", "reflect", "replicate", "constant"]
       >>> padded_imgs = [
-      ...     po.tools.same_padding(img, kernel_size=(50, 50), pad_mode=m)
+      ...     po.model_components.same_padding(img, kernel_size=(50, 50), pad_mode=m)
       ...     for m in pad_modes
       ... ]
       >>> corners = [p[:, :, : pad * 3, : pad * 3] for p in padded_imgs]
-      >>> po.imshow(corners, title=pad_modes)
+      >>> po.plot.imshow(corners, title=pad_modes)
       <PyrFigure...>
 
     The ``stride`` and ``dilation`` arguments should match those passed to the
@@ -721,21 +737,21 @@ def same_padding(
       :context: close-figs
 
       >>> kernel = torch.ones(1, 1, 10, 10) / 100
-      >>> padded_stride = po.tools.same_padding(
+      >>> padded_stride = po.model_components.same_padding(
       ...     img, kernel_size=(10, 10), stride=(3, 3)
       ... )
       >>> convolved_stride = torch.nn.functional.conv2d(
       ...     padded_stride, kernel, stride=(3, 3)
       ... )
-      >>> padded_dilate = po.tools.same_padding(
+      >>> padded_dilate = po.model_components.same_padding(
       ...     img, kernel_size=(10, 10), dilation=(3, 3)
       ... )
       >>> convolved_dilate = torch.nn.functional.conv2d(
       ...     padded_dilate, kernel, dilation=(3, 3)
       ... )
-      >>> po.imshow(convolved_stride, title="stride (3,3)", zoom=3)
+      >>> po.plot.imshow(convolved_stride, title="stride (3,3)", zoom=3)
       <PyrFigure...>
-      >>> po.imshow(convolved_dilate, title="dilation (3,3)")
+      >>> po.plot.imshow(convolved_dilate, title="dilation (3,3)")
       <PyrFigure...>
 
       Note the different dimensions.

@@ -54,17 +54,16 @@ def variance(
     --------
     .. plot::
 
+        >>> import plenoptic as po
         >>> import matplotlib.pyplot as plt
         >>> import torch
-        >>> from plenoptic.tools.stats import variance
-        >>> from plenoptic.tools import set_seed
-        >>> set_seed(42)
+        >>> po.set_seed(42)
         >>> x = torch.randn(10000)
-        >>> v = variance(x)
+        >>> v = po.model_components.variance(x)
         >>> x_more = x * 3
-        >>> v_more = variance(x_more)
+        >>> v_more = po.model_components.variance(x_more)
         >>> x_less = x * 0.3
-        >>> v_less = variance(x_less)
+        >>> v_less = po.model_components.variance(x_less)
         >>> fig, (ax_less, ax, ax_more) = plt.subplots(
         ...     1, 3, sharex=True, sharey=True, figsize=(12, 4)
         ... )
@@ -78,14 +77,14 @@ def variance(
     If you have precomputed the mean, you can pass it and avoid recomputing it:
 
     >>> precomputed_mean = torch.mean(x)
-    >>> v = variance(x, mean=precomputed_mean)
+    >>> v = po.model_components.variance(x, mean=precomputed_mean)
     >>> v
     tensor(1.0088)
 
     If you want to compute along a specific dimension, you can specify it:
 
     >>> x = torch.randn(10000, 2)
-    >>> v = variance(x, dim=0)
+    >>> v = po.model_components.variance(x, dim=0)
     >>> v
     tensor([1.0127, 1.0045])
 
@@ -152,17 +151,16 @@ def skew(
     --------
     .. plot::
 
+        >>> import plenoptic as po
         >>> import matplotlib.pyplot as plt
         >>> import torch
-        >>> from plenoptic.tools.stats import skew
-        >>> from plenoptic.tools import set_seed
-        >>> set_seed(42)
+        >>> po.set_seed(42)
         >>> x = torch.randn(10000)
-        >>> s = skew(x)
+        >>> s = po.model_components.skew(x)
         >>> x_right = torch.exp(x / 2)
-        >>> s_right = skew(x_right)
+        >>> s_right = po.model_components.skew(x_right)
         >>> x_left = -torch.exp(x / 2)
-        >>> s_left = skew(x_left)
+        >>> s_left = po.model_components.skew(x_left)
         >>> fig, (ax_left, ax, ax_right) = plt.subplots(
         ...     1, 3, sharex=True, figsize=(12, 4)
         ... )
@@ -180,14 +178,14 @@ def skew(
 
     >>> precomputed_mean = torch.mean(x)
     >>> precomputed_var = variance(x)
-    >>> s = skew(x, mean=precomputed_mean, var=precomputed_var)
+    >>> s = po.model_components.skew(x, mean=precomputed_mean, var=precomputed_var)
     >>> s
     tensor(-0.0010)
 
     If you want to compute along a specific dimension, you can specify it:
 
     >>> x = torch.randn(10000, 2)
-    >>> s = skew(x, dim=0)
+    >>> s = po.model_components.skew(x, dim=0)
     >>> s
     tensor([-0.0257, -0.0063])
     """
@@ -247,17 +245,16 @@ def kurtosis(
     --------
     .. plot::
 
+        >>> import plenoptic as po
         >>> import matplotlib.pyplot as plt
         >>> import torch
-        >>> from plenoptic.tools.stats import kurtosis
-        >>> from plenoptic.tools import set_seed
-        >>> set_seed(42)
+        >>> po.set_seed(42)
         >>> x = torch.randn(10000)
-        >>> k = kurtosis(x)
+        >>> k = po.model_components.kurtosis(x)
         >>> x_platy = torch.rand(10000) * 10 - 5
-        >>> k_platy = kurtosis(x_platy)
+        >>> k_platy = po.model_components.kurtosis(x_platy)
         >>> x_lepto = torch.distributions.Laplace(loc=0.0, scale=1.0).sample((10000,))
-        >>> k_lepto = kurtosis(x_lepto)
+        >>> k_lepto = po.model_components.kurtosis(x_lepto)
         >>> fig, (ax_platy, ax, ax_lepto) = plt.subplots(
         ...     1, 3, sharex=True, figsize=(12, 4)
         ... )
@@ -277,14 +274,14 @@ def kurtosis(
 
     >>> precomputed_mean = torch.mean(x)
     >>> precomputed_var = variance(x)
-    >>> k = kurtosis(x, mean=precomputed_mean, var=precomputed_var)
+    >>> k = po.model_components.kurtosis(x, mean=precomputed_mean, var=precomputed_var)
     >>> k
     tensor(2.9354)
 
     If you want to compute along a specific dimension, you can specify it:
 
     >>> x = torch.randn(10000, 2)
-    >>> k = kurtosis(x, dim=0)
+    >>> k = po.model_components.kurtosis(x, dim=0)
     >>> k
     tensor([3.0057, 2.9506])
     """

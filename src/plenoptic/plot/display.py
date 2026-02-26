@@ -552,11 +552,11 @@ def pyrshow(
     r"""
     Display steerable pyramid coefficients in orderly fashion.
 
-    This function uses :func:`~plenoptic.tools.display.imshow` to show the coefficients
+    This function uses :func:`~plenoptic.plot.imshow` to show the coefficients
     of the steeable pyramid (or any dictionary in the standard format),
     such that each scale shows up on a single row, with each scale in a given column.
 
-    Note that unlike :func:`~plenoptic.tools.display.imshow`, we can only show one batch
+    Note that unlike :func:`~plenoptic.plot.imshow`, we can only show one batch
     or channel at a time.
 
     Parameters
@@ -564,7 +564,7 @@ def pyrshow(
     pyr_coeffs
         Pyramid coefficients in the standard dictionary format as returned by the
         steerable pyramid's
-        :func:`~plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq.forward`
+        :func:`~plenoptic.model_components.SteerablePyramidFreq.forward`
         method.
     vrange
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
@@ -830,7 +830,7 @@ def clean_stem_plot(
     This plots the data, baseline, cleans up the axis, and sets the
     title.
 
-    Helper function for :func:`~plenoptic.tools.display.plot_representation()`.
+    Helper function for :func:`~plenoptic.plot.plot_representation()`.
 
     If ``xvals=None``, stem plot will have a baseline that covers the entire range
     of the data. In order to break that up visually (so there's a line from 0 to 9,
@@ -880,7 +880,7 @@ def clean_stem_plot(
       >>> # we want to draw the baseline from 0 to 14, 20 to 34, and 40 to
       >>> # 54, everywhere that we have non-NaN values for y
       >>> xvals = ([0, 20, 40], [14, 34, 54])
-      >>> po.tools.display.clean_stem_plot(y, xvals=xvals)
+      >>> po.plot.clean_stem_plot(y, xvals=xvals)
       <Axes: >
 
     If we don't care about breaking up the x-axis, you can set ``xvals=None``.
@@ -894,7 +894,7 @@ def clean_stem_plot(
       >>> # if ylim=None, as in this example, the minimum y-valuewill get
       >>> # set to 0, so we want to make sure our values are all positive
       >>> y = np.abs(np.random.randn(55))
-      >>> po.tools.display.clean_stem_plot(y)
+      >>> po.plot.clean_stem_plot(y)
       <Axes: >
     """
     if ax is None:
@@ -921,7 +921,7 @@ def _get_artists_from_axes(
 
     For now, we only grab containers (stem plots), images, or lines
 
-    See the docstring of :meth:`~plenoptic.tools.display.update_plot()` for details on
+    See the docstring of :meth:`~plenoptic.plot.update_plot()` for details on
     how ``axes`` and ``data`` should be structured.
 
     Parameters
@@ -1034,7 +1034,7 @@ def update_plot(
     This is used for creating an animation over time. In order to create the animation,
     we need to know how to update the matplotlib Artists, and this provides a simple way
     of doing that. It assumes the plot has been created by something like
-    :func:`~plenoptic.tools.display.plot_representation`, which initializes all the
+    :func:`~plenoptic.plot.plot_representation`, which initializes all the
     artists.
 
     We can update stem plots, lines (as returned by :func:`matplotlib.pyplot.plot`),
@@ -1064,7 +1064,7 @@ def update_plot(
     If you have multiple axes, each with multiple artists you want to update, that's too
     complicated for us, and so you should write a ``model.update_plot()`` function which
     handles that (see
-    :func:`plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.update_plot`
+    :func:`plenoptic.models.PortillaSimoncelli.update_plot`
     for an example).
 
     If ``model`` is set, we try to call ``model.update_plot()`` (which must also return
@@ -1075,7 +1075,7 @@ def update_plot(
     ----------
     axes
         The axis or list of axes to update. We assume that these are the axes created by
-        :func:`~plenoptic.tools.display.plot_representation` and so contain artists
+        :func:`~plenoptic.plot.plot_representation` and so contain artists
         in the correct order.
     data
         The new data to plot.
@@ -1201,8 +1201,8 @@ def plot_representation(
 
     - If ``model`` is ``None``, we fall-back to a type of plot based on the shape of
       ``data``. If it looks image-like, we'll use
-      :func:`~plenoptic.tools.display.imshow` and if it looks vector-like, we'll use
-      :func:`~plenoptic.tools.display.clean_stem_plot`. If it's a dictionary, we'll
+      :func:`~plenoptic.plot.imshow` and if it looks vector-like, we'll use
+      :func:`~plenoptic.plot.clean_stem_plot`. If it's a dictionary, we'll
       assume each key, value pair gives the title and data to plot on a separate
       sub-plot.
 
@@ -1242,7 +1242,7 @@ def plot_representation(
         Whether to consider the channels as encoding RGB(A) values. It will be
         ignored if the representation doesn't look image-like or if the
         model has its own plot_representation_error() method. Else, it will
-        be passed to :func:`~plenoptic.tools.display.imshow`, see that method's
+        be passed to :func:`~plenoptic.plot.imshow`, see that method's
         docstring for details.
 
     Returns

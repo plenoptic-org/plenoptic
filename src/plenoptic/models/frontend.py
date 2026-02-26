@@ -75,7 +75,7 @@ class LinearNonlinear(nn.Module):
 
     Attributes
     ----------
-    center_surround: ~plenoptic.simulate.models.naive.CenterSurround
+    center_surround: ~plenoptic.models.CenterSurround
         Difference of Gaussians filter.
 
     Notes
@@ -96,7 +96,7 @@ class LinearNonlinear(nn.Module):
     Examples
     --------
     >>> import plenoptic as po
-    >>> ln_model = po.simul.LinearNonlinear(31, pretrained=True, cache_filt=True)
+    >>> ln_model = po.models.LinearNonlinear(31, pretrained=True, cache_filt=True)
     """
 
     def __init__(
@@ -156,11 +156,11 @@ class LinearNonlinear(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> ln_model = po.simul.LinearNonlinear(31, pretrained=True, cache_filt=True)
+          >>> ln_model = po.models.LinearNonlinear(31, pretrained=True, cache_filt=True)
           >>> img = po.data.einstein()
           >>> y = ln_model.forward(img)
           >>> titles = ["Input image", "Output"]
-          >>> po.imshow([img, y], title=titles)
+          >>> po.plot.imshow([img, y], title=titles)
           <PyrFigure size...>
         """
         y = self.activation(self.center_surround(x))
@@ -179,10 +179,10 @@ class LinearNonlinear(nn.Module):
         Parameters
         ----------
         vrange, zoom, title
-            Arguments for :func:`~plenoptic.tools.display.imshow`, see its
+            Arguments for :func:`~plenoptic.plot.imshow`, see its
             docstrings for details.
         **kwargs
-            Keyword args for :func:`~plenoptic.tools.display.imshow`.
+            Keyword args for :func:`~plenoptic.plot.imshow`.
 
         Returns
         -------
@@ -194,7 +194,7 @@ class LinearNonlinear(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> ln_model = po.simul.LinearNonlinear(31, pretrained=True, cache_filt=True)
+          >>> ln_model = po.models.LinearNonlinear(31, pretrained=True, cache_filt=True)
           >>> ln_model.display_filters()
           <PyrFigure ...>
         """  # numpydoc ignore=ES01
@@ -254,9 +254,9 @@ class LuminanceGainControl(nn.Module):
 
     Attributes
     ----------
-    center_surround: ~plenoptic.simulate.models.naive.CenterSurround
+    center_surround: ~plenoptic.models.CenterSurround
         Difference of Gaussians linear filter.
-    luminance: ~plenoptic.simulate.models.naive.Gaussian
+    luminance: ~plenoptic.models.Gaussian
         Gaussian convolutional kernel used to normalize signal by local luminance.
     luminance_scalar: torch.nn.parameter.Parameter
         Scale factor for luminance normalization.
@@ -279,7 +279,7 @@ class LuminanceGainControl(nn.Module):
     Examples
     --------
     >>> import plenoptic as po
-    >>> lg_model = po.simul.LuminanceGainControl(31, pretrained=True, cache_filt=True)
+    >>> lg_model = po.models.LuminanceGainControl(31, pretrained=True, cache_filt=True)
     """
 
     def __init__(
@@ -345,13 +345,13 @@ class LuminanceGainControl(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> lg_model = po.simul.LuminanceGainControl(
+          >>> lg_model = po.models.LuminanceGainControl(
           ...     31, pretrained=True, cache_filt=True
           ... )
           >>> img = po.data.einstein()
           >>> y = lg_model.forward(img)
           >>> titles = ["Input image", "Output"]
-          >>> po.imshow([img, y], title=titles)
+          >>> po.plot.imshow([img, y], title=titles)
           <PyrFigure size...>
         """
         linear = self.center_surround(x)
@@ -374,10 +374,10 @@ class LuminanceGainControl(nn.Module):
         Parameters
         ----------
         vrange, zoom, title, col_wrap
-            Arguments for :func:`~plenoptic.tools.display.imshow`, see its
+            Arguments for :func:`~plenoptic.plot.imshow`, see its
             docstrings for details.
         **kwargs
-            Keyword args for :func:`~plenoptic.tools.display.imshow`.
+            Keyword args for :func:`~plenoptic.plot.imshow`.
 
         Returns
         -------
@@ -389,7 +389,7 @@ class LuminanceGainControl(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> lg_model = po.simul.LuminanceGainControl(
+          >>> lg_model = po.models.LuminanceGainControl(
           ...     31, pretrained=True, cache_filt=True
           ... )
           >>> lg_model.display_filters()
@@ -467,11 +467,11 @@ class LuminanceContrastGainControl(nn.Module):
 
     Attributes
     ----------
-    center_surround: ~plenoptic.simulate.models.naive.CenterSurround
+    center_surround: ~plenoptic.models.CenterSurround
         Difference of Gaussians linear filter.
-    luminance: ~plenoptic.simulate.models.naive.Gaussian
+    luminance: ~plenoptic.models.Gaussian
         Gaussian convolutional kernel used to normalize signal by local luminance.
-    contrast: ~plenoptic.simulate.models.naive.Gaussian
+    contrast: ~plenoptic.models.Gaussian
         Gaussian convolutional kernel used to normalize signal by local contrast.
     luminance_scalar: torch.nn.parameter.Parameter
         Scale factor for luminance normalization.
@@ -496,7 +496,7 @@ class LuminanceContrastGainControl(nn.Module):
     Examples
     --------
     >>> import plenoptic as po
-    >>> lgg_model = po.simul.LuminanceContrastGainControl(
+    >>> lgg_model = po.models.LuminanceContrastGainControl(
     ...     31, pretrained=True, cache_filt=True
     ... )
     """
@@ -571,13 +571,13 @@ class LuminanceContrastGainControl(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> lgg_model = po.simul.LuminanceContrastGainControl(
+          >>> lgg_model = po.models.LuminanceContrastGainControl(
           ...     31, pretrained=True, cache_filt=True
           ... )
           >>> img = po.data.einstein()
           >>> y = lgg_model.forward(img)
           >>> titles = ["Input image", "Output"]
-          >>> po.imshow([img, y], title=titles)
+          >>> po.plot.imshow([img, y], title=titles)
           <PyrFigure size...>
         """
         linear = self.center_surround(x)
@@ -607,10 +607,10 @@ class LuminanceContrastGainControl(nn.Module):
         Parameters
         ----------
         vrange, zoom, title, col_wrap
-            Arguments for :func:`~plenoptic.tools.display.imshow`, see
+            Arguments for :func:`~plenoptic.plot.imshow`, see
             its docstrings for details.
         **kwargs
-            Keyword args for :func:`~plenoptic.tools.display.imshow`.
+            Keyword args for :func:`~plenoptic.plot.imshow`.
 
         Returns
         -------
@@ -622,7 +622,7 @@ class LuminanceContrastGainControl(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> lgg_model = po.simul.LuminanceContrastGainControl(
+          >>> lgg_model = po.models.LuminanceContrastGainControl(
           ...     31, pretrained=True, cache_filt=True
           ... )
           >>> lgg_model.display_filters()
@@ -698,19 +698,19 @@ class OnOff(nn.Module):
         Whether or not to apply circular disk mask centered on the input image. This is
         useful for synthesis methods like Eigendistortions to ensure that the
         synthesized distortion will not appear in the periphery. See
-        :func:`plenoptic.tools.make_disk()` for details on how mask is created.
+        :func:`plenoptic.data.disk()` for details on how mask is created.
     cache_filt
         Whether or not to cache the filter. Avoids regenerating filt with each
         forward pass.
 
     Attributes
     ----------
-    center_surround: ~plenoptic.simulate.models.naive.CenterSurround
+    center_surround: ~plenoptic.models.CenterSurround
         2-channel (on-off and off-on) difference of Gaussians linear filter.
-    luminance: ~plenoptic.simulate.models.naive.Gaussian
+    luminance: ~plenoptic.models.Gaussian
         2-channel Gaussian convolutional kernel used to normalize signal by local
         luminance.
-    contrast: ~plenoptic.simulate.models.naive.Gaussian
+    contrast: ~plenoptic.models.Gaussian
         2-channel Gaussian convolutional kernel used to normalize signal by local
         contrast.
     luminance_scalar: torch.nn.parameter.Parameter
@@ -736,7 +736,7 @@ class OnOff(nn.Module):
     Examples
     --------
     >>> import plenoptic as po
-    >>> onoff_model = po.simul.OnOff(31, pretrained=True, cache_filt=True)
+    >>> onoff_model = po.models.OnOff(31, pretrained=True, cache_filt=True)
     """
 
     def __init__(
@@ -814,11 +814,11 @@ class OnOff(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> onoff_model = po.simul.OnOff(31, pretrained=True, cache_filt=True)
+          >>> onoff_model = po.models.OnOff(31, pretrained=True, cache_filt=True)
           >>> img = po.data.einstein()
           >>> y = onoff_model.forward(img)
           >>> titles = ["Input image", "Output channel 0", "Output channel 1"]
-          >>> po.imshow([img, y], title=titles)
+          >>> po.plot.imshow([img, y], title=titles)
           <PyrFigure size...>
         """
         linear = self.center_surround(x)
@@ -861,10 +861,10 @@ class OnOff(nn.Module):
         Parameters
         ----------
         vrange, zoom, title, col_wrap
-            Arguments for :func:`~plenoptic.tools.display.imshow`, see its
+            Arguments for :func:`~plenoptic.plot.imshow`, see its
             docstrings for details.
         **kwargs
-            Keyword args for :func:`~plenoptic.tools.display.imshow`.
+            Keyword args for :func:`~plenoptic.plot.imshow`.
 
         Returns
         -------
@@ -876,7 +876,7 @@ class OnOff(nn.Module):
         .. plot::
 
           >>> import plenoptic as po
-          >>> onoff_model = po.simul.OnOff(31, pretrained=True, cache_filt=True)
+          >>> onoff_model = po.models.OnOff(31, pretrained=True, cache_filt=True)
           >>> onoff_model.display_filters()
           <PyrFigure ...>
         """  # numpydoc ignore=ES01

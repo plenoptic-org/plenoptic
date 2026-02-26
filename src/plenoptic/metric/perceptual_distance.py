@@ -279,7 +279,7 @@ def ssim(
     --------
     >>> import plenoptic as po
     >>> import torch
-    >>> po.tools.set_seed(0)
+    >>> po.set_seed(0)
     >>> img = po.data.einstein()
     >>> po.metric.ssim(img, img + torch.rand_like(img))
     tensor([[0.0519]])
@@ -379,7 +379,7 @@ def ssim_map(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
     --------
     >>> import plenoptic as po
     >>> import torch
-    >>> po.tools.set_seed(0)
+    >>> po.set_seed(0)
     >>> img = po.data.einstein()
     >>> ssim_map = po.metric.ssim_map(img, img + torch.rand_like(img))
     >>> ssim_map.shape
@@ -480,7 +480,7 @@ def ms_ssim(
     --------
     >>> import plenoptic as po
     >>> import torch
-    >>> po.tools.set_seed(0)
+    >>> po.set_seed(0)
     >>> img = po.data.einstein()
     >>> po.metric.ms_ssim(img, img + torch.rand_like(img))
     tensor([[0.4684]])
@@ -552,7 +552,7 @@ def normalized_laplacian_pyramid(img: torch.Tensor) -> list[torch.Tensor]:
        torch.Size([1, 1, 32, 32]),
        torch.Size([1, 1, 16, 16]),
        torch.Size([1, 1, 8, 8])]
-      >>> po.imshow(pyramid, col_wrap=3)
+      >>> po.plot.imshow(pyramid, col_wrap=3)
       <PyrFigure size ...>
     """
     (_, channel, _, _) = img.size()

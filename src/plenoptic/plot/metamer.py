@@ -80,12 +80,12 @@ def metamer_loss(
       >>> import plenoptic as po
       >>> import torch
       >>> img = po.data.einstein()
-      >>> model = po.simul.Gaussian(30).eval()
-      >>> po.tools.remove_grad(model)
-      >>> met = po.synth.Metamer(img, model)
+      >>> model = po.models.Gaussian(30).eval()
+      >>> po.remove_grad(model)
+      >>> met = po.Metamer(img, model)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
-      >>> po.synth.metamer.plot_loss(met)
+      >>> po.plot.metamer_loss(met)
       <Axes: ... ylabel='Loss'>
 
     Specify an iteration:
@@ -93,7 +93,7 @@ def metamer_loss(
     .. plot::
       :context: close-figs
 
-      >>> po.synth.metamer.plot_loss(met, iteration=10)
+      >>> po.plot.metamer_loss(met, iteration=10)
       <Axes: ... ylabel='Loss'>
 
     Plot on an axis in an existing figure:
@@ -102,7 +102,7 @@ def metamer_loss(
       :context: close-figs
 
       >>> fig, axes = plt.subplots(1, 2)
-      >>> po.synth.metamer.plot_loss(met, ax=axes[1])
+      >>> po.plot.metamer_loss(met, ax=axes[1])
       <Axes: ... ylabel='Loss'>
     """
     # this warning is not relevant for this plotting function
@@ -130,9 +130,9 @@ def metamer_image(
     """
     Display metamer.
 
-    We use :func:`~plenoptic.tools.display.imshow` to display the metamer and attempt to
+    We use :func:`~plenoptic.plot.imshow` to display the metamer and attempt to
     automatically find the most reasonable zoom value. You can override this
-    value using the zoom arg, but remember that :func:`~plenoptic.tools.display.imshow`
+    value using the zoom arg, but remember that :func:`~plenoptic.plot.imshow`
     is opinionated about the size of the resulting image and will throw an
     exception if the axis created is not big enough for the selected zoom.
 
@@ -157,7 +157,7 @@ def metamer_image(
     ax
         Pre-existing axes for plot. If ``None``, we call :func:`matplotlib.pyplot.gca`.
     **kwargs
-        Passed to :func:`~plenoptic.tools.display.imshow`.
+        Passed to :func:`~plenoptic.plot.imshow`.
 
     Returns
     -------
@@ -172,7 +172,7 @@ def metamer_image(
         If ``iteration`` takes an illegal value.
     IndexError
         If ``iteration`` is not ``None`` and
-        :meth:`~plenoptic.synthesize.metamer.Metamer.synthesize` was called with
+        :meth:`~plenoptic.Metamer.synthesize` was called with
         ``store_progress=False``.
 
     Warns
@@ -207,12 +207,12 @@ def metamer_image(
       >>> plt.figure()
       <Figure size ...>
       >>> img = po.data.einstein()
-      >>> model = po.simul.Gaussian(30).eval()
-      >>> po.tools.remove_grad(model)
-      >>> met = po.synth.Metamer(img, model)
+      >>> model = po.models.Gaussian(30).eval()
+      >>> po.remove_grad(model)
+      >>> met = po.Metamer(img, model)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
-      >>> po.synth.metamer.metamer_image(met)
+      >>> po.plot.metamer_image(met)
       <Axes: title=...Metamer [iteration=107]...>
 
     If no matplotlib figure exists, this function will create a new one:
@@ -222,16 +222,16 @@ def metamer_image(
 
       >>> # close all open figures to ensure none exist
       >>> plt.close("all")
-      >>> po.synth.metamer.metamer_image(met)
+      >>> po.plot.metamer_image(met)
       <Axes: title=...Metamer [iteration=107]...>
 
     Display metamer from a specified iteration (requires setting ``store_progress``
-    when :meth:`~plenoptic.synthesize.metamer.Metamer.synthesize` was called):
+    when :meth:`~plenoptic.Metamer.synthesize` was called):
 
     .. plot::
       :context: close-figs
 
-      >>> po.synth.metamer.metamer_image(met, iteration=10)
+      >>> po.plot.metamer_image(met, iteration=10)
       <Axes: title=...Metamer [iteration=10]...>
 
     Explicitly define the axis to use:
@@ -240,7 +240,7 @@ def metamer_image(
       :context: close-figs
 
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-      >>> po.synth.metamer.metamer_image(met, ax=axes[1])
+      >>> po.plot.metamer_image(met, ax=axes[1])
       <Axes: title=...Metamer [iteration=107]...>
 
     When plotting on an existing axis, if ``zoom=None``, this function will determine
@@ -250,7 +250,7 @@ def metamer_image(
       :context: close-figs
 
       >>> fig, axes = plt.subplots(1, 1, figsize=(8, 8))
-      >>> po.synth.metamer.metamer_image(met, ax=axes)
+      >>> po.plot.metamer_image(met, ax=axes)
       <Axes: title=...Metamer [iteration=107]...dims: [256, 256] * 2.0'}>
     """
     progress = metamer.get_progress(iteration)
@@ -370,7 +370,7 @@ def metamer_representation_error(
     Plot distance ratio showing how close we are to convergence.
 
     We plot ``_representation_error(metamer, iteration)``. For more details, see
-    :func:`plenoptic.tools.display.plot_representation`.
+    :func:`plenoptic.plot.plot_representation`.
 
     Parameters
     ----------
@@ -395,7 +395,7 @@ def metamer_representation_error(
         image or not, so the user must set this flag to tell us. It will be
         ignored if the response doesn't look image-like or if the model has its
         own ``plot_representation_error()`` method. Else, it will be passed to
-        :func:`~plenoptic.tools.display.imshow`, see that methods docstring for details.
+        :func:`~plenoptic.plot.imshow`, see that methods docstring for details.
     **kwargs
         Passed to ``metamer.model.forward``.
 
@@ -435,12 +435,12 @@ def metamer_representation_error(
       >>> import plenoptic as po
       >>> import torch
       >>> img = po.data.einstein()
-      >>> model = po.simul.Gaussian(30).eval()
-      >>> po.tools.remove_grad(model)
-      >>> met = po.synth.Metamer(img, model)
+      >>> model = po.models.Gaussian(30).eval()
+      >>> po.remove_grad(model)
+      >>> met = po.Metamer(img, model)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
-      >>> po.synth.metamer.plot_representation_error(met)
+      >>> po.plot.metamer_representation_error(met)
       [<Axes: title=...Representation error...>]
 
     Plot on an existing axis:
@@ -450,46 +450,46 @@ def metamer_representation_error(
 
       >>> import matplotlib.pyplot
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-      >>> po.synth.metamer.plot_representation_error(met, ax=axes[1])
+      >>> po.plot.metamer_representation_error(met, ax=axes[1])
       [<Axes: title=...Representation error...>]
 
-    The function uses :func:`~plenoptic.tools.display.plot_representation`,
-    which switches between :func:`~plenoptic.tools.display.imshow` and
-    :func:`~plenoptic.tools.display.clean_stem_plot` based on the shape of the
+    The function uses :func:`~plenoptic.plot.plot_representation`,
+    which switches between :func:`~plenoptic.plot.imshow` and
+    :func:`~plenoptic.plot.clean_stem_plot` based on the shape of the
     model's output:
 
     .. plot::
       :context: close-figs
 
       >>> # Flatten the last two dimensions of the output, so it looks like a vector.
-      >>> class TestModel(po.simul.Gaussian):
+      >>> class TestModel(po.models.Gaussian):
       ...     def __init__(self, *args, **kwargs):
       ...         super().__init__(*args, **kwargs)
       ...
       ...     def forward(self, x):
       ...         return super().forward(x).flatten(-2)
       >>> model = TestModel(30).eval()
-      >>> po.tools.remove_grad(model)
-      >>> met = po.synth.Metamer(img, model)
+      >>> po.remove_grad(model)
+      >>> met = po.Metamer(img, model)
       >>> met.to(torch.float64)
       >>> met.synthesize(5)
-      >>> po.synth.metamer.plot_representation_error(met)
+      >>> po.plot.metamer_representation_error(met)
       [<Axes: title=...Representation error...>]
 
     If model has its own ``plot_representation`` method, this function will use it,
     potentially creating multiple axes (see
-    :func:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.plot_representation`
+    :func:`~plenoptic.models.PortillaSimoncelli.plot_representation`
     ):
 
     .. plot::
       :context: close-figs
 
       >>> img = po.data.reptile_skin()
-      >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
-      >>> met = po.synth.MetamerCTF(img, model, po.tools.optim.l2_norm)
+      >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
+      >>> met = po.MetamerCTF(img, model, po.optim.l2_norm)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
-      >>> po.synth.metamer.plot_representation_error(met)
+      >>> po.plot.metamer_representation_error(met)
       [<Axes: ...>, ..., <Axes: ...>]
 
     If plotting on an existing axis, this function will sub-divide that axis as
@@ -499,9 +499,9 @@ def metamer_representation_error(
       :context: close-figs
 
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-      >>> po.synth.metamer.metamer_image(met, ax=axes[0])
+      >>> po.plot.metamer_image(met, ax=axes[0])
       <Axes: title=...Metamer [iteration=150]...>
-      >>> po.synth.metamer.plot_representation_error(met, ax=axes[1])
+      >>> po.plot.metamer_representation_error(met, ax=axes[1])
       [<Axes: ...>, ..., <Axes: ...>]
     """
     representation_error = _representation_error(
@@ -592,21 +592,21 @@ def metamer_pixel_values(
       >>> import plenoptic as po
       >>> import torch
       >>> img = po.data.einstein()
-      >>> model = po.simul.Gaussian(30).eval()
-      >>> po.tools.remove_grad(model)
-      >>> met = po.synth.Metamer(img, model)
+      >>> model = po.models.Gaussian(30).eval()
+      >>> po.remove_grad(model)
+      >>> met = po.Metamer(img, model)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
-      >>> po.synth.metamer.plot_pixel_values(met)
+      >>> po.plot.metamer_pixel_values(met)
       <Axes: ... 'Histogram of pixel values'...>
 
     Plot pixel values from a specified iteration (requires setting ``store_progress``
-    when :meth:`~plenoptic.synthesize.metamer.Metamer.synthesize` was called):
+    when :meth:`~plenoptic.Metamer.synthesize` was called):
 
     .. plot::
       :context: close-figs
 
-      >>> po.synth.metamer.plot_pixel_values(met, iteration=10)
+      >>> po.plot.metamer_pixel_values(met, iteration=10)
       <Axes: ... 'Histogram of pixel values'...>
 
     Plot on an existing axis:
@@ -615,7 +615,7 @@ def metamer_pixel_values(
       :context: close-figs
 
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-      >>> po.synth.metamer.plot_pixel_values(met, ax=axes[1])
+      >>> po.plot.metamer_pixel_values(met, ax=axes[1])
       <Axes: ... 'Histogram of pixel values'...>
     """
 
@@ -896,7 +896,7 @@ def metamer_synthesis_status(
         this value directly to :func:`metamer_representation_error`.
     vrange
         The vrange option to pass to :func:`metamer_image()`. See
-        docstring of :func:`~plenoptic.tools.display.imshow` for possible values.
+        docstring of :func:`~plenoptic.plot.imshow` for possible values.
     zoom
         How much to zoom in / enlarge the metamer, the ratio
         of display pixels to image pixels. If ``None``, we
@@ -907,7 +907,7 @@ def metamer_synthesis_status(
         image or not, so the user must set this flag to tell us. It will be
         ignored if the response doesn't look image-like or if the
         model has its own ``plot_representation()`` method. Else, it will
-        be passed to :func:`~plenoptic.tools.display.imshow`, see that method's
+        be passed to :func:`~plenoptic.plot.imshow`, see that method's
         docstring for details.
     fig
         If ``None``, we create a new figure. otherwise we assume this is
@@ -982,28 +982,28 @@ def metamer_synthesis_status(
       >>> import plenoptic as po
       >>> import torch
       >>> img = po.tensors.einstein()
-      >>> model = po.simul.Gaussian(30).eval()
-      >>> po.tools.remove_grad(model)
-      >>> met = po.synth.Metamer(img, model)
+      >>> model = po.models.Gaussian(30).eval()
+      >>> po.remove_grad(model)
+      >>> met = po.Metamer(img, model)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
-      >>> po.synth.metamer.plot_synthesis_status(met)
+      >>> po.plot.metamer_synthesis_status(met)
       (<Figure size ...>, {'metamer_image': 0, ...})
 
     If model has its own ``plot_representation`` method, this function will use it
     for plotting the representation error (see
-    :func:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.plot_representation`
+    :func:`~plenoptic.models.PortillaSimoncelli.plot_representation`
     ):
 
     .. plot::
       :context: close-figs
 
       >>> img = po.data.reptile_skin()
-      >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
-      >>> met = po.synth.MetamerCTF(img, model, po.tools.optim.l2_norm)
+      >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
+      >>> met = po.MetamerCTF(img, model, po.optim.l2_norm)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
-      >>> po.synth.metamer.plot_synthesis_status(met)
+      >>> po.plot.metamer_synthesis_status(met)
       (<Figure size ...>, {'metamer_image': 0, ...})
 
     Change the included plots:
@@ -1012,7 +1012,7 @@ def metamer_synthesis_status(
       :context: close-figs
 
       >>> included_plots = ["metamer_loss", "metamer_pixel_values"]
-      >>> po.synth.metamer.plot_synthesis_status(met, included_plots=included_plots)
+      >>> po.plot.metamer_synthesis_status(met, included_plots=included_plots)
       (<Figure size ...>, {'plot_loss': 0, ...})
 
     Adjust width of included plots:
@@ -1021,7 +1021,7 @@ def metamer_synthesis_status(
       :context: close-figs
 
       >>> width_ratios = {"metamer_representation_error": 3}
-      >>> po.synth.metamer.plot_synthesis_status(met, width_ratios=width_ratios)
+      >>> po.plot.metamer_synthesis_status(met, width_ratios=width_ratios)
       (<Figure size ...>, {'metamer_image': 0, ...})
 
     Plot on existing figure, ignoring some axes and rearranging others:
@@ -1031,7 +1031,7 @@ def metamer_synthesis_status(
 
       >>> fig, axes = plt.subplots(1, 5, figsize=(16, 4))
       >>> axes_idx = {"misc": [0, 3], "metamer_loss": 4}
-      >>> po.synth.metamer.plot_synthesis_status(met, fig=fig, axes_idx=axes_idx)
+      >>> po.plot.metamer_synthesis_status(met, fig=fig, axes_idx=axes_idx)
       (<Figure size ...>, {'misc': [0, 3], ...})
     """
     if iteration is not None and not metamer.store_progress:
@@ -1185,7 +1185,7 @@ def metamer_animate(
 
     vrange
         The vrange option to pass to :func:`metamer_image()`. See
-        docstring of :func:`~plenoptic.tools.display.imshow` for possible values.
+        docstring of :func:`~plenoptic.plot.imshow` for possible values.
     zoom
         How much to zoom in / enlarge the metamer, the ratio
         of display pixels to image pixels. If ``None``, we
@@ -1196,7 +1196,7 @@ def metamer_animate(
         image or not, so the user must set this flag to tell us. It will be
         ignored if the representation doesn't look image-like or if the
         model has its own ``plot_representation()`` method. Else, it will
-        be passed to :func:`~plenoptic.tools.display.imshow`, see that method's
+        be passed to :func:`~plenoptic.plot.imshow`, see that method's
         docstring for details.
     fig
         If ``None``, create the figure from scratch. Else, should be an empty
@@ -1278,46 +1278,46 @@ def metamer_animate(
       >>> import plenoptic as po
       >>> import torch
       >>> img = po.data.einstein()
-      >>> model = po.simul.Gaussian(30).eval()
-      >>> po.tools.remove_grad(model)
-      >>> met = po.synth.Metamer(img, model)
+      >>> model = po.models.Gaussian(30).eval()
+      >>> po.remove_grad(model)
+      >>> met = po.Metamer(img, model)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
-      >>> ani = po.synth.metamer.animate(met)
+      >>> ani = po.plot.metamer_animate(met)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-1.gif")
 
     .. image:: animate-example-1.gif
 
     This function can only be used if
-    :meth:`~plenoptic.synthesize.metamer.Metamer.synthesize` was called with
+    :meth:`~plenoptic.Metamer.synthesize` was called with
     ``store_progress``.
 
     >>> import plenoptic as po
     >>> img = po.data.einstein()
-    >>> model = po.simul.Gaussian(30).eval()
-    >>> po.tools.remove_grad(model)
-    >>> met = po.synth.Metamer(img, model)
+    >>> model = po.models.Gaussian(30).eval()
+    >>> po.remove_grad(model)
+    >>> met = po.Metamer(img, model)
     >>> met.to(torch.float64)
     >>> met.synthesize(5)
-    >>> ani = po.synth.metamer.animate(met)
+    >>> ani = po.plot.metamer_animate(met)
     Traceback (most recent call last):
     ValueError: synthesize() was run with store_progress=False...
 
     If model has its own ``plot_representation`` method, this function will use it
     for plotting the representation error (see
-    :func:`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.plot_representation`
+    :func:`~plenoptic.models.PortillaSimoncelli.plot_representation`
     ):
 
     .. plot::
       :context: close-figs
 
       >>> img = po.data.reptile_skin()
-      >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
-      >>> met = po.synth.MetamerCTF(img, model, po.tools.optim.l2_norm)
+      >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
+      >>> met = po.MetamerCTF(img, model, po.optim.l2_norm)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
-      >>> ani = po.synth.metamer.animate(met)
+      >>> ani = po.plot.metamer_animate(met)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-2.gif")
 
@@ -1329,7 +1329,7 @@ def metamer_animate(
       :context: close-figs
 
       >>> included_plots = ["metamer_loss", "metamer_pixel_values"]
-      >>> ani = po.synth.metamer.animate(met, included_plots=included_plots)
+      >>> ani = po.plot.metamer_animate(met, included_plots=included_plots)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-3.gif")
 
@@ -1341,7 +1341,7 @@ def metamer_animate(
       :context: close-figs
 
       >>> width_ratios = {"metamer_representation_error": 3}
-      >>> ani = po.synth.metamer.animate(met, width_ratios=width_ratios)
+      >>> ani = po.plot.metamer_animate(met, width_ratios=width_ratios)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-4.gif")
 
@@ -1354,7 +1354,7 @@ def metamer_animate(
 
       >>> fig, axes = plt.subplots(1, 5, figsize=(16, 4))
       >>> axes_idx = {"misc": [0, 3], "metamer_loss": 4}
-      >>> ani = po.synth.metamer.animate(met, fig=fig, axes_idx=axes_idx)
+      >>> ani = po.plot.metamer_animate(met, fig=fig, axes_idx=axes_idx)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-5.gif")
 

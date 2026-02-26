@@ -48,14 +48,17 @@ def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor
     Examples
     --------
     .. plot::
+       :context: reset
 
-      >>> from plenoptic.simulate import gaussian1d
+      >>> import plenoptic
       >>> from torch.nn.functional import conv1d
       >>> import torch
       >>> import matplotlib.pyplot as plt
       >>> # define a filter
       >>> kernel_size = 21
-      >>> filt = gaussian1d(kernel_size=kernel_size, std=2).reshape(1, 1, kernel_size)
+      >>> filt = po.model_components.gaussian1d(kernel_size=kernel_size, std=2).reshape(
+      ...     1, 1, kernel_size
+      ... )
       >>> # define a sinusoid + noise
       >>> sin_plus_noise = torch.sin(
       ...     torch.linspace(0, 5 * torch.pi, 500)
@@ -142,7 +145,7 @@ def circular_gaussian2d(
 
     See Also
     --------
-    :class:`~plenoptic.simulate.models.naive.Gaussian`
+    :class:`~plenoptic.models.Gaussian`
         Torch Module to perform this convolution.
 
     Examples
@@ -150,19 +153,21 @@ def circular_gaussian2d(
     Single output channel.
 
     .. plot::
+       :context: reset
 
       >>> import plenoptic as po
-      >>> from plenoptic.simulate import circular_gaussian2d
       >>> from torch.nn.functional import conv2d
       >>> import torch
       >>> import matplotlib.pyplot as plt
       >>> kernel_size = 32
-      >>> filt_2d = circular_gaussian2d(kernel_size=kernel_size, std=2)
+      >>> filt_2d = po.model_components.circular_gaussian2d(
+      ...     kernel_size=kernel_size, std=2
+      ... )
       >>> filt_2d.shape
       torch.Size([1, 1, 32, 32])
       >>> einstein_img = po.data.einstein()
       >>> blurred_einstein = conv2d(einstein_img, filt_2d, padding="same")
-      >>> po.imshow(
+      >>> po.plot.imshow(
       ...     [einstein_img, filt_2d, blurred_einstein],
       ...     title=["Einstein", "2D Gaussian Filter", "Blurred Einstein"],
       ... )
@@ -171,14 +176,10 @@ def circular_gaussian2d(
     Multiple output channels with different standard deviations.
 
     .. plot::
+       :context: close-figs
 
-      >>> import plenoptic as po
-      >>> from plenoptic.simulate import circular_gaussian2d
-      >>> from torch.nn.functional import conv2d
-      >>> import torch
-      >>> import matplotlib.pyplot as plt
       >>> kernel_size = 32
-      >>> filt_2d = circular_gaussian2d(
+      >>> filt_2d = po.model_components.circular_gaussian2d(
       ...     kernel_size=kernel_size, std=[2, 5.5], out_channels=2
       ... )
       >>> filt_2d.shape
@@ -192,21 +193,17 @@ def circular_gaussian2d(
       ...     "Blurred Einstein",
       ...     "Blurrier Einstein",
       ... ]
-      >>> po.imshow([einstein_img, filt_2d, blurred_einstein], title=titles)
+      >>> po.plot.imshow([einstein_img, filt_2d, blurred_einstein], title=titles)
       <PyrFigure ...>
 
     Multiple input and output channels, convolved independently. See
     :func:`torch.nn.functional.conv2d` to understand the behavior below:
 
     .. plot::
+       :context: close-figs
 
-      >>> import plenoptic as po
-      >>> from plenoptic.simulate import circular_gaussian2d
-      >>> from torch.nn.functional import conv2d
-      >>> import torch
-      >>> import matplotlib.pyplot as plt
       >>> kernel_size = 32
-      >>> filt_2d = circular_gaussian2d(
+      >>> filt_2d = po.model_components.circular_gaussian2d(
       ...     kernel_size=kernel_size, std=[2, 5.5], out_channels=2
       ... ).repeat(3, 1, 1, 1)
       >>> filt_2d.shape
@@ -217,7 +214,7 @@ def circular_gaussian2d(
       >>> # note that the order of channels: the first two correspond to the first
       >>> # channel of the input image, convolved with the each of the two gaussians,
       >>> # and so on.
-      >>> po.imshow(
+      >>> po.plot.imshow(
       ...     [wheel, blurred_wheel[:, ::2], blurred_wheel[:, 1::2]],
       ...     title=titles,
       ...     as_rgb=True,

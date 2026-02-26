@@ -619,7 +619,7 @@ class Eigendistortion(Synthesis):
 
         See Also
         --------
-        :func:`~plenoptic.tools.io.examine_saved_synthesis`
+        :func:`~plenoptic.io.examine_saved_synthesis`
             Examine metadata from saved object: pytorch and plenoptic versions, name of
             the synthesis object, shapes of tensors, etc.
 
@@ -627,12 +627,12 @@ class Eigendistortion(Synthesis):
         --------
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> model = po.simul.Gaussian(30).eval()
-        >>> po.tools.remove_grad(model)
-        >>> eig = po.synth.Eigendistortion(img, model)
+        >>> model = po.models.Gaussian(30).eval()
+        >>> po.remove_grad(model)
+        >>> eig = po.Eigendistortion(img, model)
         >>> eig.synthesize(max_iter=5)
         >>> eig.save("eig.pt")
-        >>> eig_copy = po.synth.Eigendistortion(img, model)
+        >>> eig_copy = po.Eigendistortion(img, model)
         >>> eig_copy.load("eig.pt")
         """
         check_attributes = ["_image"]

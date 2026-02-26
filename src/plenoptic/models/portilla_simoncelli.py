@@ -61,7 +61,7 @@ class PortillaSimoncelli(nn.Module):
     members of the same family of textures.
 
     The PS stats are computed based on the
-    :class:`~plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq`
+    :class:`~plenoptic.model_components.SteerablePyramidFreq`
     (Simoncelli and Freeman, 1995, [3]_). They consist of the local auto-correlations,
     cross-scale (within-orientation) correlations, and cross-orientation (within-scale)
     correlations of both the pyramid coefficients and the local energy (as computed by
@@ -113,7 +113,7 @@ class PortillaSimoncelli(nn.Module):
 
        >>> import plenoptic as po
        >>> img = po.data.reptile_skin()
-       >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])
+       >>> ps_model = po.models.PortillaSimoncelli(img.shape[2:])
        >>> ps_model(img)
        tensor([[[0.4172, 0.0547, ..., 0.0048]]])
 
@@ -139,9 +139,9 @@ class PortillaSimoncelli(nn.Module):
       >>> import matplotlib.pyplot as plt
       >>> import torch
       >>> img = po.data.reptile_skin()
-      >>> ps_model = po.simul.PortillaSimoncelli(img.shape[2:])
-      >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(ps_model, img)
-      >>> met = po.synth.Metamer(img, ps_model, loss_function=loss)
+      >>> ps_model = po.models.PortillaSimoncelli(img.shape[2:])
+      >>> loss = po.optim.portilla_simoncelli_loss_factory(ps_model, img)
+      >>> met = po.Metamer(img, ps_model, loss_function=loss)
       >>> opt_kwargs = {
       ...     "max_iter": 10,
       ...     "max_eval": 10,
@@ -154,11 +154,11 @@ class PortillaSimoncelli(nn.Module):
       >>> # just an example to demonstrate what synthesis looks like
       >>> met.synthesize(max_iter=20)
       >>> fig, axes = plt.subplots(1, 4, figsize=(25, 4), width_ratios=[1, 1, 1, 3])
-      >>> po.imshow(img, ax=axes[0], title="Target image")
+      >>> po.plot.imshow(img, ax=axes[0], title="Target image")
       <Figure size ... with 4 Axes>
       >>> axes[0].xaxis.set_visible(False)
       >>> axes[0].yaxis.set_visible(False)
-      >>> po.synth.metamer.plot_synthesis_status(met, fig=fig, axes_idx={"misc": 0})[0]
+      >>> po.plot.metamer_synthesis_status(met, fig=fig, axes_idx={"misc": 0})[0]
       <Figure size ...>
     """
 
@@ -453,7 +453,7 @@ class PortillaSimoncelli(nn.Module):
         --------
         >>> import plenoptic as po
         >>> img = po.data.reptile_skin()
-        >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
+        >>> portilla_simoncelli_model = po.models.PortillaSimoncelli(img.shape[2:])
         >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_tensor.shape
         torch.Size([1, 1, 1046])
@@ -621,7 +621,7 @@ class PortillaSimoncelli(nn.Module):
         --------
         >>> import plenoptic as po
         >>> img = po.data.reptile_skin()
-        >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
+        >>> portilla_simoncelli_model = po.models.PortillaSimoncelli(img.shape[2:])
         >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_tensor.shape
         torch.Size([1, 1, 1046])
@@ -670,7 +670,7 @@ class PortillaSimoncelli(nn.Module):
         >>> import plenoptic as po
         >>> import torch
         >>> img = po.data.reptile_skin()
-        >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
+        >>> portilla_simoncelli_model = po.models.PortillaSimoncelli(img.shape[2:])
         >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_dict = portilla_simoncelli_model.convert_to_dict(
         ...     representation_tensor
@@ -723,7 +723,7 @@ class PortillaSimoncelli(nn.Module):
         --------
         >>> import plenoptic as po
         >>> img = po.data.reptile_skin()
-        >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(
+        >>> portilla_simoncelli_model = po.models.PortillaSimoncelli(
         ...     img.shape[2:], n_scales=3
         ... )
         >>> representation_tensor = portilla_simoncelli_model(img)
@@ -863,7 +863,7 @@ class PortillaSimoncelli(nn.Module):
             value (in that order).
         """  # numpydoc ignore=ES01,EX01
         mean = torch.mean(image, dim=(-2, -1), keepdim=True)
-        # we use torch.var instead of plenoptic.tools.variance, because our
+        # we use torch.var instead of plenoptic.model_components.variance, because our
         # variance is the uncorrected (or sample) variance and we want the
         # corrected one here.
         var = torch.var(image, dim=(-2, -1))
@@ -1279,7 +1279,7 @@ class PortillaSimoncelli(nn.Module):
 
           >>> import plenoptic as po
           >>> img = po.data.reptile_skin()
-          >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
+          >>> portilla_simoncelli_model = po.models.PortillaSimoncelli(img.shape[2:])
           >>> representation_tensor = portilla_simoncelli_model(img)
           >>> fig, axes = portilla_simoncelli_model.plot_representation(
           ...     representation_tensor
@@ -1452,7 +1452,7 @@ class PortillaSimoncelli(nn.Module):
 
         >>> import plenoptic as po
         >>> img = po.data.reptile_skin()
-        >>> portilla_simoncelli_model = po.simul.PortillaSimoncelli(img.shape[2:])
+        >>> portilla_simoncelli_model = po.models.PortillaSimoncelli(img.shape[2:])
         >>> representation_tensor = portilla_simoncelli_model.forward(img)
         >>> fig, axes = portilla_simoncelli_model.plot_representation(
         ...     representation_tensor

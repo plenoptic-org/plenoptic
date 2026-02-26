@@ -108,9 +108,9 @@ def mad_image(
     """
     Display MAD image.
 
-    We use :func:`~plenoptic.tools.display.imshow` to display the synthesized image and
+    We use :func:`~plenoptic.plot.imshow` to display the synthesized image and
     attempt to automatically find the most reasonable zoom value. You can override this
-    value using the zoom arg, but remember that :func:`~plenoptic.tools.display.imshow`
+    value using the zoom arg, but remember that :func:`~plenoptic.plot.imshow`
     is opinionated about the size of the resulting image and will throw an Exception if
     the axis created is not big enough for the selected zoom.
 
@@ -138,7 +138,7 @@ def mad_image(
         Title to add to axis. If ``None``, we use ``"MAD Image [iteration={iter}]"``,
         where ``iter`` gives the iteration corresponding to the displayed image.
     **kwargs
-        Passed to :func:`~plenoptic.tools.display.imshow`.
+        Passed to :func:`~plenoptic.plot.imshow`.
 
     Returns
     -------
@@ -518,7 +518,7 @@ def mad_synthesis_status(
         iteration), then we use the cached MAD image from the nearest iteration.
     vrange
         The vrange option to pass to :func:`mad_image()`. See
-        docstring of :func:`~plenoptic.tools.display.imshow` for possible values.
+        docstring of :func:`~plenoptic.plot.imshow` for possible values.
     zoom
         How much to zoom in / enlarge the synthesized image, the ratio
         of display pixels to image pixels. If ``None``, we
@@ -862,9 +862,9 @@ def mad_image_all(
         ``optimized_metric`` function from ``mad_metric2_min``.
     zoom
         Ratio of display pixels to image pixels. See
-        :func:`~plenoptic.tools.display.imshow` for details.
+        :func:`~plenoptic.plot.imshow` for details.
     **kwargs
-        Passed to :func:`~plenoptic.tools.display.imshow`.
+        Passed to :func:`~plenoptic.plot.imshow`.
 
     Returns
     -------

@@ -76,13 +76,13 @@ def validate_input(
     Check that our built-in images work:
 
     >>> import plenoptic as po
-    >>> po.tools.validate.validate_input(po.data.einstein())
+    >>> po.validate.validate_input(po.data.einstein())
 
     Intentionally fail:
 
     >>> import plenoptic as po
     >>> img = po.data.einstein()
-    >>> po.tools.validate.validate_input(img, allowed_range=(0, 0.5))
+    >>> po.validate.validate_input(img, allowed_range=(0, 0.5))
     Traceback (most recent call last):
     ValueError: input_tensor range ...
     """
@@ -204,8 +204,8 @@ def validate_model(
     Check that one of our built-in models work:
 
     >>> import plenoptic as po
-    >>> model = po.simul.PortillaSimoncelli((256, 256))
-    >>> po.tools.validate.validate_model(model, image_shape=(1, 1, 256, 256))
+    >>> model = po.models.PortillaSimoncelli((256, 256))
+    >>> po.validate.validate_model(model, image_shape=(1, 1, 256, 256))
 
     Intentionally fail:
 
@@ -218,7 +218,7 @@ def validate_model(
     ...     def forward(self, x):
     ...         x = x.detach().numpy()
     ...         return torch.as_tensor(x)
-    >>> po.tools.validate.validate_model(FailureModel())
+    >>> po.validate.validate_model(FailureModel())
     Traceback (most recent call last):
     ValueError: model strips gradient from input, ...
     """
@@ -231,7 +231,7 @@ def validate_model(
         if model(test_img).requires_grad:
             raise ValueError(
                 "model adds gradient to input, at least one of its parameters"
-                " is learnable. Try calling plenoptic.tools.remove_grad()"
+                " is learnable. Try calling plenoptic.remove_grad()"
                 " on it."
             )
     # in particular, numpy arrays lack requires_grad attribute
@@ -331,8 +331,8 @@ def validate_coarse_to_fine(
     Check that one of our built-in models work:
 
     >>> import plenoptic as po
-    >>> model = po.simul.PortillaSimoncelli((256, 256))
-    >>> po.tools.validate.validate_coarse_to_fine(model, image_shape=(1, 1, 256, 256))
+    >>> model = po.models.PortillaSimoncelli((256, 256))
+    >>> po.validate.validate_coarse_to_fine(model, image_shape=(1, 1, 256, 256))
 
     Intentionally fail:
 
@@ -342,13 +342,13 @@ def validate_coarse_to_fine(
     >>> class FailureModel(torch.nn.Module):
     ...     def __init__(self):
     ...         super().__init__()
-    ...         self.model = po.simul.PortillaSimoncelli((256, 256))
+    ...         self.model = po.models.PortillaSimoncelli((256, 256))
     ...
     ...     def forward(self, x):
     ...         return self.model(x)
     >>> shape = (1, 1, 256, 256)
     >>> model = FailureModel()
-    >>> po.tools.validate.validate_coarse_to_fine(model, shape)
+    >>> po.validate.validate_coarse_to_fine(model, shape)
     Traceback (most recent call last):
     AttributeError: model has no scales attribute ...
     """
@@ -426,13 +426,13 @@ def validate_metric(
     Check that 1-SSIM works:
 
     >>> import plenoptic as po
-    >>> po.tools.validate.validate_metric(lambda x, y: 1 - po.metric.ssim(x, y))
+    >>> po.validate.validate_metric(lambda x, y: 1 - po.metric.ssim(x, y))
 
     Check that SSIM doesn't work (because SSIM=0 means that images are *different*,
     whereas we need metric=0 to mean *identical*):
 
     >>> import plenoptic as po
-    >>> po.tools.validate.validate_metric(po.metric.ssim)
+    >>> po.validate.validate_metric(po.metric.ssim)
     Traceback (most recent call last):
     ValueError: metric should return ...
     """
@@ -481,12 +481,12 @@ def remove_grad(model: torch.nn.Module):
     Examples
     --------
     >>> import plenoptic as po
-    >>> model = po.simul.OnOff(31, pretrained=True, cache_filt=True).eval()
-    >>> po.tools.validate.validate_model(model)
+    >>> model = po.models.OnOff(31, pretrained=True, cache_filt=True).eval()
+    >>> po.validate.validate_model(model)
     Traceback (most recent call last):
     ValueError: model adds gradient to input, ...
-    >>> po.tools.remove_grad(model)
-    >>> po.tools.validate.validate_model(model)
+    >>> po.remove_grad(model)
+    >>> po.validate.validate_model(model)
     """
     for p in model.parameters():
         if p.requires_grad:
@@ -537,10 +537,8 @@ def validate_convert_tensor_dict(
     Check that one of our built-in models work:
 
     >>> import plenoptic as po
-    >>> model = po.simul.PortillaSimoncelli((256, 256))
-    >>> po.tools.validate.validate_convert_tensor_dict(
-    ...     model, image_shape=(1, 1, 256, 256)
-    ... )
+    >>> model = po.models.PortillaSimoncelli((256, 256))
+    >>> po.validate.validate_convert_tensor_dict(model, image_shape=(1, 1, 256, 256))
 
     Intentionally fail:
 
@@ -566,7 +564,7 @@ def validate_convert_tensor_dict(
     ...         )
     >>> shape = (1, 1, 256, 256)
     >>> model = FailureModel()
-    >>> po.tools.validate.validate_convert_tensor_dict(model)
+    >>> po.validate.validate_convert_tensor_dict(model)
     Traceback (most recent call last):
     ValueError: On random image 0, model.convert_to_dict did not invert...
     """

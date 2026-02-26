@@ -51,7 +51,7 @@ def rectangular_to_polar_dict(
 
     See Also
     --------
-    :func:`~plenoptic.tools.signal.rectangular_to_polar`
+    :func:`~plenoptic.model_components.rectangular_to_polar`
         Same operation on tensors.
     polar_to_rectangular_dict
         The inverse operation.
@@ -64,14 +64,14 @@ def rectangular_to_polar_dict(
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> spyr = po.simul.SteerablePyramidFreq(
+        >>> spyr = po.model_components.SteerablePyramidFreq(
         ...     img.shape[-2:], is_complex=True, height=3
         ... )
         >>> coeffs = spyr(img)
-        >>> energy, state = po.simul.non_linearities.rectangular_to_polar_dict(coeffs)
-        >>> po.pyrshow(energy)
+        >>> energy, state = po.model_components.rectangular_to_polar_dict(coeffs)
+        >>> po.plot.pyrshow(energy)
         <PyrFigure size ...>
-        >>> po.pyrshow(state)
+        >>> po.plot.pyrshow(state)
         <PyrFigure size ...>
     """
     energy = {}
@@ -115,7 +115,7 @@ def polar_to_rectangular_dict(
 
     See Also
     --------
-    :func:`~plenoptic.tools.signal.polar_to_rectangular`
+    :func:`~plenoptic.model_components.polar_to_rectangular`
         Same operation on tensors.
     rectangular_to_polar_dict
         The inverse operation.
@@ -130,19 +130,17 @@ def polar_to_rectangular_dict(
         >>> import numpy as np
         >>> import torch
         >>> img = po.data.einstein()
-        >>> spyr = po.simul.SteerablePyramidFreq(
+        >>> spyr = po.model_components.SteerablePyramidFreq(
         ...     img.shape[-2:], is_complex=True, height=3
         ... )
         >>> coeffs = spyr(img)
-        >>> energy, state = po.simul.non_linearities.rectangular_to_polar_dict(
+        >>> energy, state = po.model_components.rectangular_to_polar_dict(
         ...     coeffs, residuals=True
         ... )
-        >>> coeffs_back = po.simul.non_linearities.polar_to_rectangular_dict(
-        ...     energy, state
-        ... )
+        >>> coeffs_back = po.model_components.polar_to_rectangular_dict(energy, state)
         >>> all(torch.allclose(coeffs[key], coeffs_back[key]) for key in coeffs)
         True
-        >>> po.pyrshow(coeffs_back)
+        >>> po.plot.pyrshow(coeffs_back)
         <PyrFigure size ...>
     """
     coeff_dict = {}
@@ -197,7 +195,7 @@ def local_gain_control(
         Same operation on dictionaries.
     local_gain_release
         The inverse operation.
-    :func:`~plenoptic.tools.signal.rectangular_to_polar`
+    :func:`~plenoptic.model_components.rectangular_to_polar`
         The analogous function for complex-valued signals.
 
     Notes
@@ -217,8 +215,8 @@ def local_gain_control(
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> norm, direction = po.simul.non_linearities.local_gain_control(img)
-        >>> po.imshow([img, norm, direction], title=["image", "norm", "direction"])
+        >>> norm, direction = po.model_components.local_gain_control(img)
+        >>> po.plot.imshow([img, norm, direction], title=["image", "norm", "direction"])
         <PyrFigure size ...>
     """
     # these could be parameters, but no use case so far
@@ -281,7 +279,7 @@ def local_gain_release(
         Same operation on dictionaries.
     local_gain_control
         The inverse operation.
-    :func:`~plenoptic.tools.signal.polar_to_rectangular`
+    :func:`~plenoptic.model_components.polar_to_rectangular`
         The analogous function for complex-valued signals.
 
     Notes
@@ -301,9 +299,9 @@ def local_gain_release(
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> norm, direction = po.simul.non_linearities.local_gain_control(img)
-        >>> x = po.simul.non_linearities.local_gain_release(norm, direction)
-        >>> po.imshow(
+        >>> norm, direction = po.model_components.local_gain_control(img)
+        >>> x = po.model_components.local_gain_release(norm, direction)
+        >>> po.plot.imshow(
         ...     [img, x, img - x],
         ...     title=["Original image", "Gain release output", "Difference"],
         ... )
@@ -380,12 +378,12 @@ def local_gain_control_dict(
 
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], height=3)
+        >>> spyr = po.model_components.SteerablePyramidFreq(img.shape[-2:], height=3)
         >>> coeffs = spyr(img)
-        >>> energy, state = po.simul.non_linearities.local_gain_control_dict(coeffs)
-        >>> po.pyrshow(energy)
+        >>> energy, state = po.model_components.local_gain_control_dict(coeffs)
+        >>> po.plot.pyrshow(energy)
         <PyrFigure size ...>
-        >>> po.pyrshow(state)
+        >>> po.plot.pyrshow(state)
         <PyrFigure size ...>
     """
     energy = {}
@@ -454,15 +452,13 @@ def local_gain_release_dict(
         >>> import plenoptic as po
         >>> import torch
         >>> img = po.data.einstein()
-        >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], height=3)
+        >>> spyr = po.model_components.SteerablePyramidFreq(img.shape[-2:], height=3)
         >>> coeffs = spyr(img)
-        >>> energy, state = po.simul.non_linearities.local_gain_control_dict(coeffs)
-        >>> coeffs_dict = po.simul.non_linearities.local_gain_release_dict(
-        ...     energy, state
-        ... )
+        >>> energy, state = po.model_components.local_gain_control_dict(coeffs)
+        >>> coeffs_dict = po.model_components.local_gain_release_dict(energy, state)
         >>> all([torch.allclose(coeffs[k], coeffs_dict[k]) for k in coeffs.keys()])
         True
-        >>> po.pyrshow(coeffs_dict)
+        >>> po.plot.pyrshow(coeffs_dict)
         <PyrFigure size ...>
     """
     coeff_dict = {}

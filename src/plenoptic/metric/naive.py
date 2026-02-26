@@ -52,7 +52,7 @@ def mse(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
     >>> import plenoptic as po
     >>> import torch
     >>> einstein = po.data.einstein()
-    >>> po.tools.set_seed(0)
+    >>> po.set_seed(0)
     >>> einstein_noisy = einstein + 0.1 * torch.randn_like(einstein)
     >>> po.metric.mse(einstein, einstein_noisy)
     tensor([[0.0100]])

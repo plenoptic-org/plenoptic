@@ -55,10 +55,10 @@ def eigendistortion_image(
     ax
         Axis handle on which to plot.
     plot_complex
-        Parameter for :func:`~plenoptic.tools.display.imshow` determining how to handle
+        Parameter for :func:`~plenoptic.plot.imshow` determining how to handle
         complex values. See that method's docstring for details.
     **kwargs
-        Additional arguments for :func:`~plenoptic.tools.display.imshow`.
+        Additional arguments for :func:`~plenoptic.plot.imshow`.
 
     Returns
     -------
@@ -130,7 +130,7 @@ def eigendistortion_image_all(
         preprocessing. If ``None`` and ``as_rgb is True``, will add 0.5 to the
         distortion(s) (to avoid matplotlib clipping), else if ``None`` do nothing.
     plot_complex
-        Parameter for :func:`~plenoptic.tools.display.imshow` determining how to handle
+        Parameter for :func:`~plenoptic.plot.imshow` determining how to handle
         complex values. See that method's docstring for details.
     as_rgb
         Whether to consider the channels as encoding RGB(A) values. If ``True``, we
@@ -142,7 +142,7 @@ def eigendistortion_image_all(
     suptitle_kwargs
         Additional arguments for :func:`matplotlib.pyplot.suptitle`.
     **kwargs
-        Additional arguments for :func:`~plenoptic.tools.display.imshow`.
+        Additional arguments for :func:`~plenoptic.plot.imshow`.
 
     Returns
     -------
@@ -174,21 +174,20 @@ def eigendistortion_image_all(
 
       >>> import plenoptic as po
       >>> import torch
-      >>> from plenoptic.data.fetch import fetch_data
       >>> img = po.data.einstein().to(torch.float64)
-      >>> lg = po.simul.LuminanceGainControl(
+      >>> lg = po.models.LuminanceGainControl(
       ...     (31, 31), pad_mode="circular", pretrained=True, cache_filt=True
       ... ).eval()
       >>> lg = lg.to(torch.float64)
-      >>> po.tools.remove_grad(lg)
-      >>> eig = po.synth.Eigendistortion(img, lg)
+      >>> po.remove_grad(lg)
+      >>> eig = po.Eigendistortion(img, lg)
       >>> # grab saved example eigendistortion, which runs the above to completion.
       >>> eig.load(
-      ...     fetch_data("example_eigendistortion.pt"),
+      ...     po.data.fetch_data("example_eigendistortion.pt"),
       ...     map_location="cpu",
       ...     tensor_equality_atol=1e-7,
       ... )
-      >>> po.synth.eigendistortion.display_eigendistortion_all(eig)
+      >>> po.plot.eigendistortion_image_all(eig)
       <PyrFigure size ...>
     """
     # reshape so channel dim is last

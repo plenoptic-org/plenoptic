@@ -152,7 +152,7 @@ class SteerablePyramidFreq(nn.Module):
     Examples
     --------
     >>> import plenoptic as po
-    >>> spyr = po.simul.SteerablePyramidFreq((256, 256))
+    >>> spyr = po.model_components.SteerablePyramidFreq((256, 256))
     """
 
     def __init__(
@@ -427,8 +427,8 @@ class SteerablePyramidFreq(nn.Module):
 
           >>> import plenoptic as po
           >>> img = po.data.einstein()
-          >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:])
-          >>> po.pyrshow(spyr(img))
+          >>> spyr = po.model_components.SteerablePyramidFreq(img.shape[-2:])
+          >>> po.plot.pyrshow(spyr(img))
           <PyrFigure ...>
         """
         if self.image_shape != image.shape[-2:]:
@@ -601,7 +601,9 @@ class SteerablePyramidFreq(nn.Module):
 
           >>> import plenoptic as po
           >>> img = po.data.einstein()
-          >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], downsample=False)
+          >>> spyr = po.model_components.SteerablePyramidFreq(
+          ...     img.shape[-2:], downsample=False
+          ... )
           >>> coeffs = spyr(img)
           >>> coeffs_tensor, _ = spyr.convert_pyr_to_tensor(coeffs)
           >>> coeffs_tensor.shape
@@ -612,7 +614,7 @@ class SteerablePyramidFreq(nn.Module):
           ...     coeffs_tensor[:, :1],
           ...     coeffs_tensor[:, -1:],
           ... ]
-          >>> po.imshow(coeffs_tensor, col_wrap=spyr.num_orientations)
+          >>> po.plot.imshow(coeffs_tensor, col_wrap=spyr.num_orientations)
           <PyrFigure ...>
         """
         pyr_keys = list(pyr_coeffs.keys())
@@ -703,7 +705,7 @@ class SteerablePyramidFreq(nn.Module):
         --------
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> spyr = po.simul.SteerablePyramidFreq(
+        >>> spyr = po.model_components.SteerablePyramidFreq(
         ...     img.shape[-2:], downsample=False, is_complex=True
         ... )
         >>> coeffs = spyr(img)
@@ -924,13 +926,13 @@ class SteerablePyramidFreq(nn.Module):
           >>> import plenoptic as po
           >>> import torch
           >>> img = po.data.einstein()
-          >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:])
+          >>> spyr = po.model_components.SteerablePyramidFreq(img.shape[-2:])
           >>> coeffs = spyr(img)
           >>> recon = spyr.recon_pyr(coeffs)
           >>> torch.allclose(recon, img, rtol=1e-8, atol=1e-5)
           True
           >>> titles = ["Original", "Reconstructed", "Difference"]
-          >>> po.imshow([img, recon, img - recon], title=titles)
+          >>> po.plot.imshow([img, recon, img - recon], title=titles)
           <PyrFigure ...>
         """  # numpydoc ignore=ES01
         # For reconstruction to work, last time we called forward needed
@@ -1118,12 +1120,16 @@ class SteerablePyramidFreq(nn.Module):
             >>> import plenoptic as po
             >>> import torch
             >>> img = po.data.einstein()
-            >>> spyr = po.simul.SteerablePyramidFreq(img.shape[-2:], height=3)
+            >>> spyr = po.model_components.SteerablePyramidFreq(
+            ...     img.shape[-2:], height=3
+            ... )
             >>> coeffs = spyr(img)
             >>> resteered_coeffs, resteering_weights = spyr.steer_coeffs(
             ...     coeffs, torch.linspace(0, 2 * torch.pi, 64)
             ... )
-            >>> ani = po.animshow(resteered_coeffs[2], repeat=True, framerate=6, zoom=4)
+            >>> ani = po.plot.animshow(
+            ...     resteered_coeffs[2], repeat=True, framerate=6, zoom=4
+            ... )
             >>> # Save the video (here we're saving it as a .gif)
             >>> ani.save("resteered_coeffs.gif")
 
