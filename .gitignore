@@ -31,7 +31,8 @@ logs/
 train/
 
 docs/_build
-docs/generated
+docs/api/generated
+docs/api/index.rst
 docs/tutorials/assets
 
 *.mypy_cache

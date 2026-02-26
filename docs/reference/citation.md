@@ -31,7 +31,7 @@ Additionally, please cite the following paper(s) depending on which component yo
 - {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion`: {cite:alp}`Berardino2017-eigen`.
 - {class}`~plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq`: {cite:alp}`Simoncelli1995-steer-pyram` ({cite:alp}`Simoncelli1992-shift-multi` contains a longer discussion about the motivation and the logic, while {cite:alp}`Simoncelli1995-steer-pyram` describes the implementation that is used here).
 - {class}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli`: {cite:alp}`Portilla2000-param-textur`.
-- {mod}`~plenoptic.simulate.frontend` (any model): {cite:alp}`Berardino2017-eigen`.
+- {mod}`~plenoptic.simulate.models.frontend.LinearNonlinear`, {mod}`~plenoptic.simulate.models.frontend.LuminanceGainControl`, {mod}`~plenoptic.simulate.models.frontend.LuminanceContrastGainControl`, {mod}`~plenoptic.simulate.models.frontend.OnOff`: {cite:alp}`Berardino2017-eigen`.
 - {func}`~plenoptic.metric.perceptual_distance.ssim` or {func}`~plenoptic.metric.perceptual_distance.ssim_map`: {cite:alp}`Wang2004-image-qualit-asses` if `weighted=False`, {cite:alp}`Wang2008-maxim-differ` if `weighted=True`.
 - {func}`~plenoptic.metric.perceptual_distance.ms_ssim`: {cite:alp}`Wang2003-multis`.
 - {func}`~plenoptic.metric.perceptual_distance.nlpd`: {cite:alp}`Laparra2017-percep-optim`.
