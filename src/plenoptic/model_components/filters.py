@@ -48,7 +48,7 @@ def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor
     Examples
     --------
     .. plot::
-       :context: reset
+      :context: reset
 
       >>> import plenoptic
       >>> from torch.nn.functional import conv1d
@@ -153,7 +153,7 @@ def circular_gaussian2d(
     Single output channel.
 
     .. plot::
-       :context: reset
+      :context: reset
 
       >>> import plenoptic as po
       >>> from torch.nn.functional import conv2d
@@ -176,7 +176,7 @@ def circular_gaussian2d(
     Multiple output channels with different standard deviations.
 
     .. plot::
-       :context: close-figs
+      :context: close-figs
 
       >>> kernel_size = 32
       >>> filt_2d = po.model_components.circular_gaussian2d(
@@ -200,7 +200,7 @@ def circular_gaussian2d(
     :func:`torch.nn.functional.conv2d` to understand the behavior below:
 
     .. plot::
-       :context: close-figs
+      :context: close-figs
 
       >>> kernel_size = 32
       >>> filt_2d = po.model_components.circular_gaussian2d(

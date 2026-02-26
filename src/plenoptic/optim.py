@@ -9,7 +9,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ..models import PortillaSimoncelli
+    from .models import PortillaSimoncelli
 
 import numpy as np
 import torch
@@ -436,9 +436,7 @@ def portilla_simoncelli_loss_factory(
     Parameters
     ----------
     model
-        An instantiated
-        :class:`~plenoptic.models.PortillaSimoncelli`
-        model.
+        An instantiated :class:`~plenoptic.models.PortillaSimoncelli` model.
     image
         The target image for metamer synthesis, or an image with the same shape, dtype,
         and device.

@@ -981,7 +981,7 @@ def metamer_synthesis_status(
 
       >>> import plenoptic as po
       >>> import torch
-      >>> img = po.tensors.einstein()
+      >>> img = po.data.einstein()
       >>> model = po.models.Gaussian(30).eval()
       >>> po.remove_grad(model)
       >>> met = po.Metamer(img, model)

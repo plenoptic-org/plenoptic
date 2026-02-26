@@ -196,7 +196,7 @@ def validate_model(
 
     See Also
     --------
-    remove_grad
+    :func:`~plenoptic.remove_grad`
         Helper function for detaching all parameters (in place).
 
     Examples
