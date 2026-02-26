@@ -12,8 +12,8 @@ See :ref:`metric-def` for more details.
    :signatures: none
    :toctree: generated
 
-   ~naive.mse
-   ~model_metric.model_metric_factory
-   ~perceptual_distance.ssim
-   ~perceptual_distance.ms_ssim
-   ~perceptual_distance.nlpd
+   ~mse
+   ~model_metric_factory
+   ~ssim
+   ~ms_ssim
+   ~nlpd

@@ -5,7 +5,7 @@ Debugging
 
 Functions to help understand when things have gone wrong.
 
-.. currentmodule:: plenoptic.tools
+.. currentmodule:: plenoptic
 .. autosummary::
    :signatures: none
    :toctree: generated

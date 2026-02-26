@@ -3,17 +3,17 @@
 Models
 ------
 
-Models give a response to a single stimulus and are compatible with :class:`~plenoptic.synthesize.metamer.Metamer` and :class:`~plenoptic.synthesize.eigendistortion.Eigendistortion`, and can be turned into :ref:`metrics-api` by using the :func:`~plenoptic.metric.model_metric.model_metric_factory` function.
+Models give a response to a single stimulus and are compatible with :class:`~plenoptic.synthesize.metamer.Metamer` and :class:`~plenoptic.synthesize.eigendistortion.Eigendistortion`, and can be turned into :ref:`metrics-api` by using the :func:`~plenoptic.metric.model_metric_factory` function.
 
 See :ref:`models-doc` for more details.
 
-.. currentmodule:: plenoptic.simulate.models
+.. currentmodule:: plenoptic.models
 .. autosummary::
    :signatures: none
    :toctree: generated
    :template: torch_module.rst.jinja
 
-   ~portilla_simoncelli.PortillaSimoncelli
+   ~PortillaSimoncelli
 
 .. rubric:: LGN-inspired Models
    :heading-level: 3
@@ -25,10 +25,10 @@ These "front end" models are inspired by the lateral geniculate nucleus (LGN; th
    :toctree: generated
    :template: torch_module.rst.jinja
 
-   ~frontend.LinearNonlinear
-   ~frontend.LuminanceGainControl
-   ~frontend.LuminanceContrastGainControl
-   ~frontend.OnOff
+   ~LinearNonlinear
+   ~LuminanceGainControl
+   ~LuminanceContrastGainControl
+   ~OnOff
 
 The following models are used to construct the models above. They are probably most useful in the construction of other, more complex models, but they are compatible with our synthesis methods.
 
@@ -37,7 +37,7 @@ The following models are used to construct the models above. They are probably m
    :toctree: generated
    :template: torch_module.rst.jinja
 
-   ~naive.Identity
-   ~naive.Linear
-   ~naive.Gaussian
-   ~naive.CenterSurround
+   ~Identity
+   ~Linear
+   ~Gaussian
+   ~CenterSurround

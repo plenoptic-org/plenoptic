@@ -8,17 +8,17 @@ These helper functions all are intended to help visualize the status and outputs
 .. rubric:: Metamer / MetamerCTF
    :heading-level: 4
 
-.. currentmodule:: plenoptic.synthesize
+.. currentmodule:: plenoptic.plot
 .. autosummary::
    :signatures: none
    :toctree: generated
 
-   ~metamer.plot_loss
-   ~metamer.display_metamer
-   ~metamer.plot_pixel_values
-   ~metamer.plot_representation_error
-   ~metamer.plot_synthesis_status
-   ~metamer.animate
+   ~metamer_loss
+   ~metamer_image
+   ~metamer_pixel_values
+   ~metamer_representation_error
+   ~metamer_synthesis_status
+   ~metamer_animate
 
 .. rubric:: MAD Competition
    :heading-level: 4
@@ -26,13 +26,13 @@ These helper functions all are intended to help visualize the status and outputs
    :signatures: none
    :toctree: generated
 
-   ~mad_competition.display_mad_image
-   ~mad_competition.display_mad_image_all
-   ~mad_competition.plot_loss
-   ~mad_competition.plot_loss_all
-   ~mad_competition.plot_pixel_values
-   ~mad_competition.plot_synthesis_status
-   ~mad_competition.animate
+   ~mad_image
+   ~mad_image_all
+   ~mad_loss
+   ~mad_loss_all
+   ~mad_pixel_values
+   ~mad_synthesis_status
+   ~mad_animate
 
 .. rubric:: Eigendistortion
    :heading-level: 4
@@ -40,5 +40,5 @@ These helper functions all are intended to help visualize the status and outputs
    :signatures: none
    :toctree: generated
 
-   ~eigendistortion.display_eigendistortion
-   ~eigendistortion.display_eigendistortion_all
+   ~eigendistortion_image
+   ~eigendistortion_image_all
