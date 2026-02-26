@@ -45,7 +45,6 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 %load_ext autoreload
 %autoreload 2
-%matplotlib inline
 ```
 
 ```{code-cell} ipython3

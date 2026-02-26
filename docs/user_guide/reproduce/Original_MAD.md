@@ -42,8 +42,6 @@ Goal here is to reproduce original MAD Competition results, as generated using t
 ```{code-cell} ipython3
 import plenoptic as po
 
-%matplotlib inline
-
 %load_ext autoreload
 %autoreload 2
 
