@@ -50,7 +50,7 @@ def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor
     .. plot::
       :context: reset
 
-      >>> import plenoptic
+      >>> import plenoptic as po
       >>> from torch.nn.functional import conv1d
       >>> import torch
       >>> import matplotlib.pyplot as plt
