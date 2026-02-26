@@ -53,7 +53,7 @@ def einstein_img():
 
 @pytest.fixture(scope="package")
 def einstein_img_small(einstein_img):
-    return po.tools.center_crop(einstein_img, 64).to(DEVICE)
+    return po.model_components.center_crop(einstein_img, 64).to(DEVICE)
 
 
 @pytest.fixture(scope="package")
@@ -65,7 +65,7 @@ def color_img():
 @pytest.fixture(scope="package")
 def parrot_square():
     img = po.load_images(IMG_DIR / "mixed" / "Parrot.png").to(DEVICE)
-    return po.tools.center_crop(img, 254)
+    return po.model_components.center_crop(img, 254)
 
 
 @pytest.fixture(scope="package")
@@ -88,15 +88,17 @@ def get_model(name):
         # in order to get a tensor back, need to wrap steerable pyramid so that
         # we can call convert_pyr_to_tensor in the forward call. in order for
         # that to work, downsample must be False
-        class spyr(po.simul.SteerablePyramidFreq):
+        class spyr(po.model_components.SteerablePyramidFreq):
             def __init__(self, *args, **kwargs):
                 kwargs.pop("downsample", None)
                 super().__init__(*args, downsample=False, **kwargs)
 
             def forward(self, *args, **kwargs):
                 coeffs = super().forward(*args, **kwargs)
-                pyr_tensor, _ = po.simul.SteerablePyramidFreq.convert_pyr_to_tensor(
-                    coeffs
+                pyr_tensor, _ = (
+                    po.model_components.SteerablePyramidFreq.convert_pyr_to_tensor(
+                        coeffs
+                    )
                 )
                 return pyr_tensor
 
@@ -105,7 +107,7 @@ def get_model(name):
     elif name == "LPyr":
         # in order to get a tensor back, need to wrap laplacian pyramid so that
         # we can flatten the output. in practice, not the best way to use this
-        class lpyr(po.simul.LaplacianPyramid):
+        class lpyr(po.model_components.LaplacianPyramid):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
@@ -117,61 +119,61 @@ def get_model(name):
     elif name == "nlpd":
         return po.metric.nlpd
     elif name == "mse":
-        return po.metric.naive.mse
+        return po.metric.mse
     elif name == "ColorModel":
         model = ColorModel().to(DEVICE)
-        po.tools.remove_grad(model)
+        po.remove_grad(model)
         model.eval()
         return model
 
     # naive models
     elif name == "naive.Identity":
-        model = po.simul.Identity().to(DEVICE)
+        model = po.models.Identity().to(DEVICE)
         model.eval()
         return model
     elif name == "naive.CenterSurround":
-        model = po.simul.CenterSurround((31, 31)).to(DEVICE)
+        model = po.models.CenterSurround((31, 31)).to(DEVICE)
         model.eval()
         return model
     elif name == "naive.Gaussian":
-        model = po.simul.Gaussian((31, 31)).to(DEVICE)
+        model = po.models.Gaussian((31, 31)).to(DEVICE)
         model.eval()
         return model
     elif name == "naive.Linear":
-        model = po.simul.Linear((31, 31)).to(DEVICE)
+        model = po.models.Linear((31, 31)).to(DEVICE)
         model.eval()
         return model
 
     # FrontEnd models:
     elif name == "frontend.LinearNonlinear":
-        model = po.simul.LinearNonlinear((31, 31)).to(DEVICE)
+        model = po.models.LinearNonlinear((31, 31)).to(DEVICE)
         model.eval()
         return model
     elif name == "frontend.LinearNonlinear.nograd":
-        model = po.simul.LinearNonlinear((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        model = po.models.LinearNonlinear((31, 31)).to(DEVICE)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "frontend.LuminanceGainControl":
-        model = po.simul.LuminanceGainControl((31, 31)).to(DEVICE)
+        model = po.models.LuminanceGainControl((31, 31)).to(DEVICE)
         model.eval()
         return model
     elif name == "frontend.LuminanceContrastGainControl":
-        model = po.simul.LuminanceContrastGainControl((31, 31)).to(DEVICE)
+        model = po.models.LuminanceContrastGainControl((31, 31)).to(DEVICE)
         model.eval()
         return model
     elif name == "frontend.OnOff":
-        model = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
+        model = po.models.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
         model.eval()
         return model
     elif name == "frontend.OnOff.nograd":
-        model = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
-        po.tools.remove_grad(model)
+        model = po.models.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "frontend.OnOff.nograd.ctf":
 
-        class OnOffCTF(po.simul.OnOff):
+        class OnOffCTF(po.models.OnOff):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.scales = [0, 1]
@@ -183,13 +185,13 @@ def get_model(name):
                 return rep
 
         model = OnOffCTF((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "VideoModel":
         # super simple model that combines across the batch dimension, as a
         # model with a temporal component would do
-        class VideoModel(po.simul.OnOff):
+        class VideoModel(po.models.OnOff):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
@@ -199,11 +201,11 @@ def get_model(name):
                 return rep.mean(0)
 
         model = VideoModel((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
-        po.tools.remove_grad(model)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "PortillaSimoncelli":
-        return po.simul.PortillaSimoncelli((256, 256)).to(DEVICE)
+        return po.models.PortillaSimoncelli((256, 256)).to(DEVICE)
     elif name == "NonModule":
 
         class NonModule:

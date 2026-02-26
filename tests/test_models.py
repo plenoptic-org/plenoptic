@@ -11,8 +11,6 @@ import torch
 
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
-from plenoptic.data.fetch import fetch_data
-from plenoptic.simulate.canonical_computations import circular_gaussian2d
 
 ALL_MODELS = [
     "LPyr",
@@ -31,17 +29,19 @@ ALL_MODELS = [
 
 @pytest.fixture()
 def portilla_simoncelli_matlab_test_vectors():
-    return fetch_data("portilla_simoncelli_matlab_test_vectors.tar.gz")
+    return po.data.fetch_data("portilla_simoncelli_matlab_test_vectors.tar.gz")
 
 
 @pytest.fixture()
 def portilla_simoncelli_test_vectors():
-    return fetch_data("portilla_simoncelli_test_vectors_refactor.tar.gz")
+    return po.data.fetch_data("portilla_simoncelli_test_vectors_refactor.tar.gz")
 
 
 @pytest.fixture()
 def portilla_simoncelli_synthesize():
-    return fetch_data("portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz")
+    return po.data.fetch_data(
+        "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz"
+    )
 
 
 @pytest.fixture()
@@ -49,7 +49,7 @@ def portilla_simoncelli_scales():
     # During PS refactor, we changed the structure of the
     # _representation_scales attribute, so have a different file to test
     # against
-    return fetch_data("portilla_simoncelli_scales_ps-refactor.npz")
+    return po.data.fetch_data("portilla_simoncelli_scales_ps-refactor.npz")
 
 
 @pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
@@ -93,13 +93,13 @@ def test_cpu(model, einstein_img):
 
 @pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
 def test_validate_model(model):
-    po.tools.remove_grad(model)
-    po.tools.validate.validate_model(model, device=DEVICE, image_shape=(1, 1, 256, 256))
+    po.remove_grad(model)
+    po.validate.validate_model(model, device=DEVICE, image_shape=(1, 1, 256, 256))
 
 
 class TestNonLinearities:
     def test_rectangular_to_polar_dict(self, basic_stim):
-        spc = po.simul.SteerablePyramidFreq(
+        spc = po.model_components.SteerablePyramidFreq(
             basic_stim.shape[-2:],
             height=5,
             order=1,
@@ -107,10 +107,8 @@ class TestNonLinearities:
             tight_frame=True,
         ).to(DEVICE)
         y = spc(basic_stim)
-        energy, state = po.simul.non_linearities.rectangular_to_polar_dict(
-            y, residuals=True
-        )
-        y_hat = po.simul.non_linearities.polar_to_rectangular_dict(energy, state)
+        energy, state = po.model_components.rectangular_to_polar_dict(y, residuals=True)
+        y_hat = po.model_components.polar_to_rectangular_dict(energy, state)
         for key in y:
             diff = y[key] - y_hat[key]
             assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-5
@@ -122,13 +120,13 @@ class TestNonLinearities:
         elif ndim == 5:
             shape = [10, 1, 1, 256, 256]
         x = torch.randn(shape, device=DEVICE)
-        norm, direction = po.simul.non_linearities.local_gain_control(x)
-        x_hat = po.simul.non_linearities.local_gain_release(norm, direction)
+        norm, direction = po.model_components.local_gain_control(x)
+        x_hat = po.model_components.local_gain_release(norm, direction)
         diff = x - x_hat
         assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-4
 
     def test_local_gain_control_spyr(self, basic_stim):
-        spr = po.simul.SteerablePyramidFreq(
+        spr = po.model_components.SteerablePyramidFreq(
             basic_stim.shape[-2:],
             height=5,
             order=1,
@@ -136,8 +134,8 @@ class TestNonLinearities:
             tight_frame=True,
         ).to(DEVICE)
         x = spr(basic_stim)
-        norm, direction = po.simul.non_linearities.local_gain_control(x[0])
-        x_hat = po.simul.non_linearities.local_gain_release(norm, direction)
+        norm, direction = po.model_components.local_gain_control(x[0])
+        x_hat = po.model_components.local_gain_release(norm, direction)
         diff = x[0] - x_hat
         assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-4
 
@@ -149,7 +147,7 @@ class TestNonLinearities:
             shape = [2, 10, 1, 1, 1, 256, 256]
         x, y = torch.randn(shape, device=DEVICE)
         with pytest.raises(ValueError, match="Tensor must have 4 or 5"):
-            norm, direction = po.simul.non_linearities.local_gain_release(x, y)
+            norm, direction = po.model_components.local_gain_release(x, y)
 
     @pytest.mark.parametrize("ndim", [3, 6])
     def test_local_gain_control_fail(self, ndim):
@@ -159,10 +157,10 @@ class TestNonLinearities:
             shape = [10, 1, 1, 1, 256, 256]
         x = torch.randn(shape, device=DEVICE)
         with pytest.raises(ValueError, match="Tensor must have 4 or 5"):
-            norm, direction = po.simul.non_linearities.local_gain_control(x)
+            norm, direction = po.model_components.local_gain_control(x)
 
     def test_local_gain_control_dict(self, basic_stim):
-        spr = po.simul.SteerablePyramidFreq(
+        spr = po.model_components.SteerablePyramidFreq(
             basic_stim.shape[-2:],
             height=5,
             order=1,
@@ -170,10 +168,8 @@ class TestNonLinearities:
             tight_frame=True,
         ).to(DEVICE)
         y = spr(basic_stim)
-        energy, state = po.simul.non_linearities.local_gain_control_dict(
-            y, residuals=True
-        )
-        y_hat = po.simul.non_linearities.local_gain_release_dict(
+        energy, state = po.model_components.local_gain_control_dict(y, residuals=True)
+        y_hat = po.model_components.local_gain_release_dict(
             energy, state, residuals=True
         )
         for key in y:
@@ -183,7 +179,7 @@ class TestNonLinearities:
 
 class TestLaplacianPyramid:
     def test_gradient_flow(self):
-        lpyr = po.simul.LaplacianPyramid().to(DEVICE)
+        lpyr = po.model_components.LaplacianPyramid().to(DEVICE)
         img = torch.ones(1, 1, 100, 100).to(DEVICE).requires_grad_()
         y = lpyr.forward(img)
         assert y[0].requires_grad
@@ -193,7 +189,7 @@ class TestLaplacianPyramid:
         img = curie_img[
             :, :, 0:253, 0:234
         ]  # Original 256x256 shape is not good for testing padding
-        lpyr = po.simul.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
+        lpyr = po.model_components.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
         y = lpyr.forward(img)
         img_recon = lpyr.recon_pyr(y)
         assert torch.allclose(img, img_recon)
@@ -201,7 +197,7 @@ class TestLaplacianPyramid:
     @pytest.mark.parametrize("n_scales", [3, 4, 5, 6])
     def test_match_pyrtools(self, curie_img, n_scales):
         img = curie_img[:, :, 0:253, 0:234]
-        lpyr_po = po.simul.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
+        lpyr_po = po.model_components.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
         y_po = lpyr_po(img)
         lpyr_pt = pt.pyramids.LaplacianPyramid(img.squeeze().cpu(), height=n_scales)
         y_pt = [lpyr_pt.pyr_coeffs[(i, 0)] for i in range(n_scales)]
@@ -210,7 +206,7 @@ class TestLaplacianPyramid:
             x_po = x_po.squeeze().detach().cpu().numpy()
             assert np.abs(x_po - x_pt)[:-2, :-2].max() < 1e-5
             # The pyrtools implementation `pt.upConv performs`` padding after
-            # upsampling. Our implementation `po.tools.upsample_convolve``
+            # upsampling. Our implementation `po.model_components.upsample_convolve``
             # performs padding before upsampling, and, depending on the parity of
             # the image, sometimes performs additional zero padding after upsampling
             # up to one row/column. This causes inconsistency on the right and
@@ -237,7 +233,7 @@ class TestFrontEnd:
         assert y.requires_grad
 
     def test_onoff(self):
-        po.simul.OnOff(7, pretrained=False).to(DEVICE)
+        po.models.OnOff(7, pretrained=False).to(DEVICE)
 
     @pytest.mark.parametrize("kernel_size", [7, 31])
     @pytest.mark.parametrize("cache_filt", [False, True])
@@ -247,11 +243,11 @@ class TestFrontEnd:
     def test_pretrained_onoff(self, kernel_size, cache_filt):
         if kernel_size != 31:
             with pytest.raises(ValueError):
-                po.simul.OnOff(kernel_size, pretrained=True, cache_filt=cache_filt).to(
+                po.models.OnOff(kernel_size, pretrained=True, cache_filt=cache_filt).to(
                     DEVICE
                 )
         else:
-            po.simul.OnOff(kernel_size, pretrained=True, cache_filt=cache_filt).to(
+            po.models.OnOff(kernel_size, pretrained=True, cache_filt=cache_filt).to(
                 DEVICE
             )
 
@@ -264,31 +260,31 @@ class TestFrontEnd:
     def test_kernel_size(self, mdl, einstein_img):
         kernel_size = 31
         if mdl == "frontend.LinearNonlinear":
-            model = po.simul.LinearNonlinear(
+            model = po.models.LinearNonlinear(
                 kernel_size, pretrained=True, cache_filt=True
             ).to(DEVICE)
-            model2 = po.simul.LinearNonlinear(
+            model2 = po.models.LinearNonlinear(
                 (kernel_size, kernel_size), pretrained=True, cache_filt=True
             ).to(DEVICE)
         elif mdl == "frontend.LuminanceGainControl":
-            model = po.simul.LuminanceGainControl(
+            model = po.models.LuminanceGainControl(
                 kernel_size, pretrained=True, cache_filt=True
             ).to(DEVICE)
-            model2 = po.simul.LuminanceGainControl(
+            model2 = po.models.LuminanceGainControl(
                 (kernel_size, kernel_size), pretrained=True, cache_filt=True
             ).to(DEVICE)
         elif mdl == "frontend.LuminanceContrastGainControl":
-            model = po.simul.LuminanceContrastGainControl(
+            model = po.models.LuminanceContrastGainControl(
                 kernel_size, pretrained=True, cache_filt=True
             ).to(DEVICE)
-            model2 = po.simul.LuminanceContrastGainControl(
+            model2 = po.models.LuminanceContrastGainControl(
                 (kernel_size, kernel_size), pretrained=True, cache_filt=True
             ).to(DEVICE)
         elif mdl == "frontend.OnOff":
-            model = po.simul.OnOff(kernel_size, pretrained=True, cache_filt=True).to(
+            model = po.models.OnOff(kernel_size, pretrained=True, cache_filt=True).to(
                 DEVICE
             )
-            model2 = po.simul.OnOff(
+            model2 = po.models.OnOff(
                 (kernel_size, kernel_size), pretrained=True, cache_filt=True
             ).to(DEVICE)
         assert torch.allclose(model(einstein_img), model2(einstein_img)), (
@@ -316,14 +312,14 @@ class TestNaive:
     def test_kernel_size(self, mdl, einstein_img):
         kernel_size = 10
         if mdl == "naive.Gaussian":
-            model = po.simul.Gaussian(kernel_size, 1.0).to(DEVICE)
-            model2 = po.simul.Gaussian((kernel_size, kernel_size), 1.0).to(DEVICE)
+            model = po.models.Gaussian(kernel_size, 1.0).to(DEVICE)
+            model2 = po.models.Gaussian((kernel_size, kernel_size), 1.0).to(DEVICE)
         elif mdl == "naive.Linear":
-            model = po.simul.Linear(kernel_size).to(DEVICE)
-            model2 = po.simul.Linear((kernel_size, kernel_size)).to(DEVICE)
+            model = po.models.Linear(kernel_size).to(DEVICE)
+            model2 = po.models.Linear((kernel_size, kernel_size)).to(DEVICE)
         elif mdl == "naive.CenterSurround":
-            model = po.simul.CenterSurround(kernel_size).to(DEVICE)
-            model2 = po.simul.CenterSurround((kernel_size, kernel_size)).to(DEVICE)
+            model = po.models.CenterSurround(kernel_size).to(DEVICE)
+            model2 = po.models.CenterSurround((kernel_size, kernel_size)).to(DEVICE)
         assert torch.allclose(model(einstein_img), model2(einstein_img)), (
             "Kernels somehow different!"
         )
@@ -333,9 +329,9 @@ class TestNaive:
     def test_cache_filt(self, cache_filt, mdl):
         img = torch.ones(1, 1, 100, 100).to(DEVICE).requires_grad_()
         if mdl == "naive.Gaussian":
-            model = po.simul.Gaussian((31, 31), 1.0, cache_filt=cache_filt).to(DEVICE)
+            model = po.models.Gaussian((31, 31), 1.0, cache_filt=cache_filt).to(DEVICE)
         elif mdl == "naive.CenterSurround":
-            model = po.simul.CenterSurround((31, 31), cache_filt=cache_filt).to(DEVICE)
+            model = po.models.CenterSurround((31, 31), cache_filt=cache_filt).to(DEVICE)
         model(img)  # forward pass should cache filt if True
         if cache_filt:
             assert model._filt is not None
@@ -350,11 +346,11 @@ class TestNaive:
             with pytest.raises(
                 ValueError, match=r"If non-scalar, len\(center_std\) must equal"
             ):
-                po.simul.CenterSurround(
+                po.models.CenterSurround(
                     (31, 31), center_std=center_std, out_channels=out_channels
                 )
         else:
-            po.simul.CenterSurround(
+            po.models.CenterSurround(
                 (31, 31), center_std=center_std, out_channels=out_channels
             )
 
@@ -377,10 +373,10 @@ class TestNaive:
     )
     def test_CenterSurround_amplitude_ratio(self, amplitude_ratio, expectation):
         with expectation:
-            po.simul.CenterSurround(31, amplitude_ratio=amplitude_ratio)
+            po.models.CenterSurround(31, amplitude_ratio=amplitude_ratio)
 
     def test_linear(self, basic_stim):
-        model = po.simul.Linear().to(DEVICE)
+        model = po.models.Linear().to(DEVICE)
         assert model(basic_stim).requires_grad
 
     @pytest.mark.parametrize("how", ["out_channels", "center_std"])
@@ -394,7 +390,7 @@ class TestNaive:
             std = [1, 2, 3]
             txt = r"If non-scalar, len\(center_std\) must equal out_channels"
         with pytest.raises(ValueError, match=txt):
-            po.simul.CenterSurround(
+            po.models.CenterSurround(
                 31, on_center=[True, False], center_std=std, out_channels=out_channels
             )
 
@@ -403,7 +399,7 @@ class TestNaive:
             ValueError,
             match=r"If non-scalar, len\(surround_std\) must equal len\(center_std\)",
         ):
-            po.simul.CenterSurround(31, center_std=[1, 2], surround_std=[1, 2, 3])
+            po.models.CenterSurround(31, center_std=[1, 2], surround_std=[1, 2, 3])
 
 
 def convert_matlab_ps_rep_to_dict(
@@ -538,7 +534,7 @@ def convert_matlab_ps_rep_to_dict(
 
 
 def construct_normalizing_dict(
-    plen_ps: po.simul.PortillaSimoncelli, img: torch.Tensor
+    plen_ps: po.models.PortillaSimoncelli, img: torch.Tensor
 ) -> dict[str, torch.Tensor]:
     """Construct dictionary to normalize covariances in PS representation.
 
@@ -588,7 +584,7 @@ def construct_normalizing_dict(
 def remove_redundant_and_normalize(
     matlab_rep: OrderedDict,
     use_true_correlations: bool,
-    plen_ps: po.simul.PortillaSimoncelli,
+    plen_ps: po.models.PortillaSimoncelli,
     normalizing_dict: dict,
 ) -> torch.Tensor:
     """Remove redundant stats from dictionary of representation, and normalize
@@ -693,7 +689,7 @@ class TestPortillaSimoncelli:
         spatial_corr_width,
         einstein_img,
     ):
-        ps = po.simul.PortillaSimoncelli(
+        ps = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
@@ -724,7 +720,7 @@ class TestPortillaSimoncelli:
         im0 = 255 * po.load_images(IMG_DIR / "256" / f"{im}.pgm")
         im0 = im0.to(torch.float64).to(DEVICE)
         ps = (
-            po.simul.PortillaSimoncelli(
+            po.models.PortillaSimoncelli(
                 im0.shape[-2:],
                 n_scales=n_scales,
                 n_orientations=n_orientations,
@@ -777,7 +773,7 @@ class TestPortillaSimoncelli:
         im0 = po.load_images(IMG_DIR / "256" / f"{im}.pgm")
         im0 = im0.to(torch.float64).to(DEVICE)
         ps = (
-            po.simul.PortillaSimoncelli(
+            po.models.PortillaSimoncelli(
                 im0.shape[-2:],
                 n_scales=n_scales,
                 n_orientations=n_orientations,
@@ -803,7 +799,7 @@ class TestPortillaSimoncelli:
     def test_ps_convert(
         self, n_scales, n_orientations, spatial_corr_width, einstein_img
     ):
-        ps = po.simul.PortillaSimoncelli(
+        ps = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
@@ -850,7 +846,7 @@ class TestPortillaSimoncelli:
 
         im0 = torch.as_tensor(im).unsqueeze(0).unsqueeze(0).to(DEVICE).to(torch.float64)
         model = (
-            po.simul.PortillaSimoncelli(
+            po.models.PortillaSimoncelli(
                 im0.shape[-2:],
                 n_scales=4,
                 n_orientations=4,
@@ -860,12 +856,12 @@ class TestPortillaSimoncelli:
             .to(torch.float64)
         )
 
-        po.tools.set_seed(1)
+        po.set_seed(1)
         im_init = torch.as_tensor(im_init).unsqueeze(0).unsqueeze(0)
-        met = po.synth.MetamerCTF(
+        met = po.MetamerCTF(
             im0,
             model,
-            loss_function=po.tools.optim.l2_norm,
+            loss_function=po.optim.l2_norm,
             range_penalty_lambda=0,
             coarse_to_fine="together",
         )
@@ -915,7 +911,7 @@ class TestPortillaSimoncelli:
             key = f"scale-{n_scales}_ori-{n_orientations}_width-{spatial_corr_width}"
             saved = f[key]
 
-        model = po.simul.PortillaSimoncelli(
+        model = po.models.PortillaSimoncelli(
             [256, 256],
             n_scales=n_scales,
             n_orientations=n_orientations,
@@ -941,7 +937,7 @@ class TestPortillaSimoncelli:
         else:
             expectation = does_not_raise()
         with expectation:
-            model = po.simul.PortillaSimoncelli(
+            model = po.models.PortillaSimoncelli(
                 im0.shape[-2:],
                 n_scales=n_scales,
             ).to(DEVICE)
@@ -951,7 +947,7 @@ class TestPortillaSimoncelli:
     def test_nonsquare_images(self, img_size):
         im0 = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
         im0 = im0[..., :img_size]
-        model = po.simul.PortillaSimoncelli(
+        model = po.models.PortillaSimoncelli(
             im0.shape[-2:],
             # with height 4, spatial_corr_width=9 is too big for final scale
             # and image size 128
@@ -971,7 +967,7 @@ class TestPortillaSimoncelli:
         spatial_corr_width,
         einstein_img,
     ):
-        model = po.simul.PortillaSimoncelli(
+        model = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
@@ -995,7 +991,7 @@ class TestPortillaSimoncelli:
         spatial_corr_width,
         einstein_img,
     ):
-        model = po.simul.PortillaSimoncelli(
+        model = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
@@ -1017,7 +1013,7 @@ class TestPortillaSimoncelli:
                 expectation = pytest.raises(ValueError, match="figsize can't be set")
         else:
             ax = None
-        model = po.simul.PortillaSimoncelli(
+        model = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
         ).to(DEVICE)
         with expectation:
@@ -1030,7 +1026,7 @@ class TestPortillaSimoncelli:
         plt.close(fig)
 
     def test_update_plot(self, einstein_img):
-        model = po.simul.PortillaSimoncelli(
+        model = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
         ).to(DEVICE)
         fig, axes = model.plot_representation(model(einstein_img))
@@ -1056,7 +1052,7 @@ class TestPortillaSimoncelli:
     ):
         # there's an assumption I make in plot_representation that I want to
         # ensure is tested
-        model = po.simul.PortillaSimoncelli(
+        model = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
@@ -1072,7 +1068,7 @@ class TestPortillaSimoncelli:
     # fft doesn't support float16, so we can't support it
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     def test_dtypes(self, dtype, einstein_img):
-        model = po.simul.PortillaSimoncelli(einstein_img.shape[-2:]).to(DEVICE)
+        model = po.models.PortillaSimoncelli(einstein_img.shape[-2:]).to(DEVICE)
         model(einstein_img.to(dtype))
 
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
@@ -1083,7 +1079,7 @@ class TestPortillaSimoncelli:
     ):
         # test that the shapes we use to assign scale labels to each statistic
         # and determine redundant stats are accurate
-        model = po.simul.PortillaSimoncelli(
+        model = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
@@ -1119,7 +1115,7 @@ class TestPortillaSimoncelli:
         # do
         im = po.load_images(IMG_DIR / "256" / f"{im}.pgm")
         im = im.to(torch.float64).to(DEVICE)
-        model = po.simul.PortillaSimoncelli(
+        model = po.models.PortillaSimoncelli(
             im.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
@@ -1191,7 +1187,7 @@ class TestPortillaSimoncelli:
         # test that cross-correlations we compute are actual cross correlations
         im = po.load_images(IMG_DIR / "256" / f"{im}.pgm")
         im = im.to(torch.float64).to(DEVICE)
-        model = po.simul.PortillaSimoncelli(
+        model = po.models.PortillaSimoncelli(
             im.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
@@ -1256,12 +1252,12 @@ class TestPortillaSimoncelli:
             )
 
     def test_convert_to_dict_error_diff_model(self, einstein_img):
-        ps = po.simul.PortillaSimoncelli(
+        ps = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
             n_scales=4,
         ).to(DEVICE)
         rep = ps(einstein_img)
-        ps = po.simul.PortillaSimoncelli(
+        ps = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
             n_scales=2,
         ).to(DEVICE)
@@ -1271,7 +1267,7 @@ class TestPortillaSimoncelli:
             ps.convert_to_dict(rep)
 
     def test_convert_to_dict_error(self, einstein_img):
-        ps = po.simul.PortillaSimoncelli(
+        ps = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
         ).to(DEVICE)
         rep = ps(einstein_img)
@@ -1290,9 +1286,11 @@ class TestFilters:
     def test_circular_gaussian2d_shape(self, std, kernel_size, out_channels):
         if std <= 0.0:
             with pytest.raises(ValueError, match="std must be positive"):
-                circular_gaussian2d((7, 7), std)
+                po.model_components.circular_gaussian2d((7, 7), std)
         else:
-            filt = circular_gaussian2d(kernel_size, std, out_channels)
+            filt = po.model_components.circular_gaussian2d(
+                kernel_size, std, out_channels
+            )
             if isinstance(kernel_size, int):
                 kernel_size = (kernel_size, kernel_size)
             assert filt.shape == (out_channels, 1, *kernel_size)
@@ -1302,7 +1300,7 @@ class TestFilters:
         std = torch.as_tensor([1.0, 2.0], device=DEVICE)
         out_channels = 3
         with pytest.raises(ValueError, match=r"If non-scalar, len\(std\) must equal"):
-            circular_gaussian2d((7, 7), std, out_channels)
+            po.model_components.circular_gaussian2d((7, 7), std, out_channels)
 
     @pytest.mark.parametrize(
         "std,expectation",
@@ -1331,12 +1329,14 @@ class TestFilters:
     )
     def test_circular_gaussian2d_std(self, std, expectation):
         with expectation:
-            filt = circular_gaussian2d((31, 31), std, out_channels=1)
+            filt = po.model_components.circular_gaussian2d(
+                (31, 31), std, out_channels=1
+            )
             assert filt.sum().isclose(torch.ones(1, device=DEVICE))
             assert filt.shape[-2:] == torch.Size((31, 31))
 
     def test_circular_gaussian2d_std_out_channel(self):
-        filt = circular_gaussian2d((31, 31), [2, 3, 4])
+        filt = po.model_components.circular_gaussian2d((31, 31), [2, 3, 4])
         assert filt.sum().isclose(3 * torch.ones(1, device=DEVICE))
         assert filt.shape[-2:] == torch.Size((31, 31))
 
@@ -1361,7 +1361,7 @@ class TestFilters:
     )
     def test_circular_gaussian2d_kernel_size(self, kernel_size, expectation):
         with expectation:
-            filt = circular_gaussian2d(kernel_size, 2)
+            filt = po.model_components.circular_gaussian2d(kernel_size, 2)
             assert filt.sum().isclose(torch.ones(1, device=DEVICE))
             if isinstance(kernel_size, int):
                 kernel_size = (kernel_size, kernel_size)
@@ -1398,12 +1398,12 @@ class TestFilters:
     )
     def test_circular_gaussian2d_out_channels(self, out_channels, expectation):
         with expectation:
-            circular_gaussian2d((31, 31), 2, out_channels)
+            po.model_components.circular_gaussian2d((31, 31), 2, out_channels)
 
     def test_circular_gaussian2d_multichannel_indep(self, color_img):
         # check that the following is equivalent to independently convolving each
         # channel with each filter
-        filt = po.simul.circular_gaussian2d(31, [2, 10], 2)
+        filt = po.model_components.circular_gaussian2d(31, [2, 10], 2)
         img = po.data.color_wheel(as_gray=False)
         output = torch.nn.functional.conv2d(img, filt.repeat(3, 1, 1, 1), groups=3)
         test = []
