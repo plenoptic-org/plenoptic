@@ -292,6 +292,16 @@ several choices for how to run a subset of the tests:
 View the [pytest documentation](https://doc.pytest.org/en/latest/usage.html) for
 more info.
 
+### CPU and GPU tests
+
+Plenoptic tests are all run on both the CPU and the GPU, and both must pass before any PR is merged.
+
+- On the CPU, tests are run using [GitHub actions](https://github.com/features/actions). Tests use all supported python versions and the most recent pytorch version.
+
+- On the GPU, tests are run using a Simons Foundation-hosted [Jenkins](https://www.jenkins.io/) instance. Tests use the middle supported python version and the pytorch version specified in [jenkins/Dockerfile](https://github.com/plenoptic-org/plenoptic/blob/main/jenkins/Dockerfile), which we manually update as pytorch puts out new releases.
+
+Some of our tests check for reproducibility of synthesis methods. See [below](#exact-reproducibility) for a discussion of some difficulties guaranteeing reproducibility across different devices, but the tl;dr is that the tests that are most likely to fail for this reason are only run on the GPU and are expected to fail on GPUs that are different from that used by the Jenkins runner. Thus, if you run the full test suite locally (using a GPU) and find that tests in `test_uploaded_files.py` are failing when you have changed nothing that should affect them, you can probably safely ignore this --- this is only a problem if these tests fail during the CI. Ask a maintainer if you have questions here.
+
 ### Running pytest with non-standard cache directories
 
 When running tests on some machines (e.g., nodes of the Flatiron cluster), the default cache directories used by some of the libraries will not exist, so running the tests like normal will result in errors that complain about directories not existing or not having permission to create directories in e.g., `/home/wbroderick`.
@@ -523,6 +533,10 @@ environment variable `RUN_REGRESSION_SYNTH=1` when calling pytest.
 Exact reproducibility with pytorch is hard. See [issue #368](https://github.com/plenoptic-org/plenoptic/issues/368) for some details, but the tl;dr is: you should not expect to get the same outputs (or even, within floating point precision) when running synthesis for long enough (seems to be > 1000 iterations) on devices with different CUDA versions and driver versions. Small differences in the output of e.g., `torch.einsum` / `torch.matmul` will lead to small differences in the gradient, which will accumulate and eventually lead to fairly different optimization outputs.
 
 To deal with this, your regression tests should save their output into the `uploaded_files` folder after synthesis (and before checking). The contents of that folder will be made available as [Jenkins artifacts](https://www.jenkins.io/doc/pipeline/tour/tests-and-artifacts/), which you can then download after the test. This will allow you to download the output of any failing test, manually verify the results look good, and then upload them to the OSF to test against.
+
+To deal with this, all tests for reproducibility should use dtype `torch.float64` (rather than the default `torch.float32`). Additionally, these regression tests should save their output into the `uploaded_files` folder after synthesis (and before checking). The contents of that folder will be made available as [Jenkins artifacts](https://www.jenkins.io/doc/pipeline/tour/tests-and-artifacts/), which you can then download after the test. This will allow you to download the output of any failing test, manually verify the results look good, and then upload them to the OSF to test against.
+
+Most of these tests are only run when explicitly enabled by setting the environmental variable `RUN_REGRESSION_SYNTH=1`, which we only do on the GPU, since they take a while to run.
 
 ### Test parameterizations and fixtures
 

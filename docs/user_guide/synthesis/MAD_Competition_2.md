@@ -51,7 +51,15 @@ where:
 - $\epsilon$ is the initial noise
 - $\mathcal{B}$ is the quadratic bound penalty
 - $\lambda_1$ is {attr}`~plenoptic.synthesize.mad_competition.MADCompetition.metric_tradeoff_lambda`
-- $\lambda_2$ is {attr}`~plenoptic.synthesize.mad_competition.MADCompetition.range_penalty_lambda`
+- $\lambda_2$ is {attr}`~plenoptic.synthesize.mad_competition.MADCompetition.penalty_lambda`
+
+:::{admonition} Selecting a different penalty
+:class: dropdown note
+
+Other penalties $\mathcal{B}$ can be used by passing them to the argument `penalty_function`.
+
+For more details, see the [Metamer regularization section](./Metamer.md#metamer-regularization).
+:::
 
 That's the general idea, now let's explore how to use the {class}`~plenoptic.synthesize.mad_competition.MADCompetition` class for generating these images
 

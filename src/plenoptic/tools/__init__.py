@@ -9,6 +9,7 @@ from .display import *
 from .external import *
 from .io import *
 from .optim import *
+from .regularization import *
 from .signal import *
 from .stats import *
 from .validate import remove_grad

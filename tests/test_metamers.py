@@ -14,25 +14,33 @@ def custom_loss(x1, x2):
     return (x1 - x2).sum()
 
 
+def custom_penalty(x1):
+    return po.tools.regularization.penalize_range(x1, allowed_range=(0.2, 0.8))
+
+
+def custom_penalty2(x1):
+    return po.tools.regularization.penalize_range(x1, allowed_range=(0.3, 0.7))
+
+
 class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
     @pytest.mark.parametrize("loss_func", ["mse", "l2", "custom"])
+    @pytest.mark.parametrize("penalty_function", ["range", "custom"])
     @pytest.mark.parametrize(
         "fail",
-        [False, "img", "model", "loss", "range_penalty", "dtype", "allowed_range"],
+        [False, "img", "model", "loss", "penalty", "penalty_lambda", "dtype"],
     )
-    @pytest.mark.parametrize("range_penalty", [0.1, 0])
-    @pytest.mark.parametrize("allowed_range", [(0, 1), (-1, 1)])
+    @pytest.mark.parametrize("penalty_lambda", [0.1, 0])
     def test_save_load(
         self,
         einstein_img,
         model,
         loss_func,
         fail,
-        range_penalty,
-        allowed_range,
+        penalty_lambda,
+        penalty_function,
         tmp_path,
     ):
         if loss_func == "mse":
@@ -41,12 +49,16 @@ class TestMetamers:
             loss = po.tools.optim.l2_norm
         elif loss_func == "custom":
             loss = custom_loss
+        if penalty_function == "range":
+            penalty = po.tools.regularization.penalize_range
+        elif penalty_function == "custom":
+            penalty = custom_penalty
         met = po.synth.Metamer(
             einstein_img,
             model,
             loss_function=loss,
-            allowed_range=allowed_range,
-            range_penalty_lambda=range_penalty,
+            penalty_lambda=penalty_lambda,
+            penalty_function=penalty,
         )
         met.synthesize(max_iter=4, store_progress=True)
         met.save(tmp_path / "test_metamer_save_load.pt")
@@ -74,17 +86,20 @@ class TestMetamers:
                         "values"
                     ),
                 )
-            elif fail == "allowed_range":
-                allowed_range = (0, 5)
+            elif fail == "penalty":
+                penalty = custom_penalty2
                 expectation = pytest.raises(
                     ValueError,
-                    match=("Saved and initialized allowed_range are different"),
+                    match=(
+                        "Saved and initialized penalty_function output have different"
+                        " values"
+                    ),
                 )
-            elif fail == "range_penalty":
-                range_penalty = 0.5
+            elif fail == "penalty_lambda":
+                penalty_lambda = 0.5
                 expectation = pytest.raises(
                     ValueError,
-                    match=("Saved and initialized range_penalty_lambda are different"),
+                    match=("Saved and initialized penalty_lambda are different"),
                 )
             elif fail == "dtype":
                 einstein_img = einstein_img.to(torch.float64)
@@ -102,8 +117,8 @@ class TestMetamers:
                 einstein_img,
                 model,
                 loss_function=loss,
-                allowed_range=allowed_range,
-                range_penalty_lambda=range_penalty,
+                penalty_lambda=penalty_lambda,
+                penalty_function=penalty,
             )
             with expectation:
                 met_copy.load(
@@ -115,8 +130,8 @@ class TestMetamers:
                 einstein_img,
                 model,
                 loss_function=loss,
-                range_penalty_lambda=range_penalty,
-                allowed_range=allowed_range,
+                penalty_lambda=penalty_lambda,
+                penalty_function=penalty,
             )
             met_copy.load(
                 tmp_path / "test_metamer_save_load.pt",
@@ -575,13 +590,12 @@ class TestMetamers:
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
     def test_load_tol(self, einstein_img, model, tmp_path):
-        met = po.synth.Metamer(einstein_img, model, allowed_range=(-1, 2))
+        met = po.synth.Metamer(einstein_img, model)
         met.synthesize(5)
         met.save(tmp_path / "test_metamer_load_tol.pt")
         met = po.synth.Metamer(
-            einstein_img + 1e-7 * torch.rand_like(einstein_img),
+            (1 - 1e-7) * einstein_img + 1e-7 * torch.rand_like(einstein_img),
             model,
-            allowed_range=(-1, 2),
         )
         with pytest.raises(ValueError, match="Saved and initialized attribute image"):
             met.load(tmp_path / "test_metamer_load_tol.pt")
@@ -619,6 +633,7 @@ class TestMetamers:
         ["PortillaSimoncelli", "frontend.LinearNonlinear.nograd"],
         indirect=True,
     )
+    @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
     def test_model_dimensionality_real(self, einstein_img, model):
         met = po.synth.Metamer(einstein_img, model)
         met.synthesize(5)
@@ -647,7 +662,8 @@ class TestMetamers:
     )
     @pytest.mark.parametrize("store_progress", [True, 2, 3])
     @pytest.mark.filterwarnings(
-        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_store_rep(self, einstein_img, model, store_progress):
         if hasattr(model, "scales"):
@@ -680,7 +696,8 @@ class TestMetamers:
         indirect=True,
     )
     @pytest.mark.filterwarnings(
-        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_save_metamer_empty(self, einstein_img, model):
         if hasattr(model, "scales"):
@@ -697,7 +714,8 @@ class TestMetamers:
         indirect=True,
     )
     @pytest.mark.filterwarnings(
-        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_metamer_empty_loss(self, einstein_img, model):
         if hasattr(model, "scales"):
@@ -713,6 +731,14 @@ class TestMetamers:
         assert isinstance(met.objective_function(), torch.Tensor)
         assert met.losses.numel() > 0
 
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_warn_out_of_range_input(self, einstein_img, model):
+        img = einstein_img + 1
+        with pytest.warns(UserWarning, match="outside the tested range \\(0, 1\\)"):
+            po.synth.Metamer(img, model)
+
     @pytest.mark.parametrize("iteration", [None, 0, -2, -3, 2, 1, 6, -7])
     @pytest.mark.parametrize("store_progress", [True, False, 2])
     @pytest.mark.parametrize("iteration_selection", ["floor", "ceiling", "round"])
@@ -722,7 +748,8 @@ class TestMetamers:
         indirect=True,
     )
     @pytest.mark.filterwarnings(
-        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_metamer_get_progress(
         self, einstein_img, model, iteration, store_progress, iteration_selection
@@ -952,7 +979,8 @@ class TestMetamers:
         "model", ["naive.Identity", "PortillaSimoncelli"], indirect=True
     )
     @pytest.mark.filterwarnings(
-        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_map_location(self, curie_img, model, tmp_path):
         if hasattr(model, "scales"):
@@ -985,7 +1013,8 @@ class TestMetamers:
         "model", ["naive.Identity", "PortillaSimoncelli"], indirect=True
     )
     @pytest.mark.filterwarnings(
-        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_to_midsynth(self, curie_img, model):
         if hasattr(model, "scales"):
@@ -1146,7 +1175,8 @@ class TestMetamers:
         "model", ["frontend.OnOff.nograd", "PortillaSimoncelli"], indirect=True
     )
     @pytest.mark.filterwarnings(
-        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_stop_criterion(self, einstein_img, model):
         # checking that this hits the criterion and stops early, so set seed
@@ -1174,4 +1204,31 @@ class TestMetamers:
         )
         assert abs(met.losses[-7] - met.losses[-3]) > stop_crit, (
             "Stopped after hit criterion!"
+        )
+
+    @pytest.mark.parametrize("penalty_function", ["range", "custom"])
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    def test_penalty_effect(self, einstein_img, penalty_function, model):
+        """Stronger penalty_lambda should lead to lower value of penalty,
+        if regularization is working properly."""
+        if penalty_function == "range":
+            penalty = po.tools.regularization.penalize_range
+        elif penalty_function == "custom":
+            penalty = custom_penalty
+        penalty_lambdas = [0.0, 0.5]
+        output_penalty = []
+        for pl in penalty_lambdas:
+            met = po.synth.Metamer(
+                einstein_img,
+                model,
+                penalty_lambda=pl,
+                penalty_function=penalty,
+            )
+            met.synthesize(max_iter=5)
+            output_penalty.append(penalty(met.metamer.detach()).item())
+
+        assert output_penalty[1] < output_penalty[0], (
+            "Stronger penalty_lambda did not lead to lower penalty value!"
         )

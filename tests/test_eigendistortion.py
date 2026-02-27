@@ -429,7 +429,7 @@ class TestEigendistortionSynthesis:
         eig.synthesize(max_iter=5)
         eig.save(tmp_path / "test_eigendistortion_load_tol.pt")
         eig = Eigendistortion(
-            einstein_img + 1e-7 * torch.rand_like(einstein_img), model
+            einstein_img * (1 - 1e-7) + 1e-7 * torch.rand_like(einstein_img), model
         )
         with pytest.raises(ValueError, match="Saved and initialized attribute image"):
             eig.load(tmp_path / "test_eigendistortion_load_tol.pt")
@@ -601,6 +601,7 @@ class TestAutodiffFunctions:
         assert Fv.shape == (x_dim, k)
         assert Fv2.allclose(Fv, atol=1e-5)
 
+    @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
     def test_simple_model_eigenvalues(self):
         """Test if Jacobian is constant in all directions for linear model"""
         singular_value = torch.ones(1, device=DEVICE) * 3.0

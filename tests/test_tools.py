@@ -559,36 +559,33 @@ class TestValidate:
             po.tools.validate.validate_input(img, no_batch=True)
 
     @pytest.mark.parametrize(
-        "minmax,expectation",
+        "range_case,expectation",
         [
+            ("in-range", does_not_raise()),
             (
-                "min",
-                pytest.raises(ValueError, match="input_tensor range must lie within"),
+                "below",
+                pytest.warns(
+                    UserWarning,
+                    match="outside the tested range \\(0, 1\\)",
+                ),
             ),
             (
-                "max",
-                pytest.raises(ValueError, match="input_tensor range must lie within"),
-            ),
-            (
-                "range",
-                pytest.raises(
-                    ValueError,
-                    match=r"allowed_range\[0\] must be strictly less",
+                "above",
+                pytest.warns(
+                    UserWarning,
+                    match="outside the tested range \\(0, 1\\)",
                 ),
             ),
         ],
     )
-    def test_input_allowed_range(self, minmax, expectation):
+    def test_input_check_range(self, range_case, expectation):
         img = torch.rand(1, 1, 16, 16)
-        allowed_range = (0, 1)
-        if minmax == "min":
+        if range_case == "below":
             img -= 1
-        elif minmax == "max":
+        elif range_case == "above":
             img += 1
-        elif minmax == "range":
-            allowed_range = (1, 0)
         with expectation:
-            po.tools.validate.validate_input(img, allowed_range=allowed_range)
+            po.tools.validate.validate_input(img)
 
     @pytest.mark.parametrize("model", ["frontend.OnOff"], indirect=True)
     def test_model_learnable(self, model):
@@ -793,6 +790,71 @@ class TestValidate:
     def test_remove_grad(self, model):
         po.tools.validate.validate_model(model, device=DEVICE)
 
+    # Penalty validation tests
+    def test_validate_penalty_inputs(self):
+        def bad_penalty(x, y):
+            return (x - y).abs().sum()
+
+        with pytest.raises(
+            TypeError,
+            match="penalty_function should be callable and accept a tensor as input",
+        ):
+            po.tools.validate.validate_penalty(bad_penalty, device=DEVICE)
+
+    def test_validate_penalty_output_shape(self):
+        def nonscalar_penalty(x):
+            return x
+
+        with pytest.raises(
+            ValueError, match="penalty_function should return a scalar value"
+        ):
+            po.tools.validate.validate_penalty(nonscalar_penalty, device=DEVICE)
+
+    def test_validate_penalty_learnable(self):
+        class LearnablePenalty(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.scale = torch.nn.Parameter(torch.ones(1))
+
+            def forward(self, x):
+                return (x * self.scale).sum()
+
+        penalty = LearnablePenalty().eval()
+        with pytest.raises(
+            ValueError,
+            match="penalty_function adds gradient to input",
+        ):
+            po.tools.validate.validate_penalty(penalty, device=DEVICE)
+
+    def test_validate_penalty_detach(self):
+        def detach_penalty(x):
+            return x.detach().sum()
+
+        with pytest.raises(
+            ValueError, match="penalty_function strips gradient from input"
+        ):
+            po.tools.validate.validate_penalty(detach_penalty, device=DEVICE)
+
+    def test_validate_penalty_precision(self):
+        def dtype_penalty(x):
+            return x.to(torch.float64).sum()
+
+        with pytest.raises(
+            TypeError,
+            match="penalty_function should return a real output with the same",
+        ):
+            po.tools.validate.validate_penalty(dtype_penalty, device=DEVICE)
+
+    def test_validate_penalty_non_tensor(self):
+        def numpy_penalty(x):
+            return x.detach().cpu().numpy().sum()
+
+        with pytest.raises(
+            ValueError,
+            match="penalty_function does not return a torch.Tensor object",
+        ):
+            po.tools.validate.validate_penalty(numpy_penalty, device=DEVICE)
+
     @pytest.mark.parametrize(
         "model",
         ["PortillaSimoncelli"],
@@ -861,12 +923,12 @@ class TestOptim:
     def test_penalize_range_above(self):
         img = 0.5 * torch.ones((1, 1, 4, 4))
         img[..., 0, :] = 2
-        assert po.tools.optim.penalize_range(img).item() == 4
+        assert po.tools.regularization.penalize_range(img).item() == 4
 
     def test_penalize_range_below(self):
         img = 0.5 * torch.ones((1, 1, 4, 4))
         img[..., 0, :] = -1
-        assert po.tools.optim.penalize_range(img).item() == 4
+        assert po.tools.regularization.penalize_range(img).item() == 4
 
     @pytest.mark.parametrize("n_scales", [2, 3, 4])
     @pytest.mark.parametrize("n_ori", [2, 3, 4])

@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -164,7 +164,7 @@ met_image = po.tools.convert_float_to_int(np.clip(met_image, 0, 1))
 imageio.imwrite("test.png", met_image)
 ```
 
-The metamer lies slightly outside the range `[0, 1]`, so we clip before saving as an image. Metamer's objective function has a quadratic penalty on the synthesized image's range, and the weight on this penalty can be adjusted by changing the value of `range_penalty_lambda` <!-- skip-lint --> at initialization.
+The metamer lies slightly outside the range `[0, 1]`, so we clip before saving as an image. Metamer's objective function has a quadratic penalty on the synthesized image's range, and the weight on this penalty can be adjusted by changing the value of `penalty_lambda` <!-- skip-lint --> at initialization.
 
 You can also save the entire {class}`~plenoptic.synthesize.metamer.Metamer` object with its {func}`~plenoptic.synthesize.metamer.Metamer.save` method. This can be fairly large (depending on how many iterations you ran it for and how frequently you stored progress), but stores all information:
 
@@ -208,6 +208,60 @@ met.synthesize()
 ```
 
 {func}`~plenoptic.synthesize.metamer.Metamer.setup` also accepts a `scheduler` argument, so that you can pass a [pytorch scheduler](https://docs.pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate), which modifies the learning rate during optimization.
+
+(metamer-regularization)=
+### Regularization penalty
+
+It is sometimes useful to control properties of the synthesized metamer beyond
+those captured by the input model. Some examples include controlling the range
+of pixel values, penalizing high frequencies, or matching the spectrum of the target image.
+
+For this purpose, the {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` class
+takes an optional `penalty_function` argument at initialization.
+The `penalty_function` is a callable that takes as an input the synthesized metamer
+image, and returns a scalar penalty. This scalar penalty is added to the loss
+during optimization, and it can be used to control certain properties of the
+synthesized metamer.
+
+For example, the default `penalty_function` uses the
+{func} `penalize_range <plenoptic.tools.regularization.penalize_range>` function
+to penalize pixel values that fall outside the range [0, 1], helping to keep the
+synthesized metamer within this range. The user can pass custom penalty functions
+that control other properties of the synthesized metamer.
+For example, we can constrain the image pixels to fall inside a different range,
+by using the argument `allowed_range` in the
+{func} `penalize_range <plenoptic.tools.regularization.penalize_range>` function
+to define a new range penalization. Below we show how to constrain the
+pixel range to be between 0.2 and 0.8.
+
+```{code-cell} ipython3
+from plenoptic.tools import regularization
+
+
+# Create custom_penalty function, that penalizes pixels outside of [0.2, 0.8] range
+def custom_penalty(image):
+    penalty = regularization.penalize_range(image, allowed_range=(0.2, 0.8))
+    return penalty
+
+
+# Pass the custom_penalty function to the Metamer class, and synthesize the metamer
+met = po.synth.Metamer(
+    img,
+    model,
+    penalty_function=custom_penalty,
+)
+met.synthesize(store_progress=True, max_iter=50)
+
+po.synth.metamer.plot_pixel_values(met)
+```
+
+We see that the metamer pixel histogram ranges from 0.2 to 0.8, while
+the original target image ranges from 0.0 to 1.0.
+
+The {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` class also has a
+`penalty_lambda` argument, that weighs the contribution of the penalty function
+to optimization.
+
 
 (metamer-coarse-to-fine)=
 ### Coarse-to-fine optimization

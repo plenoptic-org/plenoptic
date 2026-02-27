@@ -10,12 +10,13 @@ import importlib
 import inspect
 import math
 import warnings
+from collections.abc import Callable
 from typing import Any, Literal
 
 import numpy as np
 import torch
 
-from ..tools import examine_saved_synthesis
+from ..tools import examine_saved_synthesis, regularization
 from ..tools.data import _check_tensor_equality
 from ..tools.io import _parse_save_io_attr_name
 
@@ -86,7 +87,7 @@ class Synthesis(abc.ABC):
             The path to save the synthesis object to.
         save_io_attrs
             List with tuples of form (str, (str, ...)). The first element is the name of
-            the attribute to we save, and the second element is a tuple of attributes of
+            the attribute to save, and the second element is a tuple of attributes of
             the Synthesis object, which we can pass as inputs to the attribute. We save
             them as tuples of (name, input_names, outputs). On load, we check that the
             initialized object's name hasn't changed, and that when called on the same
@@ -262,9 +263,18 @@ class Synthesis(abc.ABC):
         # all attributes set at initialization should be present in the saved dictionary
         init_not_save = set(vars(self)) - set(tmp_dict)
         if len(init_not_save):
-            # in PR #370 (release 1.3.1), added _current_loss attribute, which we'll
-            # handle for now, but warn about.
-            if init_not_save == {"_current_loss"}:
+            compat_attrs = {"_current_loss", "penalty_function", "_penalty_lambda"}
+            if not init_not_save.issubset(compat_attrs):
+                init_not_save_str = "\n ".join(
+                    [f"{k}: {getattr(self, k)}" for k in init_not_save]
+                )
+                raise ValueError(
+                    f"Initialized object has {len(init_not_save)} attribute(s) "
+                    f"not present in the saved object!\n {init_not_save_str}"
+                )
+            if "_current_loss" in init_not_save:
+                # in PR #370 (release 1.3.1), added _current_loss attribute, which we'll
+                # handle for now, but warn about.
                 tmp_dict["_current_loss"] = None
                 warnings.warn(
                     "The saved object was saved with plenoptic 1.3.0 or earlier and "
@@ -274,13 +284,39 @@ class Synthesis(abc.ABC):
                     "saved object futureproof and avoid this warning.",
                     category=FutureWarning,
                 )
-            else:
-                init_not_save_str = "\n ".join(
-                    [f"{k}: {getattr(self, k)}" for k in init_not_save]
+            penalty_missing = init_not_save.intersection(
+                {"penalty_function", "_penalty_lambda"}
+            )
+            if penalty_missing:
+                # in PR #383, we added penalty_function and penalty_lambda attributes,
+                # which we'll handle for now, but warn about.
+                # Remove allowed_range and range_penalty_lambda so there's no extra key
+                # in saved dictionary
+                allowed_range = tmp_dict.pop("_allowed_range", (0, 1))
+
+                def penalize_range(img: torch.Tensor) -> torch.Tensor:
+                    # Defining `penalize_range` is necessary for compatibility between
+                    # old and new objects, see discussion in
+                    # https://github.com/plenoptic-org/plenoptic/pull/383#discussion_r2709817411
+                    return regularization.penalize_range(
+                        img, allowed_range=allowed_range
+                    )
+
+                tmp_dict["penalty_function"] = (
+                    _get_name(penalize_range),
+                    ("_image",),
+                    penalize_range(tmp_dict["_image"]),
                 )
-                raise ValueError(
-                    f"Initialized object has {len(init_not_save)} attribute(s) "
-                    f"not present in the saved object!\n {init_not_save_str}"
+                range_penalty_lambda = tmp_dict.pop("_range_penalty_lambda", 0.1)
+                tmp_dict["_penalty_lambda"] = range_penalty_lambda
+                warnings.warn(
+                    "The saved object was saved before penalty_function and "
+                    "penalty_lambda existed and will not be compatible with future "
+                    "releases. Save this object with the current version of plenoptic "
+                    "or see the 'Reproducibility and Compatibility' page of the "
+                    "documentation for how to make the saved object futureproof and "
+                    "avoid this warning.",
+                    category=FutureWarning,
                 )
         # there shouldn't be any extra keys in the saved dictionary (we removed
         # save_metadata above)
@@ -295,7 +331,7 @@ class Synthesis(abc.ABC):
             )
         for k in check_attributes:
             # The only hidden attributes we'd check are those like
-            # range_penalty_lambda, where this function is checking the
+            # penalty_lambda, where this function is checking the
             # hidden version (which starts with '_'), but during
             # initialization, the user specifies the version without
             # the initial underscore. This is because this function
@@ -520,18 +556,22 @@ class OptimizedSynthesis(Synthesis):
 
     Parameters
     ----------
-    range_penalty_lambda
-        Strength of the regularizer that enforces the allowed_range. Must be
-        non-negative.
-    allowed_range
-        Range (inclusive) of allowed pixel values. Any values outside this
-        range will be penalized.
+    penalty_function
+            A function applied to the metamer during optimization, that returns
+            a scalar penalty to be minimized. By penalizing certain properties of
+            the image, like pixels values outside an allowed range, we can constrain
+            those image properties. See :ref:`metamer-nb` in the documentation for
+            details and examples.
+    penalty_lambda
+        Weight of the penalty term. Must be non-negative.
     """
 
     def __init__(
         self,
-        range_penalty_lambda: float = 0.1,
-        allowed_range: tuple[float, float] = (0, 1),
+        penalty_function: Callable[
+            [torch.Tensor], torch.Tensor
+        ] = regularization.penalize_range,
+        penalty_lambda: float = 0.1,
     ):
         super().__init__()
         self._losses = []
@@ -540,10 +580,10 @@ class OptimizedSynthesis(Synthesis):
         self._store_progress = None
         self._optimizer = None
         self._current_loss = None
-        if range_penalty_lambda < 0:
-            raise Exception("range_penalty_lambda must be non-negative!")
-        self._range_penalty_lambda = range_penalty_lambda
-        self._allowed_range = allowed_range
+        self.penalty_function = penalty_function
+        if penalty_lambda < 0:
+            raise Exception("penalty_lambda must be non-negative!")
+        self._penalty_lambda = penalty_lambda
 
     @abc.abstractmethod
     def setup(self):
@@ -972,16 +1012,10 @@ class OptimizedSynthesis(Synthesis):
         return progress_info
 
     @property
-    def range_penalty_lambda(self) -> float:
-        """Magnitude of the penalty on pixel values outside :attr:`allowed_range`."""
+    def penalty_lambda(self) -> float:
+        """Magnitude of the regularization weight."""
         # numpydoc ignore=RT01,ES01
-        return self._range_penalty_lambda
-
-    @property
-    def allowed_range(self) -> tuple[float, float]:
-        """Allowable range of pixel values."""
-        # numpydoc ignore=RT01,ES01
-        return self._allowed_range
+        return self._penalty_lambda
 
     @property
     def losses(self) -> torch.Tensor:

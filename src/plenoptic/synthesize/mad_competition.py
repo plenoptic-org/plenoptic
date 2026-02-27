@@ -23,7 +23,7 @@ from pyrtools.tools.display import make_figure as pt_make_figure
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from ..tools import data, display, optim
+from ..tools import data, display, regularization
 from ..tools.convergence import _loss_convergence
 from ..tools.validate import validate_input, validate_metric
 from .synthesis import OptimizedSynthesis
@@ -64,11 +64,14 @@ class MADCompetition(OptimizedSynthesis):
         Lambda to multiply by ``reference_metric`` loss and add to
         ``optimized_metric`` loss. If ``None``, we pick a value so the two
         initial losses are approximately equal in magnitude.
-    range_penalty_lambda
-        Lambda to multiply by range penalty and add to loss.
-    allowed_range
-        Range (inclusive) of allowed pixel values. Any values outside this
-        range will be penalized.
+    penalty_function
+            A function applied to the metamer during optimization, that returns
+            a scalar penalty to be minimized. By penalizing certain properties of
+            the image, like pixels values outside an allowed range, we can constrain
+            those image properties. See :ref:`metamer-nb` in the documentation for
+            details and examples.
+    penalty_lambda
+        Weight of the penalty term. Must be non-negative.
 
     References
     ----------
@@ -85,11 +88,13 @@ class MADCompetition(OptimizedSynthesis):
         reference_metric: torch.nn.Module | Callable[[Tensor, Tensor], Tensor],
         minmax: Literal["min", "max"],
         metric_tradeoff_lambda: float | None = None,
-        range_penalty_lambda: float = 0.1,
-        allowed_range: tuple[float, float] = (0, 1),
+        penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
+        penalty_lambda: float = 0.1,
     ):
-        super().__init__(range_penalty_lambda, allowed_range)
-        validate_input(image, allowed_range=allowed_range)
+        super().__init__(
+            penalty_function=penalty_function, penalty_lambda=penalty_lambda
+        )
+        validate_input(image)
         validate_metric(
             optimized_metric,
             image_shape=image.shape,
@@ -235,7 +240,6 @@ class MADCompetition(OptimizedSynthesis):
             if initial_noise is None:
                 initial_noise = 0.1
             mad_image = self.image + initial_noise * torch.randn_like(self.image)
-            mad_image = mad_image.clamp(*self.allowed_range)
             self._initial_image = mad_image.clone()
             mad_image.requires_grad_()
             self._mad_image = mad_image
@@ -353,8 +357,8 @@ class MADCompetition(OptimizedSynthesis):
         :math:`L_1` is :attr:`optimized_metric`, :math:`L_2` is
         :attr:`reference_metric`, :math:`x` is :attr:`image`, :math:`\hat{x}` is
         :attr:`mad_image`, :math:`\epsilon` is the initial noise, :math:`\mathcal{B}` is
-        the quadratic bound penalty, :math:`\lambda_1` is :attr:`metric_tradeoff_lambda`
-        and :math:`\lambda_2` is :attr:`range_penalty_lambda`.
+        the penalty function, :math:`\lambda_1` is :attr:`metric_tradeoff_lambda`
+        and :math:`\lambda_2` is :attr:`penalty_lambda`.
 
         Parameters
         ----------
@@ -382,11 +386,11 @@ class MADCompetition(OptimizedSynthesis):
         fixed_loss = (
             self._reference_metric_target - self.reference_metric(image, mad_image)
         ).pow(2)
-        range_penalty = optim.penalize_range(mad_image, self.allowed_range)
+        penalty = self.penalty_function(mad_image)
         return (
             synth_target * synthesis_loss
             + self.metric_tradeoff_lambda * fixed_loss
-            + self.range_penalty_lambda * range_penalty
+            + self.penalty_lambda * penalty
         )
 
     def get_progress(
@@ -586,6 +590,7 @@ class MADCompetition(OptimizedSynthesis):
         save_io_attrs = [
             ("_optimized_metric", ("_image", "_mad_image")),
             ("_reference_metric", ("_image", "_mad_image")),
+            ("penalty_function", ("_image",)),
         ]
         save_state_dict_attrs = ["_optimizer", "_scheduler"]
         super().save(file_path, save_io_attrs, save_state_dict_attrs)
@@ -703,8 +708,8 @@ class MADCompetition(OptimizedSynthesis):
             If the object saved at ``file_path`` is not a ``MADCompetition`` object.
         ValueError
             If the saved and loading ``MADCompetition`` objects have a different value
-            for any of :attr:`image`, :attr:`range_penalty_lambda`,
-            :attr:`allowed_range`, :attr:`metric_tradeoff_lambda`, or :attr:`minmax`.
+            for any of :attr:`image`, :attr:`penalty_lambda`,
+            :attr:`metric_tradeoff_lambda`, or :attr:`minimax`.
         ValueError
             If the behavior of :attr:`optimized_metric` or :attr:`reference_metric` is
             different between the saved and loading objects.
@@ -740,13 +745,13 @@ class MADCompetition(OptimizedSynthesis):
         check_attributes = [
             "_image",
             "_metric_tradeoff_lambda",
-            "_range_penalty_lambda",
-            "_allowed_range",
+            "_penalty_lambda",
             "_minmax",
         ]
         check_io_attrs = [
             ("_optimized_metric", ("_image", "_mad_image")),
             ("_reference_metric", ("_image", "_mad_image")),
+            ("penalty_function", ("_image",)),
         ]
         super().load(
             file_path,
@@ -1047,7 +1052,7 @@ def plot_pixel_values(
     Plot histogram of pixel values of reference and MAD images.
 
     As a way to check the distributions of pixel intensities and see
-    if there's any values outside the allowed range.
+    if there's any values outside the preferred range.
 
     Parameters
     ----------
