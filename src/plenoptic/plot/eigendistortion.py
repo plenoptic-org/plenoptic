@@ -9,7 +9,7 @@ import torch
 from matplotlib.figure import Figure
 from torch import Tensor
 
-from ..synthesize import Eigendistortion
+from .._synthesize import Eigendistortion
 from .display import imshow
 
 __all__ = [

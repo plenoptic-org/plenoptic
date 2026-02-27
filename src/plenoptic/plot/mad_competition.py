@@ -10,7 +10,7 @@ import torch
 from pyrtools.tools.display import make_figure as pt_make_figure
 
 from .. import tensors
-from ..synthesize import MADCompetition
+from .._synthesize import MADCompetition
 from . import display
 
 __all__ = [

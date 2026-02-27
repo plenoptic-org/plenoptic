@@ -10,7 +10,7 @@ import numpy as np
 from torch import Tensor
 
 from .. import tensors
-from ..synthesize import Metamer
+from .._synthesize import Metamer
 from . import display
 
 __all__ = [

@@ -23,8 +23,8 @@ They must return a single ``bool``: ``True`` if we've reached convergence,
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..synthesize.mad_competition import MADCompetition
-    from ..synthesize.metamer import Metamer, MetamerCTF
+    from ._synthesize.mad_competition import MADCompetition
+    from ._synthesize.metamer import Metamer, MetamerCTF
 
 
 __all__ = []
