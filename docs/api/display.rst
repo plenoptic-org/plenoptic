@@ -8,7 +8,7 @@ Display
 
 These functions all are intended to help visualize the status and outputs of `synthesis objects <synthesis-api>`_.
 
-.. rubric:: :class:`plenoptic.Metamer` / :class:`plenoptic.MetamerCTF`
+.. rubric:: :class:`~plenoptic.Metamer` / :class:`~plenoptic.MetamerCTF`
    :heading-level: 4
 
 .. currentmodule:: plenoptic.plot
@@ -23,7 +23,7 @@ These functions all are intended to help visualize the status and outputs of `sy
    ~metamer_synthesis_status
    ~metamer_animate
 
-.. rubric:: :class:`plenoptic.MADCompetition`
+.. rubric:: :class:`~plenoptic.MADCompetition`
    :heading-level: 4
 .. autosummary::
    :signatures: none
@@ -37,7 +37,7 @@ These functions all are intended to help visualize the status and outputs of `sy
    ~mad_synthesis_status
    ~mad_animate
 
-.. rubric:: :class:`plenoptic.Eigendistortion`
+.. rubric:: :class:`~plenoptic.Eigendistortion`
    :heading-level: 4
 .. autosummary::
    :signatures: none
