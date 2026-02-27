@@ -3,7 +3,7 @@
 Models
 ------
 
-Models give a response to a single stimulus and are compatible with :class:`~plenoptic.synthesize.metamer.Metamer` and :class:`~plenoptic.synthesize.eigendistortion.Eigendistortion`, and can be turned into :ref:`metrics-api` by using the :func:`~plenoptic.metric.model_metric_factory` function.
+Models give a response to a single stimulus and are compatible with :class:`~plenoptic.Metamer` and :class:`~plenoptic.Eigendistortion`, and can be turned into :ref:`metrics-api` by using the :func:`~plenoptic.metric.model_metric_factory` function.
 
 See :ref:`models-doc` for more details.
 

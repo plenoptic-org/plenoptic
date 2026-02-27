@@ -3,7 +3,7 @@
 Metrics
 -------
 
-Metrics compare two stimuli and are compatible with :class:`~plenoptic.synthesize.mad_competition.MADCompetition`.
+Metrics compare two stimuli and are compatible with :class:`~plenoptic.MADCompetition`.
 
 See :ref:`metric-def` for more details.
 
