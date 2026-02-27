@@ -325,7 +325,6 @@ api_order = [
     "synthesis.rst",
     "models.rst",
     "metrics.rst",
-    "synthesis_helper.rst",
     "display.rst",
     "components.rst",
     "images.rst",
