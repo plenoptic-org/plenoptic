@@ -513,12 +513,12 @@ def validate_penalty(
 
     >>> import plenoptic as po
     >>> import torch
-    >>> def failure_penalty(img):
-    ...     non_scalar = img**2
-    ...     return non_scalar
-    >>> po.tools.validate.validate_penalty(failure_penalty)  # doctest: +ELLIPSIS
+    >>> def failure_penalty_dtype(img):
+    ...     wrong_dtype = torch.mean(img)
+    ...     return non_scalar.to(dtype=torch.float64)
+    >>> po.tools.validate.validate_penalty(failure_penalty_dtype)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ValueError: penalty_function should return a scalar value but...
+    ValueError: penalty_function should return a real...
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
