@@ -259,11 +259,19 @@ class Synthesis(abc.ABC):
         )
         metadata = tmp_dict.pop("save_metadata")
         if metadata["synthesis_object"] != _get_name(self):
-            raise ValueError(
-                f"Saved object was a {metadata['synthesis_object']}"
-                f", but initialized object is {_get_name(self)}! "
-                f"{check_str}"
+            # in PR #418 (release 2.0.0), moved module of synthesis objects from
+            # plenoptic.synthesize to plenoptic._synthesize (publicly, these now all
+            # live under the top-level module, but that's not what we .__module__
+            # returns)
+            obj_name = metadata["synthesis_object"].replace(
+                ".synthesize", "._synthesize"
             )
+            if obj_name != _get_name(self):
+                raise ValueError(
+                    f"Saved object was a {metadata['synthesis_object']}"
+                    f", but initialized object is {_get_name(self)}! "
+                    f"{check_str}"
+                )
         # all attributes set at initialization should be present in the saved dictionary
         init_not_save = set(vars(self)) - set(tmp_dict)
         if len(init_not_save):
