@@ -877,6 +877,11 @@ def metamer_synthesis_status(
     specified by including their name in the ``included_plots`` list. All plots
     can be created separately using the method with the same name.
 
+    .. versionchanged:: 2.0
+       In addition to the name of this function changing, the strings that can
+       be passed to ``included_plots`` have been changed to reflect the current
+       names of the corresponding functions.
+
     Parameters
     ----------
     metamer
@@ -1154,6 +1159,11 @@ def metamer_animate(
     and on your path, e.g., ffmpeg, imagemagick, etc). See
     :doc:`matplotlib documentation <matplotlib:api/animation_api>` for more details.
 
+    .. versionchanged:: 2.0
+       In addition to the name of this function changing, the strings that can
+       be passed to ``included_plots`` have been changed to reflect the current
+       names of the corresponding functions.
+
     Parameters
     ----------
     metamer
@@ -1215,7 +1225,7 @@ def metamer_animate(
         The size of the figure to create. It may take a little bit of
         playing around to find a reasonable value. If ``None``, we attempt to
         make our best guess, aiming to have each axis be of size ``(5, 5)``.
-    included_plots :
+    included_plots
         Which plots to include. Must be some subset of ``'metamer_image',
         'metamer_loss', 'metamer_representation_error', 'metamer_pixel_values'``.
     width_ratios

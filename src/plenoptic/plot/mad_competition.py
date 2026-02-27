@@ -502,6 +502,11 @@ def mad_synthesis_status(
     specified by including their name in the ``included_plots`` list. All plots
     can be created separately using the method with the same name.
 
+    .. versionchanged:: 2.0
+       In addition to the name of this function changing, the strings that can
+       be passed to ``included_plots`` have been changed to reflect the current
+       names of the corresponding functions.
+
     Parameters
     ----------
     mad
@@ -653,6 +658,11 @@ def mad_animate(
     case, this can take a while and you'll need the appropriate writer installed
     and on your path, e.g., ffmpeg, imagemagick, etc). See
     :doc:`matplotlib documentation <matplotlib:api/animation_api>` for more details.
+
+    .. versionchanged:: 2.0
+       In addition to the name of this function changing, the strings that can
+       be passed to ``included_plots`` have been changed to reflect the current
+       names of the corresponding functions.
 
     Parameters
     ----------
