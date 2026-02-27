@@ -8,7 +8,7 @@ Display
 
 These functions all are intended to help visualize the status and outputs of `synthesis objects <synthesis-api>`_.
 
-.. rubric:: Metamer / MetamerCTF
+.. rubric:: :class:`plenoptic.Metamer` / :class:`plenoptic.MetamerCTF`
    :heading-level: 4
 
 .. currentmodule:: plenoptic.plot
@@ -23,7 +23,7 @@ These functions all are intended to help visualize the status and outputs of `sy
    ~metamer_synthesis_status
    ~metamer_animate
 
-.. rubric:: MAD Competition
+.. rubric:: :class:`plenoptic.MADCompetition`
    :heading-level: 4
 .. autosummary::
    :signatures: none
@@ -37,7 +37,7 @@ These functions all are intended to help visualize the status and outputs of `sy
    ~mad_synthesis_status
    ~mad_animate
 
-.. rubric:: Eigendistortion
+.. rubric:: :class:`plenoptic.Eigendistortion`
    :heading-level: 4
 .. autosummary::
    :signatures: none
@@ -49,7 +49,7 @@ These functions all are intended to help visualize the status and outputs of `sy
 .. rubric:: Tensors
    :heading-level: 3
 
-The following functions can be used to visualize :class:`torch.Tensor` directly: images, videos, and model representations.
+The following functions can be used to visualize :class:`torch.Tensor` objects directly: images, videos, and model representations.
 
 .. currentmodule:: plenoptic.plot
 .. autosummary::
