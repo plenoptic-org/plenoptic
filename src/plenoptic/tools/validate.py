@@ -168,8 +168,9 @@ def validate_model(
     Warns
     -----
     UserWarning
-       If ``model`` is in training mode or returns an output with other than 3 or 4
-       dimensions.
+       If ``model`` is in training mode.
+    UserWarning
+       If returns an output with other than 3 or 4 dimensions.
 
     See Also
     --------
