@@ -515,10 +515,10 @@ def validate_penalty(
     >>> import torch
     >>> def failure_penalty_dtype(img):
     ...     wrong_dtype = torch.mean(img)
-    ...     return non_scalar.to(dtype=torch.float64)
-    >>> po.tools.validate.validate_penalty(failure_penalty_dtype)  # doctest: +ELLIPSIS
+    ...     return wrong_dtype.to(dtype=torch.float64)
+    >>> po.tools.validate.validate_penalty(failure_penalty_dtype)
     Traceback (most recent call last):
-    ValueError: penalty_function should return a real...
+    TypeError: penalty_function should return a real...
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
