@@ -51,6 +51,11 @@ extensions = [
 
 if not os.environ.get("SKIP_MPL"):
     extensions.append("matplotlib.sphinxext.plot_directive")
+else:
+    print(
+        "Not running Matplotlib plot directive blocks. This will result "
+        "in a lot of warnings."
+    )
 
 numfig = True
 add_module_names = False
