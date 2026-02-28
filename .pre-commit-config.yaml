@@ -1,6 +1,6 @@
 repos:
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.12.12
+  rev: v0.15.2
   hooks:
     # Run the formatter.
     - id: ruff-format
@@ -10,7 +10,7 @@ repos:
       args: [--config=pyproject.toml]
 
 - repo: https://github.com/numpy/numpydoc
-  rev: v1.9.0
+  rev: v1.10.0
   hooks:
     - id: numpydoc-validation
       exclude: |
