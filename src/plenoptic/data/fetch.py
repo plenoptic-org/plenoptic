@@ -48,7 +48,7 @@ REGISTRY = {
     "ps_regression.tar.gz": "7520ed2dbcb2647ac814a02e436e1f1e41fb06ca2534561c83f9e76193a12108",  # noqa: E501
     "example_metamer_gaussian.pt": "de3859a6e622f1dd38e614fef1aa017466270a61e96cc074f4337ee00c73887a",  # noqa: E501
     "example_metamer_gaussian-cuda.pt": "4affdaa1903f3973eaeac4b43ea7d0b1f16c6525efa80d2474199904aafa243e",  # noqa: E501
-    "example_metamerCTF_ps.pt": "9a0e0a2629d86c1fbea460b915d1ecae3f8ab60f3f144d312001a5312e6aace0",  # noqa: E501
+    "example_metamerCTF_ps.pt": "d4f4828bde3a18a341ec17101388e35c6eb39cb7c63739ae8277823ecd03f1ae",  # noqa: E501
     "example_metamerCTF_ps-cuda.pt": "d6e3a013263e93004468596a9abcf0f42b6e507733f4771a2654b0c2a5265e92",  # noqa: E501
 }
 
