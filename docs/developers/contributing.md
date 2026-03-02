@@ -451,7 +451,7 @@ on top of deprecation warnings from our dependencies. There are several ways to
 avoid warnings in tests, in order from most-to-least preferred:
 
 - Write tests such that they avoid warnings. For example, all synthesis methods
-  call {func}`~plenoptic.tools.validate.validate_model`, which will raise a warning if the model is in "training
+  call {func}`~plenoptic.validate.validate_model`, which will raise a warning if the model is in "training
   mode" (e.g., `model.training` exists and is True). The default behavior of
   `torch.nn.Module` objects is to be in training mode after initialization.
   Thus, we call `model.eval` before passing a model to a synthesis method in a
@@ -597,7 +597,7 @@ the right device. Use it like so:
 ```python
 @pytest.mark.parametrize('model', ['SPyr', 'LNL'], indirect=True)
 def test_synth(curie_img, model):
-    met = po.synth.Metamer(curie_img, model)
+    met = po.Metamer(curie_img, model)
     met.synthesize()
 ```
 
@@ -626,10 +626,10 @@ All of our documentation is written as markdown files, with the extension `md`. 
 
 The text-based notebooks are tutorials and show how to use the various functions and classes contained in the package. If you add or change a substantial amount of code, please add a tutorial showing how to use it.
 
-In all markdown files, you should try to use sphinx's cross-reference syntax to refer to code objects in API documentation whenever one is mentioned. For example, you should refer to the {class}`~plenoptic.synthesize.metamer.Metamer` class as
+In all markdown files, you should try to use sphinx's cross-reference syntax to refer to code objects in API documentation whenever one is mentioned. For example, you should refer to the {class}`~plenoptic.Metamer` class as
 
 ```
-{class}`~plenoptic.synthesize.metamer.Metamer`
+{class}`~plenoptic.Metamer`
 ```
 
 You should similarly refer to code objects in other packages (e.g., pytorch and matplotlib), though the syntax is different. See [myst-parser docs](https://myst-parser.readthedocs.io/en/latest/syntax/cross-referencing.html#reference-roles) for more details and the existing documentation for more examples. As part of the pull request review process, we run linters that will check for missing cross-references. The only objects that can be referred to simply as `monospace` font are function arguments and generic attributes / method (e.g., saying that plenoptic models must have a `forward` <!-- skip-lint --> method). The linter will ignore all monospace font that have the word "argument" or "keyword" after them (e.g., "the `scales` keyword" or "the `scales` argument") or an html comment containing "skip-lint" (e.g., "the `scales` <!-- skip-lint --> method"; html comments are not rendered in sphinx).
@@ -746,7 +746,7 @@ Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/
     .. plot::
        :context: reset
 
-       >>> po.imshow(img)
+       >>> po.plot.imshow(img)
     ```
 
     whereas the following will succeed:
@@ -765,7 +765,7 @@ Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/
     .. plot::
        :context: close-figs
 
-       >>> po.imshow(img)
+       >>> po.plot.imshow(img)
     ```
 
     Note that the second block cannot have `:context: reset` or you will be unable to use the objects from the first block!

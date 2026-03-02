@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -21,7 +21,7 @@ Download this notebook: **{nb-download}`Steerable_Pyramid.ipynb`**!
 (ps-steer-pyr)=
 # Steerable Pyramid
 
-This tutorial walks through the basic features of the torch implementation of the Steerable Pyramid included in `plenoptic`, {class}`~plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq`, and as such describes some basic signal processing that may be useful when building models that process images. We use the steerable pyramid construction in the frequency domain, which provides perfect reconstruction (as long as the input has an even height and width, i.e., `256x256` not `255x255`) and allows for any number of orientation bands. For more details on steerable pyramids and how they are built, see the [pyrtools tutorial](inv:pyrtools:std:doc#tutorials/03_steerable_pyramids).
+This tutorial walks through the basic features of the torch implementation of the Steerable Pyramid included in `plenoptic`, {class}`~plenoptic.model_components.SteerablePyramidFreq`, and as such describes some basic signal processing that may be useful when building models that process images. We use the steerable pyramid construction in the frequency domain, which provides perfect reconstruction (as long as the input has an even height and width, i.e., `256x256` not `255x255`) and allows for any number of orientation bands. For more details on steerable pyramids and how they are built, see the [pyrtools tutorial](inv:pyrtools:std:doc#tutorials/03_steerable_pyramids).
 
 Here we will specifically focus on the specifics of the torch version and how it may be used in concert with other differentiable torch models.
 
@@ -38,8 +38,6 @@ from torch import nn
 from tqdm.auto import tqdm
 
 import plenoptic as po
-from plenoptic.simulate import SteerablePyramidFreq
-from plenoptic.tools.data import to_numpy
 
 # this notebook uses torchvision, which is an optional dependency.
 # if this fails, install torchvision in your plenoptic environment
@@ -61,7 +59,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 %autoreload 2
 
-# so that relative sizes of axes created by po.imshow and others look right
+# so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
 
@@ -88,9 +86,9 @@ Because of this we don't have direct access to a set of spatial filters for visu
 ```{code-cell} ipython3
 order = 3
 imsize = 64
-pyr = SteerablePyramidFreq(height=3, image_shape=[imsize, imsize], order=order).to(
-    DEVICE
-)
+pyr = po.model_components.SteerablePyramidFreq(
+    height=3, image_shape=[imsize, imsize], order=order
+).to(DEVICE)
 empty_image = torch.zeros((1, 1, imsize, imsize), dtype=dtype).to(DEVICE)
 pyr_coeffs = pyr.forward(empty_image)
 
@@ -104,7 +102,7 @@ reconList = []
 for scale, ori in itertools.product(range(pyr.num_scales), range(pyr.num_orientations)):
     reconList.append(pyr.recon_pyr(pyr_coeffs, [scale], [ori]))
 
-po.imshow(reconList, col_wrap=order + 1, vrange="indep1", zoom=2);
+po.plot.imshow(reconList, col_wrap=order + 1, vrange="indep1", zoom=2);
 ```
 
 We can see that this pyramid is representing a 3 scale 4 orientation decomposition: each row represents a single scale, which we can see because each filter is the same size. As the filter increases in size, we describe the scale as getting "coarser", and its spatial frequency selectivity moves to lower and lower frequencies (conversely, smaller filters are operating at finer scales, with selectivity to higher spatial frequencies). In a given column, all filters have the same orientation: the first column is vertical, the third horizontal, and the other two diagonals.
@@ -118,40 +116,40 @@ The included steerable pyramid operates on 4-dimensional tensors of shape `(batc
 ```{code-cell} ipython3
 im_batch = torch.cat([po.data.curie(), po.data.reptile_skin()], axis=0).to(DEVICE)
 print(im_batch.shape)
-po.imshow(im_batch)
+po.plot.imshow(im_batch)
 order = 3
 dim_im = 256
-pyr = SteerablePyramidFreq(height=4, image_shape=[dim_im, dim_im], order=order).to(
-    DEVICE
-)
+pyr = po.model_components.SteerablePyramidFreq(
+    height=4, image_shape=[dim_im, dim_im], order=order
+).to(DEVICE)
 pyr_coeffs = pyr(im_batch)
 ```
 
-By default, the output of the pyramid is stored as a dictionary whose keys are either a string for the `'residual_lowpass'` and `'residual_highpass'` bands or a tuple of `(scale_index, orientation_index)`. `plenoptic` provides a convenience function, {func}`~plenoptic.tools.display.pyrshow`, to visualize the pyramid's coefficients for each image and channel.
+By default, the output of the pyramid is stored as a dictionary whose keys are either a string for the `'residual_lowpass'` and `'residual_highpass'` bands or a tuple of `(scale_index, orientation_index)`. `plenoptic` provides a convenience function, {func}`~plenoptic.plot.pyrshow`, to visualize the pyramid's coefficients for each image and channel.
 
 ```{code-cell} ipython3
 print(pyr_coeffs.keys())
-po.pyrshow(pyr_coeffs, zoom=0.5, batch_idx=0)
-po.pyrshow(pyr_coeffs, zoom=0.5, batch_idx=1);
+po.plot.pyrshow(pyr_coeffs, zoom=0.5, batch_idx=0)
+po.plot.pyrshow(pyr_coeffs, zoom=0.5, batch_idx=1);
 ```
 
-For some applications, such as coarse-to-fine optimization procedures, it may be convenient to output a subset of the representation, including coefficients from only some scales. We do this by passing a `scales` argument to the forward method (a list containing a subset of the values found in {attr}`~plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq.scales`):
+For some applications, such as coarse-to-fine optimization procedures, it may be convenient to output a subset of the representation, including coefficients from only some scales. We do this by passing a `scales` argument to the forward method (a list containing a subset of the values found in {attr}`~plenoptic.model_components.SteerablePyramidFreq.scales`):
 
 ```{code-cell} ipython3
 # get the 3rd scale
 print(pyr.scales)
 pyr_coeffs_scale0 = pyr(im_batch, scales=[2])
-po.pyrshow(pyr_coeffs_scale0, zoom=2, batch_idx=0)
-po.pyrshow(pyr_coeffs_scale0, zoom=2, batch_idx=1);
+po.plot.pyrshow(pyr_coeffs_scale0, zoom=2, batch_idx=0)
+po.plot.pyrshow(pyr_coeffs_scale0, zoom=2, batch_idx=1);
 ```
 
-The above pyramid was the real pyramid but in many applications we might want the full complex pyramid output. This can be set using the `is_complex` argument. When `is_complex=True`, the pyramid uses a complex-valued filter, resulting in a complex-valued output. The real and imaginary components can be understood as the outputs of filters with identical scale and orientation, but different phases: the imaginary component is phase-shifted 90 degrees from the real (we refer to this matched pair of filters as a "quadrature pair"). This can be useful if you wish to construct a representation that is phase-insensitive (as complex cells in the primary visual cortex are believed to be), which can be done by computing the amplitude / complex modulus (e.g., call `torch.abs(x)`). {func}`~plenoptic.tools.signal.rectangular_to_polar` and {func}`~plenoptic.simulate.canonical_computations.non_linearities.rectangular_to_polar_dict` provide convenience wrappers for this functionality.
+The above pyramid was the real pyramid but in many applications we might want the full complex pyramid output. This can be set using the `is_complex` argument. When `is_complex=True`, the pyramid uses a complex-valued filter, resulting in a complex-valued output. The real and imaginary components can be understood as the outputs of filters with identical scale and orientation, but different phases: the imaginary component is phase-shifted 90 degrees from the real (we refer to this matched pair of filters as a "quadrature pair"). This can be useful if you wish to construct a representation that is phase-insensitive (as complex cells in the primary visual cortex are believed to be), which can be done by computing the amplitude / complex modulus (e.g., call `torch.abs(x)`). {func}`~plenoptic.model_components.rectangular_to_polar` and {func}`~plenoptic.model_components.rectangular_to_polar_dict` provide convenience wrappers for this functionality.
 
 ```{code-cell} ipython3
 order = 3
 height = 3
 
-pyr_complex = SteerablePyramidFreq(
+pyr_complex = po.model_components.SteerablePyramidFreq(
     height=height, image_shape=[256, 256], order=order, is_complex=True
 )
 pyr_complex.to(DEVICE)
@@ -161,8 +159,8 @@ pyr_coeffs_complex = pyr_complex(im_batch)
 ```{code-cell} ipython3
 # the same visualization machinery works for complex pyramidswhat is shown is the
 # magnitude of the coefficients
-po.pyrshow(pyr_coeffs_complex, zoom=0.5, batch_idx=0)
-po.pyrshow(pyr_coeffs_complex, zoom=0.5, batch_idx=1);
+po.plot.pyrshow(pyr_coeffs_complex, zoom=0.5, batch_idx=0)
+po.plot.pyrshow(pyr_coeffs_complex, zoom=0.5, batch_idx=1);
 ```
 
 Now that we have seen the basics of using the pyramid, it's worth noting the following: an important property of the steerable pyramid is that it should respect the generalized parseval theorem (i.e. the energy of the pyramid coefficients should equal the energy of the original image). The [matlabpyrtools](https://github.com/LabForComputationalVision/matlabPyrTools) and [pyrtools](inv:pyrtools:std:doc#index) versions of the SteerablePyramid DO NOT respect this, so in our version, we have provided a fix that normalizes the FFTs such that energy is preserved. This is set using the `tight_frame=True` when instantiating the pyramid. However, if you require matching the outputs to the matlabPyrTools or PyrTools versions, please note that you will need to set this argument to `False`.
@@ -175,7 +173,7 @@ The steerable pyramid included in plenoptic operates in the frequency domain and
 class PaddedSteerPyr(torch.nn.Module):
     def __init__(self, image_shape, padding_pixels=12, height="auto", order=3):
         super().__init__()
-        self.pyr = SteerablePyramidFreq(
+        self.pyr = po.model_components.SteerablePyramidFreq(
             [s + 2 * padding_pixels for s in image_shape], height=height, order=order
         )
         self.padder = torch.nn.ZeroPad2d(padding_pixels)
@@ -190,7 +188,7 @@ class PaddedSteerPyr(torch.nn.Module):
 ppyr = PaddedSteerPyr(im_batch.shape[-2:], height=3)
 ppyr.to(DEVICE)
 ppyr_coeffs = ppyr(im_batch)
-po.pyrshow(ppyr_coeffs);
+po.plot.pyrshow(ppyr_coeffs);
 ```
 
 You can see the boundary effect in the above coefficients, as a faint "frame". For that reason, you may want to make use of [Torchvision's CenterCrop module](https://pytorch.org/vision/master/generated/torchvision.transforms.CenterCrop.html) to build a similar module that pads your input and crops your output, so that the returned tensors are the same shape as they would be without padding:
@@ -199,7 +197,7 @@ You can see the boundary effect in the above coefficients, as a faint "frame". F
 class PaddedCroppedSteerPyr(torch.nn.Module):
     def __init__(self, image_shape, padding_pixels=10, height="auto", order=3):
         super().__init__()
-        self.pyr = SteerablePyramidFreq(
+        self.pyr = po.model_components.SteerablePyramidFreq(
             [s + 2 * padding_pixels for s in image_shape], height=height, order=order
         )
         self.padder = torch.nn.ZeroPad2d(padding_pixels)
@@ -231,13 +229,13 @@ class PaddedCroppedSteerPyr(torch.nn.Module):
 ```{code-cell} ipython3
 pcpyr = PaddedCroppedSteerPyr(im_batch.shape[-2:], height=3)
 pcpyr.to(DEVICE)
-pyr = SteerablePyramidFreq(im_batch.shape[-2:], height=3)
+pyr = po.model_components.SteerablePyramidFreq(im_batch.shape[-2:], height=3)
 pyr.to(DEVICE)
 # check that the coefficients are the same shape as when you have no padding
 pcpyr_coeffs = pcpyr(im_batch)
 for k, v in pyr(im_batch).items():
     assert v.shape == pcpyr_coeffs[k].shape
-po.pyrshow(pcpyr_coeffs);
+po.plot.pyrshow(pcpyr_coeffs);
 ```
 
 ## Putting the "Steer" in Steerable Pyramid
@@ -248,16 +246,16 @@ Below we steer a set of coefficients through a series of angles and visualize ho
 ```{code-cell} ipython3
 # note that steering is currently only implemented for real pyramids, so the is_complex
 # argument must be False (as it is by default)
-pyr = SteerablePyramidFreq(height=3, image_shape=[256, 256], order=3, twidth=1).to(
-    DEVICE
-)
+pyr = po.model_components.SteerablePyramidFreq(
+    height=3, image_shape=[256, 256], order=3, twidth=1
+).to(DEVICE)
 coeffs = pyr(im_batch)
 
 resteered_coeffs, _ = pyr.steer_coeffs(coeffs, torch.linspace(0, 2 * torch.pi, 64))
 # play around with different scales! Coarser scales tend to make the steering a bit
 # more obvious.
 target_scale = 2
-po.animshow(
+po.plot.animshow(
     resteered_coeffs[target_scale], framerate=6, repeat=True, zoom=2**target_scale
 )
 ```
@@ -270,12 +268,12 @@ In this section we will demonstrate how the plenoptic steerable pyramid can be m
 
 ### Preliminaries
 
-Most standard model architectures only accept channels with fixed shape, but each scale of the pyramid coefficients has a different shape (because each scale is downsampled by a factor of 2). In order to obtain an output amenable to downstream processing by standard torch modules, we have created an argument to the pyramid (`downsample=False`) that does not downsample the frequency masks at each scale and thus maintains output feature maps that all have a fixed size. Once you have done this, you can then convert the dictionary into a tensor of size `(batch, channel, height, width)` so that it can easily be passed to a downstream {class}`~plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq.convert_pyr_to_tensor` function within the SteerablePyramidFreq class. Let's try this and look at the first image both in the downsampled and not downsampled versions:
+Most standard model architectures only accept channels with fixed shape, but each scale of the pyramid coefficients has a different shape (because each scale is downsampled by a factor of 2). In order to obtain an output amenable to downstream processing by standard torch modules, we have created an argument to the pyramid (`downsample=False`) that does not downsample the frequency masks at each scale and thus maintains output feature maps that all have a fixed size. Once you have done this, you can then convert the dictionary into a tensor of size `(batch, channel, height, width)` so that it can easily be passed to a downstream {class}`~plenoptic.model_components.SteerablePyramidFreq.convert_pyr_to_tensor` function within the SteerablePyramidFreq class. Let's try this and look at the first image both in the downsampled and not downsampled versions:
 
 ```{code-cell} ipython3
 height = 3
 order = 3
-pyr_fixed = SteerablePyramidFreq(
+pyr_fixed = po.model_components.SteerablePyramidFreq(
     height=height,
     image_shape=[256, 256],
     order=order,
@@ -295,7 +293,7 @@ print(pyr_coeffs_fixed.shape, pyr_coeffs_fixed.dtype)
 
 We can see that in this complex pyramid with 4 scales and 3 orientations there will be 26 channels: 4 scales x 3 orientations x 2 (for real and imaginary featuremaps) + 2 (for the residual bands).
 
-In order to display the coefficients, we need to convert the tensor coefficients back to a dictionary. We can do this by using the {func}`~plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq.convert_tensor_to_pyr` method. We can check that these are equal.
+In order to display the coefficients, we need to convert the tensor coefficients back to a dictionary. We can do this by using the {func}`~plenoptic.model_components.SteerablePyramidFreq.convert_tensor_to_pyr` method. We can check that these are equal.
 
 ```{code-cell} ipython3
 pyr_coeffs_fixed_1 = pyr_fixed(im_batch)
@@ -307,8 +305,8 @@ for k in pyr_coeffs_fixed_1:
 We can now plot the coefficients for the not downsampled version (`pyr_coeffs_complex` from the last section) and the downsampled version `pyr_coeffs_fixed_1` from above and see how they compare visually.
 
 ```{code-cell} ipython3
-po.pyrshow(pyr_coeffs_complex, zoom=0.5)
-po.pyrshow(pyr_coeffs_fixed_1, zoom=0.5);
+po.plot.pyrshow(pyr_coeffs_complex, zoom=0.5)
+po.plot.pyrshow(pyr_coeffs_fixed_1, zoom=0.5);
 ```
 
 We can see that the not downsampled version maintains the same features as the original pyramid, but with fixed feature maps that have spatial dimensions equal to the original image (256x256). However, the pixel magnitudes in the bands are different due to the fact that we are not downsampling in the frequency domain anymore. This can equivalently be thought of as the inverse operation of blurring and downsampling. Therefore the upsampled versions of each scale are not simply zero interpolated versions of the downsampled versions and thus the pixel values are non-trivially changed.
@@ -316,7 +314,7 @@ However, the energy in each band should be preserved between the two pyramids an
 
 ```{code-cell} ipython3
 # the following passes with tight_frame=True or tight_frame=False, either way.
-pyr_not_downsample = SteerablePyramidFreq(
+pyr_not_downsample = po.model_components.SteerablePyramidFreq(
     height=height,
     image_shape=[256, 256],
     order=order,
@@ -327,7 +325,7 @@ pyr_not_downsample = SteerablePyramidFreq(
 )
 pyr_not_downsample.to(DEVICE)
 
-pyr_downsample = SteerablePyramidFreq(
+pyr_downsample = po.model_components.SteerablePyramidFreq(
     height=height,
     image_shape=[256, 256],
     order=order,
@@ -341,8 +339,8 @@ pyr_coeffs_downsample = pyr_downsample(im_batch.to(DEVICE))
 pyr_coeffs_not_downsample = pyr_not_downsample(im_batch.to(DEVICE))
 for i in range(len(pyr_coeffs_downsample.keys())):
     k = list(pyr_coeffs_downsample.keys())[i]
-    v1 = to_numpy(pyr_coeffs_downsample[k])
-    v2 = to_numpy(pyr_coeffs_not_downsample[k])
+    v1 = po.to_numpy(pyr_coeffs_downsample[k])
+    v2 = po.to_numpy(pyr_coeffs_not_downsample[k])
     v1 = v1.squeeze()
     v2 = v2.squeeze()
     # check if energies match in each band between downsampled and fixed size pyramid
@@ -389,7 +387,7 @@ class PyrConvFull(nn.Module):
         self.is_complex = is_complex
 
         self.rect = nn.ReLU()
-        self.pyr = SteerablePyramidFreq(
+        self.pyr = po.model_components.SteerablePyramidFreq(
             height=self.scales,
             image_shape=self.imshape,
             order=self.order,

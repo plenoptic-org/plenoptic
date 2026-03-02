@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -49,13 +49,11 @@ import plenoptic as po
 import contextlib
 import os
 
-from plenoptic.data.fetch import fetch_data
-
 # the contextlib.redirect_stderr here is so that we don't print out the progressbar.
 # If you would like to see it, remove this line.
 with contextlib.redirect_stderr(open(os.devnull, "w")):
-    fetch_data("MAD_results.tar.gz")
-    fetch_data("ssim_images.tar.gz")
+    po.data.fetch_data("MAD_results.tar.gz")
+    po.data.fetch_data("ssim_images.tar.gz")
 ```
 
 ## SSIM
@@ -67,7 +65,7 @@ We have tests to show that this matches the output of the MATLAB code, won't sho
 ```{code-cell} ipython3
 img1 = po.data.einstein()
 img2 = po.data.curie()
-noisy = po.tools.add_noise(img1, [2, 4, 8])
+noisy = po.model_components.add_noise(img1, [2, 4, 8])
 ```
 
 We can see that increasing the noise level decreases the SSIM value, but not linearly
@@ -88,7 +86,7 @@ The following figure shows the results of MAD Competition synthesis using the or
 
 ```{code-cell} ipython3
 # We need to download some additional data for this portion of the notebook.
-fig, results = po.tools.external.plot_MAD_results("samp6", [128], vrange="row1", zoom=3)
+fig, results = po.external.plot_MAD_results("samp6", [128], vrange="row1", zoom=3)
 ```
 
 There's lots of info here, on the outputs of the MATLAB synthesis. We will later add stuff to investigate this using `plenoptic`.

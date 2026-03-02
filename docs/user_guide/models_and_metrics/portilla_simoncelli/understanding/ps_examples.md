@@ -69,18 +69,18 @@ CACHE_DIR = po.data.fetch_data("ps_regression.tar.gz")
 # use GPU if available
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# so that relative sizes of axes created by po.imshow and others look right
+# so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
 # set seed for reproducibility
-po.tools.set_seed(1)
+po.set_seed(1)
 ```
 
 :::{admonition} This notebook retrieves cached synthesis results
 :class: warning dropdown
 This notebook contains many metamers and, while any one synthesis operation does not take too long, all of them combined result in a lengthy notebook. Therefore, instead of performing synthesis in this notebook, we have cached the result of most of these syntheses online and only download them for investigation.
 
-Additionally, while you can normally call {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` again to pick up where we left out, the cached version of the results shown here discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
+Additionally, while you can normally call {func}`~plenoptic.Metamer.synthesize` again to pick up where we left out, the cached version of the results shown here discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(200)` with a new metamer object initialized as shown in this notebook.
 
 :::
 
@@ -101,18 +101,18 @@ Examples
 
 ```{code-cell} ipython3
 fig_name = "fig12c"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # fig12b is a sawtooth grating, with 4 scales the steerable pyramid's residual lowpass
 # is uniform and thus correlation between it and the coarsest scale is all NaNs (i.e.,
 # the last scale of auto_correlation_reconstructed is all NaNs)
 n_scales = 3 if fig_name == "fig12b" else 4
-model = po.simul.PortillaSimoncelli(img.shape[-2:], n_scales=n_scales).to(DEVICE)
-loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
+model = po.models.PortillaSimoncelli(img.shape[-2:], n_scales=n_scales).to(DEVICE)
+loss = po.optim.portilla_simoncelli_loss_factory(model, img)
 # to avoid running so many syntheses in this notebook, we load a cached version. see the
 # following admonition for how to run this yourself
-met = po.synth.Metamer(
+met = po.Metamer(
     img,
     model,
     loss_function=loss,
@@ -139,7 +139,7 @@ met.synthesize(max_iter=n_iters)
 :::
 
 ```{code-cell} ipython3
-po.imshow(
+po.plot.imshow(
     [met.image, met.metamer],
     title=["Target image", "Synthesized Metamer"],
     vrange="auto1",
@@ -167,15 +167,15 @@ Thus, by being able to distinguish these pairs of images, this model is able to 
 ```{code-cell} ipython3
 # Run on fig13a, fig13b, fig13c, fig13d to replicate examples in paper
 fig_name = "fig13a"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
-model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
-loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
+model = po.models.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
+loss = po.optim.portilla_simoncelli_loss_factory(model, img)
 # to avoid running so many syntheses in this notebook, we load a cached version. see the
 # following admonition for how to run this yourself
-met_left = po.synth.Metamer(
+met_left = po.Metamer(
     img,
     model,
     loss_function=loss,
@@ -204,11 +204,11 @@ met_left.synthesize(max_iter=n_iters)
 ```{code-cell} ipython3
 # Run on fig13a, fig13b, fig13c, fig13d to replicate examples in paper
 fig_name = "fig13b"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # Reuse the model and loss from above, only the loss is different
-met_right = po.synth.Metamer(
+met_right = po.Metamer(
     img,
     model,
     loss_function=loss,
@@ -237,7 +237,7 @@ met_right.synthesize(max_iter=n_iters)
 And note that the two synthesized images (right column) are as distinguishable from each other as the two hand-crafted counterexamples (left column):
 
 ```{code-cell} ipython3
-po.imshow(
+po.plot.imshow(
     [
         met_left.image,
         met_left.metamer,
@@ -264,12 +264,12 @@ Excerpt from paper: _"Figure 14 shows synthesis results photographic textures th
 ```{code-cell} ipython3
 # Run on fig14a, fig14b, fig14c, fig14d, fig14e to replicate examples in paper
 fig_name = "fig14a"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # We reuse the model and loss definition from the first section; the only difference
 # is the image.
-met = po.synth.Metamer(
+met = po.Metamer(
     img,
     model,
     loss_function=loss,
@@ -296,7 +296,7 @@ met.synthesize(max_iter=n_iters)
 :::
 
 ```{code-cell} ipython3
-po.imshow(
+po.plot.imshow(
     [met.image, met.metamer],
     title=["Target image", "Synthesized Metamer"],
     vrange="auto1",
@@ -312,12 +312,12 @@ Excerpt from paper: _"Figure 15 shows synthesis results for a set of photographi
 ```{code-cell} ipython3
 # Run on fig15a, fig15b, fig15c, fig15d to replicate examples in paper
 fig_name = "fig15a"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # We reuse the model and loss definition from the first section; the only difference
 # is the image.
-met = po.synth.Metamer(
+met = po.Metamer(
     img,
     model,
     loss_function=loss,
@@ -344,7 +344,7 @@ met.synthesize(max_iter=n_iters)
 :::
 
 ```{code-cell} ipython3
-po.imshow(
+po.plot.imshow(
     [met.image, met.metamer],
     title=["Target image", "Synthesized Metamer"],
     vrange="auto1",
@@ -360,12 +360,12 @@ Excerpt from paper: _"Figure 16 shows several examples of textures with complex 
 ```{code-cell} ipython3
 # Run on fig16a, fig16b, fig16c, fig16d, fig16e to replicate examples in paper
 fig_name = "fig16e"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # We reuse the model and loss definition from the first section; the only difference
 # is the image.
-met = po.synth.Metamer(
+met = po.Metamer(
     img,
     model,
     loss_function=loss,
@@ -392,7 +392,7 @@ met.synthesize(max_iter=n_iters)
 :::
 
 ```{code-cell} ipython3
-po.imshow(
+po.plot.imshow(
     [met.image, met.metamer],
     title=["Target image", "Synthesized metamer"],
     vrange="auto1",

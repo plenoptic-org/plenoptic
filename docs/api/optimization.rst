@@ -3,7 +3,7 @@
 Optimization
 ------------
 
-.. currentmodule:: plenoptic.tools.optim
+.. currentmodule:: plenoptic
 .. autosummary::
    :signatures: none
    :toctree: generated
@@ -13,8 +13,9 @@ Optimization
 .. rubric:: Loss functions
    :heading-level: 3
 
-The following functions can be used as the ``loss_function`` argument for :class:`~plenoptic.synthesize.metamer.Metamer` and :class:`~plenoptic.synthesize.metamer.MetamerCTF`.
+The following functions can be used as the ``loss_function`` argument for :class:`~plenoptic.Metamer` and :class:`~plenoptic.MetamerCTF`.
 
+.. currentmodule:: plenoptic.optim
 .. autosummary::
    :signatures: none
    :toctree: generated

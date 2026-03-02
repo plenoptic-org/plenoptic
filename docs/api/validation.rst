@@ -3,14 +3,24 @@
 Validation
 ----------
 
-The following functions are used to validate that the user-supplied inputs are compatible with our synthesis objects.
+As plenoptic requires models do not have gradients attached to their parameters, we provide a convenience function for removing them.
 
-.. currentmodule:: plenoptic.tools
+.. currentmodule:: plenoptic
 .. autosummary::
    :signatures: none
    :toctree: generated
 
-   ~validate.remove_grad
+   ~remove_grad
+
+.. rubric:: Validation functions
+   :heading-level: 3
+
+The following functions are used to validate that the user-supplied inputs are compatible with our synthesis objects.
+
+.. autosummary::
+   :signatures: none
+   :toctree: generated
+
    ~validate.validate_model
    ~validate.validate_input
    ~validate.validate_metric

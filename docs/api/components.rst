@@ -15,8 +15,8 @@ These functions are used by the :ref:`metrics-api` above. While they are not com
    :signatures: none
    :toctree: generated
 
-   ~perceptual_distance.ssim_map
-   ~perceptual_distance.normalized_laplacian_pyramid
+   ~ssim_map
+   ~normalized_laplacian_pyramid
 
 .. rubric:: Image pyramids
    :heading-level: 3
@@ -25,14 +25,14 @@ Image pyramids decompose images into bands corresponding to different spatial fr
 
 See :external+pyrtools:std:doc:`index` for more information, including links to resources for learning more.
 
-.. currentmodule:: plenoptic.simulate.canonical_computations
+.. currentmodule:: plenoptic.model_components
 .. autosummary::
    :signatures: none
    :toctree: generated
    :template: torch_module.rst.jinja
 
-   ~laplacian_pyramid.LaplacianPyramid
-   ~steerable_pyramid_freq.SteerablePyramidFreq
+   ~LaplacianPyramid
+   ~SteerablePyramidFreq
 
 .. rubric:: Filter construction functions
    :heading-level: 3
@@ -51,19 +51,18 @@ These convenience functions make it easier to construct some commonly-used filte
 
 This related set of functions convert between the rectangular and polar representations of a signal (or computing the norm and direction, which are the analogues for real-valued signals).
 
-.. currentmodule:: plenoptic
 .. autosummary::
    :signatures: none
    :toctree: generated
 
-   ~tools.signal.rectangular_to_polar
-   ~tools.signal.polar_to_rectangular
-   ~simulate.canonical_computations.non_linearities.local_gain_control
-   ~simulate.canonical_computations.non_linearities.local_gain_release
-   ~simulate.canonical_computations.non_linearities.rectangular_to_polar_dict
-   ~simulate.canonical_computations.non_linearities.polar_to_rectangular_dict
-   ~simulate.canonical_computations.non_linearities.local_gain_control_dict
-   ~simulate.canonical_computations.non_linearities.local_gain_release_dict
+   ~rectangular_to_polar
+   ~polar_to_rectangular
+   ~local_gain_control
+   ~local_gain_release
+   ~rectangular_to_polar_dict
+   ~polar_to_rectangular_dict
+   ~local_gain_control_dict
+   ~local_gain_release_dict
 
 The following table summarizes the relationship among these functions (where ➡ denotes from rectangular to polar and ⬅ is the inverse):
 
@@ -85,18 +84,17 @@ The following table summarizes the relationship among these functions (where ➡
 
 The following functions return a version of their input whose size has increased or decreased without further modifying its contents.
 
-.. currentmodule:: plenoptic.tools
 .. autosummary::
    :signatures: none
    :toctree: generated
 
-   ~conv.correlate_downsample
-   ~conv.blur_downsample
-   ~conv.upsample_convolve
-   ~conv.upsample_blur
-   ~conv.same_padding
-   ~signal.shrink
-   ~signal.expand
+   ~correlate_downsample
+   ~blur_downsample
+   ~upsample_convolve
+   ~upsample_blur
+   ~same_padding
+   ~shrink
+   ~expand
 
 .. rubric:: Image modification
    :heading-level: 3
@@ -107,10 +105,10 @@ The following functions return a modified version of their input.
    :signatures: none
    :toctree: generated
 
-   ~signal.rescale
-   ~signal.add_noise
-   ~signal.center_crop
-   ~signal.modulate_phase
+   ~rescale
+   ~add_noise
+   ~center_crop
+   ~modulate_phase
 
 .. rubric:: Image statistics
    :heading-level: 3
@@ -121,7 +119,7 @@ The following functions compute summary statistics of their inputs.
    :signatures: none
    :toctree: generated
 
-   ~signal.autocorrelation
-   ~stats.variance
-   ~stats.skew
-   ~stats.kurtosis
+   ~autocorrelation
+   ~variance
+   ~skew
+   ~kurtosis

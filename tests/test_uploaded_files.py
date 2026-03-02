@@ -20,8 +20,7 @@ from torchvision.models import feature_extraction
 
 import plenoptic as po
 from conftest import DEVICE, DEVICE2
-from plenoptic.data.fetch import fetch_data
-from plenoptic.tools.data import _check_tensor_equality
+from plenoptic.tensors import _check_tensor_equality
 
 
 def compare_eigendistortions(eig, eig_up, rtol=1e-5, atol=1e-7):
@@ -49,7 +48,7 @@ def compare_metamers(met, met_up, rtol=1e-5, atol=1e-7):
     )
 
 
-class PortillaSimoncelliRemove(po.simul.PortillaSimoncelli):
+class PortillaSimoncelliRemove(po.models.PortillaSimoncelli):
     r"""Model for measuring a subset of texture statistics reported by
     PortillaSimoncelli
 
@@ -116,7 +115,7 @@ class PortillaSimoncelliRemove(po.simul.PortillaSimoncelli):
         return stats_vec
 
 
-class PortillaSimoncelliMask(po.simul.PortillaSimoncelli):
+class PortillaSimoncelliMask(po.models.PortillaSimoncelli):
     r"""Extend the PortillaSimoncelli model to operate on masked images.
 
     Additional Parameters
@@ -187,7 +186,7 @@ class PortillaSimoncelliMask(po.simul.PortillaSimoncelli):
         return self.target * self.mask + image * (~self.mask)
 
 
-class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
+class PortillaSimoncelliMagMeans(po.models.PortillaSimoncelli):
     r"""Include the magnitude means in the PS texture representation.
 
     Parameters
@@ -276,25 +275,25 @@ class PortillaSimoncelliMagMeans(po.simul.PortillaSimoncelli):
 @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only do this on cuda")
 class TestDoctest:
     def test_eigendistortion(self, einstein_img_double):
-        po.tools.set_seed(0)
+        po.set_seed(0)
         os.makedirs("uploaded_files", exist_ok=True)
         torch.save(
             torch.random.get_rng_state(),
             "uploaded_files/torch_rng_state_eigendistortion.pt",
         )
         print(np.random.get_state())
-        lg = po.simul.LuminanceGainControl(
+        lg = po.models.LuminanceGainControl(
             (31, 31), pad_mode="circular", pretrained=True, cache_filt=True
         )
-        po.tools.remove_grad(lg)
+        po.remove_grad(lg)
         lg = lg.to(DEVICE).to(einstein_img_double.dtype)
         lg.eval()
-        eig = po.synth.Eigendistortion(einstein_img_double, lg)
+        eig = po.Eigendistortion(einstein_img_double, lg)
         eig.synthesize(max_iter=1000)
         eig.save("uploaded_files/example_eigendistortion.pt")
-        eig_up = po.synth.Eigendistortion(einstein_img_double, lg)
+        eig_up = po.Eigendistortion(einstein_img_double, lg)
         eig_up.load(
-            fetch_data("example_eigendistortion.pt"),
+            po.data.fetch_data("example_eigendistortion.pt"),
             tensor_equality_atol=1e-7,
             map_location=DEVICE,
         )
@@ -304,25 +303,25 @@ class TestDoctest:
         "ignore:Loss has converged, stopping synthesis:UserWarning"
     )
     def test_example_metamer_gaussian(self, einstein_img_double):
-        po.tools.set_seed(0)
+        po.set_seed(0)
         os.makedirs("uploaded_files", exist_ok=True)
         torch.save(
             torch.random.get_rng_state(),
             "uploaded_files/torch_rng_state_metamer_gaussian.pt",
         )
         print(np.random.get_state())
-        model = po.simul.Gaussian(30).eval()
-        po.tools.remove_grad(model)
+        model = po.models.Gaussian(30).eval()
+        po.remove_grad(model)
         model = model.to(DEVICE).to(einstein_img_double.dtype)
-        met = po.synth.Metamer(einstein_img_double, model)
+        met = po.Metamer(einstein_img_double, model)
         # needed to initialize optimizer for following, see issue #404
         met.setup()
         init_state_dict = met.optimizer.state_dict()
         met.synthesize(110, store_progress=10)
         met.save("uploaded_files/example_metamer_gaussian-cuda.pt")
-        met_up = po.synth.Metamer(einstein_img_double, model)
+        met_up = po.Metamer(einstein_img_double, model)
         met_up.load(
-            fetch_data("example_metamer_gaussian-cuda.pt"),
+            po.data.fetch_data("example_metamer_gaussian-cuda.pt"),
             tensor_equality_atol=1e-7,
             map_location=DEVICE,
         )
@@ -336,7 +335,7 @@ class TestDoctest:
         "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
     )
     def test_example_metamerCTF_ps(self):
-        po.tools.set_seed(0)
+        po.set_seed(0)
         os.makedirs("uploaded_files", exist_ok=True)
         torch.save(
             torch.random.get_rng_state(),
@@ -344,8 +343,8 @@ class TestDoctest:
         )
         print(np.random.get_state())
         img = po.data.reptile_skin().to(torch.float64).to(DEVICE)
-        model = po.simul.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
-        met = po.synth.MetamerCTF(img, model, po.tools.optim.l2_norm)
+        model = po.models.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
+        met = po.MetamerCTF(img, model, po.optim.l2_norm)
         # needed to initialize optimizer for following, see issue #404
         met.setup()
         init_state_dict = met.optimizer.state_dict()
@@ -353,9 +352,9 @@ class TestDoctest:
             150, change_scale_criterion=None, ctf_iters_to_check=7, store_progress=10
         )
         met.save("uploaded_files/example_metamerCTF_ps-cuda.pt")
-        met_up = po.synth.MetamerCTF(img, model, po.tools.optim.l2_norm)
+        met_up = po.MetamerCTF(img, model, po.optim.l2_norm)
         met_up.load(
-            fetch_data("example_metamerCTF_ps-cuda.pt"),
+            po.data.fetch_data("example_metamerCTF_ps-cuda.pt"),
             tensor_equality_atol=1e-7,
             map_location=DEVICE,
         )
@@ -375,28 +374,28 @@ class TestDoctest:
 class TestTutorialNotebooks:
     class TestDemoEigendistortion:
         def test_berardino_onoff(self, parrot_square_double):
-            po.tools.set_seed(0)
+            po.set_seed(0)
             os.makedirs("uploaded_files", exist_ok=True)
             torch.save(
                 torch.random.get_rng_state(),
                 "uploaded_files/torch_rng_state_berardino_onoff.pt",
             )
             print(np.random.get_state())
-            model = po.simul.OnOff(
+            model = po.models.OnOff(
                 (31, 31),
                 pretrained=True,
                 cache_filt=True,
                 apply_mask=True,
             )
-            po.tools.remove_grad(model)
+            po.remove_grad(model)
             model = model.to(DEVICE).to(parrot_square_double.dtype)
             model.eval()
-            eig = po.synth.Eigendistortion(parrot_square_double, model)
+            eig = po.Eigendistortion(parrot_square_double, model)
             eig.synthesize(k=3, method="power", max_iter=2000)
             eig.save("uploaded_files/berardino_onoff.pt")
-            eig_up = po.synth.Eigendistortion(parrot_square_double, model)
+            eig_up = po.Eigendistortion(parrot_square_double, model)
             eig_up.load(
-                fetch_data("berardino_onoff.pt"),
+                po.data.fetch_data("berardino_onoff.pt"),
                 tensor_equality_atol=1e-7,
                 map_location=DEVICE,
             )
@@ -420,7 +419,7 @@ class TestTutorialNotebooks:
                 """standardize the image for vgg16"""
                 return (img_tensor - img_tensor.mean()) / img_tensor.std()
 
-            po.tools.set_seed(0)
+            po.set_seed(0)
             os.makedirs("uploaded_files", exist_ok=True)
             torch.save(
                 torch.random.get_rng_state(),
@@ -431,17 +430,17 @@ class TestTutorialNotebooks:
                 weights=models.VGG16_Weights.IMAGENET1K_V1, progress=False
             )
             model = TorchVision(model, "features.11")
-            po.tools.remove_grad(model)
+            po.remove_grad(model)
             img = parrot_square_double.to(DEVICE2)
             img = normalize(img).repeat(1, 3, 1, 1)
             model = model.to(DEVICE2).to(img.dtype)
             model.eval()
-            eig = po.synth.Eigendistortion(img, model)
+            eig = po.Eigendistortion(img, model)
             eig.synthesize(k=2, method="power", max_iter=5000)
             eig.save("uploaded_files/berardino_vgg16.pt")
-            eig_up = po.synth.Eigendistortion(img, model)
+            eig_up = po.Eigendistortion(img, model)
             eig_up.load(
-                fetch_data("berardino_vgg16.pt"),
+                po.data.fetch_data("berardino_vgg16.pt"),
                 tensor_equality_atol=1e-7,
                 map_location=DEVICE2,
             )
@@ -456,7 +455,7 @@ class TestTutorialNotebooks:
     class TestPortillaSimoncelli:
         @pytest.fixture(scope="class")
         def ps_images(self):
-            img_dir = fetch_data("portilla_simoncelli_images.tar.gz")
+            img_dir = po.data.fetch_data("portilla_simoncelli_images.tar.gz")
             images = po.load_images(img_dir).to(DEVICE).to(torch.float64)
             filenames = [p.stem for p in sorted(img_dir.iterdir())]
             return images, filenames
@@ -469,7 +468,7 @@ class TestTutorialNotebooks:
 
         @pytest.fixture(scope="class")
         def ps_regression(self):
-            return fetch_data("ps_regression.tar.gz")
+            return po.data.fetch_data("ps_regression.tar.gz")
 
         @pytest.mark.parametrize(
             "fig_name",
@@ -509,7 +508,7 @@ class TestTutorialNotebooks:
         def test_ps_basic_synthesis(
             self, ps_images, fig_name, einstein_img_double, ps_regression
         ):
-            po.tools.set_seed(0)
+            po.set_seed(0)
             torch.save(
                 torch.random.get_rng_state(),
                 f"uploaded_files/torch_rng_state_ps_basic_{fig_name}.pt",
@@ -524,10 +523,10 @@ class TestTutorialNotebooks:
             # the coarsest scale is all NaNs (i.e., the last scale of
             # auto_correlation_reconstructed is all NaNs)
             n_scales = 3 if fig_name == "fig12b" else 4
-            model = po.simul.PortillaSimoncelli(img.shape[-2:], n_scales=n_scales)
+            model = po.models.PortillaSimoncelli(img.shape[-2:], n_scales=n_scales)
             model.to(DEVICE)
-            loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
-            met = po.synth.Metamer(img, model, loss_function=loss)
+            loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+            met = po.Metamer(img, model, loss_function=loss)
             opt_kwargs = {
                 "max_iter": 10,
                 "max_eval": 10,
@@ -546,7 +545,7 @@ class TestTutorialNotebooks:
             # not useful for testing
             met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save(f"uploaded_files/ps_basic_synthesis_{fig_name}.pt")
-            met_up = po.synth.Metamer(img, model, loss_function=loss)
+            met_up = po.Metamer(img, model, loss_function=loss)
             with pytest.warns(UserWarning, match="You will need to call setup"):
                 met_up.load(
                     ps_regression / f"ps_basic_synthesis_{fig_name}.pt",
@@ -562,8 +561,8 @@ class TestTutorialNotebooks:
                 img.shape[-2:], remove_keys=["pixel_statistics"]
             )
             model.to(DEVICE).to(torch.float64)
-            loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
-            met = po.synth.Metamer(img, model, loss_function=loss)
+            loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+            met = po.Metamer(img, model, loss_function=loss)
             opt_kwargs = {
                 "max_iter": 10,
                 "max_eval": 10,
@@ -584,7 +583,7 @@ class TestTutorialNotebooks:
                 img.shape[-2:], remove_keys=["pixel_statistics", "skew_reconstructed"]
             )
             model.to(DEVICE).to(torch.float64)
-            met = po.synth.Metamer(img, model, loss_function=loss)
+            met = po.Metamer(img, model, loss_function=loss)
             with pytest.raises(ValueError, match="Saved and initialized model output"):
                 met.load(tmp_path / "test_ps_remove_fail.pt", map_location=DEVICE)
 
@@ -633,7 +632,7 @@ class TestTutorialNotebooks:
         )
         @pytest.mark.parametrize("remove_bool", [True, False])
         def test_ps_remove(self, ps_images, fn, stats, remove_bool, ps_regression):
-            po.tools.set_seed(0)
+            po.set_seed(0)
             torch.save(
                 torch.random.get_rng_state(),
                 f"uploaded_files/torch_rng_state_ps_remove_{fn}_remove-{remove_bool}.pt",
@@ -643,10 +642,10 @@ class TestTutorialNotebooks:
             if remove_bool:
                 model = PortillaSimoncelliRemove(img.shape[-2:], remove_keys=stats)
             else:
-                model = po.simul.PortillaSimoncelli(img.shape[-2:])
+                model = po.models.PortillaSimoncelli(img.shape[-2:])
             model.to(DEVICE2).to(torch.float64)
-            loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
-            met = po.synth.Metamer(img, model, loss_function=loss)
+            loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+            met = po.Metamer(img, model, loss_function=loss)
             opt_kwargs = {
                 "max_iter": 10,
                 "max_eval": 10,
@@ -663,7 +662,7 @@ class TestTutorialNotebooks:
             # not useful for testing
             met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save(f"uploaded_files/ps_remove_{fn}_remove-{remove_bool}.pt")
-            met_up = po.synth.Metamer(img, model, loss_function=loss)
+            met_up = po.Metamer(img, model, loss_function=loss)
             with pytest.warns(UserWarning, match="You will need to call setup"):
                 met_up.load(
                     ps_regression / f"ps_remove_{fn}_remove-{remove_bool}.pt",
@@ -674,7 +673,7 @@ class TestTutorialNotebooks:
 
         @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
         def test_ps_mask(self, ps_images, ps_regression):
-            po.tools.set_seed(0)
+            po.set_seed(0)
             torch.save(
                 torch.random.get_rng_state(),
                 "uploaded_files/torch_rng_state_ps_mask.pt",
@@ -686,8 +685,8 @@ class TestTutorialNotebooks:
             mask[..., ctr_dim[0] : 3 * ctr_dim[0], ctr_dim[1] : 3 * ctr_dim[1]] = True
             model = PortillaSimoncelliMask(img.shape[-2:], target=img, mask=mask)
             model.to(DEVICE2).to(torch.float64)
-            loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
-            met = po.synth.Metamer(img, model, loss_function=loss)
+            loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+            met = po.Metamer(img, model, loss_function=loss)
             opt_kwargs = {
                 "max_iter": 10,
                 "max_eval": 10,
@@ -704,7 +703,7 @@ class TestTutorialNotebooks:
             # not useful for testing
             met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save("uploaded_files/ps_mask.pt")
-            met_up = po.synth.Metamer(img, model, loss_function=loss)
+            met_up = po.Metamer(img, model, loss_function=loss)
             with pytest.warns(UserWarning, match="You will need to call setup"):
                 met_up.load(
                     ps_regression / "ps_mask.pt",
@@ -726,7 +725,7 @@ class TestTutorialNotebooks:
             ],
         )
         def test_ps_mixture(self, ps_images, fn, ps_regression):
-            po.tools.set_seed(0)
+            po.set_seed(0)
             torch.save(
                 torch.random.get_rng_state(),
                 f"uploaded_files/torch_rng_state_ps_mixture_{'-'.join(fn)}.pt",
@@ -739,10 +738,10 @@ class TestTutorialNotebooks:
                 ],
                 -1,
             ).to(DEVICE2)
-            model = po.simul.PortillaSimoncelli(img.shape[-2:])
+            model = po.models.PortillaSimoncelli(img.shape[-2:])
             model.to(DEVICE2).to(torch.float64)
-            loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
-            met = po.synth.Metamer(img, model, loss_function=loss)
+            loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+            met = po.Metamer(img, model, loss_function=loss)
             opt_kwargs = {
                 "max_iter": 10,
                 "max_eval": 10,
@@ -759,7 +758,7 @@ class TestTutorialNotebooks:
             # not useful for testing
             met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save(f"uploaded_files/ps_mixture_{'-'.join(fn)}.pt")
-            met_up = po.synth.Metamer(img, model, loss_function=loss)
+            met_up = po.Metamer(img, model, loss_function=loss)
             with pytest.warns(UserWarning, match="You will need to call setup"):
                 met_up.load(
                     ps_regression / f"ps_mixture_{'-'.join(fn)}.pt",
@@ -770,7 +769,7 @@ class TestTutorialNotebooks:
 
         @pytest.mark.parametrize("mag_bool", [True, False])
         def test_ps_mag_means(self, ps_images, mag_bool, ps_regression):
-            po.tools.set_seed(100)
+            po.set_seed(100)
             torch.save(
                 torch.random.get_rng_state(),
                 f"uploaded_files/torch_rng_state_ps_mag_means-{mag_bool}.pt",
@@ -780,12 +779,12 @@ class TestTutorialNotebooks:
             if mag_bool:
                 model = PortillaSimoncelliMagMeans(img.shape[-2:])
             else:
-                model = po.simul.PortillaSimoncelli(
+                model = po.models.PortillaSimoncelli(
                     img.shape[-2:], spatial_corr_width=7
                 )
             model.to(DEVICE2).to(torch.float64)
-            loss = po.tools.optim.portilla_simoncelli_loss_factory(model, img)
-            met = po.synth.Metamer(img, model, loss_function=loss)
+            loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+            met = po.Metamer(img, model, loss_function=loss)
             opt_kwargs = {
                 "max_iter": 10,
                 "max_eval": 10,
@@ -802,7 +801,7 @@ class TestTutorialNotebooks:
             # not useful for testing
             met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save(f"uploaded_files/ps_mag_means-{mag_bool}.pt")
-            met_up = po.synth.Metamer(img, model, loss_function=loss)
+            met_up = po.Metamer(img, model, loss_function=loss)
             with pytest.warns(UserWarning, match="You will need to call setup"):
                 met_up.load(
                     ps_regression / f"ps_mag_means-{mag_bool}.pt",

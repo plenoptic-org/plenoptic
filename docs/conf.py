@@ -52,6 +52,11 @@ extensions = [
 
 if not os.environ.get("SKIP_MPL"):
     extensions.append("matplotlib.sphinxext.plot_directive")
+else:
+    print(
+        "Not running Matplotlib plot directive blocks. This will result "
+        "in a lot of warnings."
+    )
 
 numfig = True
 add_module_names = False
@@ -326,11 +331,10 @@ api_order = [
     "synthesis.rst",
     "models.rst",
     "metrics.rst",
-    "synthesis_helper.rst",
+    "display.rst",
     "components.rst",
     "images.rst",
     "validation.rst",
-    "display.rst",
     "optimization.rst",
     "debugging.rst",
     "external.rst",
@@ -367,6 +371,26 @@ for api_rst in api_order:
 (api_dir / "index.rst").write_text(api_index)
 
 
+# Copied and modified from scikit-learn, also suggested by pydata theme
+# (https://pydata-sphinx-theme.readthedocs.io/en/stable/user_guide/static_assets.html#use-an-event-to-add-it-to-specific-pages)
+def add_js_css_files(app, pagename, templatename, context, doctree):
+    """Load additional JS and CSS files only for certain pages.
+
+    Note that the html_js_files and html_css_files variables are included in all pages
+    and should be used for the ones that are used by multiple pages. All page-specific
+    JS and CSS files should be added here instead.
+    """
+    if pagename == "reference/migration_guide":
+        # External: DataTables and jQuery
+        app.add_js_file("https://code.jquery.com/jquery-3.7.0.js")
+        app.add_js_file("https://cdn.datatables.net/2.0.0/js/dataTables.min.js")
+        app.add_css_file(
+            "https://cdn.datatables.net/2.0.0/css/dataTables.dataTables.min.css"
+        )
+        # Internal: API search initialization and styling
+        app.add_js_file("search-table.js")
+
+
 # this sphinx event allows us to have fine-grained control over whether to document
 # objects or not
 # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#event-autodoc-skip-member
@@ -385,23 +409,15 @@ def skip_torch_inherited_methods(app, obj_type, name, obj, skip, options):
                 "PR #413 for discussion."
             )
         docobj_module = getattr(docobj, "__module__", "")
-        if obj_type == "method":
-            # we skip the methods inherited from torch.nn.Module for our models and
-            # model_components (we probably never want to show these methods, but this
-            # is a more conservative way of doing this)
-            if docobj_module is not None and docobj_module.startswith(
-                "plenoptic.simulate"
-            ):
+        # we skip the attributes inherited from torch.nn.Module for our models and
+        # model_components (we probably never want to show these attributes, but
+        # this is a more conservative way of doing this)
+        if docobj_module is not None and docobj_module.startswith("plenoptic.model"):
+            if obj_type == "method":
                 obj_module = getattr(obj, "__module__", "")
                 if obj_module is not None and obj_module.startswith("torch.nn.modules"):
                     return True
-        else:
-            # we skip the attributes inherited from torch.nn.Module for our models and
-            # model_components (we probably never want to show these attributes, but
-            # this is a more conservative way of doing this)
-            if docobj_module is not None and docobj_module.startswith(
-                "plenoptic.simulate"
-            ):
+            else:
                 # for some reason, training doesn't show up as inherited (in the
                 # following set up or as part of the autodoc's inherited_members that we
                 # have access to in the jinja templates), so we exclude it manually
@@ -424,3 +440,5 @@ def skip_torch_inherited_methods(app, obj_type, name, obj, skip, options):
 # https://www.sphinx-doc.org/en/master/extdev/event_callbacks.html
 def setup(app):
     app.connect("autodoc-skip-member", skip_torch_inherited_methods)
+    # triggered just before the HTML for an individual page is created
+    app.connect("html-page-context", add_js_css_files)

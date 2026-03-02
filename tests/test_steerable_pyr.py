@@ -9,7 +9,6 @@ import torch
 
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
-from plenoptic.tools.data import to_numpy
 
 ALL_SPYRS = [
     f"{h}-{o}-{c}-{d}-{tf}"
@@ -82,11 +81,11 @@ def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
     for k in coeff_1:
         print(k, coeff_1[k].shape, coeff_2[k].shape)
         if torch.is_tensor(coeff_1[k]):
-            coeff_1_np = to_numpy(coeff_1[k].squeeze())
+            coeff_1_np = po.to_numpy(coeff_1[k].squeeze())
         else:
             coeff_1_np = coeff_1[k]
         if torch.is_tensor(coeff_2[k]):
-            coeff_2_np = to_numpy(coeff_2[k].squeeze())
+            coeff_2_np = po.to_numpy(coeff_2[k].squeeze())
         else:
             coeff_2_np = coeff_2[k]
 
@@ -106,8 +105,8 @@ def check_band_energies(coeff_1, coeff_2, rtol=1e-4, atol=1e-4):
     for i in range(len(coeff_1.items())):
         k1 = list(coeff_1.keys())[i]
         k2 = list(coeff_2.keys())[i]
-        band_1 = to_numpy(coeff_1[k1])
-        band_2 = to_numpy(coeff_2[k2])
+        band_1 = po.to_numpy(coeff_1[k1])
+        band_2 = po.to_numpy(coeff_2[k2])
         band_1 = band_1.squeeze()
         band_2 = band_2.squeeze()
 
@@ -128,9 +127,9 @@ def check_parseval(im, coeff, rtol=1e-4, atol=0):
     coeff: dictionary of torch tensors corresponding to each band
     """
     total_band_energy = 0
-    im_energy = np.sum(to_numpy(im) ** 2)
+    im_energy = np.sum(po.to_numpy(im) ** 2)
     for k, v in coeff.items():
-        band = to_numpy(coeff[k])
+        band = po.to_numpy(coeff[k])
         band = band.squeeze()
 
         total_band_energy += np.sum(np.abs(band) ** 2)
@@ -190,7 +189,7 @@ class TestSteerablePyramid:
             height = int(height)
         # need to use eval to get from 'False' (string) to False (bool);
         # bool('False') == True, annoyingly enough
-        pyr = po.simul.SteerablePyramidFreq(
+        pyr = po.model_components.SteerablePyramidFreq(
             img.shape[-2:],
             height,
             int(order),
@@ -210,7 +209,7 @@ class TestSteerablePyramid:
             height = int(height)
         # need to use eval to get from 'False' (string) to False (bool);
         # bool('False') == True, annoyingly enough
-        pyr = po.simul.SteerablePyramidFreq(
+        pyr = po.model_components.SteerablePyramidFreq(
             multichannel_img.shape[-2:],
             height,
             int(order),
@@ -246,7 +245,7 @@ class TestSteerablePyramid:
                 Warning, match="Reconstruction will not be perfect"
             )
         with expectation:
-            spc = po.simul.SteerablePyramidFreq(
+            spc = po.model_components.SteerablePyramidFreq(
                 basic_stim.shape[-2:],
                 height=height,
                 order=order,
@@ -295,7 +294,7 @@ class TestSteerablePyramid:
         height = max([k for k in pyr_coeffs if isinstance(k, int)]) + 1
         # couldn't come up with a way to get this with fixtures, so we
         # instantiate it each time.
-        spyr_not_downsample = po.simul.SteerablePyramidFreq(
+        spyr_not_downsample = po.model_components.SteerablePyramidFreq(
             img.shape[-2:],
             height,
             spyr.order,
@@ -479,7 +478,7 @@ class TestSteerablePyramid:
         # height has k==0)
         height = max([k for k in torch_spc if isinstance(k, int)]) + 1
         pyrtools_sp = pt.pyramids.SteerablePyramidFreq(
-            to_numpy(img.squeeze()),
+            po.to_numpy(img.squeeze()),
             height=height,
             order=spyr.order,
             is_complex=spyr.is_complex,
@@ -494,12 +493,12 @@ class TestSteerablePyramid:
     )
     def test_complete_recon(self, img, spyr):
         pyr_coeffs = spyr.forward(img)
-        recon = to_numpy(spyr.recon_pyr(pyr_coeffs))
-        np.testing.assert_allclose(recon, to_numpy(img), rtol=1e-4, atol=1e-4)
-        recon = to_numpy(spyr.recon_pyr(pyr_coeffs))
+        recon = po.to_numpy(spyr.recon_pyr(pyr_coeffs))
+        np.testing.assert_allclose(recon, po.to_numpy(img), rtol=1e-4, atol=1e-4)
+        recon = po.to_numpy(spyr.recon_pyr(pyr_coeffs))
         # should be able to reconstruct from corresponding coefficients if we haven't
         # called forward yet
-        spyr_copy = po.simul.SteerablePyramidFreq(
+        spyr_copy = po.model_components.SteerablePyramidFreq(
             img.shape[-2:],
             spyr.num_scales,
             spyr.order,
@@ -508,7 +507,9 @@ class TestSteerablePyramid:
             tight_frame=spyr.tight_frame,
         )
         spyr_copy.to(DEVICE)
-        np.testing.assert_array_equal(recon, to_numpy(spyr_copy.recon_pyr(pyr_coeffs)))
+        np.testing.assert_array_equal(
+            recon, po.to_numpy(spyr_copy.recon_pyr(pyr_coeffs))
+        )
 
     @pytest.mark.parametrize(
         "spyr_multi",
@@ -517,9 +518,9 @@ class TestSteerablePyramid:
     )
     def test_complete_recon_multi(self, multichannel_img, spyr_multi):
         pyr_coeffs = spyr_multi.forward(multichannel_img)
-        recon = to_numpy(spyr_multi.recon_pyr(pyr_coeffs))
+        recon = po.to_numpy(spyr_multi.recon_pyr(pyr_coeffs))
         np.testing.assert_allclose(
-            recon, to_numpy(multichannel_img), rtol=1e-4, atol=1e-4
+            recon, po.to_numpy(multichannel_img), rtol=1e-4, atol=1e-4
         )
 
     @pytest.mark.parametrize(
@@ -538,7 +539,7 @@ class TestSteerablePyramid:
         # height has k==0)
         height = max([k for k in pyr_coeffs if isinstance(k, int)]) + 1
         pt_spyr = pt.pyramids.SteerablePyramidFreq(
-            to_numpy(img.squeeze()),
+            po.to_numpy(img.squeeze()),
             height=height,
             order=spyr.order,
             is_complex=spyr.is_complex,
@@ -546,7 +547,7 @@ class TestSteerablePyramid:
         recon_levels = [[0], [1, 3], [1, 3, 4]]
         recon_bands = [[1], [1, 3]]
         for levels, bands in product(["all"] + recon_levels, ["all"] + recon_bands):
-            po_recon = to_numpy(spyr.recon_pyr(pyr_coeffs, levels, bands).squeeze())
+            po_recon = po.to_numpy(spyr.recon_pyr(pyr_coeffs, levels, bands).squeeze())
             pt_recon = pt_spyr.recon_pyr(levels, bands)
             np.testing.assert_allclose(po_recon, pt_recon, rtol=1e-4, atol=1e-4)
 
@@ -571,7 +572,7 @@ class TestSteerablePyramid:
         # height has k==0)
         height = max([k for k in pyr_coeffs if isinstance(k, int)]) + 1
         pt_pyr = pt.pyramids.SteerablePyramidFreq(
-            to_numpy(img.squeeze()),
+            po.to_numpy(img.squeeze()),
             height=height,
             order=spyr.order,
             is_complex=spyr.is_complex,
@@ -623,9 +624,9 @@ class TestSteerablePyramid:
         else:
             expectation = does_not_raise()
         with expectation:
-            pyr = po.simul.SteerablePyramidFreq(img.shape[-2:], height=height).to(
-                DEVICE
-            )
+            pyr = po.model_components.SteerablePyramidFreq(
+                img.shape[-2:], height=height
+            ).to(DEVICE)
             pyr(img)
 
     @pytest.mark.parametrize("order", range(-1, 17))
@@ -637,12 +638,14 @@ class TestSteerablePyramid:
         else:
             expectation = does_not_raise()
         with expectation:
-            pyr = po.simul.SteerablePyramidFreq(img.shape[-2:], order=order).to(DEVICE)
+            pyr = po.model_components.SteerablePyramidFreq(
+                img.shape[-2:], order=order
+            ).to(DEVICE)
             pyr(img)
 
     @pytest.mark.parametrize("order", range(0, 16))
     def test_buffers(self, order):
-        pyr = po.simul.SteerablePyramidFreq((256, 256), order=order)
+        pyr = po.model_components.SteerablePyramidFreq((256, 256), order=order)
         buffers = [k for k, _ in pyr.named_buffers()]
         names = ["lo0mask", "hi0mask"]
         for s in range(pyr.num_scales):
@@ -663,7 +666,7 @@ class TestSteerablePyramid:
         "ignore:Reconstruction will not be perfect with odd-sized images:UserWarning"
     )
     def test_img_shape_error(self, curie_img):
-        pyr = po.simul.SteerablePyramidFreq((255, 255)).to(DEVICE)
+        pyr = po.model_components.SteerablePyramidFreq((255, 255)).to(DEVICE)
         with pytest.raises(
             ValueError, match="Input tensor height/width.*does not match"
         ):
@@ -681,7 +684,7 @@ class TestSteerablePyramid:
             shape = curie_img.shape[-2:]
         elif shape_type == "floats":
             shape = (256.0, 256.0)
-        pyr = po.simul.SteerablePyramidFreq(shape).to(DEVICE)
+        pyr = po.model_components.SteerablePyramidFreq(shape).to(DEVICE)
         pyr(curie_img)
 
     @pytest.mark.parametrize(
@@ -701,7 +704,7 @@ class TestSteerablePyramid:
             shape = ("hi", "there")
             expect_str = "image_shape must be castable to ints"
         with pytest.raises(ValueError, match=expect_str):
-            po.simul.SteerablePyramidFreq(shape)
+            po.model_components.SteerablePyramidFreq(shape)
 
     @pytest.mark.parametrize(
         "spyr",
