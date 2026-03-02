@@ -154,7 +154,7 @@ Generally speaking, synthesis will run until you hit `max_iter` iterations. Howe
 
 ### Saving and loading
 
-Finally, you probably want to save the results of your synthesis. As mentioned above, you can save the synthesis animation, and all of the plots return regular `matplotlib` Figures and can be manipulated as expected. The synthesized image itself is a tensor and can be detached, converted to a numpy array, and saved (either as an image or array) as you'd expect. {func}`~plenoptic.tools.data.to_numpy` is a convenience function we provide for operations like this, which detaches the tensor, sends it to the CPU, and converts it to a numpy array with appropriate dtype. Note that it doesn't squeeze the tensor, so you may want to do that yourself.
+Finally, you probably want to save the results of your synthesis. As mentioned above, you can save the synthesis animation, and all of the plots return regular `matplotlib` Figures and can be manipulated as expected. The synthesized image itself is a tensor and can be detached, converted to a numpy array, and saved (either as an image or array) as you'd expect. {func}`~plenoptic.tools.to_numpy` is a convenience function we provide for operations like this, which detaches the tensor, sends it to the CPU, and converts it to a numpy array with appropriate dtype. Note that it doesn't squeeze the tensor, so you may want to do that yourself.
 
 ```{code-cell} ipython3
 met_image = po.to_numpy(met.metamer).squeeze()

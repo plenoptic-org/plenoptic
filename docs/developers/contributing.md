@@ -680,15 +680,17 @@ Similar to figures, you can use `numref` to refer to plots as well.
 #### API Documentation
 
 All public functions and classes must be included on the API documentation page.
-Therefore, if you add a new public function or class, make sure to add it to
-`docs/api.rst` in an appropriate location. If this is not done,
-`linting/check_apidocs.py` will fail (this check is included in our pre-commit
-config and thus is required to pass for a PR to merge).
+Therefore, if you add a new public function or class, make sure to add it to one
+of the `rst` files in `docs/api/` in an appropriate location. If this is not
+done, `linting/check_apidocs.py` will fail (this check is included in our
+pre-commit config and thus is required to pass for a PR to merge).
 
-If you add a new source file (e.g., `src/plenoptic/synthesize/new_method.py`),
-you will also need to add it to `docs/api_modules.rst`. If this is not done,
-sphinx will raise an error when building the documentation. You also need to add
-that file to the hidden toctree at the top of `docs/api.rst`.
+If the new function or class does not belong in one of the existing `rst` files
+found in `docs/api/`, you can create a new one, referring to the existing ones
+as templates. You must then add it to the `api_order` list in `docs/conf.py`.
+This list determines the order in which these documents are displayed in the
+index page of the API documentation, roughly from most to least important. Ask
+for help if you're not sure where to put it.
 
 (docstrings)=
 ### Docstrings

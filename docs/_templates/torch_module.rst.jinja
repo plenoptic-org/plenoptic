@@ -2,9 +2,12 @@
 
 .. currentmodule:: {{ module }}
 
+.. note::
+
+   This object is a :class:`torch.nn.Module`. It therefore has all the methods and attributes
+   from that class, even though they are not documented here (to avoid cluttering this page).
+
 .. autoclass:: {{ objname }}
-   :inherited-members:
-   :no-show-inheritance:
 
    {% block methods %}
 
@@ -25,7 +28,7 @@
    .. rubric:: {{ _('Attributes') }}
 
    .. autosummary::
-   {% for item in attributes %}
+   {% for item in doc_attributes %}
       ~{{ name }}.{{ item }}
    {%- endfor %}
    {% endif %}
