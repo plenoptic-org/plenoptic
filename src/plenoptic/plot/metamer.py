@@ -1018,7 +1018,7 @@ def metamer_synthesis_status(
 
       >>> included_plots = ["metamer_loss", "metamer_pixel_values"]
       >>> po.plot.metamer_synthesis_status(met, included_plots=included_plots)
-      (<Figure size ...>, {'plot_loss': 0, ...})
+      (<Figure size ...>, {'metamer_loss': 0, ...})
 
     Adjust width of included plots:
 
