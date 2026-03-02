@@ -171,6 +171,8 @@ suppress-none-returning = true
 # Ignore docstring rules everywhere except for the `src/` directory, from
 # https://docs.astral.sh/ruff/settings/#lint_per-file-ignores.
 "!src/**.py" = ["D", "DOC", "ANN"]
+# this file has very long lines
+"src/plenoptic/_api_change.py" = ["E501"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
@@ -190,6 +192,7 @@ exclude = [
     # init has no docstring, documented in the class docstring
     "__init__",
     "noxfile",
+    "_api_change",
 ]
 
 [tool.codespell]
