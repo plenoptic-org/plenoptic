@@ -45,7 +45,7 @@ REGISTRY = {
     "load_image_test.tar.gz": "8a2b92dc0d442695c45b1e908ef0a04cae35c5f21b774a93b9fc6b675423b526",  # noqa: E501
     "berardino_onoff.pt": "2174a40005489b9c94acc91213b2f6d57a75f262caf118cb1980658eadbfd047",  # noqa: E501
     "berardino_vgg16.pt": "5e0d10f4a367244879cd8a61c453992370ab801db1f66e10caa1ee2ecfab8ca4",  # noqa: E501
-    "ps_regression.tar.gz": "7520ed2dbcb2647ac814a02e436e1f1e41fb06ca2534561c83f9e76193a12108",  # noqa: E501
+    "ps_regression.tar.gz": "4c3cb181fed50fb85ae30493bf7125bd7b70502164f879faa3f8e6d5413ca1cc",  # noqa: E501
     "example_metamer_gaussian.pt": "de3859a6e622f1dd38e614fef1aa017466270a61e96cc074f4337ee00c73887a",  # noqa: E501
     "example_metamer_gaussian-cuda.pt": "4affdaa1903f3973eaeac4b43ea7d0b1f16c6525efa80d2474199904aafa243e",  # noqa: E501
     "example_metamerCTF_ps.pt": "9a0e0a2629d86c1fbea460b915d1ecae3f8ab60f3f144d312001a5312e6aace0",  # noqa: E501
@@ -83,7 +83,7 @@ REGISTRY_URLS = {
     "load_image_test.tar.gz": OSF_TEMPLATE.format("avpzq"),
     "berardino_onoff.pt": OSF_TEMPLATE.format("uqfa8"),
     "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b"),
-    "ps_regression.tar.gz": OSF_TEMPLATE.format("7t4fj/?revision=11"),
+    "ps_regression.tar.gz": OSF_TEMPLATE.format("7t4fj/?revision=12"),
     "example_metamer_gaussian.pt": OSF_TEMPLATE.format("7e48u"),
     "example_metamer_gaussian-cuda.pt": OSF_TEMPLATE.format("jzhe7"),
     "example_metamerCTF_ps.pt": OSF_TEMPLATE.format("4zr37"),
