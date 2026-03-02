@@ -7,7 +7,7 @@ from torch import nn
 
 import plenoptic as po
 from conftest import DEVICE, get_model
-from plenoptic.synthesize import autodiff
+from plenoptic._synthesize import autodiff
 
 # to be used for default model instantiation
 SMALL_DIM = 20
