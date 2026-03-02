@@ -1890,7 +1890,7 @@ class MetamerCTF(Metamer):
         >>> met = po.Metamer(img, model)
         >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
         Traceback (most recent call last):
-        ValueError: Saved object was a plenoptic.MetamerCTF...
+        ValueError: Saved object was a plenoptic._synthesize.metamer.Metamer...
 
         If the loading ``MetamerCTF`` object was not initialized with same values
         as the saved object, an error will be raised:
