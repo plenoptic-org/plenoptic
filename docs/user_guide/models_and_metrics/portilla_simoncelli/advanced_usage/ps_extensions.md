@@ -176,7 +176,7 @@ class PortillaSimoncelliMask(po.models.PortillaSimoncelli):
 
 ```{code-cell} ipython3
 img_file = IMG_PATH / "fig14b.jpg"
-img = po.tools.load_images(img_file).to(DEVICE).to(torch.float64)
+img = po.load_images(img_file).to(DEVICE).to(torch.float64)
 mask = torch.zeros_like(img).bool()
 ctr_dim = (img.shape[-2] // 4, img.shape[-1] // 4)
 mask[..., ctr_dim[0] : 3 * ctr_dim[0], ctr_dim[1] : 3 * ctr_dim[1]] = True
@@ -233,7 +233,7 @@ Here we explore creating a texture that is "in between" two textures. We compute
 
 fig_names = ["fig15e", "fig14e"]
 img_files = [IMG_PATH / f"{f}.jpg" for f in fig_names]
-img = po.tools.load_images(img_files).to(DEVICE).to(torch.float64)
+img = po.load_images(img_files).to(DEVICE).to(torch.float64)
 img = torch.cat([img[:1, ..., 128:], img[1:, ..., :128]], -1)
 
 model = po.models.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)

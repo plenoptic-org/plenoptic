@@ -142,7 +142,7 @@ However, the above demonstrates that it is difficult to predict what a Portilla-
 In the following example, we see the model metamer fails to reproduce the randomly distributed oriented black lines on a white background: in particular, several lines are curved and several appear discontinuous. From the paper: "Although a texture of single-orientation bars is reproduced fairly well (see Fig. 12), the mixture of bar orientations in this example leads to the synthesis of curved line segments. In general, the model is unable to distinguish straight from curved contours, except when the contours are all of the same orientation."
 
 ```{code-cell} ipython3
-img = po.tools.load_images(IMG_PATH / "fig18a.png")
+img = po.load_images(IMG_PATH / "fig18a.png")
 img = img.to(DEVICE).to(torch.float64)
 
 # reuse the model and loss from above, only the image has changed.

@@ -53,7 +53,7 @@ The simplest definition of a texture is a repeating visual pattern. Textures enc
 ```{code-cell} ipython3
 # Load and display a set of visual textures
 def display_images(im_files, title=None):
-    images = po.tools.load_images(im_files)
+    images = po.load_images(im_files)
     fig = po.plot.imshow(images, col_wrap=4, title=None)
     if title is not None:
         fig.suptitle(title, y=1.05)

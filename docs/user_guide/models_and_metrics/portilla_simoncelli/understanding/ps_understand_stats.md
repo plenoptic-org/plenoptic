@@ -192,7 +192,7 @@ remove_statistics = [
 
 # run on fig3a or fig3b to replicate paper
 fig_name = "fig3b"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
@@ -278,7 +278,7 @@ remove_statistics = ["auto_correlation_reconstructed", "std_reconstructed"]
 
 # run on fig4a or fig4b to replicate paper
 fig_name = "fig4b"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # We reuse the model and loss definition from the first section; the only difference
@@ -377,7 +377,7 @@ remove_statistics = [
 
 # run on fig6a or fig6b to replicate paper
 fig_name = "fig6b"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # We reuse the model and loss definition from the previous section; the only difference
@@ -465,7 +465,7 @@ remove_statistics = ["cross_scale_correlation_real"]
 
 # run on fig8a and fig8b to replicate paper
 fig_name = "fig8b"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # We reuse the model and loss definition from the first section; the only difference

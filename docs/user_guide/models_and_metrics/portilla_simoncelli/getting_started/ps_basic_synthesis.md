@@ -79,7 +79,7 @@ In the metamer paradigm they eventually arrived at, the authors generated sets o
 Before synthesizing a model metamer, let's spend a bit of time with the {class}`~plenoptic.models.PortillaSimoncelli` class. First, let's grab a texture image:
 
 ```{code-cell} ipython3
-img = po.tools.load_images(IMG_PATH / "fig4a.jpg")
+img = po.load_images(IMG_PATH / "fig4a.jpg")
 po.plot.imshow(img);
 ```
 

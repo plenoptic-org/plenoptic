@@ -101,7 +101,7 @@ Examples
 
 ```{code-cell} ipython3
 fig_name = "fig12c"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # fig12b is a sawtooth grating, with 4 scales the steerable pyramid's residual lowpass
@@ -167,7 +167,7 @@ Thus, by being able to distinguish these pairs of images, this model is able to 
 ```{code-cell} ipython3
 # Run on fig13a, fig13b, fig13c, fig13d to replicate examples in paper
 fig_name = "fig13a"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
@@ -204,7 +204,7 @@ met_left.synthesize(max_iter=n_iters)
 ```{code-cell} ipython3
 # Run on fig13a, fig13b, fig13c, fig13d to replicate examples in paper
 fig_name = "fig13b"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # Reuse the model and loss from above, only the loss is different
@@ -264,7 +264,7 @@ Excerpt from paper: _"Figure 14 shows synthesis results photographic textures th
 ```{code-cell} ipython3
 # Run on fig14a, fig14b, fig14c, fig14d, fig14e to replicate examples in paper
 fig_name = "fig14a"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # We reuse the model and loss definition from the first section; the only difference
@@ -312,7 +312,7 @@ Excerpt from paper: _"Figure 15 shows synthesis results for a set of photographi
 ```{code-cell} ipython3
 # Run on fig15a, fig15b, fig15c, fig15d to replicate examples in paper
 fig_name = "fig15a"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # We reuse the model and loss definition from the first section; the only difference
@@ -360,7 +360,7 @@ Excerpt from paper: _"Figure 16 shows several examples of textures with complex 
 ```{code-cell} ipython3
 # Run on fig16a, fig16b, fig16c, fig16d, fig16e to replicate examples in paper
 fig_name = "fig16e"
-img = po.tools.load_images(IMG_PATH / f"{fig_name}.jpg")
+img = po.load_images(IMG_PATH / f"{fig_name}.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # We reuse the model and loss definition from the first section; the only difference

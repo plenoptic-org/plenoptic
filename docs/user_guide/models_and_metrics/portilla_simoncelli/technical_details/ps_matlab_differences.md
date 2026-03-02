@@ -120,7 +120,7 @@ In particular, the paper reads _"For our texture examples, we have made choices 
 As shown below, the output of `plenoptic` matches the number of statistics indicated in the paper:
 
 ```{code-cell} ipython3
-img = po.tools.load_images(IMG_PATH / "fig4a.jpg")
+img = po.load_images(IMG_PATH / "fig4a.jpg")
 img = img.to(DEVICE).to(torch.float64)
 
 # Initialize the minimal model. Use same params as paper
@@ -316,7 +316,7 @@ class PortillaSimoncelliMagMeans(po.models.PortillaSimoncelli):
 Now, let's initialize our models and images for synthesis:
 
 ```{code-cell} ipython3
-img = po.tools.load_images(IMG_PATH / "fig4a.jpg").to(DEVICE).to(torch.float64)
+img = po.load_images(IMG_PATH / "fig4a.jpg").to(DEVICE).to(torch.float64)
 model = po.models.PortillaSimoncelli(img.shape[-2:], spatial_corr_width=7).to(DEVICE)
 loss = po.optim.portilla_simoncelli_loss_factory(model, img)
 model_mag_means = PortillaSimoncelliMagMeans(img.shape[-2:]).to(DEVICE)
