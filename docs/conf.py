@@ -368,3 +368,28 @@ for api_rst in api_order:
     api_index += "\n".join(contents)
 
 (api_dir / "index.rst").write_text(api_index)
+
+
+# Copied and modified from scikit-learn, also suggested by pydata theme
+# (https://pydata-sphinx-theme.readthedocs.io/en/stable/user_guide/static_assets.html#use-an-event-to-add-it-to-specific-pages)
+def add_js_css_files(app, pagename, templatename, context, doctree):
+    """Load additional JS and CSS files only for certain pages.
+
+    Note that the html_js_files and html_css_files variables are included in all pages
+    and should be used for the ones that are used by multiple pages. All page-specific
+    JS and CSS files should be added here instead.
+    """
+    if pagename == "reference/migration_guide":
+        # External: DataTables and jQuery
+        app.add_js_file("https://code.jquery.com/jquery-3.7.0.js")
+        app.add_js_file("https://cdn.datatables.net/2.0.0/js/dataTables.min.js")
+        app.add_css_file(
+            "https://cdn.datatables.net/2.0.0/css/dataTables.dataTables.min.css"
+        )
+        # Internal: API search initialization and styling
+        app.add_js_file("search-table.js")
+
+
+def setup(app):
+    # triggered just before the HTML for an individual page is created
+    app.connect("html-page-context", add_js_css_files)
