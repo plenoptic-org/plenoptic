@@ -7,6 +7,7 @@
 # -- Path setup --------------------------------------------------------------
 
 import glob
+import inspect
 import os
 import pathlib
 from importlib.metadata import version
@@ -390,6 +391,62 @@ def add_js_css_files(app, pagename, templatename, context, doctree):
         app.add_js_file("search-table.js")
 
 
+# this sphinx event allows us to have fine-grained control over whether to document
+# objects or not
+# https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#event-autodoc-skip-member
+# however, we need an extra step to determine which of *our* objects the
+# object-to-document is attached to (https://github.com/sphinx-doc/sphinx/issues/9533)
+def skip_torch_inherited_methods(app, obj_type, name, obj, skip, options):
+    if obj_type in ("method", "property", "attribute"):
+        docobj = None
+        for frame in inspect.stack():
+            if frame.function == "_get_members":
+                docobj = frame.frame.f_locals["obj"]
+        if docobj is None:
+            raise Exception(
+                "Stack of sphinx events has changed, so unsure how to"
+                " grab object that corresponds to this method! See "
+                "PR #413 for discussion."
+            )
+        docobj_module = getattr(docobj, "__module__", "")
+        if obj_type == "method":
+            # we skip the methods inherited from torch.nn.Module for our models and
+            # model_components (we probably never want to show these methods, but this
+            # is a more conservative way of doing this)
+            if docobj_module is not None and docobj_module.startswith(
+                "plenoptic.simulate"
+            ):
+                obj_module = getattr(obj, "__module__", "")
+                if obj_module is not None and obj_module.startswith("torch.nn.modules"):
+                    return True
+        else:
+            # we skip the attributes inherited from torch.nn.Module for our models and
+            # model_components (we probably never want to show these attributes, but
+            # this is a more conservative way of doing this)
+            if docobj_module is not None and docobj_module.startswith(
+                "plenoptic.simulate"
+            ):
+                # for some reason, training doesn't show up as inherited (in the
+                # following set up or as part of the autodoc's inherited_members that we
+                # have access to in the jinja templates), so we exclude it manually
+                if name == "training":
+                    return True
+                # unlike methods, can't just check the module of an attribute, since it
+                # will typically be a basic type (e.g., bool). instead, we go through
+                # all the classes of docobj and see which one contains the attribute
+                # (https://stackoverflow.com/a/42503785/4659293)
+                obj_module = None
+                for cls in docobj.mro():
+                    if name in vars(cls):
+                        obj_module = cls.__module__
+                if obj_module is not None and obj_module.startswith("torch.nn.modules"):
+                    return True
+    return None
+
+
+# connect our custom method to the sphinx events callback API:
+# https://www.sphinx-doc.org/en/master/extdev/event_callbacks.html
 def setup(app):
     # triggered just before the HTML for an individual page is created
     app.connect("html-page-context", add_js_css_files)
+    app.connect("autodoc-skip-member", skip_torch_inherited_methods)
