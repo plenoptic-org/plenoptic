@@ -409,23 +409,15 @@ def skip_torch_inherited_methods(app, obj_type, name, obj, skip, options):
                 "PR #413 for discussion."
             )
         docobj_module = getattr(docobj, "__module__", "")
-        if obj_type == "method":
-            # we skip the methods inherited from torch.nn.Module for our models and
-            # model_components (we probably never want to show these methods, but this
-            # is a more conservative way of doing this)
-            if docobj_module is not None and docobj_module.startswith(
-                "plenoptic.simulate"
-            ):
+        # we skip the attributes inherited from torch.nn.Module for our models and
+        # model_components (we probably never want to show these attributes, but
+        # this is a more conservative way of doing this)
+        if docobj_module is not None and docobj_module.startswith("plenoptic.model"):
+            if obj_type == "method":
                 obj_module = getattr(obj, "__module__", "")
                 if obj_module is not None and obj_module.startswith("torch.nn.modules"):
                     return True
-        else:
-            # we skip the attributes inherited from torch.nn.Module for our models and
-            # model_components (we probably never want to show these attributes, but
-            # this is a more conservative way of doing this)
-            if docobj_module is not None and docobj_module.startswith(
-                "plenoptic.simulate"
-            ):
+            else:
                 # for some reason, training doesn't show up as inherited (in the
                 # following set up or as part of the autodoc's inherited_members that we
                 # have access to in the jinja templates), so we exclude it manually
@@ -447,6 +439,6 @@ def skip_torch_inherited_methods(app, obj_type, name, obj, skip, options):
 # connect our custom method to the sphinx events callback API:
 # https://www.sphinx-doc.org/en/master/extdev/event_callbacks.html
 def setup(app):
+    app.connect("autodoc-skip-member", skip_torch_inherited_methods)
     # triggered just before the HTML for an individual page is created
     app.connect("html-page-context", add_js_css_files)
-    app.connect("autodoc-skip-member", skip_torch_inherited_methods)
