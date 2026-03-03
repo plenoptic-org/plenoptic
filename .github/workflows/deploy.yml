@@ -60,8 +60,24 @@ jobs:
     - name: Run tests
       run: |
         pytest -n auto
-    - name: Setup FFmpeg
-      uses: FedericoCarboni/setup-ffmpeg@37062fbf7149fc5578d6c57e08aed62458b375d6 # v3.1
+    - name: Load cached FFmpeg
+      id: cache-ffmpeg
+      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+
+      with:
+        path: |
+          /usr/local/bin/ffmpeg
+          /usr/local/bin/ffprobe
+        key: ${{ runner.os }}-ffmpeg-5.1.1
+    - name: Install FFmpeg if not cached
+      if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+      run: |
+        VERSION=6.0.1
+        RELEASE_NAME=ffmpeg-${VERSION}-amd64-static
+        wget --timeout=8 --tries=30 https://www.johnvansickle.com/ffmpeg/old-releases/${RELEASE_NAME}.tar.xz
+        tar -xf ${RELEASE_NAME}.tar.xz
+        mv ${RELEASE_NAME}/ffmpeg ${RELEASE_NAME}/ffprobe /usr/local/bin/
+        rm -rf ${RELEASE_NAME}
     - name: Run notebooks
       run: |
         for file in $(find docs/tutorials/ -name '*.md'); do
