@@ -86,7 +86,7 @@ REGISTRY_URLS = {
     "ps_regression.tar.gz": OSF_TEMPLATE.format("7t4fj/?revision=11"),
     "example_metamer_gaussian.pt": OSF_TEMPLATE.format("7e48u"),
     "example_metamer_gaussian-cuda.pt": OSF_TEMPLATE.format("jzhe7"),
-    "example_metamerCTF_ps.pt": OSF_TEMPLATE.format("4zr37"),
+    "example_metamerCTF_ps.pt": OSF_TEMPLATE.format("4zr37?revision=6"),
     "example_metamerCTF_ps-cuda.pt": OSF_TEMPLATE.format("627sp"),
 }
 
