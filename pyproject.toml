@@ -26,7 +26,6 @@ dependencies = [
     "scikit-image>=0.15.0",
     "einops>=0.3.0",
     "importlib-resources>=6.0",
-    "Deprecated",
     "pooch>=1.2.0",
 ]
 
