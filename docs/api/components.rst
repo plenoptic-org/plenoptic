@@ -44,7 +44,6 @@ These convenience functions make it easier to construct some commonly-used filte
    :toctree: generated
 
    ~circular_gaussian2d
-   ~gaussian1d
 
 .. rubric:: Coordinate transformations
    :heading-level: 3

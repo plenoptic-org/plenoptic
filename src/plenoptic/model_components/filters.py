@@ -5,100 +5,13 @@ The functions in this module only create tensors, they do not perform convolutio
 """  # numpydoc ignore=EX01
 
 import torch
-from deprecated.sphinx import deprecated
 from torch import Tensor
 
-__all__ = ["gaussian1d", "circular_gaussian2d"]
+__all__ = ["circular_gaussian2d"]
 
 
 def __dir__() -> list[str]:
     return __all__
-
-
-@deprecated(
-    "gaussian1d will be removed soon.",  # noqa: E501
-    "1.2.0",
-)
-def gaussian1d(kernel_size: int = 11, std: int | float | Tensor = 1.5) -> Tensor:
-    """
-    Create normalized 1D Gaussian.
-
-    1d Gaussian of size ``kernel_size``, centered half-way, with variable std
-    deviation, and sum of 1.
-
-    Parameters
-    ----------
-    kernel_size
-        Size of Gaussian. Recommended to be odd so that kernel is properly centered.
-    std
-        Standard deviation of Gaussian.
-
-    Returns
-    -------
-    filt:
-        1d Gaussian with ``Size([kernel_size])``.
-
-    Raises
-    ------
-    ValueError
-        If ``std`` non-scalar.
-    ValueError
-        If ``std`` non-positive.
-
-    Examples
-    --------
-    .. plot::
-      :context: reset
-
-      >>> import plenoptic as po
-      >>> from torch.nn.functional import conv1d
-      >>> import torch
-      >>> import matplotlib.pyplot as plt
-      >>> # define a filter
-      >>> kernel_size = 21
-      >>> filt = po.model_components.gaussian1d(kernel_size=kernel_size, std=2).reshape(
-      ...     1, 1, kernel_size
-      ... )
-      >>> # define a sinusoid + noise
-      >>> sin_plus_noise = torch.sin(
-      ...     torch.linspace(0, 5 * torch.pi, 500)
-      ... ) + 0.5 * torch.randn(500)
-      >>> sin_plus_noise = sin_plus_noise.reshape(1, 1, 500)
-      >>> # convolve signal with the Gaussian filter
-      >>> smooth_sin = conv1d(sin_plus_noise, filt, padding="same")
-      >>> # plot filter, signal and convolved signal
-      >>> f, axs = plt.subplots(3, 1)
-      >>> # plot filter and convolution results
-      >>> axs[0].plot(filt.flatten())
-      [...
-      >>> axs[0].set_title("1D Gaussian filter")
-      Text(0.5, 1.0, '1D Gaussian filter')
-      >>> axs[1].plot(sin_plus_noise.flatten())
-      [...
-      >>> axs[1].set_title("Sin + Noise")
-      Text(0.5, 1.0, 'Sin + Noise')
-      >>> axs[2].plot(smooth_sin.flatten())
-      [...
-      >>> axs[2].set_title("Convolved Sin + Noise")
-      Text(0.5, 1.0, 'Convolved Sin + Noise')
-      >>> plt.tight_layout()
-    """
-    try:
-        dtype = std.dtype
-    except AttributeError:
-        dtype = torch.float32
-    std = torch.as_tensor(std, dtype=dtype)
-    if std.numel() != 1:
-        raise ValueError("std must have only one element!")
-    if std <= 0:
-        raise ValueError("std must be positive!")
-    device = std.device
-
-    x = torch.arange(kernel_size).to(device)
-    mu = kernel_size // 2
-    gauss = torch.exp(-((x - mu) ** 2) / (2 * std**2))
-    filt = gauss / gauss.sum()  # normalize
-    return filt
 
 
 def circular_gaussian2d(
