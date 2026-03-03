@@ -16,6 +16,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   notebooks_cpu:
     runs-on: ubuntu-latest
@@ -25,14 +27,16 @@ jobs:
       fail-fast: false
     name: Execute notebooks
     steps:
-    - uses: actions/checkout@v5
-    - uses: actions/setup-python@v6
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
         cache-dependency-path: setup.py
     - name: Setup FFmpeg
-      uses: FedericoCarboni/setup-ffmpeg@v3.1
+      uses: FedericoCarboni/setup-ffmpeg@37062fbf7149fc5578d6c57e08aed62458b375d6 # v3.1
     - name: Install dependencies
       run: |
         pip install --upgrade --upgrade-strategy eager .[nb] --extra-index-url https://download.pytorch.org/whl/cpu
@@ -52,9 +56,11 @@ jobs:
       fail-fast: false
     name: Run doctests
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
     - name: Install Python 3
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -75,9 +81,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Check sphinx references
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
     - name: Install Python 3
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
       with:
         python-version: '3.12'
         cache: pip
@@ -101,9 +109,11 @@ jobs:
       fail-fast: false
     name: Run pytest scripts
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
     - name: Install Python 3
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -118,14 +128,17 @@ jobs:
       run: |
         pytest --cov-report xml
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5.5.1
+      uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
   check_urls:
     runs-on: ubuntu-latest
     name: Check all urls are valid
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
     - uses: urlstechie/urlchecker-action@b643b43e2ac605e1475331c7b67247d242b7dce4 # 0.0.34
       with:
         file_types: .md,.py,.rst
