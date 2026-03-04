@@ -77,6 +77,11 @@ torch.save(old_save, "old_save.pt")
 
 ### FutureWarning in load in plenoptic 1.4
 
-A small bugfix was made to {class}`~plenoptic.synthesize.metamer.Metamer` objects' save method in `plenoptic` 1.4 to allow saving of more general loss functions (e.g., {func}`~plenoptic.tools.optim.portilla_simoncelli_loss_factory`). Additionally, a change was made to the {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` and {class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` APIs, adding the new parameter `penalty_function`. You will be able to load {class}`~plenoptic.synthesize.metamer.Metamer` objects saved with version 1.2 through 1.3.1 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
+Loading {class}`~plenoptic.synthesize.metamer.Metamer` and {class}`~plenoptic.synthesize.mad_competition.MADCompetition` objects saved before plenoptic 1.4 will result in a `FutureWarning` due to two changes:
+
+- {class}`~plenoptic.synthesize.metamer.Metamer` objects' save method was updated allow saving of more general loss functions (e.g., {func}`~plenoptic.tools.optim.portilla_simoncelli_loss_factory`).
+- {class}`~plenoptic.synthesize.metamer.Metamer` and {class}`~plenoptic.synthesize.mad_competition.MADCompetition` APIs were changed, replacing the range penalty with a more generic `penalty_function`. See [](metamer-regularization) for more details on how to use this new capability.
+
+You will be able to load {class}`~plenoptic.synthesize.metamer.Metamer` and {class}`~plenoptic.synthesize.mad_competition.MADCompetition` objects saved with version 1.2 through 1.3.1 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
 
 In order to make an object compatible with future releases, you can load it in with `plenoptic` 1.4 and re-save it.
