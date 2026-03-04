@@ -17,17 +17,7 @@
   <img alt="plenoptic logo" src="Plenoptic_Logo_CMYK_Full_Wide.svg">
 </picture>
 
-
-`plenoptic` is a python library for model-based synthesis of perceptual stimuli.
-For `plenoptic`, models are those of visual[^1] information processing: they
-accept an image[^2] as input, perform some computations, and return some output,
-which can be mapped to neuronal firing rate, fMRI BOLD response, behavior on
-some task, image category, etc. The intended audience is researchers in
-neuroscience, psychology, and machine learning. The generated stimuli enable
-interpretation of model properties through examination of features that are
-enhanced, suppressed, or discarded. More importantly, they can facilitate the
-scientific process, through use in further perceptual or neural experiments
-aimed at validating or falsifying model predictions.
+`plenoptic` is a python library for model-based synthesis of perceptual stimuli, built on top of [pytorch](https://pytorch.org/). For `plenoptic`, models are those of visual [^1] information processing: they accept an image[^2] as input, perform some computations, and return some output, which can be mapped to neuronal firing rate, fMRI BOLD response, behavior on some task, image category, etc. The intended audience is researchers in neuroscience, psychology, and machine learning. For any pytorch model, users can generate stimuli which enable interpretation of model properties through examination of features that are enhanced, suppressed, or discarded. More importantly, these stimuli facilitate the scientific process, through use in further perceptual or neural experiments aimed at validating or falsifying model predictions.
 
 See our [documentation site](https://docs.plenoptic.org) for more details,
 including how to get started!
@@ -46,13 +36,17 @@ or `conda`:
 $ conda install plenoptic -c conda-forge
 ```
 
-Our dependencies include [pytorch](https://pytorch.org/) and
-[pyrtools](https://pyrtools.readthedocs.io/en/latest/). Installation should take
-care of them (along with our other dependencies) automatically, but if you have
-an installation problem (especially on a non-Linux operating system), it is
-likely that the problem lies with one of those packages. [Open an
-issue](https://github.com/plenoptic-org/plenoptic/issues) and we'll
-try to help you figure out the problem!
+`plenoptic` is built on top of [pytorch](https://pytorch.org/), which we use for
+automatic differentiation. `plenoptic` is thus compatible with any valid pytorch
+model (see
+[documentation](https://docs.plenoptic.org/docs/branch/main/reference/models.html)
+for more details).
+
+`plenoptic` is also built on top of
+[pyrtools](https://pyrtools.readthedocs.io/en/latest/). `pyrtools` includes
+`numpy` implementations of the [image
+pyramids](https://docs.plenoptic.org/docs/branch/main/api/components.html) found
+in plenoptic, as well as other image-processing tools.
 
 See the [installation
 page](https://docs.plenoptic.org/docs/branch/main/getting_started/install.html) for more details,
@@ -139,6 +133,25 @@ See the [citation
 guide](https://docs.plenoptic.org/docs/branch/main/reference/citation.html) for more
 details, including citations for the different synthesis methods and
 computational moels included in plenoptic.
+
+## Related packages
+
+If you are curious about `plenoptic`, these other packages may also be of interest:
+
+- [pytorch](https://pytorch.org): optimized tensor library for deep learning
+  using GPUs and CPUs. `plenoptic` depends on pytorch for automatic
+  differentiation. Any valid pytorch model is compatible with `plenoptic`'s
+  methods (see
+  [documentation](https://docs.plenoptic.org/docs/branch/main/reference/models.html)
+  for more details).
+- [pyrtools](https://pyrtools.readthedocs.io/en/latest/): a python package for
+  multi-scale image processing. Includes `numpy` implementations of several of
+  the image pyramids and image-processing tools found in `plenoptic`.
+- [lucent](https://github.com/greentfrapp/lucent): pytorch adaptation of the
+  [lucid](https://github.com/tensorflow/lucid) TensorFlow library, which
+  contains a variety of tools for research in neural network interpretability.
+  Similar to `plenoptic`, contains methods for synthesizing images to better
+  understand how models process visual information.
 
 ## Support
 
