@@ -258,7 +258,7 @@ po.synth.metamer.plot_pixel_values(met)
 We see that the metamer pixel histogram ranges from 0.2 to 0.8, while
 the original target image ranges from 0.0 to 1.0.
 
-The {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` class also has a
+The {class}`~plenoptic.synthesize.metamer.Metamer` class also has a
 `penalty_lambda` argument, that weighs the contribution of the penalty function
 to optimization.
 
