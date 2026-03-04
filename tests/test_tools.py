@@ -814,7 +814,7 @@ class TestValidate:
         class LearnablePenalty(torch.nn.Module):
             def __init__(self):
                 super().__init__()
-                self.scale = torch.nn.Parameter(torch.ones(1))
+                self.scale = torch.nn.Parameter(torch.ones(1, device=DEVICE))
 
             def forward(self, x):
                 return (x * self.scale).sum()
