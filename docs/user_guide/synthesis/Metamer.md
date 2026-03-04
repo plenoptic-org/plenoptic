@@ -224,7 +224,7 @@ during optimization, and it can be used to control certain properties of the
 synthesized metamer.
 
 For example, the default `penalty_function` uses the
-{func} `penalize_range <plenoptic.tools.regularization.penalize_range>` function
+{func}`~plenoptic.tools.regularization.penalize_range` function
 to penalize pixel values that fall outside the range [0, 1], helping to keep the
 synthesized metamer within this range. The user can pass custom penalty functions
 that control other properties of the synthesized metamer.
