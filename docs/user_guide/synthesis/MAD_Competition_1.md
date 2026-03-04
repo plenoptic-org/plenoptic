@@ -232,9 +232,8 @@ For more details, see the [Metamer regularization section](./Metamer.md#metamer-
 :::
 
 ```{code-cell} ipython3
-range_penalty_custom = functools.partial(
-    po.tools.regularization.penalize_range, allowed_range=(0.0, 255.0)
-)
+def range_penalty_custom(x):
+    return po.tools.regularization.penalize_range(x, allowed_range=(0.0, 255.0))
 
 
 def l1_norm(x, y):
