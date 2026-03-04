@@ -230,7 +230,7 @@ synthesized metamer within this range. The user can pass custom penalty function
 that control other properties of the synthesized metamer.
 For example, we can constrain the image pixels to fall inside a different range,
 by using the argument `allowed_range` in the
-{func} `penalize_range <plenoptic.tools.regularization.penalize_range>` function
+{func}`~plenoptic.tools.regularization.penalize_range` function
 to define a new range penalization. Below we show how to constrain the
 pixel range to be between 0.2 and 0.8.
 
