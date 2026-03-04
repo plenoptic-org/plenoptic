@@ -4,7 +4,7 @@
 [![PyPI Version](https://img.shields.io/pypi/v/plenoptic.svg)](https://pypi.org/project/plenoptic/)
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/plenoptic/badges/version.svg)](https://anaconda.org/conda-forge/plenoptic)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/plenoptic-org/plenoptic/blob/main/LICENSE)
-![Python version](https://img.shields.io/badge/python-3.10|3.11|3.12-blue.svg)
+![Python version](https://img.shields.io/badge/python-3.10|3.11|3.12|3.13|3.14-blue.svg)
 [![Build Status](https://github.com/plenoptic-org/plenoptic/workflows/build/badge.svg)](https://github.com/plenoptic-org/plenoptic/actions?query=workflow%3Abuild)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151130.svg)](https://doi.org/10.5281/zenodo.10151130)
 [![codecov](https://codecov.io/gh/plenoptic-org/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/plenoptic-org/plenoptic)
