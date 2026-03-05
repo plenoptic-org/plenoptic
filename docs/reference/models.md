@@ -8,8 +8,8 @@
 
 2. must be callable, be able to accept a [](torch.Tensor) as input, and return a [](torch.Tensor) as output.
 
-  - If you inherit [](torch.nn.Module), implementing the `forward` <!-- skip-lint --> method will make your model callable.
-  - Otherwise, implement the `__call__` method.
+    - If you inherit [](torch.nn.Module), implementing the `forward` <!-- skip-lint --> method will make your model callable.
+    - Otherwise, implement the `__call__` method.
 
 3. the above transformation must be differentiable by [torch](inv:torch:std:doc#index). In practice, this generally means you perform all computations using [torch functions](inv:torch:std:doc#torch) (unless you want to write a custom `backward` method).
 
