@@ -473,8 +473,9 @@ def validate_penalty(
     - If ``penalty_function`` casts an input tensor to something else and returns
       it to a tensor before returning it (``ValueError``).
 
-    - If ``penalty_function`` changes the precision of the input tensor, or
-      doesn't return a real output (``TypeError``).
+    - If ``penalty_function`` changes the precision of the input tensor (``TypeError``) 
+
+    - If ``penalty_function`` returns a complex output (``TypeError``).
 
     - If ``penalty_function`` changes the device of the input (``RuntimeError``).
 
@@ -498,6 +499,8 @@ def validate_penalty(
         If ``penalty_function`` fails one of the checks listed above.
     TypeError
         If ``penalty_function`` changes the precision of the input tensor.
+    TypeError
+        If ``penalty_function`` returns a complex tensor.
     RuntimeError
         If ``penalty_function`` changes the device of the input tensor.
 
@@ -580,9 +583,14 @@ def validate_penalty(
             f" type {image_dtype}"
         )
     output_dtype = penalty_function(test_img).dtype
+    if torch.is_complex(output_dtype):
+        raise TypeError(
+            "penalty_function should not return a complex output"
+            ", but got type {output_dtype}}"
+        )
     if output_dtype not in allowed_dtypes:
         raise TypeError(
-            "penalty_function should return a real output with the same precision"
+            "penalty_function should return a tensor with the same precision"
             " as the input, but got type {output_dtype} instead of {image_dtype}"
         )
     if penalty_function(test_img).device != test_img.device:
