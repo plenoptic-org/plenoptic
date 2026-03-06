@@ -43,9 +43,7 @@ plt.rcParams["figure.dpi"] = 72
 
 # Ignore warnings about inputs not 4d
 warnings.filterwarnings(
-    "ignore",
-    message="plenoptic's methods have mostly",
-    category=UserWarning
+    "ignore", message="plenoptic's methods have mostly", category=UserWarning
 )
 
 %load_ext autoreload
