@@ -19,7 +19,7 @@ import torch
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from ..tools import data, display, optim, signal
+from ..tools import data, display, optim, regularization, signal
 from ..tools.convergence import _coarse_to_fine_enough, _loss_convergence
 from ..tools.validate import validate_coarse_to_fine, validate_input, validate_model
 from .synthesis import OptimizedSynthesis
@@ -41,14 +41,16 @@ class Metamer(OptimizedSynthesis):
     model
         A visual model.
     loss_function
-        The loss function to use to compare the representations of the models
+        The loss function used to compare the representations of the models
         in order to determine their loss.
-    range_penalty_lambda
-        Strength of the regularizer that enforces the allowed_range. Must be
-        non-negative.
-    allowed_range
-        Range (inclusive) of allowed pixel values. Any values outside this
-        range will be penalized.
+    penalty_function
+            A function applied to the metamer during optimization, that returns
+            a scalar penalty to be minimized. By penalizing certain properties of
+            the image, like pixels values outside an allowed range, we can constrain
+            those image properties. See :ref:`metamer-nb` in the documentation for
+            details and examples.
+    penalty_lambda
+        Weight of the penalty term. Must be non-negative.
 
     References
     ----------
@@ -89,11 +91,13 @@ class Metamer(OptimizedSynthesis):
         image: Tensor,
         model: torch.nn.Module,
         loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
-        range_penalty_lambda: float = 0.1,
-        allowed_range: tuple[float, float] = (0, 1),
+        penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
+        penalty_lambda: float = 0.1,
     ):
-        super().__init__(range_penalty_lambda, allowed_range)
-        validate_input(image, allowed_range=allowed_range)
+        super().__init__(
+            penalty_function=penalty_function, penalty_lambda=penalty_lambda
+        )
+        validate_input(image)
         validate_model(
             model,
             image_shape=image.shape,
@@ -129,7 +133,7 @@ class Metamer(OptimizedSynthesis):
         ----------
         initial_image
             The tensor we use to initialize the metamer. If ``None``, we initialize with
-            uniformly-distributed random noise lying within ``self.allowed_range``.
+            random noise uniformly-distributed in $[0,1]$.
         optimizer
             The un-initialized optimizer object to use. If ``None``, we use
             :class:`torch.optim.Adam`.
@@ -219,11 +223,9 @@ class Metamer(OptimizedSynthesis):
         if self._metamer is None:
             if initial_image is None:
                 metamer = torch.rand_like(self.image)
-                # rescale metamer to lie within the interval
-                # self.allowed_range
-                metamer = signal.rescale(metamer, *self.allowed_range)
+                metamer = signal.rescale(metamer, 0, 1)
             else:
-                validate_input(initial_image, allowed_range=self.allowed_range)
+                validate_input(initial_image)
                 if initial_image.size() != self.image.size():
                     warnings.warn(
                         "initial_image and image are different sizes! This "
@@ -384,7 +386,7 @@ class Metamer(OptimizedSynthesis):
 
         This calls self.loss_function on
         ``self.model(metamer, **analyze_kwargs)`` and
-        ``target_representation`` and then adds the weighted range penalty
+        ``target_representation`` and then adds the weighted penalty
         on ``metamer``.
 
         Its output over time is stored in :attr:`losses`.
@@ -469,8 +471,8 @@ class Metamer(OptimizedSynthesis):
             target_representation = self.target_representation
         metamer_representation = self.model(metamer, **analyze_kwargs)
         loss = self.loss_function(metamer_representation, target_representation)
-        range_penalty = optim.penalize_range(metamer, self.allowed_range)
-        return loss + self.range_penalty_lambda * range_penalty
+        penalty = self.penalty_function(metamer)
+        return loss + self.penalty_lambda * penalty
 
     def get_progress(
         self,
@@ -754,6 +756,7 @@ class Metamer(OptimizedSynthesis):
         """
         save_io_attrs = [
             ("loss_function", ("_target_representation", "2 * _target_representation")),
+            ("penalty_function", ("_image",)),
             ("_model", ("_image",)),
         ]
         save_state_dict_attrs = ["_optimizer", "_scheduler"]
@@ -889,8 +892,7 @@ class Metamer(OptimizedSynthesis):
             If the object saved at ``file_path`` is not a ``Metamer`` object.
         ValueError
             If the saved and loading ``Metamer`` objects have a different value
-            for any of :attr:`image`, :attr:`range_penalty_lambda`,
-            or :attr:`allowed_range`.
+            for any of :attr:`image` or :attr:`penalty_lambda`,
         ValueError
             If the behavior of :attr:`loss_function` or :attr:`model` is different
             between the saved and loading objects.
@@ -1026,12 +1028,12 @@ class Metamer(OptimizedSynthesis):
         """  # numpydoc ignore=EX01
         check_attributes = [
             "_image",
-            "_range_penalty_lambda",
-            "_allowed_range",
+            "_penalty_lambda",
         ]
         check_attributes += additional_check_attributes
         check_io_attrs = [
             ("loss_function", ("_target_representation", "2 * _target_representation")),
+            ("penalty_function", ("_image",)),
             ("_model", ("_image",)),
         ]
         check_io_attrs += additional_check_io_attributes
@@ -1178,12 +1180,14 @@ class MetamerCTF(Metamer):
     loss_function
         The loss function to use to compare the representations of the models
         in order to determine their loss.
-    range_penalty_lambda
-        Strength of the regularizer that enforces the allowed_range. Must be
-        non-negative.
-    allowed_range
-        Range (inclusive) of allowed pixel values. Any values outside this
-        range will be penalized.
+    penalty_function
+            A function applied to the metamer during optimization, that returns
+            a scalar penalty to be minimized. By penalizing certain properties of
+            the image, like pixels values outside an allowed range, we can constrain
+            those image properties. See :ref:`metamer-nb` in the documentation for
+            details and examples.
+    penalty_lambda
+        Strength of the penalty term. Must be non-negative.
     coarse_to_fine
         - ``"together"``: start with the coarsest scale, then gradually
           add each finer scale.
@@ -1245,16 +1249,16 @@ class MetamerCTF(Metamer):
         image: Tensor,
         model: torch.nn.Module,
         loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
-        range_penalty_lambda: float = 0.1,
-        allowed_range: tuple[float, float] = (0, 1),
+        penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
+        penalty_lambda: float = 0.1,
         coarse_to_fine: Literal["together", "separate"] = "together",
     ):
         super().__init__(
             image,
             model,
             loss_function,
-            range_penalty_lambda,
-            allowed_range,
+            penalty_function,
+            penalty_lambda,
         )
         self._init_ctf(coarse_to_fine)
 
@@ -1832,8 +1836,7 @@ class MetamerCTF(Metamer):
             If the object saved at ``file_path`` is not a ``MetamerCTF`` object.
         ValueError
             If the saved and loading ``MetamerCTF`` objects have a different value
-            for any of :attr:`image`, :attr:`range_penalty_lambda`,
-            :attr:`allowed_range`, or :attr:`coarse_to_fine`.
+            for any of :attr:`image`, :attr:`penalty_lambda`, or :attr:`coarse_to_fine`.
         ValueError
             If the behavior of :attr:`loss_function` or :attr:`model` is different
             between the saved and loading objects.
@@ -2451,7 +2454,7 @@ def plot_pixel_values(
     Plot histogram of pixel values of target image and its metamer.
 
     As a way to check the distributions of pixel intensities and see
-    if there's any values outside the allowed range
+    if there's any values outside the preferred range
 
     Parameters
     ----------
