@@ -101,7 +101,7 @@ def validate_input(
     if input_tensor.min() < standard_range[0] or input_tensor.max() > standard_range[1]:
         input_range = (input_tensor.min().item(), input_tensor.max().item())
         warnings.warn(
-            f"input_tensor range is {input_range}; plenoptic's methods have"
+            f"input_tensor range is {input_range}; plenoptic's methods have "
             f"largely been tested with the range [0, 1]. Synthesis should still work, "
             "but if you have any problems, please open an issue."
         )
