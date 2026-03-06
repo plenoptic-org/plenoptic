@@ -87,7 +87,7 @@ REGISTRY_URLS = {
     "example_metamer_gaussian.pt": OSF_TEMPLATE.format("7e48u/?revision=5"),
     "example_metamer_gaussian-cuda.pt": OSF_TEMPLATE.format("jzhe7/?revision=2"),
     "example_metamerCTF_ps.pt": OSF_TEMPLATE.format("4zr37/?revision=7"),
-    "example_metamerCTF_ps-cuda.pt": OSF_TEMPLATE.format("627sp/?revision=7"),
+    "example_metamerCTF_ps-cuda.pt": OSF_TEMPLATE.format("627sp/?revision=2"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch.fetch_data`
