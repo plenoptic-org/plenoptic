@@ -41,8 +41,12 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # so that relative sizes of axes created by po.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
-# Ignore warnings for cleaner output
-warnings.filterwarnings("ignore", category=UserWarning, module="plenoptic")
+# Ignore warnings about inputs not 4d
+warnings.filterwarnings(
+    "ignore",
+    message="plenoptic's methods have mostly",
+    category=UserWarning
+)
 
 %load_ext autoreload
 %autoreload 2
