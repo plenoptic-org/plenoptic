@@ -473,7 +473,7 @@ def validate_penalty(
     - If ``penalty_function`` casts an input tensor to something else and returns
       it to a tensor before returning it (``ValueError``).
 
-    - If ``penalty_function`` changes the precision of the input tensor (``TypeError``) 
+    - If ``penalty_function`` changes the precision of the input tensor (``TypeError``)
 
     - If ``penalty_function`` returns a complex output (``TypeError``).
 
@@ -521,7 +521,7 @@ def validate_penalty(
     ...     return wrong_dtype.to(dtype=torch.float64)
     >>> po.tools.validate.validate_penalty(failure_penalty_dtype)
     Traceback (most recent call last):
-    TypeError: penalty_function should return a real...
+    TypeError: penalty_function should not change precision...
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
@@ -572,26 +572,27 @@ def validate_penalty(
             " performed using torch?"
         )
     if image_dtype in [torch.float16, torch.complex32]:
-        allowed_dtypes = [torch.float16]
+        allowed_dtypes = torch.float16
     elif image_dtype in [torch.float32, torch.complex64]:
-        allowed_dtypes = [torch.float32]
+        allowed_dtypes = torch.float32
     elif image_dtype in [torch.float64, torch.complex128]:
-        allowed_dtypes = [torch.float64]
+        allowed_dtypes = torch.float64
     else:
         raise TypeError(
             f"Only float or complex dtypes are allowed for the input, but got"
             f" type {image_dtype}"
         )
-    output_dtype = penalty_function(test_img).dtype
-    if torch.is_complex(output_dtype):
+    output = penalty_function(test_img)
+    output_dtype = output.dtype
+    if torch.is_complex(output):
         raise TypeError(
             "penalty_function should not return a complex output"
             ", but got type {output_dtype}}"
         )
-    if output_dtype not in allowed_dtypes:
+    if output_dtype != allowed_dtypes:
         raise TypeError(
-            "penalty_function should return a tensor with the same precision"
-            " as the input, but got type {output_dtype} instead of {image_dtype}"
+            "penalty_function should not change precision of the input, but got type"
+            ", {output_dtype} instead of {allowed_dtypes}"
         )
     if penalty_function(test_img).device != test_img.device:
         # pytorch device errors are RuntimeErrors
