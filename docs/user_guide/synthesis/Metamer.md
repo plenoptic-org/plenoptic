@@ -216,7 +216,7 @@ It is sometimes useful to control properties of the synthesized metamer beyond
 those captured by the input model. Some examples include controlling the range
 of pixel values, penalizing high frequencies, or matching the spectrum of the target image.
 
-For this purpose, the {class}`Metamer <plenoptic.synthesize.metamer.Metamer>` class
+For this purpose, the {class}`~plenoptic.synthesize.metamer.Metamer` class
 takes an optional `penalty_function` argument at initialization.
 The `penalty_function` is a callable that takes as an input the synthesized metamer
 image, and returns a scalar penalty. This scalar penalty is added to the loss
