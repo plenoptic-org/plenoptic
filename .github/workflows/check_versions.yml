@@ -4,13 +4,17 @@ on:
   schedule:
   - cron: 0 0 * * 0     # weekly
 
+permissions: {}
+
 jobs:
   check_pytorch_version:
     runs-on: ubuntu-latest
     name: Check pytorch version for Jenkins image
     steps:
-    - uses: actions/checkout@v5
-    - uses: actions/setup-python@v6
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
     - run: |
         docker_version=$(grep -oE "torch:[0-9\.]*?" jenkins/Dockerfile | sed 's/torch://g')
         recent_version=$(pip index versions torch | grep -oE "torch \([0-9\.]*?" | sed 's/torch (//g')
@@ -18,5 +22,26 @@ jobs:
             echo "PYTORCH VERSION CHANGED, update jenkins/Dockerfile";
             echo "Docker: $docker_version";
             echo "PyPI: $recent_version";
+            exit 1;
+        fi
+
+  check_pytorch_python_version:
+    runs-on: ubuntu-latest
+    name: Check pytorch supported python versions
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
+    - run: |
+        docker_version=$(grep -oE "torch:[0-9\.]*?" jenkins/Dockerfile | sed 's/torch://g')
+        echo "Downloading toml from https://raw.githubusercontent.com/pytorch/pytorch/refs/tags/v${docker_version}/pyproject.toml"
+        curl https://raw.githubusercontent.com/pytorch/pytorch/refs/tags/v${docker_version}/pyproject.toml > pytorch.toml
+        pytorch_version=$(python .github/workflows/check_supported_versions.py pytorch.toml)
+        plenoptic_version=$(python .github/workflows/check_supported_versions.py pyproject.toml)
+        if [[ $pytorch_version != $plenoptic_version ]]; then
+            echo "PYTORCH SUPPORTED PYTHON VERSIONS CHANGED, update pyproject.toml";
+            echo pytorch: $pytorch_version";
+            echo plenoptic: $plenoptic_version";
             exit 1;
         fi

@@ -48,13 +48,7 @@ We try to keep all our communication on Github, and we use several channels:
 
 ## Supported versions
 
-`plenoptic` tries to follow
-[SPEC-0](https://scientific-python.org/specs/spec-0000/): we support python
-versions are supported for 3 years following initial release. This means that we
-support three python feature versions (e.g., 3.10, 3.11, and 3.12) at any one
-time and that we'll transition between versions during the fourth quarter of
-each year. We run our CPU tests on all three versions, and the GPU tests and
-documentation build use the middle version.
+`plenoptic` tries to follow [pytorch](https://pytorch.org): we support the python versions that they support. We run our CPU tests on all supported versions, and the GPU tests and documentation build use the middle version.
 
 (contributing-to-the-code)=
 ## Contributing to the code
@@ -308,8 +302,11 @@ When running tests on some machines (e.g., nodes of the Flatiron cluster), the d
 
 To avoid this problem, we can use environment variables to control the behavior of these libraries. To do so for pooch (downloading test files), torch (downloading pretrained models), and matplotlib (caching config files), prepend the following to your pytest command: `PYTORCH_KERNEL_CACHE_PATH=~/.cache/torch/kernels TORCH_HOME=~/.cache/torch MPLCONFIGDIR=~/.cache/matplotlib PLENOPTIC_CACHE_DIR=~/.cache/plenoptic` (or replace `~/.cache/` with some other directory).
 
-> [!NOTE]
-> This may also be helpful when building the documentation.
+:::{tip}
+
+This may also be helpful when building the documentation.
+
+:::
 
 See relevant torch [1](https://docs.pytorch.org/docs/stable/notes/cuda.html#just-in-time-compilation) and [2](https://docs.pytorch.org/docs/stable/hub.html#where-are-my-downloaded-models-saved), [pooch](https://www.fatiando.org/pooch/latest/user-defined-cache.html), and [matplotlib](https://matplotlib.org/stable/install/environment_variables_faq.html#envvar-MPLCONFIGDIR) docs.
 
@@ -647,7 +644,13 @@ In all markdown files, you should try to use sphinx's cross-reference syntax to 
 {class}`~plenoptic.synthesize.metamer.Metamer`
 ```
 
-You should similarly refer to code objects in other packages (e.g., pytorch and matplotlib), though the syntax is different. See [myst-parser docs](https://myst-parser.readthedocs.io/en/latest/syntax/cross-referencing.html#reference-roles) for more details and the existing documentation for more examples. As part of the pull request review process, we run linters that will check for missing cross-references. The only objects that can be referred to simply as `monospace` font are function arguments and generic attributes / method (e.g., saying that plenoptic models must have a `forward` <!-- skip-lint --> method). The linter will ignore all monospace font that have the word "argument" or "keyword" after them (e.g., "the `scales` keyword" or "the `scales` argument") or an html comment containing "skip-lint" (e.g., "the `scales` <!-- skip-lint --> method"; html comments are not rendered in sphinx).
+You should similarly refer to code objects in other packages (e.g., pytorch and matplotlib), though the syntax is different. See [myst-parser docs](https://myst-parser.readthedocs.io/en/latest/syntax/cross-referencing.html#reference-roles) for more details and the existing documentation for more examples. As part of the pull request review process, we run linters that will check for missing cross-references. The only objects that can be referred to simply as `monospace` font are function arguments and generic attributes / method (e.g., saying that plenoptic models must have a `forward` <!-- skip-lint --> method). The linter will ignore all monospace font that have the word "argument" or "keyword" after them (e.g., "the `scales` keyword" or "the `scales` argument") or an html comment containing "skip-lint", for example:
+
+```
+the `scales` <!-- skip-lint --> method
+```
+
+(html comments are not rendered in sphinx).
 
 The regular markdown files contain everything else, especially discussions about why you should use some code in the package and the theory behind it, and should all be located in one of the subfolders within the `docs/` directory. Decide which subfolder to place it in (ask for your help if you're unsure) and add it to that subfolder's `index.md` by adding the name of the file (without extension) to the `toctree` block.
 
@@ -695,15 +698,17 @@ Similar to figures, you can use `numref` to refer to plots as well.
 #### API Documentation
 
 All public functions and classes must be included on the API documentation page.
-Therefore, if you add a new public function or class, make sure to add it to
-`docs/api.rst` in an appropriate location. If this is not done,
-`linting/check_apidocs.py` will fail (this check is included in our pre-commit
-config and thus is required to pass for a PR to merge).
+Therefore, if you add a new public function or class, make sure to add it to one
+of the `rst` files in `docs/api/` in an appropriate location. If this is not
+done, `linting/check_apidocs.py` will fail (this check is included in our
+pre-commit config and thus is required to pass for a PR to merge).
 
-If you add a new source file (e.g., `src/plenoptic/synthesize/new_method.py`),
-you will also need to add it to `docs/api_modules.rst`. If this is not done,
-sphinx will raise an error when building the documentation. You also need to add
-that file to the hidden toctree at the top of `docs/api.rst`.
+If the new function or class does not belong in one of the existing `rst` files
+found in `docs/api/`, you can create a new one, referring to the existing files
+as templates. You must then add it to the `api_order` list in `docs/conf.py`.
+This list determines the order in which these documents are displayed in the
+index page of the API documentation, roughly from most to least important. Ask
+for help if you're not sure where to put it.
 
 (docstrings)=
 ### Docstrings
@@ -788,10 +793,12 @@ Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/
 (build-the-documentation)=
 ### Build the documentation
 
-NOTE: If you just want to read the documentation, you do not need to do this;
+:::{important}
+If you just want to read the documentation, you do not need to do this;
 documentation is built automatically, pushed to the
 [plenoptic-documentation](https://github.com/plenoptic-org/plenoptic-documentation)
 github repo and published at http://docs.plenoptic.org/.
+:::
 
 However, it can be built locally as well. You would do this if you've made changes locally to the documentation (or the docstrings) that you would like to examine before pushing. All additional requirements are included in the `[docs]` optional dependency bundle, which you can install with `pip install plenoptic[docs]`.
 

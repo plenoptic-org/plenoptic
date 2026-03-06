@@ -4,7 +4,7 @@
 [![PyPI Version](https://img.shields.io/pypi/v/plenoptic.svg)](https://pypi.org/project/plenoptic/)
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/plenoptic/badges/version.svg)](https://anaconda.org/conda-forge/plenoptic)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/plenoptic-org/plenoptic/blob/main/LICENSE)
-![Python version](https://img.shields.io/badge/python-3.10|3.11|3.12-blue.svg)
+![Python version](https://img.shields.io/badge/python-3.10|3.11|3.12|3.13|3.14-blue.svg)
 [![Build Status](https://github.com/plenoptic-org/plenoptic/workflows/build/badge.svg)](https://github.com/plenoptic-org/plenoptic/actions?query=workflow%3Abuild)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10151130.svg)](https://doi.org/10.5281/zenodo.10151130)
 [![codecov](https://codecov.io/gh/plenoptic-org/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/plenoptic-org/plenoptic)
@@ -24,7 +24,7 @@
 :align: center
 :::
 
-`plenoptic` is a python library for model-based synthesis of perceptual stimuli. For `plenoptic`, models are those of visual [^footnote-1] information processing: they accept an image[^footnote-2] as input, perform some computations, and return some output, which can be mapped to neuronal firing rate, fMRI BOLD response, behavior on some task, image category, etc. The intended audience is researchers in neuroscience, psychology, and machine learning. The generated stimuli enable interpretation of model properties through examination of features that are enhanced, suppressed, or discarded. More importantly, they can facilitate the scientific process, through use in further perceptual or neural experiments aimed at validating or falsifying model predictions.
+`plenoptic` is a python library for model-based synthesis of perceptual stimuli, built on top of [pytorch](https://pytorch.org/). For `plenoptic`, models are those of visual [^footnote-1] information processing: they accept an image[^footnote-2] as input, perform some computations, and return some output, which can be mapped to neuronal firing rate, fMRI BOLD response, behavior on some task, image category, etc. The intended audience is researchers in neuroscience, psychology, and machine learning. For any pytorch model, users can generate stimuli which enable interpretation of model properties through examination of features that are enhanced, suppressed, or discarded. More importantly, these stimuli facilitate the scientific process, through use in further perceptual or neural experiments aimed at validating or falsifying model predictions.
 
 ::::{grid} auto
 :::{grid-item}
@@ -109,12 +109,20 @@ In all cases, we request that you respect our [code of conduct](https://github.c
 
 If you use `plenoptic` in a published academic article or presentation, please cite us! See the [](citation-doc) for more details.
 
+## Related packages
+
+If you are curious about `plenoptic`, these other packages may also be of interest:
+
+- [pytorch](https://pytorch.org): optimized tensor library for deep learning using GPUs and CPUs. `plenoptic` depends on pytorch for automatic differentiation. Any valid pytorch model is compatible with `plenoptic`'s methods (see [](models-doc) for more details).
+- [pyrtools](https://pyrtools.readthedocs.io/en/latest/): a python package for multi-scale image processing. Includes `numpy` implementations of several of the image pyramids and image-processing tools found in `plenoptic`.
+- [lucent](https://github.com/greentfrapp/lucent): pytorch adaptation of the [lucid](https://github.com/tensorflow/lucid) TensorFlow library, which contains a variety of tools for research in neural network interpretability. Similar to `plenoptic`, contains methods for synthesizing images to better understand how models process visual information.
+
 :::{toctree}
 :hidden:
 
 getting_started/index
 user_guide/index
-api
+api/index
 reference/index
 Changelog <https://github.com/plenoptic-org/plenoptic/releases>
 developers/index
