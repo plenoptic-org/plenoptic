@@ -63,11 +63,13 @@ def validate_input(
     >>> import plenoptic as po
     >>> po.tools.validate.validate_input(po.data.einstein())
 
-    Raise warning:
+    Intentionally fail:
 
     >>> import plenoptic as po
-    >>> img = po.data.einstein() * 5.0
+    >>> img = torch.randint(low=0, high=255, size=(1, 256, 256))
     >>> po.tools.validate.validate_input(img)
+    Traceback (most recent call last):
+    TypeError: Only float or complex dtypes are allowed ...
     """
     # validate dtype
     if input_tensor.dtype not in [
