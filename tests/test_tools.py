@@ -566,14 +566,14 @@ class TestValidate:
                 "below",
                 pytest.warns(
                     UserWarning,
-                    match="outside the tested range \\(0, 1\\)",
+                    match="input_tensor range is",
                 ),
             ),
             (
                 "above",
                 pytest.warns(
                     UserWarning,
-                    match="outside the tested range \\(0, 1\\)",
+                    match="input_tensor range is",
                 ),
             ),
         ],
