@@ -38,13 +38,13 @@ def lint(session):
     )
 
 
-@nox.session(name="tests", python=["3.10", "3.11", "3.12"])
+@nox.session(name="tests", python=["3.10", "3.11", "3.12", "3.13", "3.14"])
 def tests(session):
     session.install(".[dev]")
     session.run("pytest")
 
 
-@nox.session(name="doctests", python=["3.10", "3.11", "3.12"])
+@nox.session(name="doctests", python=["3.10", "3.11", "3.12", "3.13", "3.14"])
 def doctests(session):
     session.install(".[dev]")
     session.run("pytest --doctest-modules --doctest-continue-on-failure src/")
