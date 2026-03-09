@@ -841,7 +841,7 @@ class TestValidate:
 
         with pytest.raises(
             TypeError,
-            match="penalty_function should return a real output with the same",
+            match="penalty_function should not change precision",
         ):
             po.tools.validate.validate_penalty(dtype_penalty, device=DEVICE)
 
