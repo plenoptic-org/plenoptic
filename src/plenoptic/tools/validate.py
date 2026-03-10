@@ -589,7 +589,7 @@ def validate_penalty(
     if torch.is_complex(output):
         raise TypeError(
             "penalty_function should not return a complex output"
-            ", but got type {output_dtype}}"
+            f", but got type {output_dtype}"
         )
     if output_dtype != allowed_dtypes:
         raise TypeError(
