@@ -736,7 +736,7 @@ class TestMetamers:
     )
     def test_warn_out_of_range_input(self, einstein_img, model):
         img = einstein_img + 1
-        with pytest.warns(UserWarning, match="outside the tested range \\(0, 1\\)"):
+        with pytest.warns(UserWarning, match="input_tensor range is"):
             po.synth.Metamer(img, model)
 
     @pytest.mark.parametrize("iteration", [None, 0, -2, -3, 2, 1, 6, -7])

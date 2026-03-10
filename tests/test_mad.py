@@ -1089,7 +1089,7 @@ class TestMAD:
 
     def test_warn_out_of_range_input(self, einstein_img):
         img = einstein_img + 1
-        with pytest.warns(UserWarning, match="outside the tested range \\(0, 1\\)"):
+        with pytest.warns(UserWarning, match="input_tensor range is"):
             po.synth.MADCompetition(
                 img,
                 po.metric.mse,
