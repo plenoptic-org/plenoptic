@@ -835,6 +835,17 @@ class TestValidate:
         ):
             po.tools.validate.validate_penalty(detach_penalty, device=DEVICE)
 
+    def test_validate_penalty_complex_output(self):
+        def complex_penalty(x):
+            x_sum = x.sum()
+            return x_sum + 1j * x_sum
+
+        with pytest.raises(
+            TypeError,
+            match="penalty_function should not return a complex output",
+        ):
+            po.tools.validate.validate_penalty(complex_penalty, device=DEVICE)
+
     def test_validate_penalty_precision(self):
         def dtype_penalty(x):
             return x.to(torch.float64).sum()
