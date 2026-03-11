@@ -16,23 +16,43 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   notebooks_cpu:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
       fail-fast: false
     name: Execute notebooks
     steps:
-    - uses: actions/checkout@v5
-    - uses: actions/setup-python@v6
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
         cache-dependency-path: setup.py
-    - name: Setup FFmpeg
-      uses: FedericoCarboni/setup-ffmpeg@v3.1
+    - name: Load cached FFmpeg
+      id: cache-ffmpeg
+      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+
+      with:
+        path: |
+          /usr/local/bin/ffmpeg
+          /usr/local/bin/ffprobe
+        key: ${{ runner.os }}-ffmpeg-5.1.1
+    - name: Install FFmpeg if not cached
+      if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+      run: |
+        VERSION=6.0.1
+        RELEASE_NAME=ffmpeg-${VERSION}-amd64-static
+        wget --timeout=8 --tries=30 https://www.johnvansickle.com/ffmpeg/old-releases/${RELEASE_NAME}.tar.xz
+        tar -xf ${RELEASE_NAME}.tar.xz
+        mv ${RELEASE_NAME}/ffmpeg ${RELEASE_NAME}/ffprobe /usr/local/bin/
+        rm -rf ${RELEASE_NAME}
     - name: Install dependencies
       run: |
         pip install --upgrade --upgrade-strategy eager .[nb] --extra-index-url https://download.pytorch.org/whl/cpu
@@ -48,13 +68,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
       fail-fast: false
     name: Run doctests
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
     - name: Install Python 3
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -75,11 +97,13 @@ jobs:
     runs-on: ubuntu-latest
     name: Check sphinx references
     steps:
-    - uses: actions/checkout@v5
-    - name: Install Python 3
-      uses: actions/setup-python@v6
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
-        python-version: '3.12'
+        persist-credentials: false
+    - name: Install Python 3
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
+      with:
+        python-version: '3.14'
         cache: pip
         cache-dependency-path: setup.py
     - name: Install dependencies
@@ -97,13 +121,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
       fail-fast: false
     name: Run pytest scripts
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
     - name: Install Python 3
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -118,14 +144,17 @@ jobs:
       run: |
         pytest --cov-report xml
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5.5.1
+      uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
   check_urls:
     runs-on: ubuntu-latest
     name: Check all urls are valid
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
     - uses: urlstechie/urlchecker-action@b643b43e2ac605e1475331c7b67247d242b7dce4 # 0.0.34
       with:
         file_types: .md,.py,.rst
@@ -144,6 +173,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Decide whether all tests and notebooks succeeded
-      uses: re-actors/alls-green@afee1c1eac2a506084c274e9c02c8e0687b48d9e # v1.2.2
+      uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # v1.2.2
       with:
         jobs: ${{ toJSON(needs) }}

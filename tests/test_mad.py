@@ -1,6 +1,5 @@
 import inspect
 import math
-import os.path as op
 from contextlib import nullcontext as does_not_raise
 
 import pytest
@@ -22,6 +21,14 @@ def rgb_l2_norm(*args):
 # return 0 if two images are identical (SSIM normally returns 1)
 def dis_ssim(*args):
     return (1 - po.metric.ssim(*args)).mean()
+
+
+def custom_penalty(x1):
+    return po.tools.regularization.penalize_range(x1, allowed_range=(0.2, 0.8))
+
+
+def custom_penalty2(x1):
+    return po.tools.regularization.penalize_range(x1, allowed_range=(0.3, 0.7))
 
 
 class ModuleMetric(torch.nn.Module):
@@ -69,19 +76,19 @@ class TestMAD:
             "metric2",
             "target",
             "tradeoff",
-            "range_penalty",
-            "allowed_range",
+            "penalty",
+            "penalty_lambda",
         ],
     )
-    @pytest.mark.parametrize("range_penalty", [0.1, 0])
-    @pytest.mark.parametrize("allowed_range", [(0, 1), (-1, 1)])
+    @pytest.mark.parametrize("penalty_lambda", [0.1, 0])
     @pytest.mark.parametrize("rgb", [False, True])
+    @pytest.mark.parametrize("penalty_function", ["range", "custom"])
     @pytest.mark.filterwarnings(
         "ignore:SSIM was designed for grayscale images:UserWarning"
     )
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_save_load(
-        self, curie_img, fail, range_penalty, allowed_range, rgb, tmp_path
+        self, curie_img, fail, penalty_lambda, rgb, penalty_function, tmp_path
     ):
         # this works with either rgb or grayscale images
         metric = rgb_mse
@@ -92,17 +99,21 @@ class TestMAD:
             metric2 = dis_ssim
         target = "min"
         tradeoff = 1
+        if penalty_function == "range":
+            penalty = po.tools.regularization.penalize_range
+        elif penalty_function == "custom":
+            penalty = custom_penalty
         mad = po.synth.MADCompetition(
             curie_img,
             metric,
             metric2,
             target,
             metric_tradeoff_lambda=tradeoff,
-            allowed_range=allowed_range,
-            range_penalty_lambda=range_penalty,
+            penalty_lambda=penalty_lambda,
+            penalty_function=penalty,
         )
         mad.synthesize(max_iter=4, store_progress=True)
-        mad.save(op.join(tmp_path, "test_mad_save_load.pt"))
+        mad.save(tmp_path / "test_mad_save_load.pt")
         if fail:
             if fail == "img":
                 curie_img = torch.rand_like(curie_img)
@@ -146,17 +157,20 @@ class TestMAD:
                         "Saved and initialized metric_tradeoff_lambda are different"
                     ),
                 )
-            elif fail == "allowed_range":
-                allowed_range = (0, 5)
+            elif fail == "penalty":
+                penalty = custom_penalty2
                 expectation = pytest.raises(
                     ValueError,
-                    match=("Saved and initialized allowed_range are different"),
+                    match=(
+                        "Saved and initialized penalty_function output have different"
+                        " values"
+                    ),
                 )
-            elif fail == "range_penalty":
-                range_penalty = 0.5
+            elif fail == "penalty_lambda":
+                penalty_lambda = 0.5
                 expectation = pytest.raises(
                     ValueError,
-                    match=("Saved and initialized range_penalty_lambda are different"),
+                    match=("Saved and initialized penalty_lambda are different"),
                 )
             mad_copy = po.synth.MADCompetition(
                 curie_img,
@@ -164,12 +178,12 @@ class TestMAD:
                 metric2,
                 target,
                 metric_tradeoff_lambda=tradeoff,
-                allowed_range=allowed_range,
-                range_penalty_lambda=range_penalty,
+                penalty_lambda=penalty_lambda,
+                penalty_function=penalty,
             )
             with expectation:
                 mad_copy.load(
-                    op.join(tmp_path, "test_mad_save_load.pt"),
+                    tmp_path / "test_mad_save_load.pt",
                     map_location=DEVICE,
                 )
         else:
@@ -179,12 +193,10 @@ class TestMAD:
                 metric2,
                 target,
                 metric_tradeoff_lambda=tradeoff,
-                allowed_range=allowed_range,
-                range_penalty_lambda=range_penalty,
+                penalty_lambda=penalty_lambda,
+                penalty_function=penalty,
             )
-            mad_copy.load(
-                op.join(tmp_path, "test_mad_save_load.pt"), map_location=DEVICE
-            )
+            mad_copy.load(tmp_path / "test_mad_save_load.pt", map_location=DEVICE)
             # check that can resume
             mad_copy.synthesize(max_iter=5, store_progress=True)
         if rgb:
@@ -223,7 +235,7 @@ class TestMAD:
             metric_tradeoff_lambda=1,
         )
         mad.synthesize(max_iter=4)
-        mad.save(op.join(tmp_path, "test_mad_setup_load_fail.pt"))
+        mad.save(tmp_path / "test_mad_setup_load_fail.pt")
         mad = po.synth.MADCompetition(
             einstein_img,
             po.metric.mse,
@@ -231,7 +243,7 @@ class TestMAD:
             "min",
             metric_tradeoff_lambda=1,
         )
-        mad.load(op.join(tmp_path, "test_mad_setup_load_fail.pt"))
+        mad.load(tmp_path / "test_mad_setup_load_fail.pt")
         with pytest.raises(
             ValueError, match="Cannot set initial_noise after calling load"
         ):
@@ -248,7 +260,7 @@ class TestMAD:
         )
         mad.setup(optimizer=torch.optim.SGD)
         mad.synthesize(max_iter=4)
-        mad.save(op.join(tmp_path, "test_mad_synth_then_setup.pt"))
+        mad.save(tmp_path / "test_mad_synth_then_setup.pt")
         mad = po.synth.MADCompetition(
             einstein_img,
             po.metric.mse,
@@ -256,7 +268,7 @@ class TestMAD:
             "min",
             metric_tradeoff_lambda=1,
         )
-        mad.load(op.join(tmp_path, "test_mad_synth_then_setup.pt"))
+        mad.load(tmp_path / "test_mad_synth_then_setup.pt")
         with pytest.raises(ValueError, match="Don't know how to initialize"):
             mad.synthesize(5)
         mad.setup(optimizer=torch.optim.SGD)
@@ -271,11 +283,11 @@ class TestMAD:
             metric_tradeoff_lambda=1,
         )
         mad.synthesize(max_iter=4, store_progress=True)
-        mad.save(op.join(tmp_path, "test_mad_load_init_fail.pt"))
+        mad.save(tmp_path / "test_mad_load_init_fail.pt")
         with pytest.raises(
             ValueError, match="load can only be called with a just-initialized"
         ):
-            mad.load(op.join(tmp_path, "test_mad_load_init_fail.pt"))
+            mad.load(tmp_path / "test_mad_load_init_fail.pt")
 
     @pytest.mark.parametrize("fail", [False, "name", "behavior"])
     def test_load_names(self, fail, einstein_img, tmp_path):
@@ -320,7 +332,7 @@ class TestMAD:
             metric_tradeoff_lambda=1,
         )
         mad.synthesize(max_iter=4, store_progress=True)
-        mad.save(op.join(tmp_path, f"test_mad_load_names_{fail}.pt"))
+        mad.save(tmp_path / f"test_mad_load_names_{fail}.pt")
         mad = po.synth.MADCompetition(
             einstein_img,
             metric2,
@@ -329,7 +341,7 @@ class TestMAD:
             metric_tradeoff_lambda=1,
         )
         with expectation:
-            mad.load(op.join(tmp_path, f"test_mad_load_names_{fail}.pt"))
+            mad.load(tmp_path / f"test_mad_load_names_{fail}.pt")
 
     def test_examine_saved_object(self, einstein_img, tmp_path):
         mad = po.synth.MADCompetition(
@@ -340,8 +352,8 @@ class TestMAD:
             metric_tradeoff_lambda=1,
         )
         mad.synthesize(max_iter=4, store_progress=True)
-        mad.save(op.join(tmp_path, "test_mad_examine.pt"))
-        po.tools.examine_saved_synthesis(op.join(tmp_path, "test_mad_examine.pt"))
+        mad.save(tmp_path / "test_mad_examine.pt")
+        po.tools.examine_saved_synthesis(tmp_path / "test_mad_examine.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -356,7 +368,7 @@ class TestMAD:
             metric_tradeoff_lambda=1,
         )
         mad.synthesize(max_iter=4, store_progress=True)
-        mad.save(op.join(tmp_path, "test_mad_load_object_type.pt"))
+        mad.save(tmp_path / "test_mad_load_object_type.pt")
         if synth_type == "eig":
             mad = po.synth.Eigendistortion(einstein_img, model)
         elif synth_type == "met":
@@ -364,7 +376,7 @@ class TestMAD:
         with pytest.raises(
             ValueError, match="Saved object was a.* but initialized object is"
         ):
-            mad.load(op.join(tmp_path, "test_mad_load_object_type.pt"))
+            mad.load(tmp_path / "test_mad_load_object_type.pt")
 
     @pytest.mark.parametrize("metric_behav", ["dtype", "shape", "name"])
     @pytest.mark.parametrize("metric", ["optimized", "reference"])
@@ -377,7 +389,7 @@ class TestMAD:
             metric_tradeoff_lambda=1,
         )
         mad.synthesize(max_iter=4, store_progress=True)
-        mad.save(op.join(tmp_path, "test_mad_load_metric_change.pt"))
+        mad.save(tmp_path / "test_mad_load_metric_change.pt")
 
         def new_metric(x, y):
             if metric_behav == "dtype":
@@ -421,7 +433,51 @@ class TestMAD:
                     "min",
                     metric_tradeoff_lambda=1,
                 )
-            mad.load(op.join(tmp_path, "test_mad_load_metric_change.pt"))
+            mad.load(tmp_path / "test_mad_load_metric_change.pt")
+
+    @pytest.mark.parametrize("penalty_behav", ["dtype", "shape", "name"])
+    def test_load_penalty_change(self, einstein_img, penalty_behav, tmp_path):
+        def base_penalty(x):
+            return po.tools.regularization.penalize_range(x)
+
+        mad = po.synth.MADCompetition(
+            einstein_img,
+            po.metric.mse,
+            po.tools.optim.l2_norm,
+            "min",
+            metric_tradeoff_lambda=1,
+            penalty_lambda=0.1,
+            penalty_function=base_penalty,
+        )
+        mad.synthesize(max_iter=4, store_progress=True)
+        mad.save(tmp_path / "test_mad_load_penalty_change.pt")
+
+        def new_penalty(x):
+            penalty = base_penalty(x)
+            if penalty_behav == "dtype":
+                return penalty.to(torch.float64)
+            if penalty_behav == "shape":
+                return torch.stack([penalty, penalty])
+            return penalty
+
+        if penalty_behav == "name":
+            expectation = "Saved and initialized penalty_function have different names"
+        else:
+            expectation = (
+                "Saved and initialized penalty_function output have different"
+                f" {penalty_behav}"
+            )
+        mad = po.synth.MADCompetition(
+            einstein_img,
+            po.metric.mse,
+            po.tools.optim.l2_norm,
+            "min",
+            metric_tradeoff_lambda=1,
+            penalty_lambda=0.1,
+            penalty_function=new_penalty,
+        )
+        with pytest.raises(ValueError, match=expectation):
+            mad.load(tmp_path / "test_mad_load_penalty_change.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -439,7 +495,7 @@ class TestMAD:
         if attribute == "saved":
             mad.test = "BAD"
             err_str = "Saved"
-        mad.save(op.join(tmp_path, "test_mad_load_attributes.pt"))
+        mad.save(tmp_path / "test_mad_load_attributes.pt")
         mad = po.synth.MADCompetition(
             einstein_img,
             po.metric.mse,
@@ -453,7 +509,7 @@ class TestMAD:
         with pytest.raises(
             ValueError, match=rf"{err_str} object has 1 attribute\(s\) not present"
         ):
-            mad.load(op.join(tmp_path, "test_mad_load_attributes.pt"))
+            mad.load(tmp_path / "test_mad_load_attributes.pt")
 
     @pytest.mark.parametrize(
         "optim_opts",
@@ -516,7 +572,7 @@ class TestMAD:
             scheduler_kwargs=scheduler_kwargs,
         )
         mad.synthesize(max_iter=5)
-        mad.save(op.join(tmp_path, "test_mad_optimizer.pt"))
+        mad.save(tmp_path / "test_mad_optimizer.pt")
         mad = po.synth.MADCompetition(
             curie_img,
             po.metric.mse,
@@ -524,7 +580,7 @@ class TestMAD:
             "min",
             metric_tradeoff_lambda=1,
         )
-        mad.load(op.join(tmp_path, "test_mad_optimizer.pt"))
+        mad.load(tmp_path / "test_mad_optimizer.pt")
         optimizer_kwargs = None
         scheduler_kwargs = None
         if not fail:
@@ -615,21 +671,19 @@ class TestMAD:
             lambda *args: 1 - po.metric.ssim(*args),
             "min",
             metric_tradeoff_lambda=1,
-            allowed_range=(-1, 2),
         )
         mad.synthesize(5)
-        mad.save(op.join(tmp_path, "test_mad_load_tol.pt"))
+        mad.save(tmp_path / "test_mad_load_tol.pt")
         mad = po.synth.MADCompetition(
-            einstein_img + 1e-7 * torch.rand_like(einstein_img),
+            (1 - 1e-7) * einstein_img + 1e-7 * torch.rand_like(einstein_img),
             po.metric.mse,
             lambda *args: 1 - po.metric.ssim(*args),
             "min",
             metric_tradeoff_lambda=1,
-            allowed_range=(-1, 2),
         )
         with pytest.raises(ValueError, match="Saved and initialized attribute image"):
-            mad.load(op.join(tmp_path, "test_mad_load_tol.pt"))
-        mad.load(op.join(tmp_path, "test_mad_load_tol.pt"), tensor_equality_atol=1e-7)
+            mad.load(tmp_path / "test_mad_load_tol.pt")
+        mad.load(tmp_path / "test_mad_load_tol.pt", tensor_equality_atol=1e-7)
 
     @pytest.mark.parametrize(
         "optimizer",
@@ -754,7 +808,7 @@ class TestMAD:
             metric_tradeoff_lambda=1,
         )
         mad.synthesize(max_iter=4, store_progress=True)
-        mad.save(op.join(tmp_path, "test_mad_map_location.pt"))
+        mad.save(tmp_path / "test_mad_map_location.pt")
         mad_copy = po.synth.MADCompetition(
             curie_img.to("cpu"),
             po.metric.mse,
@@ -763,7 +817,7 @@ class TestMAD:
             metric_tradeoff_lambda=1,
         )
         assert mad_copy.image.device.type == "cpu"
-        mad_copy.load(op.join(tmp_path, "test_mad_map_location.pt"), map_location="cpu")
+        mad_copy.load(tmp_path / "test_mad_map_location.pt", map_location="cpu")
         assert mad_copy.mad_image.device.type == "cpu"
         mad_copy.synthesize(max_iter=4, store_progress=True)
 
@@ -986,7 +1040,7 @@ class TestMAD:
         mad.synthesize(max_iter=5)
         mad.to(torch.float64)
         assert mad.mad_image.dtype == torch.float64, "dtype incorrect!"
-        mad.save(op.join(tmp_path, "test_change_prec_save_load.pt"))
+        mad.save(tmp_path / "test_change_prec_save_load.pt")
         mad_copy = po.synth.MADCompetition(
             einstein_img.to(torch.float64),
             po.metric.mse,
@@ -994,7 +1048,7 @@ class TestMAD:
             "min",
             metric_tradeoff_lambda=1,
         )
-        mad_copy.load(op.join(tmp_path, "test_change_prec_save_load.pt"))
+        mad_copy.load(tmp_path / "test_change_prec_save_load.pt")
         mad_copy.synthesize(max_iter=5)
         assert mad_copy.mad_image.dtype == torch.float64, "dtype incorrect!"
 
@@ -1010,10 +1064,65 @@ class TestMAD:
         # losses[-1] corresponds to the *current* loss (of mad.mad_image), not the loss
         # from the most recent iteration. so losses[-2] is the loss of the last
         # synthesis iteration.
-        mad.synthesize(max_iter=15, stop_criterion=1e-3, stop_iters_to_check=5)
-        assert abs(mad.losses[-6] - mad.losses[-2]) < 1e-3, (
+        max_iter = 30
+        stop_criterion = 5 * 1e-3
+        stop_iters = 5
+        mad.synthesize(
+            max_iter=max_iter,
+            stop_criterion=stop_criterion,
+            stop_iters_to_check=stop_iters,
+        )
+        # Check that synthesis converges at a reasonable iteration
+        assert len(mad.losses) < max_iter + 1, (
+            "MAD synthesis didn't converge, but this test expects it to."
+        )
+        assert len(mad.losses) >= stop_iters + 2, (
+            "MAD synthesis stopped too early for this test to work correctly."
+        )
+        # Check that convergence stopping worked well
+        assert abs(mad.losses[-6] - mad.losses[-6 + stop_iters - 1]) < stop_criterion, (
             "Didn't stop when hit criterion!"
         )
-        assert abs(mad.losses[-7] - mad.losses[-3]) > 1e-3, (
+        assert abs(mad.losses[-7] - mad.losses[-7 + stop_iters - 1]) > stop_criterion, (
             "Stopped after hit criterion!"
+        )
+
+    def test_warn_out_of_range_input(self, einstein_img):
+        img = einstein_img + 1
+        with pytest.warns(UserWarning, match="input_tensor range is"):
+            po.synth.MADCompetition(
+                img,
+                po.metric.mse,
+                po.tools.optim.l2_norm,
+                "min",
+                metric_tradeoff_lambda=1,
+            )
+
+    @pytest.mark.parametrize("penalty_function", ["range", "custom"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_penalty_effect(self, einstein_img, penalty_function):
+        """Higher penalty_lambda should yield smaller penalty values."""
+        if penalty_function == "range":
+            penalty = po.tools.regularization.penalize_range
+        elif penalty_function == "custom":
+            penalty = custom_penalty
+        penalty_lambdas = [0.0, 0.5]
+        output_penalty = []
+        # Synthesize with each penalty lambda and record penalty value
+        for pl in penalty_lambdas:
+            po.tools.set_seed(0)
+            mad = po.synth.MADCompetition(
+                einstein_img,
+                po.metric.mse,
+                dis_ssim,
+                "min",
+                metric_tradeoff_lambda=10,
+                penalty_lambda=pl,
+                penalty_function=penalty,
+            )
+            mad.synthesize(max_iter=5)
+            output_penalty.append(penalty(mad.mad_image.detach()).item())
+
+        assert output_penalty[1] < output_penalty[0], (
+            "Stronger penalty_lambda did not lead to lower penalty value!"
         )

@@ -6,23 +6,16 @@
 
 # -- Path setup --------------------------------------------------------------
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#
 import glob
+import inspect
 import os
 import pathlib
-import sys
 from importlib.metadata import version
 
 import torch
 
 # by default, torch uses all avail threads which slows things run in parallel
 torch.set_num_threads(1)
-
-sys.path.insert(0, os.path.abspath(".."))
-sys.path.insert(0, os.path.abspath("./tutorials/"))
 
 
 # -- Project information -----------------------------------------------------
@@ -44,7 +37,6 @@ version: str = ".".join(release.split(".")[:3])
 extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
-    "matplotlib.sphinxext.plot_directive",
     "matplotlib.sphinxext.mathmpl",
     "sphinx.ext.autosummary",
     "sphinx.ext.autodoc",
@@ -57,6 +49,9 @@ extensions = [
     "sphinx_design",
     "sphinx.ext.viewcode",
 ]
+
+if not os.environ.get("SKIP_MPL"):
+    extensions.append("matplotlib.sphinxext.plot_directive")
 
 numfig = True
 add_module_names = False
@@ -125,16 +120,67 @@ autodoc_default_options = {
     "member-order": "groupwise",
 }
 
+# this is supposed to be true by default
+# (https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-the-python-domain)
+# but must get set False by one of our extensions
+add_module_names = True
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
+html_theme = "pydata_sphinx_theme"
+
+html_favicon = "_static/plenoptic.ico"
+
+html_theme_options = {
+    "icon_links": [
+        {
+            "name": "Home",
+            "url": "https://plenoptic.org",
+            "icon": "fa-solid fa-house",
+        },
+        {
+            "name": "GitHub",
+            "url": "https://github.com/plenoptic-org/plenoptic",
+            "icon": "fab fa-github",
+        },
+        {
+            "name": "PyPI",
+            "url": "https://pypi.org/project/plenoptic",
+            "icon": "fa-custom fa-pypi",
+        },
+    ],
+    "logo": {
+        "image_light": "_static/images/Plenoptic_Logo_CMYK_Full_Wide.svg",
+        "image_dark": "_static/images/Plenoptic_Logo_CMYK_Full_DarkMode_Wide.svg",
+    },
+    "show_prev_next": True,
+    "secondary_sidebar_items": {
+        # this glob pattern matches anything except a string that starts with api.
+        # unfortunately pydata-sphinx raises a warning if a page matches multiple glob
+        # patterns (and doesn't assign a reference code so we can tell sphinx to
+        # suppress it:
+        # https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-suppress_warnings)
+        "[!a]?[!p]?[!i]**": ["page-toc"],
+        "api/**": [],
+    },
+    "show_nav_level": 2,
+    "header_links_before_dropdown": 4,
+    "navbar_align": "left",
+    "navbar_start": ["navbar-logo", "version-switcher"],
+    "show_version_warning_banner": True,
+    "switcher": {
+        "json_url": "https://docs.plenoptic.org/docs/branch/main/_static/version_switcher.json",
+        "version_match": version,
+    },
+}
 
 # Path for static files (custom stylesheets or JavaScript)
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
+html_js_files = ["custom-icon.js"]
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
@@ -231,6 +277,7 @@ myst_enable_extensions = [
     "dollarmath",
     "amsmath",
     "attrs_block",
+    "linkify",
 ]
 
 # SPHINXCONTRIB-BIBTEX
@@ -254,8 +301,12 @@ if run_nb := os.environ.get("RUN_NB"):
         nb_execution_excludepatterns = []
         print("Running all notebooks, things will take longer...")
     else:
-        all_nbs = glob.glob("tutorials/**/*md", recursive=True)
-        all_nbs = [pathlib.Path(n).stem for n in all_nbs]
+        all_md = pathlib.Path(".").glob("**/*md")
+        all_nbs = [
+            pathlib.Path(n).stem
+            for n in all_md
+            if n.read_text().startswith("---\njupytext")
+        ]
         run_globs = [f"*{n}*" for n in run_nb.split(",")]
         nb_execution_excludepatterns = [
             f"*{n}*"
@@ -270,3 +321,106 @@ else:
 nb_execution_mode = os.environ.get("NB_EXECUTION_MODE", "cache")
 nb_execution_raise_on_error = True
 nb_execution_cache_path = ".jupyter_cache"
+
+api_order = [
+    "synthesis.rst",
+    "models.rst",
+    "metrics.rst",
+    "synthesis_helper.rst",
+    "components.rst",
+    "images.rst",
+    "validation.rst",
+    "display.rst",
+    "optimization.rst",
+    "debugging.rst",
+    "external.rst",
+]
+api_dir = pathlib.Path("api")
+# API index page (api/index.rst) is auto-generated. It starts with a hidden toctree
+# including all the rst pages above, and then includes their text (in order), without
+# the sphinx anchor and the toctree argument to the autosummary directive
+api_index = """.. _api:
+
+API
+===
+
+.. toctree::
+   :hidden:
+
+"""
+api_index += "   "
+api_index += "\n   ".join(mod.replace(".rst", "") for mod in api_order)
+api_index += "\n"
+
+for api_rst in api_order:
+    api_rst = api_dir / api_rst
+    contents = api_rst.read_text().split("\n")
+    # two lines we want to throw away: the sphinx anchor (e.g., ".. _synthesis-api") and
+    # the line that tells autosummary to create a toctree (e.g., ":toctree: generated")
+    contents = [
+        c
+        for c in contents
+        if not c.strip().startswith(".. _") and not c.strip().startswith(":toctree:")
+    ]
+    api_index += "\n".join(contents)
+
+(api_dir / "index.rst").write_text(api_index)
+
+
+# this sphinx event allows us to have fine-grained control over whether to document
+# objects or not
+# https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#event-autodoc-skip-member
+# however, we need an extra step to determine which of *our* objects the
+# object-to-document is attached to (https://github.com/sphinx-doc/sphinx/issues/9533)
+def skip_torch_inherited_methods(app, obj_type, name, obj, skip, options):
+    if obj_type in ("method", "property", "attribute"):
+        docobj = None
+        for frame in inspect.stack():
+            if frame.function == "_get_members":
+                docobj = frame.frame.f_locals["obj"]
+        if docobj is None:
+            raise Exception(
+                "Stack of sphinx events has changed, so unsure how to"
+                " grab object that corresponds to this method! See "
+                "PR #413 for discussion."
+            )
+        docobj_module = getattr(docobj, "__module__", "")
+        if obj_type == "method":
+            # we skip the methods inherited from torch.nn.Module for our models and
+            # model_components (we probably never want to show these methods, but this
+            # is a more conservative way of doing this)
+            if docobj_module is not None and docobj_module.startswith(
+                "plenoptic.simulate"
+            ):
+                obj_module = getattr(obj, "__module__", "")
+                if obj_module is not None and obj_module.startswith("torch.nn.modules"):
+                    return True
+        else:
+            # we skip the attributes inherited from torch.nn.Module for our models and
+            # model_components (we probably never want to show these attributes, but
+            # this is a more conservative way of doing this)
+            if docobj_module is not None and docobj_module.startswith(
+                "plenoptic.simulate"
+            ):
+                # for some reason, training doesn't show up as inherited (in the
+                # following set up or as part of the autodoc's inherited_members that we
+                # have access to in the jinja templates), so we exclude it manually
+                if name == "training":
+                    return True
+                # unlike methods, can't just check the module of an attribute, since it
+                # will typically be a basic type (e.g., bool). instead, we go through
+                # all the classes of docobj and see which one contains the attribute
+                # (https://stackoverflow.com/a/42503785/4659293)
+                obj_module = None
+                for cls in docobj.mro():
+                    if name in vars(cls):
+                        obj_module = cls.__module__
+                if obj_module is not None and obj_module.startswith("torch.nn.modules"):
+                    return True
+    return None
+
+
+# connect our custom method to the sphinx events callback API:
+# https://www.sphinx-doc.org/en/master/extdev/event_callbacks.html
+def setup(app):
+    app.connect("autodoc-skip-member", skip_torch_inherited_methods)

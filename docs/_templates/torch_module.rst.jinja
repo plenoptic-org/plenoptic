@@ -1,0 +1,35 @@
+{{ fullname | escape | underline}}
+
+.. currentmodule:: {{ module }}
+
+.. note::
+
+   This object is a :class:`torch.nn.Module`. It therefore has all the methods and attributes
+   from that class, even though they are not documented here (to avoid cluttering this page).
+
+.. autoclass:: {{ objname }}
+
+   {% block methods %}
+
+   {% if methods %}
+   .. rubric:: {{ _('Methods') }}
+
+   .. autosummary::
+   {% for item in methods %}
+      {% if item != "__init__" %}
+         ~{{ name }}.{{ item }}
+      {% endif %}
+   {%- endfor %}
+   {% endif %}
+   {% endblock %}
+
+   {% block attributes %}
+   {% if attributes %}
+   .. rubric:: {{ _('Attributes') }}
+
+   .. autosummary::
+   {% for item in doc_attributes %}
+      ~{{ name }}.{{ item }}
+   {%- endfor %}
+   {% endif %}
+   {% endblock %}
