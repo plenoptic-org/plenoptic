@@ -47,8 +47,8 @@ class Metamer(OptimizedSynthesis):
             A function applied to the metamer during optimization, that returns
             a scalar penalty to be minimized. By penalizing certain properties of
             the image, like pixels values outside an allowed range, we can constrain
-            those image properties. See :ref:`metamer-nb` in the documentation for
-            details and examples.
+            those image properties. See :ref:`metamer-regularization` in the
+            documentation for details and examples.
     penalty_lambda
         Weight of the penalty term. Must be non-negative.
 
