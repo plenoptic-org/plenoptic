@@ -66,7 +66,7 @@ def validate_input(
     Intentionally fail:
 
     >>> import plenoptic as po
-    >>> img = torch.randint(low=0, high=255, size=(1, 256, 256))
+    >>> img = torch.randint(low=0, high=255, size=(1, 1, 32, 32))
     >>> po.tools.validate.validate_input(img)
     Traceback (most recent call last):
     TypeError: Only float or complex dtypes are allowed ...
