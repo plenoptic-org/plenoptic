@@ -588,8 +588,7 @@ def validate_penalty(
     output_dtype = output.dtype
     if not torch.is_float_point(output):
         raise TypeError(
-            "penalty_function must return a float output"
-            f", but got type {output_dtype}"
+            f"penalty_function must return a float output, but got type {output_dtype}"
         )
     if output_dtype != allowed_dtypes:
         raise TypeError(
