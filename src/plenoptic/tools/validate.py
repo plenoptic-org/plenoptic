@@ -586,7 +586,7 @@ def validate_penalty(
         )
     output = penalty_function(test_img)
     output_dtype = output.dtype
-    if not torch.is_float_point(output):
+    if not torch.is_floating_point(output):
         raise TypeError(
             f"penalty_function must return a float output, but got type {output_dtype}"
         )
