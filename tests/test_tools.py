@@ -842,7 +842,7 @@ class TestValidate:
 
         with pytest.raises(
             TypeError,
-            match="penalty_function should not return a complex output",
+            match="penalty_function must return a float output",
         ):
             po.tools.validate.validate_penalty(complex_penalty, device=DEVICE)
 
