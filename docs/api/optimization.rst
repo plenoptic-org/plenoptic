@@ -40,6 +40,7 @@ The following functions return a function that can be used as a ``loss_function`
 
 The following functions operate as penalties.
 
+.. currentmodule:: plenoptic.tools.regularization
 .. autosummary::
    :signatures: none
    :toctree: generated

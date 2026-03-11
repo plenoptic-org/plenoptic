@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.19.1
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -25,6 +25,7 @@ This notebook shows the simplest possible MAD: a two pixel image, where our mode
 
 ```{code-cell} ipython3
 import itertools
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,6 +40,11 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # so that relative sizes of axes created by po.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
+
+# Ignore warnings about inputs not 4d
+warnings.filterwarnings(
+    "ignore", message="plenoptic's methods have mostly", category=UserWarning
+)
 
 %load_ext autoreload
 %autoreload 2
@@ -207,7 +213,30 @@ po.imshow(img, vrange=(0, 255), zoom=4);
 
 Now we'll do the same process of running synthesis and checking our loss as above:
 
+:::{admonition} Setting the pixel range of MAD Competition with `penalty_function`
+:class: dropdown note
+
+When synthesizing an image, we often want to constrain the range of its
+pixels to be in a pre-specified range. By default,
+{class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>`
+constraints pixels to be in the `[0, 1]` range. To achieve this,
+the class uses a penalty function that penalizes the pixels that fall
+out of said range, which gets added to the loss function.
+
+Custom penalty functions can be passed to
+{class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` using the
+argument `penalty_function`. The code below shows an example where
+a custom penalty function is used to to constrain the synthesized images to
+be in the `[0, 255]` range.
+
+For more details, see the [Metamer regularization section](metamer-regularization).
+:::
+
 ```{code-cell} ipython3
+def range_penalty_custom(x):
+    return po.tools.regularization.penalize_range(x, allowed_range=(0.0, 255.0))
+
+
 def l1_norm(x, y):
     return torch.linalg.vector_norm(x - y, ord=1)
 
@@ -235,8 +264,8 @@ for t, (m1, m2) in itertools.product(["min", "max"], zip(metrics, metrics[::-1])
         m2,
         t,
         metric_tradeoff_lambda=tradeoffs[name],
-        allowed_range=(0, 255),
-        range_penalty_lambda=1,
+        penalty_function=range_penalty_custom,
+        penalty_lambda=1,
     )
     all_mad[name].setup(initial_noise=20, optimizer_kwargs={"lr": lr.get(name, 0.1)})
     print(f"Synthesizing {name}")
