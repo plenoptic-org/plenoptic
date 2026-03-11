@@ -49,7 +49,7 @@ where:
 - $x$ is {attr}`~plenoptic.synthesize.mad_competition.MADCompetition.image`
 - $\hat{x}$ is {attr}`~plenoptic.synthesize.mad_competition.MADCompetition.mad_image`
 - $\epsilon$ is the initial noise
-- $\mathcal{B}$ is the quadratic bound penalty
+- $\mathcal{B}$ is the `penalty_function` set at initialization (by default, a quadratic bound penalty)
 - $\lambda_1$ is {attr}`~plenoptic.synthesize.mad_competition.MADCompetition.metric_tradeoff_lambda`
 - $\lambda_2$ is {attr}`~plenoptic.synthesize.mad_competition.MADCompetition.penalty_lambda`
 
