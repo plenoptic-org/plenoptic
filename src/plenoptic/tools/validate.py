@@ -595,7 +595,7 @@ def validate_penalty(
             "penalty_function should not change precision of the input, but got type"
             ", {output_dtype} instead of {allowed_dtypes}"
         )
-    if penalty_function(test_img).device != test_img.device:
+    if output.device != test_img.device:
         # pytorch device errors are RuntimeErrors
         raise RuntimeError("penalty_function changes device of input, don't do that!")
 
