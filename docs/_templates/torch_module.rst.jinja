@@ -16,9 +16,9 @@
 
    .. autosummary::
    {% for item in methods %}
-      {% if item != "__init__" %}
+      {%- if item != "__init__" %}
          ~{{ name }}.{{ item }}
-      {% endif %}
+      {%- endif %}
    {%- endfor %}
    {% endif %}
    {% endblock %}
@@ -28,7 +28,7 @@
    .. rubric:: {{ _('Attributes') }}
 
    .. autosummary::
-   {% for item in doc_attributes %}
+   {% for item in attributes %}
       ~{{ name }}.{{ item }}
    {%- endfor %}
    {% endif %}

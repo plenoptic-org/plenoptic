@@ -49,7 +49,7 @@ REGISTRY = {
     "example_metamer_gaussian.pt": "adef079df878a9e0319cb5ad59791435f9b7eec695e1d8f21019c8e11b891d85",  # noqa: E501
     "example_metamer_gaussian-cuda.pt": "2a2499ced2f7e5cd022aacbf4e58d479d98f551564a984b9ab36893ef17e0bed",  # noqa: E501
     "example_metamerCTF_ps.pt": "200d1d743401feee76fd55ee156a4bc33683f1772cf6d938fe6e036a26c55a64",  # noqa: E501
-    "example_metamerCTF_ps-cuda.pt": "9fbbf240bce5d50c4e35520ac9cc87ac3beba0b9c8bb58283440f89c4fdeeb7c",  # noqa: E501
+    "example_metamerCTF_ps-cuda.pt": "d6e3a013263e93004468596a9abcf0f42b6e507733f4771a2654b0c2a5265e92",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"
@@ -90,7 +90,7 @@ REGISTRY_URLS = {
     "example_metamerCTF_ps-cuda.pt": OSF_TEMPLATE.format("627sp/?revision=2"),
 }
 
-#: List of files that can be downloaded using :func:`~plenoptic.data.fetch.fetch_data`
+#: List of files that can be downloaded using :func:`~plenoptic.data.fetch_data`
 DOWNLOADABLE_FILES = [
     "portilla_simoncelli_images.tar.gz",
     "test_images.tar.gz",
@@ -144,7 +144,7 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
     Download data, using pooch. These are largely used for testing.
 
     To view list of downloadable files, look at
-    :const:`~plenoptic.data.fetch.DOWNLOADABLE_FILES`.
+    :const:`~plenoptic.data.DOWNLOADABLE_FILES`.
 
     This checks whether the data already exists and is unchanged and downloads
     again, if necessary. If dataset_name ends in .tar.gz, this also
@@ -170,7 +170,7 @@ def fetch_data(dataset_name: str) -> pathlib.Path:
       >>> len(list(path.glob("*")))
       38
       >>> img = po.load_images(path / "fig3b.jpg")
-      >>> po.imshow(img)
+      >>> po.plot.imshow(img)
       <PyrFigure size ...>
     """
     processor = pooch.Untar() if dataset_name.endswith(".tar.gz") else None

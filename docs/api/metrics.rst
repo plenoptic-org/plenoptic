@@ -3,7 +3,7 @@
 Metrics
 -------
 
-Metrics compare two stimuli and are compatible with :class:`~plenoptic.synthesize.mad_competition.MADCompetition`.
+Metrics compare two stimuli and are compatible with :class:`~plenoptic.MADCompetition`.
 
 See :ref:`metric-def` for more details.
 
@@ -12,8 +12,8 @@ See :ref:`metric-def` for more details.
    :signatures: none
    :toctree: generated
 
-   ~naive.mse
-   ~model_metric.model_metric_factory
-   ~perceptual_distance.ssim
-   ~perceptual_distance.ms_ssim
-   ~perceptual_distance.nlpd
+   ~mse
+   ~model_metric_factory
+   ~ssim
+   ~ms_ssim
+   ~nlpd

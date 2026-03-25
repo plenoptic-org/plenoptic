@@ -9,6 +9,7 @@ models
 tips
 reproducibility
 citation
+migration_guide
 
 :::
 ::::

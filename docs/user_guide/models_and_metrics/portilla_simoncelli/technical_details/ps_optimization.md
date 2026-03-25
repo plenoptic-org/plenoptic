@@ -7,7 +7,7 @@ As you read the other Portilla-Simoncelli notebooks, you may have noticed that t
 
 In theory, model metamers are sets of images that have different pixel values and identical model outputs. In practice, metamer synthesis is a non-convex optimization problem in a high-dimensional space. In such problems, one typically optimizes until optimization has converged (i.e., the loss has stopped decreasing) or your result is "good enough" (i.e., the loss is low enough). Each study must determine what "good enough" means for them, and you are encouraged to read papers that have used model metamers (e.g., {cite:alp}`Freeman2011-metam-ventr-stream`, {cite:alp}`Feather2019-metam`, {cite:alp}`Broderick2025-foveat-metam`) to see the approaches they have taken.
 
-For the purposes of plenoptic, which provides implementations for researchers to use in their own experiments, "best" means "the lowest loss in the shortest time possible". Therefore, for the purposes of plenoptic's {class}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` implementation, we evaluated multiple possible configurations of optimizers, optimizer configurations, and optimization loss functions against each other and against the [earlier MATLAB implementation](https://github.com/LabForComputationalVision/textureSynth). This investigation can be found in [Issue #365](https://github.com/plenoptic-org/plenoptic/issues/365); the results are summarized in this notebook.
+For the purposes of plenoptic, which provides implementations for researchers to use in their own experiments, "best" means "the lowest loss in the shortest time possible". Therefore, for the purposes of plenoptic's {class}`~plenoptic.models.PortillaSimoncelli` implementation, we evaluated multiple possible configurations of optimizers, optimizer configurations, and optimization loss functions against each other and against the [earlier MATLAB implementation](https://github.com/LabForComputationalVision/textureSynth). This investigation can be found in [Issue #365](https://github.com/plenoptic-org/plenoptic/issues/365); the results are summarized in this notebook.
 
 :::{admonition} What about perceptual quality?
 :class: note
@@ -25,7 +25,7 @@ And note, as discussed in [](ps-limitations), this model was developed to align 
 
 ## Optimizer configuration
 
-By default, {class}`~plenoptic.synthesize.metamer.Metamer` uses the {class}`~torch.optim.Adam` optimizer, a variant of stochastic gradient descent. However, we found that {class}`~torch.optim.LBFGS` (the [Limited-memory Broyden–Fletcher–Goldfarb–Shanno algorithm](https://en.wikipedia.org/wiki/Limited-memory_BFGS)) performs much better. LBFGS tracks the history of the optimization parameters (i.e., the metamer image pixels) over time, and uses this to approximate the second derivatives of the gradient. This results in:
+By default, {class}`~plenoptic.Metamer` uses the {class}`~torch.optim.Adam` optimizer, a variant of stochastic gradient descent. However, we found that {class}`~torch.optim.LBFGS` (the [Limited-memory Broyden–Fletcher–Goldfarb–Shanno algorithm](https://en.wikipedia.org/wiki/Limited-memory_BFGS)) performs much better. LBFGS tracks the history of the optimization parameters (i.e., the metamer image pixels) over time, and uses this to approximate the second derivatives of the gradient. This results in:
 - Higher memory usage.
 - Longer duration per optimization step.
 - Much faster decrease in loss per optimization step.
@@ -49,7 +49,7 @@ Of these arguments, the only one that we believe users may want to experiment wi
 :::{admonition} How much memory?
 :class: note dropdow
 
-As mentioned, increasing `history_size` leads to more memory being used. In our tests, running {class}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli` metamer synthesis for 100 iterations with the default initialization arguments, `history_size=100`, and a 256 by 256 image had a peak memory usage of about 600MB.
+As mentioned, increasing `history_size` leads to more memory being used. In our tests, running {class}`~plenoptic.models.PortillaSimoncelli` metamer synthesis for 100 iterations with the default initialization arguments, `history_size=100`, and a 256 by 256 image had a peak memory usage of about 600MB.
 
 :::
 
@@ -62,7 +62,7 @@ If you are interested, more details about the experiments that lead to the above
 
 When using the LBFGS optimizer configured as described above, plenoptic's Portilla-Simoncelli metamer synthesis has a lower loss in every component than the MATLAB implementation, with the notable exception of the variance of highpass residuals. The two synthesis implementations (as discussed in [](ps-mat-diffs)) are very different from each other: the MATLAB code does something akin to coordinate descent, where it optimizes each set of statistics separately, whereas the plenoptic code optimizes all of them together by trying to minimize the overall loss. This results in plenoptic weighting each statistic approximately equally and thus, implicitly, being considered equally important. They thus each have an approximately equal error at any given moment during synthesis, whereas the MATLAB code drops the error in the variance of the highpass residuals *incredibly* rapidly, matching it with much higher precision than the other statistics.
 
-In order to make plenoptic's synthesis perform similarly, we need to make this statistic more important than the others. We do this by using a custom loss function which reweights the representation of each image before computing the L2-norm of the difference these representations. We do this using a custom loss function which reweights the representation of each image before computing the L2-norm of the difference. See {func}`~plenoptic.tools.optim.portilla_simoncelli_loss_factory` for more details.
+In order to make plenoptic's synthesis perform similarly, we need to make this statistic more important than the others. We do this by using a custom loss function which reweights the representation of each image before computing the L2-norm of the difference these representations. We do this using a custom loss function which reweights the representation of each image before computing the L2-norm of the difference. See {func}`~plenoptic.optim.portilla_simoncelli_loss_factory` for more details.
 
 We use a similar trick to remove the image's minimum and maximum from the loss, since these non-differentiable functions make optimization unstable. The range penalty handles this constraint instead.
 
@@ -73,7 +73,7 @@ import plenoptic as po
 import torch
 
 image = po.data.einstein()
-model = po.simul.PortillaSimoncelli(image.shape[-2:])
+model = po.models.PortillaSimoncelli(image.shape[-2:])
 weights = model.convert_to_dict(torch.ones_like(model(image)))
 # reweight the pixel min/max and the variance of the highpass residuals
 weights["pixel_statistics"][..., -2:] = 0
@@ -83,10 +83,10 @@ weights = model.convert_to_tensor(weights)
 def loss(x, y):
     return l2_norm(weights * x, weights * y)
 
-met = po.synth.Metamer(image, model, loss_function=loss)
+met = po.Metamer(image, model, loss_function=loss)
 ```
 
-This function makes use of the {func}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.convert_to_dict` and {func}`~plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli.convert_to_tensor` methods, which allow us to convert the Portilla-Simoncelli model representation from the standard vector form into a more structured dictionary form and vice versa.
+This function makes use of the {func}`~plenoptic.models.PortillaSimoncelli.convert_to_dict` and {func}`~plenoptic.models.PortillaSimoncelli.convert_to_tensor` methods, which allow us to convert the Portilla-Simoncelli model representation from the standard vector form into a more structured dictionary form and vice versa.
 
 :::{admonition} How would I do this for my own model?
 :class: hint
