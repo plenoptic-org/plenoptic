@@ -49,14 +49,14 @@ def penalize_range(
 
     >>> import plenoptic as po
     >>> img = po.data.einstein()
-    >>> model = po.simul.Gaussian(30).eval()
-    >>> po.tools.remove_grad(model)
+    >>> model = po.models.Gaussian(30).eval()
+    >>> po.remove_grad(model)
     >>> # Make function penalizing values outside (0.2, 0.8)
     >>> def custom_range(x):
-    ...     penalty = po.tools.penalize_range(x, allowed_range=(0.2, 0.8))
+    ...     penalty = po.regularization.penalize_range(x, allowed_range=(0.2, 0.8))
     ...     return penalty
-    >>> met_default = po.synth.Metamer(img, model)
-    >>> met_custom = po.synth.Metamer(img, model, penalty_function=custom_range)
+    >>> met_default = po.Metamer(img, model)
+    >>> met_custom = po.Metamer(img, model, penalty_function=custom_range)
     >>> # Compare the value of the penalties
     >>> met_default.penalty_function(img)
     tensor(0.)

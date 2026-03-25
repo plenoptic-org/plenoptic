@@ -863,7 +863,7 @@ class TestPortillaSimoncelli:
         met = po.MetamerCTF(
             im0,
             model,
-            loss_function=po.tools.optim.l2_norm,
+            loss_function=po.optim.l2_norm,
             penalty_lambda=0,
             coarse_to_fine="together",
         )

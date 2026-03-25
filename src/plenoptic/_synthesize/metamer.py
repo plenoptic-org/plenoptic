@@ -692,7 +692,7 @@ class Metamer(OptimizedSynthesis):
         r"""
         Check whether the loss has stabilized and, if so, return True.
 
-        Uses :func:`~plenoptic.tools.convergence._loss_convergence`.
+        Uses :func:`~plenoptic.convergence._loss_convergence`.
 
         Parameters
         ----------

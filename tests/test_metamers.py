@@ -15,11 +15,11 @@ def custom_loss(x1, x2):
 
 
 def custom_penalty(x1):
-    return po.tools.regularization.penalize_range(x1, allowed_range=(0.2, 0.8))
+    return po.regularization.penalize_range(x1, allowed_range=(0.2, 0.8))
 
 
 def custom_penalty2(x1):
-    return po.tools.regularization.penalize_range(x1, allowed_range=(0.3, 0.7))
+    return po.regularization.penalize_range(x1, allowed_range=(0.3, 0.7))
 
 
 class TestMetamers:
@@ -50,7 +50,7 @@ class TestMetamers:
         elif loss_func == "custom":
             loss = custom_loss
         if penalty_function == "range":
-            penalty = po.tools.regularization.penalize_range
+            penalty = po.regularization.penalize_range
         elif penalty_function == "custom":
             penalty = custom_penalty
         met = po.Metamer(
@@ -735,7 +735,7 @@ class TestMetamers:
     def test_warn_out_of_range_input(self, einstein_img, model):
         img = einstein_img + 1
         with pytest.warns(UserWarning, match="input_tensor range is"):
-            po.synth.Metamer(img, model)
+            po.Metamer(img, model)
 
     @pytest.mark.parametrize("iteration", [None, 0, -2, -3, 2, 1, 6, -7])
     @pytest.mark.parametrize("store_progress", [True, False, 2])
@@ -1208,13 +1208,13 @@ class TestMetamers:
         """Stronger penalty_lambda should lead to lower value of penalty,
         if regularization is working properly."""
         if penalty_function == "range":
-            penalty = po.tools.regularization.penalize_range
+            penalty = po.regularization.penalize_range
         elif penalty_function == "custom":
             penalty = custom_penalty
         penalty_lambdas = [0.0, 0.5]
         output_penalty = []
         for pl in penalty_lambdas:
-            met = po.synth.Metamer(
+            met = po.Metamer(
                 einstein_img,
                 model,
                 penalty_lambda=pl,

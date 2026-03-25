@@ -233,7 +233,7 @@ For more details, see the [Metamer regularization section](metamer-regularizatio
 
 ```{code-cell} ipython3
 def range_penalty_custom(x):
-    return po.tools.regularization.penalize_range(x, allowed_range=(0.0, 255.0))
+    return po.regularization.penalize_range(x, allowed_range=(0.0, 255.0))
 
 
 def l1_norm(x, y):

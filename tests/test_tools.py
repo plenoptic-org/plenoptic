@@ -831,7 +831,7 @@ class TestValidate:
             TypeError,
             match="penalty_function should be callable and accept a tensor as input",
         ):
-            po.tools.validate.validate_penalty(bad_penalty, device=DEVICE)
+            po.validate.validate_penalty(bad_penalty, device=DEVICE)
 
     def test_validate_penalty_output_shape(self):
         def nonscalar_penalty(x):
@@ -840,7 +840,7 @@ class TestValidate:
         with pytest.raises(
             ValueError, match="penalty_function should return a scalar value"
         ):
-            po.tools.validate.validate_penalty(nonscalar_penalty, device=DEVICE)
+            po.validate.validate_penalty(nonscalar_penalty, device=DEVICE)
 
     def test_validate_penalty_learnable(self):
         class LearnablePenalty(torch.nn.Module):
@@ -856,7 +856,7 @@ class TestValidate:
             ValueError,
             match="penalty_function adds gradient to input",
         ):
-            po.tools.validate.validate_penalty(penalty, device=DEVICE)
+            po.validate.validate_penalty(penalty, device=DEVICE)
 
     def test_validate_penalty_detach(self):
         def detach_penalty(x):
@@ -865,7 +865,7 @@ class TestValidate:
         with pytest.raises(
             ValueError, match="penalty_function strips gradient from input"
         ):
-            po.tools.validate.validate_penalty(detach_penalty, device=DEVICE)
+            po.validate.validate_penalty(detach_penalty, device=DEVICE)
 
     def test_validate_penalty_complex_output(self):
         def complex_penalty(x):
@@ -876,7 +876,7 @@ class TestValidate:
             TypeError,
             match="penalty_function must return a float output",
         ):
-            po.tools.validate.validate_penalty(complex_penalty, device=DEVICE)
+            po.validate.validate_penalty(complex_penalty, device=DEVICE)
 
     def test_validate_penalty_precision(self):
         def dtype_penalty(x):
@@ -886,7 +886,7 @@ class TestValidate:
             TypeError,
             match="penalty_function should not change precision",
         ):
-            po.tools.validate.validate_penalty(dtype_penalty, device=DEVICE)
+            po.validate.validate_penalty(dtype_penalty, device=DEVICE)
 
     def test_validate_penalty_non_tensor(self):
         def numpy_penalty(x):
@@ -896,7 +896,7 @@ class TestValidate:
             ValueError,
             match="penalty_function does not return a torch.Tensor object",
         ):
-            po.tools.validate.validate_penalty(numpy_penalty, device=DEVICE)
+            po.validate.validate_penalty(numpy_penalty, device=DEVICE)
 
     @pytest.mark.parametrize(
         "model",

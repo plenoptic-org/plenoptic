@@ -116,7 +116,7 @@ po.remove_grad(model)
 
 Okay, now we're ready to start with metamer synthesis. To initialize, we only need the model and the target image.
 
-Metamer synthesis starts with an initial image and then iteratively updates its pixels so as to gradually reduce the loss, so that eventually we find an image whose model representation matches that of the target. By default, the initial image is a sample of uniform noise whose values lie between 0 and 1 and the loss is {func}`plenoptic.tools.optim.mse`, the mean-squared error between the model's representation of our metamer-in-progress and the target image. (Both of these can be changed, see the [Metamer notebook](metamer-nb) for details.)
+Metamer synthesis starts with an initial image and then iteratively updates its pixels so as to gradually reduce the loss, so that eventually we find an image whose model representation matches that of the target. By default, the initial image is a sample of uniform noise whose values lie between 0 and 1 and the loss is {func}`~plenoptic.optim.mse`, the mean-squared error between the model's representation of our metamer-in-progress and the target image. (Both of these can be changed, see the [Metamer notebook](metamer-nb) for details.)
 
 ```{code-cell} ipython3
 metamer = po.Metamer(im, model)

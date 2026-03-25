@@ -609,7 +609,7 @@ class OptimizedSynthesis(Synthesis):
         r"""
         How good is the current synthesized object.
 
-        See ``plenoptic.tools.optim`` for some examples.
+        See ``plenoptic.optim`` for some examples.
         """
         pass
 
@@ -618,7 +618,7 @@ class OptimizedSynthesis(Synthesis):
         r"""
         How to determine if synthesis has finished.
 
-        See ``plenoptic.tools.convergence`` for some examples.
+        See ``plenoptic.convergence`` for some examples.
         """
         pass
 

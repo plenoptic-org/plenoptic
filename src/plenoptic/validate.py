@@ -523,8 +523,8 @@ def validate_penalty(
     Check that one of our built-in penalty functions work:
 
     >>> import plenoptic as po
-    >>> penalty_fun = po.tools.regularization.penalize_range
-    >>> po.tools.validate.validate_penalty(penalty_fun)
+    >>> penalty_fun = po.regularization.penalize_range
+    >>> po.validate.validate_penalty(penalty_fun)
 
     Intentionally fail:
 
@@ -533,7 +533,7 @@ def validate_penalty(
     >>> def failure_penalty_dtype(img):
     ...     wrong_dtype = torch.mean(img)
     ...     return wrong_dtype.to(dtype=torch.float64)
-    >>> po.tools.validate.validate_penalty(failure_penalty_dtype)
+    >>> po.validate.validate_penalty(failure_penalty_dtype)
     Traceback (most recent call last):
     TypeError: penalty_function should not change precision...
     """
@@ -553,7 +553,7 @@ def validate_penalty(
             raise ValueError(
                 "penalty_function adds gradient to input, it is using learnable"
                 " parameters. This might happen if a Module is used inside"
-                " penalty_function. Try calling plenoptic.tools.remove_grad()"
+                " penalty_function. Try calling plenoptic.remove_grad()"
                 " on it."
             )
     # in particular, numpy arrays lack requires_grad attribute

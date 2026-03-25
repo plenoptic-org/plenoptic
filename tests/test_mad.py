@@ -24,11 +24,11 @@ def dis_ssim(*args):
 
 
 def custom_penalty(x1):
-    return po.tools.regularization.penalize_range(x1, allowed_range=(0.2, 0.8))
+    return po.regularization.penalize_range(x1, allowed_range=(0.2, 0.8))
 
 
 def custom_penalty2(x1):
-    return po.tools.regularization.penalize_range(x1, allowed_range=(0.3, 0.7))
+    return po.regularization.penalize_range(x1, allowed_range=(0.3, 0.7))
 
 
 class ModuleMetric(torch.nn.Module):
@@ -100,7 +100,7 @@ class TestMAD:
         target = "min"
         tradeoff = 1
         if penalty_function == "range":
-            penalty = po.tools.regularization.penalize_range
+            penalty = po.regularization.penalize_range
         elif penalty_function == "custom":
             penalty = custom_penalty
         mad = po.MADCompetition(
@@ -436,12 +436,12 @@ class TestMAD:
     @pytest.mark.parametrize("penalty_behav", ["dtype", "shape", "name"])
     def test_load_penalty_change(self, einstein_img, penalty_behav, tmp_path):
         def base_penalty(x):
-            return po.tools.regularization.penalize_range(x)
+            return po.regularization.penalize_range(x)
 
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.optim.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
             penalty_lambda=0.1,
@@ -465,10 +465,10 @@ class TestMAD:
                 "Saved and initialized penalty_function output have different"
                 f" {penalty_behav}"
             )
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.optim.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
             penalty_lambda=0.1,
@@ -1088,10 +1088,10 @@ class TestMAD:
     def test_warn_out_of_range_input(self, einstein_img):
         img = einstein_img + 1
         with pytest.warns(UserWarning, match="input_tensor range is"):
-            po.synth.MADCompetition(
+            po.MADCompetition(
                 img,
                 po.metric.mse,
-                po.tools.optim.l2_norm,
+                po.optim.l2_norm,
                 "min",
                 metric_tradeoff_lambda=1,
             )
@@ -1101,15 +1101,15 @@ class TestMAD:
     def test_penalty_effect(self, einstein_img, penalty_function):
         """Higher penalty_lambda should yield smaller penalty values."""
         if penalty_function == "range":
-            penalty = po.tools.regularization.penalize_range
+            penalty = po.regularization.penalize_range
         elif penalty_function == "custom":
             penalty = custom_penalty
         penalty_lambdas = [0.0, 0.5]
         output_penalty = []
         # Synthesize with each penalty lambda and record penalty value
         for pl in penalty_lambdas:
-            po.tools.set_seed(0)
-            mad = po.synth.MADCompetition(
+            po.set_seed(0)
+            mad = po.MADCompetition(
                 einstein_img,
                 po.metric.mse,
                 dis_ssim,
