@@ -49,6 +49,7 @@ REGISTRY = {
     "example_metamer_gaussian.pt": "adef079df878a9e0319cb5ad59791435f9b7eec695e1d8f21019c8e11b891d85",  # noqa: E501
     "example_metamer_gaussian-cuda.pt": "2a2499ced2f7e5cd022aacbf4e58d479d98f551564a984b9ab36893ef17e0bed",  # noqa: E501
     "example_metamerCTF_ps.pt": "200d1d743401feee76fd55ee156a4bc33683f1772cf6d938fe6e036a26c55a64",  # noqa: E501
+    "example_metamerCTF_ps-cuda.pt": "d6e3a013263e93004468596a9abcf0f42b6e507733f4771a2654b0c2a5265e92",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"

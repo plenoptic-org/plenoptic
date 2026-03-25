@@ -214,12 +214,11 @@ It is sometimes useful to control properties of the synthesized metamer beyond
 those captured by the input model. Some examples include controlling the range
 of pixel values, penalizing high frequencies, or matching the spectrum of the target image.
 
-For this purpose, the {class}`~plenoptic.synthesize.metamer.Metamer` class
-takes an optional `penalty_function` argument at initialization.
-The `penalty_function` is a callable that takes as an input the synthesized metamer
-image, and returns a scalar penalty. This scalar penalty is added to the loss
-during optimization, and it can be used to control certain properties of the
-synthesized metamer.
+For this purpose, the {class}`~plenoptic.Metamer` class takes an optional
+`penalty_function` argument at initialization. The `penalty_function` is a
+callable that takes as an input the synthesized metamer image, and returns a
+scalar penalty. This scalar penalty is added to the loss during optimization,
+and it can be used to control certain properties of the synthesized metamer.
 
 For example, the default `penalty_function` uses the
 {func}`~plenoptic.regularization.penalize_range` function
@@ -233,7 +232,7 @@ to define a new range penalization. Below we show how to constrain the
 pixel range to be between 0.2 and 0.8.
 
 ```{code-cell} ipython3
-from plenoptic.tools import regularization
+from plenoptic import regularization
 
 
 # Create custom_penalty function, that penalizes pixels outside of [0.2, 0.8] range
@@ -256,9 +255,9 @@ po.plot.metamer_pixel_values(met)
 We see that the metamer pixel histogram ranges from 0.2 to 0.8, while
 the original target image ranges from 0.0 to 1.0.
 
-The {class}`~plenoptic.synthesize.metamer.Metamer` class also has a
-{attr}`~plenoptic.synthesize.metamer.Metamer.penalty_lambda` argument, that weights the contribution of the penalty function
-to optimization.
+The {class}`~plenoptic.Metamer` class also has a
+{attr}`~plenoptic.Metamer.penalty_lambda` argument, that weights the
+contribution of the penalty function to optimization.
 
 
 (metamer-coarse-to-fine)=
