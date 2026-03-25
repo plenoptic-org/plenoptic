@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 __all__ = [
+    "__version__",
     "models",
     "model_components",
     "data",
@@ -38,3 +39,4 @@ from ._synthesize import Eigendistortion, MADCompetition, Metamer, MetamerCTF
 from .optim import set_seed
 from .tensors import convert_float_to_int, load_images, to_numpy
 from .validate import remove_grad
+from .version import __version__
