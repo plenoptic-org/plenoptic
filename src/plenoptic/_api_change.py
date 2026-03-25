@@ -47,8 +47,6 @@ API_CHANGE = {
     "plenoptic.simulate.SteerablePyramidFreq": "plenoptic.model_components.SteerablePyramidFreq",
     "plenoptic.simulate.canonical_computations.filters.circular_gaussian2d": "plenoptic.model_components.circular_gaussian2d",
     "plenoptic.simulate.circular_gaussian2d": "plenoptic.model_components.circular_gaussian2d",
-    "plenoptic.simulate.canonical_computations.filters.gaussian1d": "plenoptic.model_components.gaussian1d",
-    "plenoptic.simulate.gaussian1d": "plenoptic.model_components.gaussian1d",
     "plenoptic.tools.signal.rectangular_to_polar": "plenoptic.model_components.rectangular_to_polar",
     "plenoptic.tools.rectangular_to_polar": "plenoptic.model_components.rectangular_to_polar",
     "plenoptic.tools.signal.polar_to_rectangular": "plenoptic.model_components.polar_to_rectangular",

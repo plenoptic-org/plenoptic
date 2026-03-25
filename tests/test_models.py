@@ -703,6 +703,7 @@ class TestPortillaSimoncelli:
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
     @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
+    @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
     def test_ps_torch_v_matlab(
         self,
         n_scales,
@@ -811,7 +812,8 @@ class TestPortillaSimoncelli:
         )
 
     @pytest.mark.filterwarnings(
-        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+        "ignore:input_tensor range is:UserWarning",
     )
     def test_ps_synthesis(self, portilla_simoncelli_synthesize, run_test=True):
         """Test PS texture metamer synthesis.
@@ -861,8 +863,8 @@ class TestPortillaSimoncelli:
         met = po.MetamerCTF(
             im0,
             model,
-            loss_function=po.optim.l2_norm,
-            range_penalty_lambda=0,
+            loss_function=po.tools.optim.l2_norm,
+            penalty_lambda=0,
             coarse_to_fine="together",
         )
         # this is the same as the default optimizer, but we explicitly

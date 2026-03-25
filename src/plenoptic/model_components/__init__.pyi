@@ -1,5 +1,4 @@
 __all__ = [
-    "gaussian1d",
     "circular_gaussian2d",
     "LaplacianPyramid",
     "rectangular_to_polar_dict",
@@ -35,7 +34,7 @@ from .convolutions import (
     upsample_blur,
     upsample_convolve,
 )
-from .filters import circular_gaussian2d, gaussian1d
+from .filters import circular_gaussian2d
 from .laplacian_pyramid import LaplacianPyramid
 from .non_linearities import (
     local_gain_control,

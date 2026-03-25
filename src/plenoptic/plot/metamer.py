@@ -533,7 +533,7 @@ def metamer_pixel_values(
     Plot histogram of pixel values of target image and its metamer.
 
     As a way to check the distributions of pixel intensities and see
-    if there's any values outside the allowed range
+    if there's any values outside the preferred range.
 
     Parameters
     ----------

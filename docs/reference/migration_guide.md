@@ -213,8 +213,6 @@ plenoptic 1.x (e.g., `plenoptic.synthesize.Metamer` and
 "`plenoptic.simulate.SteerablePyramidFreq`", "{func}`plenoptic.model_components.SteerablePyramidFreq`"
 "`plenoptic.simulate.canonical_computations. filters.circular_gaussian2d`", "{func}`plenoptic.model_components.circular_gaussian2d`"
 "`plenoptic.simulate.circular_gaussian2d`", "{func}`plenoptic.model_components.circular_gaussian2d`"
-"`plenoptic.simulate.canonical_computations. filters.gaussian1d`", "{func}`plenoptic.model_components.gaussian1d`"
-"`plenoptic.simulate.gaussian1d`", "{func}`plenoptic.model_components.gaussian1d`"
 "`plenoptic.tools.signal.rectangular_to_polar`", "{func}`plenoptic.model_components.rectangular_to_polar`"
 "`plenoptic.tools.rectangular_to_polar`", "{func}`plenoptic.model_components.rectangular_to_polar`"
 "`plenoptic.tools.signal.polar_to_rectangular`", "{func}`plenoptic.model_components.polar_to_rectangular`"

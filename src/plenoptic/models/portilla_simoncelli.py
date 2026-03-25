@@ -37,7 +37,6 @@ from ..model_components.steerable_pyramid_freq import (
 )
 from ..plot.display import clean_stem_plot, clean_up_axes, update_stem
 from ..tensors import to_numpy
-from ..validate import validate_input
 
 SCALES_TYPE = Literal["pixel_statistics"] | PYR_SCALES_TYPE
 
@@ -458,8 +457,6 @@ class PortillaSimoncelli(nn.Module):
         >>> representation_tensor.shape
         torch.Size([1, 1, 1046])
         """
-        validate_input(image)
-
         # pyr_dict is the dictionary of complex-valued tensors returned by the
         # steerable pyramid. pyr_coeffs is a list (length n_scales) of 5d
         # tensors, each of shape (batch, channel, scales, n_orientations,
