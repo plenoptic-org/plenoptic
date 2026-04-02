@@ -436,10 +436,12 @@ class TestTutorialNotebooks:
             img = normalize(img).repeat(1, 3, 1, 1)
             model = model.to(DEVICE2).to(img.dtype)
             model.eval()
-            eig = po.synth.Eigendistortion(img, model)
+            with pytest.warns(UserWarning, match="input_tensor range is"):
+                eig = po.synth.Eigendistortion(img, model)
             eig.synthesize(k=2, method="power", max_iter=5000)
             eig.save("uploaded_files/berardino_vgg16.pt")
-            eig_up = po.synth.Eigendistortion(img, model)
+            with pytest.warns(UserWarning, match="input_tensor range is"):
+                eig_up = po.synth.Eigendistortion(img, model)
             eig_up.load(
                 fetch_data("berardino_vgg16.pt"),
                 tensor_equality_atol=1e-7,

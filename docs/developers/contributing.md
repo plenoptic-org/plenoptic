@@ -48,13 +48,7 @@ We try to keep all our communication on Github, and we use several channels:
 
 ## Supported versions
 
-`plenoptic` tries to follow
-[SPEC-0](https://scientific-python.org/specs/spec-0000/): we support python
-versions are supported for 3 years following initial release. This means that we
-support three python feature versions (e.g., 3.10, 3.11, and 3.12) at any one
-time and that we'll transition between versions during the fourth quarter of
-each year. We run our CPU tests on all three versions, and the GPU tests and
-documentation build use the middle version.
+`plenoptic` tries to follow [pytorch](https://pytorch.org): we support the python versions that they support. We run our CPU tests on all supported versions, and the GPU tests and documentation build use the middle version.
 
 (contributing-to-the-code)=
 ## Contributing to the code
@@ -292,14 +286,27 @@ several choices for how to run a subset of the tests:
 View the [pytest documentation](https://doc.pytest.org/en/latest/usage.html) for
 more info.
 
+### CPU and GPU tests
+
+Plenoptic tests are all run on both the CPU and the GPU, and both must pass before any PR is merged.
+
+- On the CPU, tests are run using [GitHub actions](https://github.com/features/actions). Tests use all supported python versions and the most recent pytorch version.
+
+- On the GPU, tests are run using a Simons Foundation-hosted [Jenkins](https://www.jenkins.io/) instance. Tests use the middle supported python version and the pytorch version specified in [jenkins/Dockerfile](https://github.com/plenoptic-org/plenoptic/blob/main/jenkins/Dockerfile), which we manually update as pytorch puts out new releases.
+
+Some of our tests check for reproducibility of synthesis methods. See [below](exact-reproducibility) for a discussion of some difficulties guaranteeing reproducibility across different devices, but the tl;dr is that the tests that are most likely to fail for this reason are only run on the GPU and are expected to fail on GPUs that are different from that used by the Jenkins runner. Thus, if you run the full test suite locally (using a GPU) and find that tests in `test_uploaded_files.py` are failing when you have changed nothing that should affect them, you can probably safely ignore this --- this is only a problem if these tests fail during the CI. Ask a maintainer if you have questions here.
+
 ### Running pytest with non-standard cache directories
 
 When running tests on some machines (e.g., nodes of the Flatiron cluster), the default cache directories used by some of the libraries will not exist, so running the tests like normal will result in errors that complain about directories not existing or not having permission to create directories in e.g., `/home/wbroderick`.
 
 To avoid this problem, we can use environment variables to control the behavior of these libraries. To do so for pooch (downloading test files), torch (downloading pretrained models), and matplotlib (caching config files), prepend the following to your pytest command: `PYTORCH_KERNEL_CACHE_PATH=~/.cache/torch/kernels TORCH_HOME=~/.cache/torch MPLCONFIGDIR=~/.cache/matplotlib PLENOPTIC_CACHE_DIR=~/.cache/plenoptic` (or replace `~/.cache/` with some other directory).
 
-> [!NOTE]
-> This may also be helpful when building the documentation.
+:::{tip}
+
+This may also be helpful when building the documentation.
+
+:::
 
 See relevant torch [1](https://docs.pytorch.org/docs/stable/notes/cuda.html#just-in-time-compilation) and [2](https://docs.pytorch.org/docs/stable/hub.html#where-are-my-downloaded-models-saved), [pooch](https://www.fatiando.org/pooch/latest/user-defined-cache.html), and [matplotlib](https://matplotlib.org/stable/install/environment_variables_faq.html#envvar-MPLCONFIGDIR) docs.
 
@@ -518,11 +525,16 @@ We have a linter that checks the conditions above.
 since they take a long time. In order to run them, you must explicitly set the
 environment variable `RUN_REGRESSION_SYNTH=1` when calling pytest.
 
+(exact-reproducibility)=
 #### Exact reproducibility
 
 Exact reproducibility with pytorch is hard. See [issue #368](https://github.com/plenoptic-org/plenoptic/issues/368) for some details, but the tl;dr is: you should not expect to get the same outputs (or even, within floating point precision) when running synthesis for long enough (seems to be > 1000 iterations) on devices with different CUDA versions and driver versions. Small differences in the output of e.g., `torch.einsum` / `torch.matmul` will lead to small differences in the gradient, which will accumulate and eventually lead to fairly different optimization outputs.
 
 To deal with this, your regression tests should save their output into the `uploaded_files` folder after synthesis (and before checking). The contents of that folder will be made available as [Jenkins artifacts](https://www.jenkins.io/doc/pipeline/tour/tests-and-artifacts/), which you can then download after the test. This will allow you to download the output of any failing test, manually verify the results look good, and then upload them to the OSF to test against.
+
+To deal with this, all tests for reproducibility should use dtype `torch.float64` (rather than the default `torch.float32`). Additionally, these regression tests should save their output into the `uploaded_files` folder after synthesis (and before checking). The contents of that folder will be made available as [Jenkins artifacts](https://www.jenkins.io/doc/pipeline/tour/tests-and-artifacts/), which you can then download after the test. This will allow you to download the output of any failing test, manually verify the results look good, and then upload them to the OSF to test against.
+
+Most of these tests are only run when explicitly enabled by setting the environmental variable `RUN_REGRESSION_SYNTH=1`, which we only do on the GPU, since they take a while to run.
 
 ### Test parameterizations and fixtures
 
@@ -632,7 +644,13 @@ In all markdown files, you should try to use sphinx's cross-reference syntax to 
 {class}`~plenoptic.synthesize.metamer.Metamer`
 ```
 
-You should similarly refer to code objects in other packages (e.g., pytorch and matplotlib), though the syntax is different. See [myst-parser docs](https://myst-parser.readthedocs.io/en/latest/syntax/cross-referencing.html#reference-roles) for more details and the existing documentation for more examples. As part of the pull request review process, we run linters that will check for missing cross-references. The only objects that can be referred to simply as `monospace` font are function arguments and generic attributes / method (e.g., saying that plenoptic models must have a `forward` <!-- skip-lint --> method). The linter will ignore all monospace font that have the word "argument" or "keyword" after them (e.g., "the `scales` keyword" or "the `scales` argument") or an html comment containing "skip-lint" (e.g., "the `scales` <!-- skip-lint --> method"; html comments are not rendered in sphinx).
+You should similarly refer to code objects in other packages (e.g., pytorch and matplotlib), though the syntax is different. See [myst-parser docs](https://myst-parser.readthedocs.io/en/latest/syntax/cross-referencing.html#reference-roles) for more details and the existing documentation for more examples. As part of the pull request review process, we run linters that will check for missing cross-references. The only objects that can be referred to simply as `monospace` font are function arguments and generic attributes / method (e.g., saying that plenoptic models must have a `forward` <!-- skip-lint --> method). The linter will ignore all monospace font that have the word "argument" or "keyword" after them (e.g., "the `scales` keyword" or "the `scales` argument") or an html comment containing "skip-lint", for example:
+
+```
+the `scales` <!-- skip-lint --> method
+```
+
+(html comments are not rendered in sphinx).
 
 The regular markdown files contain everything else, especially discussions about why you should use some code in the package and the theory behind it, and should all be located in one of the subfolders within the `docs/` directory. Decide which subfolder to place it in (ask for your help if you're unsure) and add it to that subfolder's `index.md` by adding the name of the file (without extension) to the `toctree` block.
 
@@ -686,7 +704,7 @@ done, `linting/check_apidocs.py` will fail (this check is included in our
 pre-commit config and thus is required to pass for a PR to merge).
 
 If the new function or class does not belong in one of the existing `rst` files
-found in `docs/api/`, you can create a new one, referring to the existing ones
+found in `docs/api/`, you can create a new one, referring to the existing files
 as templates. You must then add it to the `api_order` list in `docs/conf.py`.
 This list determines the order in which these documents are displayed in the
 index page of the API documentation, roughly from most to least important. Ask
@@ -775,10 +793,12 @@ Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/
 (build-the-documentation)=
 ### Build the documentation
 
-NOTE: If you just want to read the documentation, you do not need to do this;
+:::{important}
+If you just want to read the documentation, you do not need to do this;
 documentation is built automatically, pushed to the
 [plenoptic-documentation](https://github.com/plenoptic-org/plenoptic-documentation)
 github repo and published at http://docs.plenoptic.org/.
+:::
 
 However, it can be built locally as well. You would do this if you've made changes locally to the documentation (or the docstrings) that you would like to examine before pushing. All additional requirements are included in the `[docs]` optional dependency bundle, which you can install with `pip install plenoptic[docs]`.
 

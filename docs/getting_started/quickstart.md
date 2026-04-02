@@ -4,11 +4,11 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.18.1
 kernelspec:
-  name: python3
   display_name: Python 3 (ipykernel)
   language: python
+  name: python3
 ---
 
 :::{admonition} Download
@@ -41,6 +41,8 @@ plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ```
 
+## Stimuli
+
 All `plenoptic` methods require a "reference" or "target" image --- for Metamer synthesis, for example, this is the image whose representation we will match. Let's load in an image of Einstein to serve as our reference here:
 
 ```{code-cell} ipython3
@@ -48,7 +50,9 @@ im = po.data.einstein().to(DEVICE)
 fig = po.imshow(im)
 ```
 
-Models can be really simple, as this demonstrates. It needs to inherit {class}`torch.nn.Module` and just needs two methods: `__init__` (so it's an object) and `forward` <!-- skip-lint --> (so it can take an image). See the [Models page](models-doc) of the documentation for more details.
+## Models
+
+Models can be really simple, as we show in the next section. In `plenoptic`, all models are implemented using the [pytorch](https://pytorch.org/) library. This means that every models must inherit {class}`torch.nn.Module` (i.e., must subclass the {class}`torch.nn.Module` class) and implement `forward` <!-- skip-lint -->, which defines how a model transforms its input into its output. You will most likely also write an `__init__` method, which sets up the model object, initializing parameter values. See [](models-doc) for more details.
 
 For this notebook, we'll initialize a simple plenoptic-compatible model and call its forward method. This model just convolves a 2d gaussian filter across an image, so it's a low-pass model, preserving low frequency information while discarding the high frequencies.
 
@@ -85,7 +89,9 @@ model.to(DEVICE)
 rep = model(im)
 ```
 
-To work with out synthesis methods, a model must accept a tensor as input and return a tensor as output. In pytorch, images are generally represented as 4d tensors, and the dimensions are batch (often, multiple images), channel (often, RGB or outputs of different convolutional filters), height, and width. The models included in `plenoptic` typically accept a 4d image tensor and return a tensor with a 3 (`batch, channel, vector`) or 4 (`batch, channel, height, width`) dimensions. While our synthesis methods work with models that operate on tensors of different dimensionality, models which follow this behavior have been tested most extensively.
+## Preparing for Synthesis
+
+To work with our synthesis methods, a model must accept a tensor as input and return a tensor as output. In pytorch, images are generally represented as 4d tensors, and the dimensions are batch (often, multiple images), channel (often, RGB or outputs of different convolutional filters), height, and width. The models included in `plenoptic` typically accept a 4d image tensor and return a tensor with a 3 (`batch, channel, vector`) or 4 (`batch, channel, height, width`) dimensions. While our synthesis methods work with models that operate on tensors of different dimensionality, models which follow this behavior have been tested most extensively.
 
 We can see that our Gaussian model satisfies this constraint:
 
@@ -94,7 +100,7 @@ print(im.shape)
 print(rep.shape)
 ```
 
-There are also several more abstract constraints (e.g., model must accept real-valued inputs and return real-valued outputs), so it's recommended that you read the [Models page](models-doc) of the documentation before creating your own model.
+There are also several more abstract constraints (e.g., model must accept real-valued inputs and return real-valued outputs), so it's recommended that you read [](models-doc) before creating your own model.
 
 The following shows the image and the model output. We can see that output is a blurred version of the input, as we would expect from a low-pass model.
 
@@ -110,7 +116,11 @@ There's one final step before we're ready for synthesis. Most `pytorch` models w
 po.tools.remove_grad(model)
 ```
 
-Okay, now we're ready to start with metamer synthesis. To initialize, we only need the model and the image (there are some additional options, but the defaults are fine in this case; see the [Metamer notebook](metamer-nb) if you're interested). In general, you'll probably need to play with these options to find a good solution. It's also probably a good idea, while getting started, to set the `store_progress` argument to `True` (to store every iteration) or some `int` (to store every `int` iterations) so you can examine synthesis progress.
+## Metamers
+
+Okay, now we're ready to start with metamer synthesis. To initialize, we only need the model and the target image.
+
+Metamer synthesis starts with an initial image and then iteratively updates its pixels so as to gradually reduce the loss, so that eventually we find an image whose model representation matches that of the target. By default, the initial image is a sample of uniform noise whose values lie between 0 and 1 and the loss is {func}`plenoptic.tools.optim.mse`, the mean-squared error between the model's representation of our metamer-in-progress and the target image. (Both of these can be changed, see the [Metamer notebook](metamer-nb) for details.)
 
 ```{code-cell} ipython3
 metamer = po.synth.Metamer(im, model)
@@ -144,9 +154,11 @@ fig = po.imshow(
 )
 ```
 
-We can see that, even though the target and synthesized images look very different, the two model outputs look basically identical (which matches the exceedingly low loss value we see above). (The left column shows the images and the right column the model outputs; top row shows the original image and bottom the synthesized metamer.)
+In the above figure, the left column shows the images and the right column the model outputs; top row shows the original image and bottom the synthesized metamer.
 
-It may seem strange that the synthesized image looks like it has high-frequency noise in it --- a Gaussian is a low-pass filter, so why isn't the model metamer just a blurred version of the original image? Indeed, such a blurred image would be a model metamer, but it's only one of many. Remember what we mentioned earlier: Gaussians are insensitive to high-frequency information, which not only means that their response doesn't change when you remove that information, but that you can put any amount of high frequency information into an image without affecting the model's output. Put another way, you can randomize the contents of the model's null space without affecting its response, and the goal of metamer synthesis is to generate different images that do just that.
+We can see that, even though the target and synthesized images look very different, the two model outputs look basically identical (which matches the exceedingly low loss value we see above).
+
+It may seem strange that the synthesized image looks like it has high-frequency noise in it --- a Gaussian is a low-pass filter, so why isn't the model metamer just a blurred version of the original image? Indeed, such a blurred image would be a model metamer, but it's only one of many. Remember what we mentioned earlier: Gaussians are insensitive to high-frequency information, which not only means that their response doesn't change when you remove that information, but that you can *add* any amount of high frequency information into an image without affecting the model's output. Put another way, you can randomize the contents of the model's null space without affecting its response, and the goal of metamer synthesis is to generate different images that do just that.
 
 We can also view a movie of our progress so far.
 
@@ -156,7 +168,7 @@ po.synth.metamer.animate(
 )
 ```
 
-We can see the model's insensitivity to high frequencies more dramatically by initializing our metamer synthesis with a different image. By default, we initialize with a patch of white noise, but we can initialize with any image of the same size. Let's try with a different natural image, a picture of Marie Curie.
+We can see the model's insensitivity to high frequencies more dramatically by initializing our metamer synthesis with a different image. As mentioned above, by default we initialize with a patch of white noise, but we can initialize with any image of the same size. Let's try with a different natural image, a picture of Marie Curie.
 
 ```{code-cell} ipython3
 curie = po.data.curie().to(DEVICE)
@@ -200,9 +212,11 @@ fig = po.imshow(
 
 We see that the synthesized metamer here looks quite different from both the original and from our previous metamer, while the model outputs look very similar. Here, our synthesized model metamer looks like a blurry picture of Einstein with a high-frequency "shadow" of Curie added on top. Again, this is because the Gaussian model is insensitive to high frequencies, and thus a model metamer can include any high frequency information.
 
+## Eigendistortions
+
 By generating model metamers, we've gained a better understanding of the information our model is invariant to, but what if we want a better understanding of what our model is sensitive to? We can use {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion` for that.
 
-Like {class}`~plenoptic.synthesize.metamer.Metamer`, {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion` accepts an image and a model as its inputs. By default, it synthesizes the top and bottom eigendistortion, that is, the changes to the input image that the model finds most and least noticeable.
+Like {class}`~plenoptic.synthesize.metamer.Metamer`, {class}`~plenoptic.synthesize.eigendistortion.Eigendistortion` accepts an image and a model as its inputs. By default, it synthesizes the top and bottom eigendistortion, that is, the changes to the input image that the model finds most and least noticeable (see the [Eigendistortions notebook](eigendistortion-nb) for more details on this method).
 
 ```{code-cell} ipython3
 eig = po.synthesize.Eigendistortion(im, model)
