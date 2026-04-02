@@ -3,7 +3,7 @@
 # Using Jupyter to Run Example Notebooks
 
 :::{tip}
-You can run the notebooks in the cloud using [Binder](https://mybinder.org/v2/gh/plenoptic-org/plenoptic/1.2.0?filepath=examples), no installation required!
+You can run the notebooks in the cloud using Binder, no installation required! Just click on the Binder logo in the top right or in the link on the top of each notebook.
 :::
 
 ## Installing jupyter and setting up the kernel
