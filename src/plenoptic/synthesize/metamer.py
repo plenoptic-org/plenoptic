@@ -1716,7 +1716,7 @@ class MetamerCTF(Metamer):
         )
         return overall_loss
 
-    def _closure(self) -> tuple[float, float]:
+    def _closure(self) -> float:
         r"""
         Calculate the gradient, before the optimization step.
 
@@ -1739,8 +1739,6 @@ class MetamerCTF(Metamer):
         -------
         loss
             Loss of the current objective function.
-        penalty
-            Penalty of the current image.
         """  # numpydoc ignore=EX01
         self.optimizer.zero_grad()
         analyze_kwargs = {}

@@ -625,7 +625,7 @@ class OptimizedSynthesis(Synthesis):
         pass
 
     @abc.abstractmethod
-    def _closure(self) -> torch.Tensor:
+    def _closure(self) -> float:
         r"""
         Calculate the gradient, before the optimization step.
 
