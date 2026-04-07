@@ -86,6 +86,10 @@ class Metamer(OptimizedSynthesis):
     loss_function: Callable[[Tensor, Tensor], Tensor]
     """Callable which specifies how close metamer representation is to target."""
 
+    penalty_function: Callable[[Tensor], Tensor]
+    """Callable which penalizes additional properties of the metamer, e.g.,
+       an allowed range."""
+
     def __init__(
         self,
         image: Tensor,
@@ -133,7 +137,7 @@ class Metamer(OptimizedSynthesis):
         ----------
         initial_image
             The tensor we use to initialize the metamer. If ``None``, we initialize with
-            random noise uniformly-distributed in $[0,1]$.
+            random noise uniformly-distributed in [0,1].
         optimizer
             The un-initialized optimizer object to use. If ``None``, we use
             :class:`torch.optim.Adam`.
@@ -349,6 +353,7 @@ class Metamer(OptimizedSynthesis):
         if self._metamer is None or isinstance(self._scheduler, tuple):
             self.setup()
         self._current_loss = None
+        self._current_penalty = None
 
         # get ready to store progress
         self.store_progress = store_progress
@@ -372,8 +377,52 @@ class Metamer(OptimizedSynthesis):
         # compute current loss, no need to compute gradient
         with torch.no_grad():
             self._current_loss = self.objective_function().item()
+            self._current_penalty = self.penalty_function(self.metamer).item()
 
         pbar.close()
+
+    def _objective_function(
+        self,
+        metamer: Tensor | None = None,
+        target_representation: Tensor | None = None,
+        **analyze_kwargs: Any,
+    ) -> tuple[Tensor, Tensor]:
+        """
+        Compute objective function components.
+
+        This calls :attr:`loss_function` and :attr:`penalty_function` and returns their
+        output, without combining them. It is not meant to be called directly, but is
+        used by both :func:`_closure` and (public) :func:`objective_function`.
+
+        Parameters
+        ----------
+        metamer
+            Current ``metamer``. If ``None``, we use ``self.metamer``.
+        target_representation
+            Model response to ``image``. If ``None``, we use
+            ``self.target_representation``.
+        **analyze_kwargs
+            Additional kwargs to pass to ``self.model(metamer)``.
+
+        Returns
+        -------
+        loss
+            1-element tensor containing the metamer loss on this step
+            (without penalty).
+        penalty
+            1-element tensor containing the penalty on this step.
+        """
+        if metamer is None:
+            metamer = self.metamer
+            # if this is empty, then self.metamer hasn't been initialized
+            if metamer.numel() == 0:
+                return torch.empty(0), torch.empty(0)
+        if target_representation is None:
+            target_representation = self.target_representation
+        metamer_representation = self.model(metamer, **analyze_kwargs)
+        loss = self.loss_function(metamer_representation, target_representation)
+        penalty = self.penalty_function(metamer)
+        return loss, penalty
 
     def objective_function(
         self,
@@ -440,7 +489,7 @@ class Metamer(OptimizedSynthesis):
 
         This method differs from the :attr:`loss_function` attribute because of its
         inclusion of the penalty. In the following block, the pixels of
-        ``rand_img`` all lie within $[0, 1]$, and so the outputs of
+        ``rand_img`` all lie within [0, 1], and so the outputs of
         :attr:`objective_function` and :attr:`loss_function` are the same:
 
         >>> rand_img = torch.rand_like(img)
@@ -451,7 +500,7 @@ class Metamer(OptimizedSynthesis):
         >>> met.loss_function(model(img), model(rand_img))
         tensor(0.0190)
 
-        In this block, the image's lie outside $[0, 1]$, and so the outputs of
+        In this block, the image's lie outside [0, 1], and so the outputs of
         :attr:`objective_function` and :attr:`loss_function` are different:
 
         >>> rand_img *= 2
@@ -459,19 +508,23 @@ class Metamer(OptimizedSynthesis):
         (tensor(0.0001), tensor(2.0000))
         >>> met.objective_function(rand_img)
         tensor(1100.9663)
-        >>> met.loss_function(model(img), model(rand_img))
+        >>> loss = met.loss_function(model(img), model(rand_img))
+        >>> loss
         tensor(0.3133)
+
+        To compute the output of the objective function, we take the output of
+        :attr:`loss_function` and add the output of :attr:`penalty_function` times
+        :attr:`penalty_lambda`:
+
+        >>> penalty = met.penalty_function(rand_img)
+        >>> penalty
+        tensor(11006.5293)
+        >>> loss + met.penalty_lambda * penalty
+        tensor(1100.9633)
         """
-        if metamer is None:
-            metamer = self.metamer
-            # if this is empty, then self.metamer hasn't been initialized
-            if metamer.numel() == 0:
-                return torch.empty(0)
-        if target_representation is None:
-            target_representation = self.target_representation
-        metamer_representation = self.model(metamer, **analyze_kwargs)
-        loss = self.loss_function(metamer_representation, target_representation)
-        penalty = self.penalty_function(metamer)
+        loss, penalty = self._objective_function(
+            metamer, target_representation, **analyze_kwargs
+        )
         return loss + self.penalty_lambda * penalty
 
     def get_progress(
@@ -483,7 +536,7 @@ class Metamer(OptimizedSynthesis):
         Return dictionary summarizing synthesis progress at ``iteration``.
 
         This returns a dictionary containing info from :attr:`losses`,
-        :attr:`pixel_change_norm`, :attr:`gradient_norm`, and
+        :attr:`pixel_change_norm`, :attr:`gradient_norm`, :attr:`penalties`, and
         :attr:`saved_metamer` corresponding to ``iteration``. If synthesis was
         run with ``store_progress=False`` (and so we did not cache anything in
         :attr:`saved_metamer`), then that key will be missing. If synthesis was
@@ -494,8 +547,8 @@ class Metamer(OptimizedSynthesis):
         The returned dictionary will additionally contain the keys:
 
         - ``"iteration"``: the (0-indexed positive) synthesis iteration that the
-          values for :attr:`losses`, :attr:`pixel_change_norm`, and
-          :attr:`gradient_norm` come from.
+          values for :attr:`losses`, :attr:`pixel_change_norm`, :attr:`penalties`,
+          and :attr:`gradient_norm` come from.
 
         - If ``self.store_progress``, ``"store_progress_iteration"``: the (0-indexed
           positive) synthesis iteration that the value for :attr:`saved_metamer` comes
@@ -569,14 +622,16 @@ class Metamer(OptimizedSynthesis):
         >>> met.get_progress(0)
         {'losses': tensor(0.0194),
         'iteration': 0,
+        'penalties': tensor(0.),
         'pixel_change_norm': tensor(2.5326),
         'gradient_norm': tensor(0.0010)}
 
-        Get values from most last iteration of synthesis:
+        Get values from last iteration of synthesis:
 
         >>> print(met.get_progress(-2))
         {'losses': tensor(0.0145),
         'iteration': 4,
+        'penalties': tensor(0.0180),
         'pixel_change_norm': tensor(2.2698),
         'gradient_norm': tensor(0.0268)}
 
@@ -585,6 +640,7 @@ class Metamer(OptimizedSynthesis):
         >>> print(met.get_progress(-1))
         {'losses': tensor(0.0132),
         'iteration': 5,
+        'penalties': tensor(0.0174),
         'pixel_change_norm': None,
         'gradient_norm': None}
 
@@ -596,6 +652,7 @@ class Metamer(OptimizedSynthesis):
         >>> print(met.get_progress(-1))
         {'losses': tensor(0.0124),
         'iteration': 5,
+        'penalties': tensor(0.0168),
         'pixel_change_norm': None,
         'gradient_norm': None,
         'saved_metamer': tensor([[[[0.4554, ...]]]], grad_fn=<SelectBackward0>),
@@ -611,6 +668,7 @@ class Metamer(OptimizedSynthesis):
         >>> print(met.get_progress(-3))
         {'losses': tensor(0.0152),
         'iteration': 3,
+        'penalties': tensor(0.0182),
         'pixel_change_norm': tensor(2.3592),
         'gradient_norm': tensor(0.0269),
         'saved_metamer': tensor([[[[0.8532, ...]]]], grad_fn=<SelectBackward0>),
@@ -622,6 +680,7 @@ class Metamer(OptimizedSynthesis):
         >>> print(met.get_progress(-3, iteration_selection="floor"))
         {'losses': tensor(0.0152),
         'iteration': 3,
+        'penalties': tensor(0.0182),
         'pixel_change_norm': tensor(2.3592),
         'gradient_norm': tensor(0.0269),
         'saved_metamer': tensor([[[[ 0.8730, ...]]]], grad_fn=<SelectBackward0>),
@@ -632,6 +691,30 @@ class Metamer(OptimizedSynthesis):
             iteration_selection,
             store_progress_attributes=["saved_metamer"],
         )
+
+    def _closure(self) -> float:
+        r"""
+        Calculate the gradient, before the optimization step.
+
+        This enables optimization algorithms that perform several evaluations
+        of the gradient before taking a step (ie. second order methods like
+        LBFGS).
+
+        Additionally, this is where ``loss`` is calculated, ``loss.backward()`` is
+        called, and ``self._penalties`` is updated (but not ``self._losses``!
+        that happens in ``_optimizer_step``).
+
+        Returns
+        -------
+        loss
+            Loss of the current objective function.
+        """
+        self.optimizer.zero_grad()
+        loss, penalty = self._objective_function()
+        loss = loss + self.penalty_lambda * penalty
+        loss.backward(retain_graph=False)
+        self._penalties.append(penalty.item())
+        return loss.item()
 
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
         r"""
@@ -654,8 +737,10 @@ class Metamer(OptimizedSynthesis):
         loss = self.optimizer.step(self._closure)
         self._losses.append(loss)
 
-        grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2, dim=None)
-        self._gradient_norm.append(grad_norm.item())
+        grad_norm = torch.linalg.vector_norm(
+            self.metamer.grad.data, ord=2, dim=None
+        ).item()
+        self._gradient_norm.append(grad_norm)
 
         # optionally step the scheduler, passing loss if needed
         if self.scheduler is not None:
@@ -666,15 +751,16 @@ class Metamer(OptimizedSynthesis):
 
         pixel_change_norm = torch.linalg.vector_norm(
             self.metamer - last_iter_metamer, ord=2, dim=None
-        )
-        self._pixel_change_norm.append(pixel_change_norm.item())
+        ).item()
+        self._pixel_change_norm.append(pixel_change_norm)
         # add extra info here if you want it to show up in progress bar
         pbar.set_postfix(
             OrderedDict(
-                loss=f"{loss:.04e}",
+                loss=f"{self._losses[-1]:.04e}",
                 learning_rate=self.optimizer.param_groups[0]["lr"],
-                gradient_norm=f"{grad_norm.item():.04e}",
-                pixel_change_norm=f"{pixel_change_norm.item():.04e}",
+                penalty=f"{self._penalties[-1]:.04e}",
+                gradient_norm=f"{grad_norm:.04e}",
+                pixel_change_norm=f"{pixel_change_norm:.04e}",
             )
         )
         return loss
@@ -1157,6 +1243,18 @@ class Metamer(OptimizedSynthesis):
             # for memory purposes, always on CPU
             return torch.stack([*self._saved_metamer, self.metamer.to("cpu")])
 
+    @property
+    def penalties(self) -> torch.Tensor:
+        """
+        Penalty function output over iterations.
+
+        Will have ``length=num_iter+1``, where ``num_iter`` is the number of
+        iterations of synthesis run so far.
+
+        This tensor always lives on the CPU.
+        """  # numpydoc ignore=RT01
+        return super().penalties(self.metamer)
+
 
 class MetamerCTF(Metamer):
     """
@@ -1480,6 +1578,7 @@ class MetamerCTF(Metamer):
         if self._metamer is None or isinstance(self._scheduler, tuple):
             self.setup()
         self._current_loss = None
+        self._current_penalty = None
 
         # get ready to store progress
         self.store_progress = store_progress
@@ -1504,9 +1603,10 @@ class MetamerCTF(Metamer):
                 warnings.warn("Loss has converged, stopping synthesis")
                 break
 
-        # compute current loss, no need to compute gradient
+        # compute current loss, no need to compute gradient.
         with torch.no_grad():
             self._current_loss = self.objective_function().item()
+            self._current_penalty = self.penalty_function(self.metamer).item()
 
         pbar.close()
 
@@ -1607,6 +1707,7 @@ class MetamerCTF(Metamer):
             OrderedDict(
                 loss=f"{overall_loss:.04e}",
                 learning_rate=self.optimizer.param_groups[0]["lr"],
+                penalty=f"{self._penalties[-1]:.04e}",
                 gradient_norm=f"{grad_norm.item():.04e}",
                 pixel_change_norm=f"{pixel_change_norm.item():.04e}",
                 current_scale=self.scales[0],
@@ -1615,7 +1716,7 @@ class MetamerCTF(Metamer):
         )
         return overall_loss
 
-    def _closure(self) -> Tensor:
+    def _closure(self) -> tuple[float, float]:
         r"""
         Calculate the gradient, before the optimization step.
 
@@ -1631,10 +1732,15 @@ class MetamerCTF(Metamer):
 
         - ``loss`` is calculated and ``loss.backward()`` is called.
 
+        - ``self._penalties`` is updated (but not ``self._losses``! that
+          happens in ``_optimizer_step``)
+
         Returns
         -------
         loss
             Loss of the current objective function.
+        penalty
+            Penalty of the current image.
         """  # numpydoc ignore=EX01
         self.optimizer.zero_grad()
         analyze_kwargs = {}
@@ -1656,9 +1762,13 @@ class MetamerCTF(Metamer):
         else:
             target_rep = None
 
-        loss = self.objective_function(self.metamer, target_rep, **analyze_kwargs)
+        loss, penalty = self._objective_function(
+            self.metamer, target_rep, **analyze_kwargs
+        )
+        loss = loss + self.penalty_lambda * penalty
         loss.backward(retain_graph=False)
 
+        self._penalties.append(penalty.item())
         return loss.item()
 
     def _check_convergence(
