@@ -724,12 +724,18 @@ class TestMetamers:
             met = po.synth.Metamer(einstein_img, model)
         assert met.objective_function().numel() == 0
         torch.equal(met.losses, torch.empty(0))
+        torch.equal(met.penalties, torch.empty(0))
+        assert len(met.losses) == len(met.penalties) == 0
         met.setup()
         assert isinstance(met.objective_function(), torch.Tensor)
-        assert met.losses.numel() > 0
+        assert len(met.losses) == len(met.penalties) == 1
         met.synthesize(max_iter=2)
         assert isinstance(met.objective_function(), torch.Tensor)
-        assert met.losses.numel() > 0
+        assert len(met.losses) == len(met.penalties) == 3
+        # calling objective_function should not increase the length of these attributes,
+        # only calling synthesize should do that
+        met.objective_function()
+        assert len(met.losses) == len(met.penalties) == 3
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -768,6 +774,7 @@ class TestMetamers:
         expected_dict = {}
         if iteration is None:
             expected_dict["losses"] = met.losses[-1]
+            expected_dict["penalties"] = met.penalties[-1]
             expected_dict.update(
                 {
                     "iteration": 5,
@@ -784,6 +791,7 @@ class TestMetamers:
                 )
         elif iteration not in [6, -7]:
             expected_dict["losses"] = met.losses[iteration]
+            expected_dict["penalties"] = met.penalties[iteration]
             if iteration < 0:
                 # add one to account for loss and these attributes being off by one
                 expected_dict.update(
@@ -1232,3 +1240,20 @@ class TestMetamers:
         assert output_penalty[1] < output_penalty[0], (
             "Stronger penalty_lambda did not lead to lower penalty value!"
         )
+
+    @pytest.mark.parametrize("seed", range(5))
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd", "naive.Gaussian"], indirect=True
+    )
+    def test_closure(self, seed, model):
+        # closure and objective_function separately compute the same thing, so test that
+        # they're identical.
+        po.tools.remove_grad(model)
+        po.tools.set_seed(seed)
+        shape = (1, 1, 100, 100)
+        img = torch.rand(shape)
+        for _ in range(5):
+            met = po.synth.Metamer(img, model)
+            met.setup(torch.rand(shape))
+            loss = met.objective_function()
+            assert loss == met._closure()

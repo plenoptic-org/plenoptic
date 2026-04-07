@@ -911,12 +911,18 @@ class TestMAD:
         )
         assert mad.objective_function().numel() == 0
         torch.equal(mad.losses, torch.empty(0))
+        torch.equal(mad.penalties, torch.empty(0))
+        assert len(mad.penalties) == len(mad.losses) == 0
         mad.setup()
         assert isinstance(mad.objective_function(), torch.Tensor)
-        assert mad.losses.numel() > 0
+        assert len(mad.penalties) == len(mad.losses) == 1
         mad.synthesize(max_iter=2)
         assert isinstance(mad.objective_function(), torch.Tensor)
-        assert mad.losses.numel() > 0
+        assert len(mad.penalties) == len(mad.losses) == 3
+        # calling objective_function should not increase the length of these attributes,
+        # only calling synthesize should do that
+        mad.objective_function()
+        assert len(mad.penalties) == len(mad.losses) == 3
 
     @pytest.mark.parametrize("iteration", [None, 0, -2, -3, 2, 1, 6, -7])
     @pytest.mark.parametrize("store_progress", [True, False, 2])
@@ -938,6 +944,7 @@ class TestMAD:
         expected_dict = {}
         if iteration is None:
             expected_dict["losses"] = mad.losses[-1]
+            expected_dict["penalties"] = mad.penalties[-1]
             expected_dict.update(
                 {
                     "iteration": 5,
@@ -956,6 +963,7 @@ class TestMAD:
                 )
         elif iteration not in [6, -7]:
             expected_dict["losses"] = mad.losses[iteration]
+            expected_dict["penalties"] = mad.penalties[iteration]
             if iteration < 0:
                 # add one to account for loss and these attributes being off by one
                 expected_dict.update(
@@ -1126,3 +1134,24 @@ class TestMAD:
         assert output_penalty[1] < output_penalty[0], (
             "Stronger penalty_lambda did not lead to lower penalty value!"
         )
+
+    @pytest.mark.parametrize("seed", range(5))
+    @pytest.mark.parametrize("minmax", ["min", "max"])
+    @pytest.mark.parametrize("metric", [po.metric.mse, ModuleMetric, NonModuleMetric])
+    def test_closure(self, seed, metric, minmax):
+        # closure and objective_function separately compute the same thing, so test that
+        # they're identical.
+        po.tools.set_seed(seed)
+        shape = (1, 1, 100, 100)
+        img = torch.rand(shape)
+        # if metric is not the po.metric.mse function above, initialize it here,
+        # otherwise we can get a weird state-dependence
+        if not inspect.isfunction(metric):
+            metric = metric()
+        for _ in range(5):
+            mad = po.synth.MADCompetition(
+                img, metric, po.tools.optim.l2_norm, minmax, metric_tradeoff_lambda=1
+            )
+            mad.setup(torch.rand(shape))
+            loss = mad.objective_function()
+            assert loss == mad._closure()
