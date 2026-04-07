@@ -1245,7 +1245,8 @@ class TestMetamers:
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd", "naive.Gaussian"], indirect=True
     )
-    def test_closure(self, seed, model):
+    @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
+    def test_closure(self, seed, model, optim):
         # closure and objective_function separately compute the same thing, so test that
         # they're identical.
         po.tools.remove_grad(model)
@@ -1253,6 +1254,21 @@ class TestMetamers:
         shape = (1, 1, 100, 100)
         img = torch.rand(shape)
         for _ in range(5):
+            met = po.synth.Metamer(img, model)
+            met.setup(torch.rand(shape), optimizer=optim)
+            loss = met.objective_function()
+            assert loss == met._closure()
+
+    @pytest.mark.parametrize("seed", range(5))
+    @pytest.mark.parametrize("model", ["PortillaSimoncelli"], indirect=True)
+    def test_closure_ctf(self, seed, model):
+        # closure and objective_function separately compute the same thing, so test that
+        # they're identical.
+        po.tools.remove_grad(model)
+        po.tools.set_seed(seed)
+        shape = (1, 1, 256, 256)
+        img = torch.rand(shape)
+        for _ in range(3):
             met = po.synth.Metamer(img, model)
             met.setup(torch.rand(shape))
             loss = met.objective_function()
