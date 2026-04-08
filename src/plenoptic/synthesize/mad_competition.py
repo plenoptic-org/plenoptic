@@ -348,7 +348,7 @@ class MADCompetition(OptimizedSynthesis):
         self,
         mad_image: Tensor | None = None,
         image: Tensor | None = None,
-    ) -> Tensor:
+    ) -> tuple[Tensor, Tensor, Tensor]:
         """
         Compute objective function components.
 
@@ -379,7 +379,7 @@ class MADCompetition(OptimizedSynthesis):
             mad_image = self.mad_image
             # if this is empty, then self.mad_image hasn't been initialized
             if mad_image.numel() == 0:
-                return torch.empty(0)
+                return torch.empty(0), torch.empty(0), torch.empty(0)
         sm = self.optimized_metric(image, mad_image)
         fm = self.reference_metric(image, mad_image)
         penalty = self.penalty_function(mad_image)
@@ -587,8 +587,8 @@ class MADCompetition(OptimizedSynthesis):
                 penalty=f"{self._penalties[-1]:.04e}",
                 gradient_norm=f"{grad_norm:.04e}",
                 pixel_change_norm=f"{pixel_change_norm:.04e}",
-                reference_metric=f"{self._reference_metric[-1]:.04e}",
-                optimized_metric=f"{self._optimized_metric[-1]:.04e}",
+                reference_metric=f"{self._reference_metric_loss[-1]:.04e}",
+                optimized_metric=f"{self._optimized_metric_loss[-1]:.04e}",
             )
         )
         return loss
