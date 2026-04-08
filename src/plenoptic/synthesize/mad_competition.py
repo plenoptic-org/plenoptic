@@ -542,9 +542,9 @@ class MADCompetition(OptimizedSynthesis):
             + self.penalty_lambda * penalty
         )
         loss.backward(retain_graph=False)
-        self._reference_metric_loss.append(fm.item())
-        self._optimized_metric_loss.append(sm.item())
-        self._penalties.append(penalty.item())
+        self._reference_metric_tmp = fm.item()
+        self._optimized_metric_tmp = sm.item()
+        self._penalty_tmp = penalty.item()
         return loss.item()
 
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
@@ -567,6 +567,10 @@ class MADCompetition(OptimizedSynthesis):
         last_iter_mad_image = self.mad_image.clone()
         loss = self.optimizer.step(self._closure)
         self._losses.append(loss)
+        self._penalties.append(self._penalty_tmp)
+        self._reference_metric_loss.append(self._reference_metric_tmp)
+        self._optimized_metric_loss.append(self._optimized_metric_tmp)
+
         grad_norm = torch.linalg.vector_norm(
             self.mad_image.grad.data, ord=2, dim=None
         ).item()

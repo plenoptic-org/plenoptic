@@ -717,7 +717,9 @@ class TestMetamers:
         "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
         "ignore:input_tensor range is:UserWarning",
     )
-    def test_metamer_empty_loss(self, einstein_img, model):
+    @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
+    def test_metamer_loss_penalty_length(self, einstein_img, model, optim):
+        po.tools.set_seed(0)
         if hasattr(model, "scales"):
             met = po.synth.MetamerCTF(einstein_img, model)
         else:
@@ -726,7 +728,7 @@ class TestMetamers:
         torch.equal(met.losses, torch.empty(0))
         torch.equal(met.penalties, torch.empty(0))
         assert len(met.losses) == len(met.penalties) == 0
-        met.setup()
+        met.setup(optimizer=optim)
         assert isinstance(met.objective_function(), torch.Tensor)
         assert len(met.losses) == len(met.penalties) == 1
         met.synthesize(max_iter=2)

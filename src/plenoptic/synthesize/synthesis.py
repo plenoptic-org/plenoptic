@@ -114,7 +114,11 @@ class Synthesis(abc.ABC):
         }
         save_io_attr_names = [k[0] for k in save_io_attrs]
         save_attrs = [
-            k for k in vars(self) if k not in save_io_attr_names + save_state_dict_attrs
+            k
+            for k in vars(self)
+            if k not in save_io_attr_names + save_state_dict_attrs
+            # we have some temporary attributes that we don't need to save
+            and not k.endswith("_tmp")
         ]
         for k in save_attrs:
             attr = getattr(self, k)

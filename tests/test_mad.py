@@ -905,7 +905,9 @@ class TestMAD:
         torch.equal(mad.saved_mad_image, mad.mad_image.to("cpu"))
 
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
-    def test_mad_empty_loss(self, einstein_img):
+    @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
+    def test_mad_loss_penalty_length(self, einstein_img, optim):
+        po.tools.set_seed(0)
         mad = po.synth.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
@@ -913,7 +915,7 @@ class TestMAD:
         torch.equal(mad.losses, torch.empty(0))
         torch.equal(mad.penalties, torch.empty(0))
         assert len(mad.penalties) == len(mad.losses) == 0
-        mad.setup()
+        mad.setup(optimizer=optim)
         assert isinstance(mad.objective_function(), torch.Tensor)
         assert len(mad.penalties) == len(mad.losses) == 1
         mad.synthesize(max_iter=2)

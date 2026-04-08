@@ -713,7 +713,7 @@ class Metamer(OptimizedSynthesis):
         loss, penalty = self._objective_function()
         loss = loss + self.penalty_lambda * penalty
         loss.backward(retain_graph=False)
-        self._penalties.append(penalty.item())
+        self._penalty_tmp = penalty.item()
         return loss.item()
 
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
@@ -736,6 +736,7 @@ class Metamer(OptimizedSynthesis):
         last_iter_metamer = self.metamer.clone()
         loss = self.optimizer.step(self._closure)
         self._losses.append(loss)
+        self._penalties.append(self._penalty_tmp)
 
         grad_norm = torch.linalg.vector_norm(
             self.metamer.grad.data, ord=2, dim=None
@@ -1687,6 +1688,7 @@ class MetamerCTF(Metamer):
 
         self._scales_loss.append(loss)
         self._losses.append(overall_loss)
+        self._penalties.append(self._penalty_tmp)
 
         grad_norm = torch.linalg.vector_norm(self.metamer.grad.data, ord=2, dim=None)
         self._gradient_norm.append(grad_norm.item())
@@ -1766,7 +1768,7 @@ class MetamerCTF(Metamer):
         loss = loss + self.penalty_lambda * penalty
         loss.backward(retain_graph=False)
 
-        self._penalties.append(penalty.item())
+        self._penalty_tmp = penalty.item()
         return loss.item()
 
     def _check_convergence(
