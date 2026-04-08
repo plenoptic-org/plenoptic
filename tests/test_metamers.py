@@ -1245,13 +1245,14 @@ class TestMetamers:
 
     @pytest.mark.parametrize("seed", range(5))
     @pytest.mark.parametrize(
-        "model", ["frontend.LinearNonlinear.nograd", "naive.Gaussian"], indirect=True
+        "model",
+        ["frontend.LinearNonlinear.nograd", "naive.Gaussian.nograd"],
+        indirect=True,
     )
     @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
     def test_closure(self, seed, model, optim):
         # closure and objective_function separately compute the same thing, so test that
         # they're identical.
-        po.tools.remove_grad(model)
         po.tools.set_seed(seed)
         shape = (1, 1, 100, 100)
         img = torch.rand(shape, device=DEVICE)
