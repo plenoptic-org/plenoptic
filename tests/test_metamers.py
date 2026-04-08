@@ -1275,7 +1275,7 @@ class TestMetamers:
             loss = met.objective_function()
             assert loss == met._closure()
 
-    def test_penalties_old_compat(self, einstein_img_double):
+    def test_penalties_old_compatability(self, einstein_img_double):
         # test behavior when loading metamer saved before _penalties added: should be
         # able to load (with warning) and call get_progress
         model = po.simul.Gaussian(30).eval()
@@ -1284,11 +1284,14 @@ class TestMetamers:
         met = po.synth.Metamer(einstein_img_double, model)
         txt1 = "The saved object was saved before penalty_function"
         txt2 = "You will need to call setup"
+        old_met = po.data.fetch_data(
+            "example_metamer_gaussian-old.pt", map_location=DEVICE
+        )
         with (
             pytest.warns(FutureWarning, match=txt1),
             pytest.warns(UserWarning, match=txt2),
         ):
-            met.load(po.data.fetch_data("example_metamer_gaussian-old.pt"))
+            met.load(old_met)
         assert met.penalties.shape == met.losses.shape
         # because this one is computed on the fly, for current penalty
         prog = met.get_progress(-1)
