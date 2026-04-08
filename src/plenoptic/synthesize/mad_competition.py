@@ -407,6 +407,9 @@ class MADCompetition(OptimizedSynthesis):
         the penalty function, :math:`\lambda_1` is :attr:`metric_tradeoff_lambda`
         and :math:`\lambda_2` is :attr:`penalty_lambda`.
 
+        If :meth:`setup` or :meth:`synthesize` has not been called to initialize the MAD
+        image, then this will return an empty tensor.
+
         Parameters
         ----------
         mad_image
@@ -421,6 +424,8 @@ class MADCompetition(OptimizedSynthesis):
         loss
             1-element tensor containing the loss on this step.
         """
+        if self._reference_metric_target is None:
+            return torch.empty(0)
         sm, fm, penalty = self._objective_function(mad_image, image)
         synth_target = {"min": 1, "max": -1}[self.minmax]
         fixed_loss = (self._reference_metric_target - fm).pow(2)
