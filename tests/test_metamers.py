@@ -1280,13 +1280,18 @@ class TestMetamers:
         po.tools.remove_grad(model)
         model = model.to(DEVICE).to(einstein_img_double.dtype)
         met = po.synth.Metamer(einstein_img_double, model)
-        txt = "The saved object was saved before penalty_function"
-        with pytest.warns(FutureWarning, match=txt):
+        txt1 = "The saved object was saved before penalty_function"
+        txt2 = "You will need to call setup"
+        with (
+            pytest.warns(FutureWarning, match=txt1),
+            pytest.warns(UserWarning, match=txt2),
+        ):
             met.load(po.data.fetch_data("example_metamer_gaussian-old.pt"))
         assert met.penalties.shape == met.losses.shape
         # because this one is computed on the fly, for current penalty
         prog = met.get_progress(-1)
         assert not torch.isnan(prog["penalties"])
         # because this is the cached one, which doesn't exist
-        prog = met.get_progress(-2)
+        with pytest.warns(UserWarning, match="loss iteration and iteration for"):
+            prog = met.get_progress(-2)
         assert torch.isnan(prog["penalties"])
