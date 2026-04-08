@@ -823,7 +823,7 @@ class MADCompetition(OptimizedSynthesis):
         ]
         super().load(
             file_path,
-            "losses",
+            "_mad_image",
             map_location=map_location,
             check_attributes=check_attributes,
             check_io_attributes=check_io_attrs,
