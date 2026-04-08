@@ -1252,10 +1252,10 @@ class TestMetamers:
         po.tools.remove_grad(model)
         po.tools.set_seed(seed)
         shape = (1, 1, 100, 100)
-        img = torch.rand(shape)
+        img = torch.rand(shape, device=DEVICE)
         for _ in range(5):
             met = po.synth.Metamer(img, model)
-            met.setup(torch.rand(shape), optimizer=optim)
+            met.setup(torch.rand(shape, device=DEVICE), optimizer=optim)
             loss = met.objective_function()
             assert loss == met._closure()
 
@@ -1264,12 +1264,11 @@ class TestMetamers:
     def test_closure_ctf(self, seed, model):
         # closure and objective_function separately compute the same thing, so test that
         # they're identical.
-        po.tools.remove_grad(model)
         po.tools.set_seed(seed)
         shape = (1, 1, 256, 256)
-        img = torch.rand(shape)
+        img = torch.rand(shape, device=DEVICE)
         for _ in range(3):
             met = po.synth.Metamer(img, model)
-            met.setup(torch.rand(shape))
+            met.setup(torch.rand(shape, device=DEVICE))
             loss = met.objective_function()
             assert loss == met._closure()

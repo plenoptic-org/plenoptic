@@ -1143,7 +1143,7 @@ class TestMAD:
         # they're identical.
         po.tools.set_seed(seed)
         shape = (1, 1, 100, 100)
-        img = torch.rand(shape)
+        img = torch.rand(shape, device=DEVICE)
         # if metric is not the po.metric.mse function above, initialize it here,
         # otherwise we can get a weird state-dependence
         if not inspect.isfunction(metric):
@@ -1152,6 +1152,6 @@ class TestMAD:
             mad = po.synth.MADCompetition(
                 img, metric, po.tools.optim.l2_norm, minmax, metric_tradeoff_lambda=1
             )
-            mad.setup(torch.rand(shape))
+            mad.setup(torch.rand(shape, device=DEVICE))
             loss = mad.objective_function()
             assert loss == mad._closure()
