@@ -333,7 +333,7 @@ class Synthesis(abc.ABC):
                     "or see the 'Reproducibility and Compatibility' page of the "
                     "documentation for how to make the saved object futureproof and "
                     "avoid this warning. However, we cannot recover the history of the "
-                    "penalty_function output (the penalties attribute); filling with"
+                    "penalty_function output (the penalties attribute); filling with "
                     "torch.nan for missing values.",
                     category=FutureWarning,
                 )

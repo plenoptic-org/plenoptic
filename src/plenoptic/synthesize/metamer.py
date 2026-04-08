@@ -1723,8 +1723,8 @@ class MetamerCTF(Metamer):
         Calculate the gradient, before the optimization step.
 
         This enables optimization algorithms that perform several evaluations
-        of the gradient before taking a step (ie. second order methods like
-        LBFGS).
+        of the gradient before taking a step (e.g., second order methods like
+        LBFGS or methods with line searches).
 
         Additionally, this is where:
 
