@@ -46,10 +46,11 @@ REGISTRY = {
     "berardino_onoff.pt": "2174a40005489b9c94acc91213b2f6d57a75f262caf118cb1980658eadbfd047",  # noqa: E501
     "berardino_vgg16.pt": "5e0d10f4a367244879cd8a61c453992370ab801db1f66e10caa1ee2ecfab8ca4",  # noqa: E501
     "ps_regression.tar.gz": "2d5d57dc4ea57509f89e13387edc5b3fe74105b7a95362d3fc50912763009614",  # noqa: E501
-    "example_metamer_gaussian.pt": "adef079df878a9e0319cb5ad59791435f9b7eec695e1d8f21019c8e11b891d85",  # noqa: E501
-    "example_metamer_gaussian-cuda.pt": "2a2499ced2f7e5cd022aacbf4e58d479d98f551564a984b9ab36893ef17e0bed",  # noqa: E501
-    "example_metamerCTF_ps.pt": "200d1d743401feee76fd55ee156a4bc33683f1772cf6d938fe6e036a26c55a64",  # noqa: E501
-    "example_metamerCTF_ps-cuda.pt": "9fbbf240bce5d50c4e35520ac9cc87ac3beba0b9c8bb58283440f89c4fdeeb7c",  # noqa: E501
+    "example_metamer_gaussian-old.pt": "adef079df878a9e0319cb5ad59791435f9b7eec695e1d8f21019c8e11b891d85",  # noqa: E501
+    "example_metamer_gaussian.pt": "02e12c7c2a93e2e5a83f6d7aa8320368c00641deacfba3359b02fedc9a0dc0f1",  # noqa: E501
+    "example_metamer_gaussian-cuda.pt": "edd80e63bd776b679f714acee62fefa9885a257c66e2699423887aeab7c03794",  # noqa: E501
+    "example_metamerCTF_ps.pt": "6a9e04a8aeaacc1c45bfde23a657529431cf5100b68fc49206b778a79b7b1023",  # noqa: E501
+    "example_metamerCTF_ps-cuda.pt": "9f9c67494ee8531db40a91c29c4e1c33e1ef38d399e3f2746fa6bd0373b80003",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"
@@ -84,10 +85,11 @@ REGISTRY_URLS = {
     "berardino_onoff.pt": OSF_TEMPLATE.format("uqfa8"),
     "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b"),
     "ps_regression.tar.gz": OSF_TEMPLATE.format("7t4fj/?revision=13"),
-    "example_metamer_gaussian.pt": OSF_TEMPLATE.format("7e48u/?revision=5"),
-    "example_metamer_gaussian-cuda.pt": OSF_TEMPLATE.format("jzhe7/?revision=2"),
-    "example_metamerCTF_ps.pt": OSF_TEMPLATE.format("4zr37/?revision=7"),
-    "example_metamerCTF_ps-cuda.pt": OSF_TEMPLATE.format("627sp/?revision=2"),
+    "example_metamer_gaussian-old.pt": OSF_TEMPLATE.format("7e48u/?revision=5"),
+    "example_metamer_gaussian.pt": OSF_TEMPLATE.format("7e48u/?revision=6"),
+    "example_metamer_gaussian-cuda.pt": OSF_TEMPLATE.format("jzhe7/?revision=3"),
+    "example_metamerCTF_ps.pt": OSF_TEMPLATE.format("4zr37/?revision=8"),
+    "example_metamerCTF_ps-cuda.pt": OSF_TEMPLATE.format("627sp/?revision=3"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch.fetch_data`

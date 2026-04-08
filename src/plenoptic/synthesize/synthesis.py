@@ -321,15 +321,16 @@ class Synthesis(abc.ABC):
                 range_penalty_lambda = tmp_dict.pop("_range_penalty_lambda", 0.1)
                 tmp_dict["_penalty_lambda"] = range_penalty_lambda
                 tmp_dict["_current_penalty"] = None
-                tmp_dict["_penalties"] = []
+                tmp_dict["_penalties"] = [torch.nan] * len(tmp_dict["_losses"])
                 warnings.warn(
                     "The saved object was saved before penalty_function and "
                     "penalty_lambda existed and will not be compatible with future "
                     "releases. Save this object with the current version of plenoptic "
                     "or see the 'Reproducibility and Compatibility' page of the "
                     "documentation for how to make the saved object futureproof and "
-                    "avoid this warning. However, we cannot recover the history of the"
-                    " penalty_function output (the penalties attribute).",
+                    "avoid this warning. However, we cannot recover the history of the "
+                    "penalty_function output (the penalties attribute); filling with"
+                    "torch.nan for missing values.",
                     category=FutureWarning,
                 )
         # there shouldn't be any extra keys in the saved dictionary (we removed

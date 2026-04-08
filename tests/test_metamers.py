@@ -1272,3 +1272,21 @@ class TestMetamers:
             met.setup(torch.rand(shape, device=DEVICE))
             loss = met.objective_function()
             assert loss == met._closure()
+
+    def test_penalties_old_compat(self, einstein_img_double):
+        # test behavior when loading metamer saved before _penalties added: should be
+        # able to load (with warning) and call get_progress
+        model = po.simul.Gaussian(30).eval()
+        po.tools.remove_grad(model)
+        model = model.to(DEVICE).to(einstein_img_double.dtype)
+        met = po.synth.Metamer(einstein_img_double, model)
+        txt = "The saved object was saved before penalty_function"
+        with pytest.warns(FutureWarning, match=txt):
+            met.load(po.data.fetch_data("example_metamer_gaussian-old.pt"))
+        assert met.penalties.shape == met.losses.shape
+        # because this one is computed on the fly, for current penalty
+        prog = met.get_progress(-1)
+        assert not torch.isnan(prog["penalties"])
+        # because this is the cached one, which doesn't exist
+        prog = met.get_progress(-2)
+        assert torch.isnan(prog["penalties"])
