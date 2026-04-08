@@ -520,7 +520,7 @@ class Metamer(OptimizedSynthesis):
         >>> penalty
         tensor(11006.5293)
         >>> loss + met.penalty_lambda * penalty
-        tensor(1100.9633)
+        tensor(1100.9663)
         """
         loss, penalty = self._objective_function(
             metamer, target_representation, **analyze_kwargs
