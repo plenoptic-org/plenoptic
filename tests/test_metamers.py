@@ -1285,14 +1285,12 @@ class TestMetamers:
         met = po.synth.Metamer(einstein_img_double, model)
         txt1 = "The saved object was saved before penalty_function"
         txt2 = "You will need to call setup"
-        old_met = po.data.fetch_data(
-            "example_metamer_gaussian-old.pt", map_location=DEVICE
-        )
+        old_met = po.data.fetch_data("example_metamer_gaussian-old.pt")
         with (
             pytest.warns(FutureWarning, match=txt1),
             pytest.warns(UserWarning, match=txt2),
         ):
-            met.load(old_met)
+            met.load(old_met, map_location=DEVICE)
         assert met.penalties.shape == met.losses.shape
         # because this one is computed on the fly, for current penalty
         prog = met.get_progress(-1)
