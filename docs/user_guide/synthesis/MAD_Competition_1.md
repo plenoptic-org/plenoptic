@@ -213,7 +213,7 @@ po.imshow(img, vrange=(0, 255), zoom=4);
 
 Now we'll do the same process of running synthesis and checking our loss as above:
 
-:::{admonition} Setting the pixel range of MAD Competition with `penalty_function`
+:::{admonition} Setting the pixel range of MAD Competition with {attr}`~plenoptic.synthesize.mad_competition.MADCompetition.penalty_function`
 :class: dropdown note
 
 When synthesizing an image, we often want to constrain the range of its
@@ -223,11 +223,11 @@ constraints pixels to be in the `[0, 1]` range. To achieve this,
 the class uses a penalty function that penalizes the pixels that fall
 out of said range, which gets added to the loss function.
 
-Custom penalty functions can be passed to
-{class}`MADCompetition <plenoptic.synthesize.mad_competition.MADCompetition>` using the
-argument `penalty_function`. The code below shows an example where
-a custom penalty function is used to to constrain the synthesized images to
-be in the `[0, 255]` range.
+Custom penalty functions can be passed to {class}`MADCompetition
+<plenoptic.synthesize.mad_competition.MADCompetition>` using the argument
+{attr}`~plenoptic.synthesize.mad_competition.MADCompetition.penalty_function`.
+The code below shows an example where a custom penalty function is used to to
+constrain the synthesized images to be in the `[0, 255]` range.
 
 For more details, see the [Metamer regularization section](metamer-regularization).
 :::

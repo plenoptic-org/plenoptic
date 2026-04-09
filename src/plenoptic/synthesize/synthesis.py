@@ -114,7 +114,11 @@ class Synthesis(abc.ABC):
         }
         save_io_attr_names = [k[0] for k in save_io_attrs]
         save_attrs = [
-            k for k in vars(self) if k not in save_io_attr_names + save_state_dict_attrs
+            k
+            for k in vars(self)
+            if k not in save_io_attr_names + save_state_dict_attrs
+            # we have some temporary attributes that we don't need to save
+            and not k.endswith("_tmp")
         ]
         for k in save_attrs:
             attr = getattr(self, k)
@@ -263,7 +267,13 @@ class Synthesis(abc.ABC):
         # all attributes set at initialization should be present in the saved dictionary
         init_not_save = set(vars(self)) - set(tmp_dict)
         if len(init_not_save):
-            compat_attrs = {"_current_loss", "penalty_function", "_penalty_lambda"}
+            compat_attrs = {
+                "_current_loss",
+                "penalty_function",
+                "_penalty_lambda",
+                "_penalties",
+                "_current_penalty",
+            }
             if not init_not_save.issubset(compat_attrs):
                 init_not_save_str = "\n ".join(
                     [f"{k}: {getattr(self, k)}" for k in init_not_save]
@@ -285,7 +295,12 @@ class Synthesis(abc.ABC):
                     category=FutureWarning,
                 )
             penalty_missing = init_not_save.intersection(
-                {"penalty_function", "_penalty_lambda"}
+                {
+                    "penalty_function",
+                    "_penalty_lambda",
+                    "_penalties",
+                    "_current_penalty",
+                }
             )
             if penalty_missing:
                 # in PR #383, we added penalty_function and penalty_lambda attributes,
@@ -309,13 +324,17 @@ class Synthesis(abc.ABC):
                 )
                 range_penalty_lambda = tmp_dict.pop("_range_penalty_lambda", 0.1)
                 tmp_dict["_penalty_lambda"] = range_penalty_lambda
+                tmp_dict["_current_penalty"] = None
+                tmp_dict["_penalties"] = [torch.nan] * len(tmp_dict["_losses"])
                 warnings.warn(
                     "The saved object was saved before penalty_function and "
                     "penalty_lambda existed and will not be compatible with future "
                     "releases. Save this object with the current version of plenoptic "
                     "or see the 'Reproducibility and Compatibility' page of the "
                     "documentation for how to make the saved object futureproof and "
-                    "avoid this warning.",
+                    "avoid this warning. However, we cannot recover the history of the "
+                    "penalty_function output (the penalties attribute); filling with "
+                    "torch.nan for missing values.",
                     category=FutureWarning,
                 )
         # there shouldn't be any extra keys in the saved dictionary (we removed
@@ -575,11 +594,13 @@ class OptimizedSynthesis(Synthesis):
     ):
         super().__init__()
         self._losses = []
+        self._penalties = []
         self._gradient_norm = []
         self._pixel_change_norm = []
         self._store_progress = None
         self._optimizer = None
         self._current_loss = None
+        self._current_penalty = None
         self.penalty_function = penalty_function
         if penalty_lambda < 0:
             raise Exception("penalty_lambda must be non-negative!")
@@ -608,7 +629,8 @@ class OptimizedSynthesis(Synthesis):
         """
         pass
 
-    def _closure(self) -> torch.Tensor:
+    @abc.abstractmethod
+    def _closure(self) -> float:
         r"""
         Calculate the gradient, before the optimization step.
 
@@ -624,10 +646,7 @@ class OptimizedSynthesis(Synthesis):
         loss
             Loss of the current objective function.
         """
-        self.optimizer.zero_grad()
-        loss = self.objective_function()
-        loss.backward(retain_graph=False)
-        return loss.item()
+        pass
 
     def _initialize_optimizer(
         self,
@@ -962,12 +981,13 @@ class OptimizedSynthesis(Synthesis):
         # loss), so we grab the hidden version, which has the proper length
         try:
             loss = self.losses[iter]
+            penalty = self.penalties[iter]
         except IndexError as e:
             raise IndexError(
                 f"{iteration=} out of bounds with "
                 f"{len(self.losses)} iterations of synthesis"
             ) from e
-        progress_info = {"losses": loss, "iteration": iter}
+        progress_info = {"losses": loss, "iteration": iter, "penalties": penalty}
         # then this is the most recent one, which we don't have pixel_change_norm or
         # gradient_norm for
         if iter == len(self.losses) - 1:
@@ -1043,6 +1063,41 @@ class OptimizedSynthesis(Synthesis):
                 # compute loss because synthesis hasn't been initialized.
                 return torch.empty(0)
         return torch.as_tensor([*self._losses, current_loss])
+
+    @abc.abstractmethod
+    def penalties(self, synth_attr: torch.Tensor) -> torch.Tensor:
+        """
+        Penalty function output over iterations.
+
+        Will have ``length=num_iter+1``, where ``num_iter`` is the number of
+        iterations of synthesis run so far.
+
+        This tensor always lives on the CPU.
+
+        Parameters
+        ----------
+        synth_attr
+            The Tensor that we are updating as part of optimization, which we
+            should compute the penalty on.
+
+        Returns
+        -------
+        penalties
+            The penalties over synthesis iterations.
+        """
+        current_penalty = self._current_penalty
+        # this will happen if we haven't run synthesize() yet or got
+        # interrupted
+        if current_penalty is None:
+            if synth_attr.numel() == 0:
+                # this will happen if setup() has not been called and so we can't
+                # compute penalty because synthesis hasn't been initialized.
+                return torch.empty(0)
+            else:
+                # compute current penalty, no need to compute gradient
+                with torch.no_grad():
+                    current_penalty = self.penalty_function(synth_attr).item()
+        return torch.as_tensor([*self._penalties, current_penalty])
 
     @property
     def gradient_norm(self) -> torch.Tensor:
