@@ -6,7 +6,7 @@ import torch
 from torch import nn
 
 import plenoptic.synthesize.autodiff as autodiff
-from conftest import DEVICE, ColorModel, get_model
+from conftest import DEVICE, ColorModel
 from plenoptic.metric import mse
 from plenoptic.simulate import Gaussian, OnOff
 from plenoptic.simulate import LinearNonlinear as LNL
@@ -548,8 +548,13 @@ class TestAutodiffFunctions:
         # reduce image size
         einstein_img = einstein_img_double[..., 100 : 100 + 16, 100 : 100 + 16]
 
+        model = OnOff((31, 31), pretrained=True, cache_filt=True)
+        remove_grad(model)
+        model.to(einstein_img.dtype).to(DEVICE)
+        model.eval()
+
         # eigendistortion object
-        ed = Eigendistortion(einstein_img, get_model("frontend.OnOff.nograd"))
+        ed = Eigendistortion(einstein_img, model)
 
         x, y = ed._image_flat, ed._representation_flat
 
