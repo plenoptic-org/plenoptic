@@ -3,7 +3,7 @@
 # Using Jupyter to Run Example Notebooks
 
 :::{tip}
-You can run the notebooks in the cloud using Binder, no installation required! Just click on the Binder logo in the top right or in the link on the top of each notebook.
+You can run the notebooks in the cloud using Binder, no installation required! Just click on the Binder the link found at the top of each runnable notebook.
 :::
 
 ## Installing jupyter and setting up the kernel
