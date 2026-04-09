@@ -594,7 +594,9 @@ class TestAutodiffFunctions:
     def test_fisher_vec_prod(self, state):
         x, y, x_dim, y_dim, k = state
 
-        V, _ = torch.linalg.qr(torch.ones((x_dim, k), device=DEVICE), "reduced")
+        V, _ = torch.linalg.qr(
+            torch.ones((x_dim, k), device=DEVICE, dtype=x.dtype), "reduced"
+        )
         U = V.clone()
         Jv = autodiff._jacobian_vector_product(y, x, V)
         Fv = autodiff._vector_jacobian_product(y, x, Jv)
