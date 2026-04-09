@@ -216,23 +216,25 @@ It is sometimes useful to control properties of the synthesized metamer beyond
 those captured by the input model. Some examples include controlling the range
 of pixel values, penalizing high frequencies, or matching the spectrum of the target image.
 
-For this purpose, the {class}`~plenoptic.synthesize.metamer.Metamer` class
-takes an optional `penalty_function` argument at initialization.
-The `penalty_function` is a callable that takes as an input the synthesized metamer
-image, and returns a scalar penalty. This scalar penalty is added to the loss
-during optimization, and it can be used to control certain properties of the
-synthesized metamer.
+For this purpose, the {class}`~plenoptic.synthesize.metamer.Metamer` class takes
+an optional {attr}`~plenoptic.synthesize.metamer.Metamer.penalty_function`
+argument at initialization. The
+{attr}`~plenoptic.synthesize.metamer.Metamer.penalty_function` is a callable
+that takes as an input the synthesized metamer image, and returns a scalar
+penalty. This scalar penalty is added to the loss during optimization, and it
+can be used to control certain properties of the synthesized metamer.
 
-For example, the default `penalty_function` uses the
-{func}`~plenoptic.tools.regularization.penalize_range` function
-to penalize pixel values that fall outside the range [0, 1], helping to keep the
-synthesized metamer within this range. The user can pass custom penalty functions
-that control other properties of the synthesized metamer.
-For example, we can constrain the image pixels to fall inside a different range,
-by using the argument `allowed_range` in the
-{func}`~plenoptic.tools.regularization.penalize_range` function
-to define a new range penalization. Below we show how to constrain the
-pixel range to be between 0.2 and 0.8.
+For example, the default
+{attr}`~plenoptic.synthesize.metamer.Metamer.penalty_function` uses the
+{func}`~plenoptic.tools.regularization.penalize_range` function to penalize
+pixel values that fall outside the range [0, 1], helping to keep the synthesized
+metamer within this range. The user can pass custom penalty functions that
+control other properties of the synthesized metamer. For example, we can
+constrain the image pixels to fall inside a different range, by using the
+argument `allowed_range` in the
+{func}`~plenoptic.tools.regularization.penalize_range` function to define a new
+range penalization. Below we show how to constrain the pixel range to be between
+0.2 and 0.8.
 
 ```{code-cell} ipython3
 from plenoptic.tools import regularization
@@ -257,6 +259,16 @@ po.synth.metamer.plot_pixel_values(met)
 
 We see that the metamer pixel histogram ranges from 0.2 to 0.8, while
 the original target image ranges from 0.0 to 1.0.
+
+The output of this penalty function is stored at each iteration in the
+{attr}`~plenoptic.synthesize.metamer.Metamer.penalties` attribute, analogous to
+the {attr}`~plenoptic.synthesize.metamer.Metamer.losses` attribute:
+
+```{code-cell} ipython3
+
+print(met.penalties)
+print(met.losses)
+```
 
 The {class}`~plenoptic.synthesize.metamer.Metamer` class also has a
 {attr}`~plenoptic.synthesize.metamer.Metamer.penalty_lambda` argument, that weights the contribution of the penalty function
