@@ -29,11 +29,9 @@ jobs:
       with:
         fetch-depth: 0
         persist-credentials: false
-    - name: Check for plenoptic-binder branch
-      run: |
-        curl --silent --fail --head "https://github.com/plenoptic-org/plenoptic-binder/tree/$(git describe --tags)"
     - name: Check for tag in docs version switcher
       run: |
+        echo "Looking for $(git describe --tags)"
         rg "$(git describe --tags)" docs/_static/version_switcher.json
   notebooks_cpu:
     runs-on: ubuntu-latest
