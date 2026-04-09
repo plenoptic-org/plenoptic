@@ -32,7 +32,7 @@ jobs:
     - name: Check for tag in docs version switcher
       run: |
         echo "Looking for $(git describe --tags)"
-        rg "$(git describe --tags)" docs/_static/version_switcher.json
+        grep "$(git describe --tags)" docs/_static/version_switcher.json
   notebooks_cpu:
     runs-on: ubuntu-latest
     strategy:
