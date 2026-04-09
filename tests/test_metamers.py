@@ -715,19 +715,27 @@ class TestMetamers:
         "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
         "ignore:input_tensor range is:UserWarning",
     )
-    def test_metamer_empty_loss(self, einstein_img, model):
+    @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
+    def test_metamer_loss_penalty_length(self, einstein_img, model, optim):
+        po.tools.set_seed(0)
         if hasattr(model, "scales"):
             met = po.MetamerCTF(einstein_img, model)
         else:
             met = po.Metamer(einstein_img, model)
         assert met.objective_function().numel() == 0
         torch.equal(met.losses, torch.empty(0))
-        met.setup()
+        torch.equal(met.penalties, torch.empty(0))
+        assert len(met.losses) == len(met.penalties) == 0
+        met.setup(optimizer=optim)
         assert isinstance(met.objective_function(), torch.Tensor)
-        assert met.losses.numel() > 0
+        assert len(met.losses) == len(met.penalties) == 1
         met.synthesize(max_iter=2)
         assert isinstance(met.objective_function(), torch.Tensor)
-        assert met.losses.numel() > 0
+        assert len(met.losses) == len(met.penalties) == 3
+        # calling objective_function should not increase the length of these attributes,
+        # only calling synthesize should do that
+        met.objective_function()
+        assert len(met.losses) == len(met.penalties) == 3
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -766,6 +774,7 @@ class TestMetamers:
         expected_dict = {}
         if iteration is None:
             expected_dict["losses"] = met.losses[-1]
+            expected_dict["penalties"] = met.penalties[-1]
             expected_dict.update(
                 {
                     "iteration": 5,
@@ -782,6 +791,7 @@ class TestMetamers:
                 )
         elif iteration not in [6, -7]:
             expected_dict["losses"] = met.losses[iteration]
+            expected_dict["penalties"] = met.penalties[iteration]
             if iteration < 0:
                 # add one to account for loss and these attributes being off by one
                 expected_dict.update(
@@ -1226,3 +1236,60 @@ class TestMetamers:
         assert output_penalty[1] < output_penalty[0], (
             "Stronger penalty_lambda did not lead to lower penalty value!"
         )
+
+    @pytest.mark.parametrize("seed", range(5))
+    @pytest.mark.parametrize(
+        "model",
+        ["frontend.LinearNonlinear.nograd", "naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
+    def test_closure(self, seed, model, optim):
+        # closure and objective_function separately compute the same thing, so test that
+        # they're identical.
+        po.tools.set_seed(seed)
+        shape = (1, 1, 100, 100)
+        img = torch.rand(shape, device=DEVICE)
+        for _ in range(5):
+            met = po.synth.Metamer(img, model)
+            met.setup(torch.rand(shape, device=DEVICE), optimizer=optim)
+            loss = met.objective_function()
+            assert loss == met._closure()
+
+    @pytest.mark.parametrize("seed", range(5))
+    @pytest.mark.parametrize("model", ["PortillaSimoncelli"], indirect=True)
+    def test_closure_ctf(self, seed, model):
+        # closure and objective_function separately compute the same thing, so test that
+        # they're identical.
+        po.tools.set_seed(seed)
+        shape = (1, 1, 256, 256)
+        img = torch.rand(shape, device=DEVICE)
+        for _ in range(3):
+            met = po.synth.Metamer(img, model)
+            met.setup(torch.rand(shape, device=DEVICE))
+            loss = met.objective_function()
+            assert loss == met._closure()
+
+    def test_penalties_old_compatability(self, einstein_img_double):
+        # test behavior when loading metamer saved before _penalties added: should be
+        # able to load (with warning) and call get_progress
+        model = po.simul.Gaussian(30).eval()
+        po.tools.remove_grad(model)
+        model = model.to(DEVICE).to(einstein_img_double.dtype)
+        met = po.synth.Metamer(einstein_img_double, model)
+        txt1 = "The saved object was saved before penalty_function"
+        txt2 = "You will need to call setup"
+        old_met = po.data.fetch_data("example_metamer_gaussian-old.pt")
+        with (
+            pytest.warns(FutureWarning, match=txt1),
+            pytest.warns(UserWarning, match=txt2),
+        ):
+            met.load(old_met, map_location=DEVICE)
+        assert met.penalties.shape == met.losses.shape
+        # because this one is computed on the fly, for current penalty
+        prog = met.get_progress(-1)
+        assert not torch.isnan(prog["penalties"])
+        # because this is the cached one, which doesn't exist
+        with pytest.warns(UserWarning, match="loss iteration and iteration for"):
+            prog = met.get_progress(-2)
+        assert torch.isnan(prog["penalties"])

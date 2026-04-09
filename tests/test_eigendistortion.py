@@ -6,7 +6,7 @@ import torch
 from torch import nn
 
 import plenoptic as po
-from conftest import DEVICE, get_model
+from conftest import DEVICE
 from plenoptic._synthesize import autodiff
 
 # to be used for default model instantiation
@@ -532,16 +532,21 @@ class TestEigendistortionSynthesis:
 
 class TestAutodiffFunctions:
     @pytest.fixture(scope="class")
-    def state(self, einstein_img):
+    def state(self, einstein_img_double):
         """variables to be reused across tests in this class"""
 
-        k = 2  # num vectors with which to compute vjp, jvp, Fv
-        einstein_img = einstein_img[
-            ..., 100 : 100 + 16, 100 : 100 + 16
-        ]  # reduce image size
+        # num vectors with which to compute vjp, jvp, Fv
+        k = 2
+        # reduce image size
+        einstein_img = einstein_img_double[..., 100 : 100 + 16, 100 : 100 + 16]
+
+        model = po.models.OnOff((31, 31), pretrained=True, cache_filt=True)
+        po.remove_grad(model)
+        model.to(einstein_img.dtype).to(DEVICE)
+        model.eval()
 
         # eigendistortion object
-        ed = po.Eigendistortion(einstein_img, get_model("frontend.OnOff.nograd"))
+        ed = po.Eigendistortion(einstein_img, model)
 
         x, y = ed._image_flat, ed._representation_flat
 
@@ -581,7 +586,9 @@ class TestAutodiffFunctions:
     def test_fisher_vec_prod(self, state):
         x, y, x_dim, y_dim, k = state
 
-        V, _ = torch.linalg.qr(torch.ones((x_dim, k), device=DEVICE), "reduced")
+        V, _ = torch.linalg.qr(
+            torch.ones((x_dim, k), device=DEVICE, dtype=x.dtype), "reduced"
+        )
         U = V.clone()
         Jv = autodiff._jacobian_vector_product(y, x, V)
         Fv = autodiff._vector_jacobian_product(y, x, Jv)

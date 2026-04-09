@@ -80,8 +80,34 @@ torch.save(old_save, "old_save.pt")
 Loading {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` objects saved before plenoptic 1.4 will result in a `FutureWarning` due to two changes:
 
 - {class}`~plenoptic.Metamer` objects' save method was updated allow saving of more general loss functions (e.g., {func}`~plenoptic.optim.portilla_simoncelli_loss_factory`).
-- {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` APIs were changed, replacing the range penalty with a more generic `penalty_function`. See [](metamer-regularization) for more details on how to use this new capability.
+- {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` APIs were changed, replacing the range penalty with a more generic {attr}`~plenoptic.Metamer.penalty_function`. See [](metamer-regularization) for more details on how to use this new capability.
 
 You will be able to load {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` objects saved with version 1.2 through 1.3.1 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
 
 In order to make an object compatible with future releases, you can load it in with `plenoptic` 1.4 and re-save it.
+
+#### Penalties attribute
+
+Accompanying the new {attr}`~plenoptic.synthesize.metamer.Metamer.penalty_function` attribute is the new attribute {attr}`~plenoptic.synthesize.metamer.Metamer.penalties`, which tracks the penalty function output over synthesis iterations (analogous to how {attr}`~plenoptic.synthesize.metamer.Metamer.losses` tracks the value of the objective function over synthesis iterations). Because this data was not tracked before this release, we are unable to produce it when loading an old object. Instead, {attr}`~plenoptic.synthesize.metamer.Metamer.penalties` will be set to an appropriately-sized tensor of `torch.nan` to signify the missing values.
+
+If you called {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` with the optional `store_progress` argument, the metamer-in-progress was cached over synthesis with some frequency and so you can manually compute the corresponding penalty values. To do so:
+
+```python
+# initialize your Metamer object
+...
+met.load("old_metamer_object.pt")
+
+import torch
+# saved_metamer is always on cpu, so if your metamer is on the GPU, you'll need to move it there
+saved_mets = met.saved_metamer.to(met.image.device)
+penalties = torch.func.vmap(met.penalty_function)(saved_mets)
+assert len(saved_mets) == len(penalties)
+```
+
+:::{admonition} Warning
+:class: warning
+
+Note that, if `store_progress>1`, then the synthesis procedure did not cache the metamer-in-progress on every iteration and so `len(penalties) < len(met.losses)`.
+:::
+
+(The above all holds for both {class}`~plenoptic.synthesize.metamer.Metamer` and {class}`~plenoptic.synthesize.mad_competition.MADCompetition`.)

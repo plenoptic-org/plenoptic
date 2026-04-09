@@ -15,14 +15,14 @@ from conftest import DEVICE, IMG_DIR
 ALL_MODELS = [
     "LPyr",
     "SPyr",
-    "frontend.LinearNonlinear",
-    "frontend.LuminanceGainControl",
-    "frontend.LuminanceContrastGainControl",
-    "frontend.OnOff",
+    "frontend.LinearNonlinear.nograd",
+    "frontend.LuminanceGainControl.nograd",
+    "frontend.LuminanceContrastGainControl.nograd",
+    "frontend.OnOff.nograd",
     "naive.Identity",
-    "naive.Linear",
-    "naive.Gaussian",
-    "naive.CenterSurround",
+    "naive.Linear.nograd",
+    "naive.Gaussian.nograd",
+    "naive.CenterSurround.nograd",
     "PortillaSimoncelli",
 ]
 
@@ -93,7 +93,6 @@ def test_cpu(model, einstein_img):
 
 @pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
 def test_validate_model(model):
-    po.remove_grad(model)
     po.validate.validate_model(model, device=DEVICE, image_shape=(1, 1, 256, 256))
 
 

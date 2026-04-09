@@ -49,14 +49,14 @@ where:
 - $x$ is {attr}`~plenoptic.MADCompetition.image`
 - $\hat{x}$ is {attr}`~plenoptic.MADCompetition.mad_image`
 - $\epsilon$ is the initial noise
-- $\mathcal{B}$ is the `penalty_function` set at initialization (by default, a quadratic bound penalty)
+- $\mathcal{B}$ is the `~plenoptic.MADCompetition.penalty_function` set at initialization (by default, a quadratic bound penalty)
 - $\lambda_1$ is {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda`
 - $\lambda_2$ is {attr}`~plenoptic.MADCompetition.penalty_lambda`
 
 :::{admonition} Selecting a different penalty
 :class: dropdown note
 
-Other penalties $\mathcal{B}$ can be used by passing them to the argument `penalty_function`.
+Other penalties $\mathcal{B}$ can be used by passing them to the argument {attr}`~plenoptic.synthesize.mad_competition.MADCompetition.penalty_function`.
 
 For more details, see the [Metamer regularization section](metamer-regularization).
 :::
