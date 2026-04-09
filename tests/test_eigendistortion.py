@@ -540,13 +540,13 @@ class TestEigendistortionSynthesis:
 
 class TestAutodiffFunctions:
     @pytest.fixture(scope="class")
-    def state(self, einstein_img):
+    def state(self, einstein_img_double):
         """variables to be reused across tests in this class"""
 
-        k = 2  # num vectors with which to compute vjp, jvp, Fv
-        einstein_img = einstein_img[
-            ..., 100 : 100 + 16, 100 : 100 + 16
-        ]  # reduce image size
+        # num vectors with which to compute vjp, jvp, Fv
+        k = 2
+        # reduce image size
+        einstein_img = einstein_img_double[..., 100 : 100 + 16, 100 : 100 + 16]
 
         # eigendistortion object
         ed = Eigendistortion(einstein_img, get_model("frontend.OnOff.nograd"))
