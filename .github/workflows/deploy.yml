@@ -17,6 +17,12 @@ jobs:
       with:
         fetch-depth: 0
         persist-credentials: false
+    - name: Check for plenoptic-binder branch
+      run: |
+        curl --silent --fail --head "https://github.com/plenoptic-org/plenoptic-binder/tree/$(git describe --tags)"
+    - name: Check for tag in docs version switcher
+      run: |
+        rg "$(git describe --tags)" docs/_static/version_switcher.json
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
       with:
