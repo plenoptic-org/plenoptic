@@ -70,6 +70,8 @@ dev = ["plenoptic[test,lint]"]
 
 nb = [
     "jupyter",
+    "jupyterlab",
+    "jupyterlab_myst",
     "ipywidgets",
     "nbclient>=0.5.5",
     "torchvision>=0.3",
