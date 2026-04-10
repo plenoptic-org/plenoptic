@@ -58,7 +58,7 @@ where:
 :::{admonition} Selecting a different penalty
 :class: dropdown note
 
-Other penalties $\mathcal{B}$ can be used by passing them to the argument {attr}`~plenoptic.synthesize.mad_competition.MADCompetition.penalty_function`.
+Other penalties $\mathcal{B}$ can be used by passing them to the argument {attr}`~plenoptic.MADCompetition.penalty_function`.
 
 For more details, see the [Metamer regularization section](metamer-regularization).
 :::

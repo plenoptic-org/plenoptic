@@ -88,9 +88,9 @@ In order to make an object compatible with future releases, you can load it in w
 
 #### Penalties attribute
 
-Accompanying the new {attr}`~plenoptic.synthesize.metamer.Metamer.penalty_function` attribute is the new attribute {attr}`~plenoptic.synthesize.metamer.Metamer.penalties`, which tracks the penalty function output over synthesis iterations (analogous to how {attr}`~plenoptic.synthesize.metamer.Metamer.losses` tracks the value of the objective function over synthesis iterations). Because this data was not tracked before this release, we are unable to produce it when loading an old object. Instead, {attr}`~plenoptic.synthesize.metamer.Metamer.penalties` will be set to an appropriately-sized tensor of `torch.nan` to signify the missing values.
+Accompanying the new {attr}`~plenoptic.Metamer.penalty_function` attribute is the new attribute {attr}`~plenoptic.Metamer.penalties`, which tracks the penalty function output over synthesis iterations (analogous to how {attr}`~plenoptic.Metamer.losses` tracks the value of the objective function over synthesis iterations). Because this data was not tracked before this release, we are unable to produce it when loading an old object. Instead, {attr}`~plenoptic.Metamer.penalties` will be set to an appropriately-sized tensor of `torch.nan` to signify the missing values.
 
-If you called {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` with the optional `store_progress` argument, the metamer-in-progress was cached over synthesis with some frequency and so you can manually compute the corresponding penalty values. To do so:
+If you called {func}`~plenoptic.Metamer.synthesize` with the optional `store_progress` argument, the metamer-in-progress was cached over synthesis with some frequency and so you can manually compute the corresponding penalty values. To do so:
 
 ```python
 # initialize your Metamer object
@@ -110,4 +110,4 @@ assert len(saved_mets) == len(penalties)
 Note that, if `store_progress>1`, then the synthesis procedure did not cache the metamer-in-progress on every iteration and so `len(penalties) < len(met.losses)`.
 :::
 
-(The above all holds for both {class}`~plenoptic.synthesize.metamer.Metamer` and {class}`~plenoptic.synthesize.mad_competition.MADCompetition`.)
+(The above all holds for both {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition`.)
