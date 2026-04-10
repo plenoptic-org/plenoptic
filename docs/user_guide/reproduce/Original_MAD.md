@@ -28,10 +28,12 @@ warnings.filterwarnings(
 This currently contains examples of the earlier MAD synthesis, but we have yet to reproduce it using `plenoptic`.
 :::
 
-:::{admonition} Download
+:::{admonition} Run this notebook yourself!
 :class: important
 
-Download this notebook: **{nb-download}`Original_MAD.ipynb`**!
+Download the executed notebook: **{nb-download}`Original_MAD.ipynb`**!
+
+Run it in your browser: **{binder}`Original_MAD.ipynb`**!
 
 :::
 

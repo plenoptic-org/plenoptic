@@ -11,10 +11,12 @@ kernelspec:
   name: python3
 ---
 
-:::{admonition} Download
+:::{admonition} Run this notebook yourself!
 :class: important
 
-Download this notebook: **{nb-download}`Steerable_Pyramid.ipynb`**!
+Download the executed notebook: **{nb-download}`Steerable_Pyramid.ipynb`**!
+
+Run it in your browser: **{binder}`Steerable_Pyramid.ipynb`**!
 
 :::
 

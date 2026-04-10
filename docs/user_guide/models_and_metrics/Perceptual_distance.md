@@ -29,10 +29,12 @@ warnings.filterwarnings(
 )
 ```
 
-:::{admonition} Download
+:::{admonition} Run this notebook yourself!
 :class: important
 
-Download this notebook: **{nb-download}`Perceptual_distance.ipynb`**!
+Download the executed notebook: **{nb-download}`Perceptual_distance.ipynb`**!
+
+Run it in your browser: **{binder}`Perceptual_distance.ipynb`**!
 
 :::
 

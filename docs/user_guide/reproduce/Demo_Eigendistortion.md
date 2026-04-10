@@ -11,10 +11,12 @@ kernelspec:
   name: python3
 ---
 
-:::{admonition} Download
+:::{admonition} Run this notebook yourself!
 :class: important
 
-Download this notebook: **{nb-download}`Demo_Eigendistortion.ipynb`**!
+Download the executed notebook: **{nb-download}`Demo_Eigendistortion.ipynb`**!
+
+Run it in your browser: **{binder}`Demo_Eigendistortion.ipynb`**!
 
 :::
 

@@ -22,11 +22,12 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 ```
-
-:::{admonition} Download
+:::{admonition} Run this notebook yourself!
 :class: important
 
-Download this notebook: **{nb-download}`Synthesis_extensions.ipynb`**!
+Download the executed notebook: **{nb-download}`Synthesis_extensions.ipynb`**!
+
+Run it in your browser: **{binder}`Synthesis_extensions.ipynb`**!
 
 :::
 

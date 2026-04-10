@@ -238,23 +238,22 @@ versioning](https://semver.org/):
 > 3. PATCH version when you make backward compatible bug fixes
 
 When doing a new release, the following steps must be taken:
-1. In a new PR:
-  - Update all the [binder](https://mybinder.org) links, which are of the form
-    `https://mybinder.org/v2/gh/plenoptic-org/plenoptic/X.Y.Z?filepath=examples`,
-    which are found in `README.md` and `index.md`. Note that the version tag
-    must match the github tag (specified in the next step) or the link won't
-    work.
+1. In a new PR do the following. The deploy action will not pass if these steps
+   are not followed!
   - Update `docs/_static/version_switcher.json`. You will need to add a section
     for the new release and move the `preferred=true` line to that section.
+  - Go to the [plenoptic-binder
+    repo](https://github.com/plenoptic-org/plenoptic-binder) and create a new
+    branch whose name matches the tag for the new release, and update the
+    `postBuild` file, replacing `main` in the call to `replace_crossrefs.py`
+    with this tag as well.
 2. After merging the above PR into the `main` branch, [create a Github
    release](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository)
-   with a new tag matching that used in the binder link above: `X.Y.Z`. Creating
+   with a new tag matching that used in the section above. Creating
    the release will trigger the deployment to pypi, via our `deploy` action
    (found in `.github/workflows/deploy.yml`). The built version will grab the
    version tag from the Github release, using
    [setuptools_scm](https://github.com/pypa/setuptools_scm).
-
-Note that the binder link I have been unable to find a way to make binder use the latest github release tag directly (or make [binder](https://mybinder.org) use a `latest` tag, so ensure they match!
 
 Shortly after the deploy to pypi goes through (typically within a day), a PR will be automatically opened on the [conda-forge/plenoptic-feedstock](https://github.com/conda-forge/plenoptic-feedstock) repo. After merging that PR, the [plenoptic version on conda-forge](https://anaconda.org/conda-forge/plenoptic) will also be updated
 
