@@ -23,10 +23,12 @@ warnings.filterwarnings(
 )
 ```
 
-:::{admonition} Download
+:::{admonition} Run this notebook yourself!
 :class: important
 
-Download this notebook: **{nb-download}`MAD_Competition_2.ipynb`**!
+Download the executed notebook: **{nb-download}`MAD_Competition_2.ipynb`**!
+
+Run it in your browser: **{binder}`MAD_Competition_2.ipynb`**!
 
 :::
 

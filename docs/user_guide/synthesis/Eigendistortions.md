@@ -34,10 +34,12 @@ warnings.filterwarnings(
 )
 ```
 
-:::{admonition} Download
+:::{admonition} Run this notebook yourself!
 :class: important
 
-Download this notebook: **{nb-download}`Eigendistortions.ipynb`**!
+Download the executed notebook: **{nb-download}`Eigendistortions.ipynb`**!
+
+Run it in your browser: **{binder}`Eigendistortions.ipynb`**!
 
 :::
 

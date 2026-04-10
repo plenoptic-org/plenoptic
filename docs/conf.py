@@ -13,6 +13,7 @@ import pathlib
 from importlib.metadata import version
 
 import torch
+from docutils import nodes
 
 # by default, torch uses all avail threads which slows things run in parallel
 torch.set_num_threads(1)
@@ -269,6 +270,12 @@ epub_exclude_files = ["search.html"]
 
 # -- Extension configuration -------------------------------------------------
 
+# if release and version match, then we're building docs for a release, else we should
+# point to main
+tag = release if release == version else "HEAD"
+
+binder_url = f"https://mybinder.org/v2/gh/plenoptic-org/plenoptic-binder/{tag}?urlpath=%2Fdoc%2Ftree%2Fplenoptic%2Fnotebooks%2F"
+
 # MATPLOTLIB
 # because of the examples in the docstrings, want to default to showing source and not
 # showing link. in actual doc pages, this needs to be reversed.
@@ -436,9 +443,19 @@ def skip_torch_inherited_methods(app, obj_type, name, obj, skip, options):
     return None
 
 
+def binder_role(name, rawtext, text, lineno, inliner, options={}, content=[]):
+    """Create a role to highlight new contributors in changelog entries."""
+    refuri = binder_url + text
+    ref_node = nodes.reference(
+        rawtext, text, classes=["binder"], refuri=refuri, **options
+    )
+    return [ref_node], []
+
+
 # connect our custom method to the sphinx events callback API:
 # https://www.sphinx-doc.org/en/master/extdev/event_callbacks.html
 def setup(app):
     app.connect("autodoc-skip-member", skip_torch_inherited_methods)
     # triggered just before the HTML for an individual page is created
     app.connect("html-page-context", add_js_css_files)
+    app.add_role("binder", binder_role)

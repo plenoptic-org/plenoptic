@@ -30,10 +30,12 @@ logger = pooch.get_logger()
 logger.setLevel("WARNING")
 ```
 
-:::{admonition} Download
+:::{admonition} Run this notebook yourself!
 :class: important
 
-Download this notebook: **{nb-download}`ps_extensions.ipynb`**!
+Download the executed notebook: **{nb-download}`ps_extensions.ipynb`**!
+
+Run it in your browser: **{binder}`ps_extensions.ipynb`**!
 
 :::
 

@@ -22,12 +22,19 @@ for p in paths:
         # then this isn't a markdown notebook
         continue
     filename = p.stem
-    if not re.findall(f"{{nb-download}}`{filename}.ipynb`", md):
+    if (
+        not re.findall("Run this notebook yourself!", md)
+        or not re.findall(f"{{nb-download}}`{filename}.ipynb`", md)
+        or not re.findall(f"{{binder}}`{filename}.ipynb`", md)
+    ):
         fails.append(p)
 
 
 if fails:
-    print("The following markdown notebooks are missing a download notebook button!")
+    print(
+        "The following markdown notebooks' admonition with links to download the "
+        "notebook or run it in binder are misformatted!"
+    )
     for p in fails:
         print(p)
     sys.exit(1)
