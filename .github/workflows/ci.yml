@@ -161,6 +161,16 @@ jobs:
         print_all: false
         timeout: 5
         retry_count: 3
+  validate_switcher_json:
+    runs-on: ubuntu-latest
+    name: Validate version_switcher.json
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - run: |
+        cat docs/_static/version_switcher.json | jq
+
 
   check:
     if: always()
