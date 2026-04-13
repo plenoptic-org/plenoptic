@@ -60,6 +60,11 @@ class PortillaSimoncelli(nn.Module):
     variance, skew, and kurtosis) of the image and down-sampled versions of that image.
     See the paper and notebook for more description.
 
+    .. versionchanged:: 2.0.0
+       :attr:`spatial_corr_width` default value changed from 9 to 7, in order to match
+       the value used to generate the figures in the Portilla and Simoncelli, 2000
+       [2]_, paper.
+
     Parameters
     ----------
     image_shape
@@ -158,7 +163,7 @@ class PortillaSimoncelli(nn.Module):
         image_shape: tuple[int, int],
         n_scales: int = 4,
         n_orientations: int = 4,
-        spatial_corr_width: int = 9,
+        spatial_corr_width: int = 7,
     ):
         super().__init__()
 
