@@ -86,10 +86,15 @@ for p in paths:
             dollarsigns.append((p, name))
         directives = re.findall(SPHINX_DIRECTIVE_REGEX, doc)
         sphinx_link = re.findall(SPHINX_LINK_REGEX, doc)
-        # if the word default is preceded / followed by an underscore, then the
-        # argument has "default" in its name, so don't match that (using
-        # negative look-ahead/behind)
-        default = re.findall("(?<!_)[Dd]efault(?!_)", doc)
+        # if the word default is preceded / followed by an underscore, then the argument
+        # has "default" in its name, so don't match that (using negative
+        # look-ahead/behind). the only allowable place to put default is in a
+        # versionchanged note. For now, we'll say that default has to be the first word
+        # in such a note, so that we know it is preceded by a version number (which is
+        # 5 digits long) and the versionchanged tag
+        default = re.findall(
+            r"(?<!versionchanged:: [0-9\.]{5}) (?<!_)[Dd]efault(?!_)", doc
+        )
         if default:
             defaults.append((p, name))
         backtick = [
