@@ -477,15 +477,15 @@ def portilla_simoncelli_loss_factory(
     >>> import plenoptic as po
     >>> import torch
     >>> po.tools.set_seed(0)
-    >>> img = po.data.einstein()
+    >>> img = po.data.einstein().to(torch.float64)
     >>> img2 = torch.rand_like(img)
     >>> model = po.simul.PortillaSimoncelli(img.shape[-2:])
     >>> reweighting_dict = {"pixel_statistics": 1, "magnitude_std": 100}
     >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(
     ...     model, img, reweighting_dict
     ... )
-    >>> loss(model(img), model(img2)).item()
-    251.396...
+    >>> loss(model(img), model(img2))
+    tensor(253.2572, dtype=torch.float64)
     """
     if reweighting_dict is None:
         reweighting_dict = {}
