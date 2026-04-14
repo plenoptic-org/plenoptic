@@ -72,7 +72,7 @@ class PortillaSimoncelliRemove(po.simul.PortillaSimoncelli):
         im_shape,
         remove_keys,
     ):
-        super().__init__(im_shape, n_scales=4, n_orientations=4, spatial_corr_width=9)
+        super().__init__(im_shape, n_scales=4, n_orientations=4, spatial_corr_width=7)
         self.remove_keys = remove_keys
 
     def forward(self, image, scales=None):
@@ -134,11 +134,11 @@ class PortillaSimoncelliMask(po.simul.PortillaSimoncelli):
         im_shape,
         n_scales=4,
         n_orientations=4,
-        spatial_corr_width=9,
+        spatial_corr_width=7,
         mask=None,
         target=None,
     ):
-        super().__init__(im_shape, n_scales=4, n_orientations=4, spatial_corr_width=9)
+        super().__init__(im_shape, n_scales=4, n_orientations=4, spatial_corr_width=7)
         self.mask = mask
         self.target = target
 
