@@ -484,8 +484,8 @@ def portilla_simoncelli_loss_factory(
     >>> loss = po.tools.optim.portilla_simoncelli_loss_factory(
     ...     model, img, reweighting_dict
     ... )
-    >>> loss(model(img), model(img2))
-    tensor(251.3967)
+    >>> loss(model(img), model(img2)).item()
+    251.396...
     """
     if reweighting_dict is None:
         reweighting_dict = {}
