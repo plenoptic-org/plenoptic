@@ -61,7 +61,7 @@ class PortillaSimoncelli(nn.Module):
     See the paper and notebook for more description.
 
     .. versionchanged:: 2.0.0
-       :attr:`spatial_corr_width` default value changed from 9 to 7, in order to match
+       ``spatial_corr_width`` default value changed from 9 to 7, in order to match
        the value used to generate the figures in the Portilla and Simoncelli, 2000
        [2]_, paper.
 
