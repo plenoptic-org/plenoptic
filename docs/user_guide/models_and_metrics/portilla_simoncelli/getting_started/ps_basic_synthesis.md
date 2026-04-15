@@ -89,13 +89,13 @@ Now let's create an instance of the PortillaSimoncelli model with the following 
 
 - `n_scales=4`, The number of scales in the steerable pyramid underlying the model.
 - `n_orientations=3`, The number of orientations in the steerable pyramid.
-- `spatial_corr_width=9`, The size of the window used to calculate the correlations across steerable pyramid bands.
+- `spatial_corr_width=7`, The size of the window used to calculate the correlations across steerable pyramid bands.
 
 Running the model on an image will return a tensor of numbers summarizing the "texturiness" of that image, which we refer to as the model's representation. These statistics are measurements of different properties that the authors considered relevant to a texture's appearance (where a texture is defined above), and capture some of the repeating properties of these types of images.
 
 ```{code-cell} ipython3
 model = po.models.PortillaSimoncelli(
-    img.shape[-2:], n_scales=4, n_orientations=3, spatial_corr_width=9
+    img.shape[-2:], n_scales=4, n_orientations=3, spatial_corr_width=7
 )
 representation = model(img)
 print(

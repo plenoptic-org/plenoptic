@@ -127,7 +127,7 @@ class PortillaSimoncelliRemove(po.models.PortillaSimoncelli):
         im_shape,
         remove_keys,
     ):
-        super().__init__(im_shape, n_scales=4, n_orientations=4, spatial_corr_width=9)
+        super().__init__(im_shape, n_scales=4, n_orientations=4, spatial_corr_width=7)
         self.remove_keys = remove_keys
 
     def forward(self, image, scales=None):

@@ -1517,7 +1517,7 @@ class MetamerCTF(Metamer):
         >>> # this isn't enough to run synthesis to completion, just an example
         >>> met.synthesize(5)
         >>> met.losses
-        tensor([0.0821, ..., 0.0805])
+        tensor([0.1062, ..., 0.1038])
 
         You can examine scales_timing attribute to see when MetamerCTF started and
         stopped optimizing each scale:
@@ -1546,7 +1546,7 @@ class MetamerCTF(Metamer):
         >>> progress.keys()
         dict_keys(['losses', ..., 'saved_metamer', 'store_progress_iteration'])
         >>> progress["losses"]
-        tensor(0.0850)
+        tensor(0.1109)
 
         Set ``change_scale_criterion`` and ``ctf_iters_to_check`` to change
         scale-switching behavior.
@@ -1555,7 +1555,7 @@ class MetamerCTF(Metamer):
         >>> # this isn't enough to run synthesis to completion, just an example
         >>> met.synthesize(5, change_scale_criterion=None, ctf_iters_to_check=2)
         >>> met.losses
-        tensor([0.0863, ..., 0.0569])
+        tensor([0.1119, ..., 0.0687])
         >>> met.scales_timing
         {'pixel_statistics': [0, 1],
          'residual_lowpass': [2, 3],
@@ -1980,7 +1980,7 @@ class MetamerCTF(Metamer):
         tensor([])
         >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
         >>> print(met.metamer)
-        tensor([[[[0.3016, ...]]]], dtype=torch.float64, requires_grad=True)
+        tensor([[[[0.1421, ...]]]], dtype=torch.float64, requires_grad=True)
 
         If the saved ``MetamerCTF`` object lived on a CUDA device and you do not have
         CUDA on the loading machine, use ``map_location`` to change device:
@@ -1996,7 +1996,7 @@ class MetamerCTF(Metamer):
         ...     po.data.fetch_data("example_metamerCTF_ps-cuda.pt"), map_location="cpu"
         ... )
         >>> print(met.metamer)
-        tensor([[[[0.3016, ...]]]], dtype=torch.float64, requires_grad=True)
+        tensor([[[[0.1421, ...]]]], dtype=torch.float64, requires_grad=True)
 
         Loading and saving must both be done with ``MetamerCTF``:
 

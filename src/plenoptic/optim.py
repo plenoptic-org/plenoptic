@@ -444,9 +444,9 @@ def portilla_simoncelli_loss_factory(
     >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
     >>> loss = po.optim.portilla_simoncelli_loss_factory(model, img)
     >>> loss(model(img), model(img2))
-    tensor(31.9155)
+    tensor(30.9390)
     >>> po.optim.l2_norm(model(img), model(img2))
-    tensor(31.5433)
+    tensor(30.5549)
 
     Use the loss function for metamer synthesis.
 
@@ -472,7 +472,7 @@ def portilla_simoncelli_loss_factory(
     >>> reweighting_dict = {"pixel_statistics": pixel_stats}
     >>> loss = po.optim.portilla_simoncelli_loss_factory(model, img, reweighting_dict)
     >>> loss(model(img), model(img2))
-    tensor(35.9753)
+    tensor(35.1118)
 
     Use ``reweighting_dict`` to include min/max in the loss and increase the importance
     of the standard deviations of the magnitude bands.
@@ -480,13 +480,13 @@ def portilla_simoncelli_loss_factory(
     >>> import plenoptic as po
     >>> import torch
     >>> po.set_seed(0)
-    >>> img = po.data.einstein()
+    >>> img = po.data.einstein().to(torch.float64)
     >>> img2 = torch.rand_like(img)
     >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
     >>> reweighting_dict = {"pixel_statistics": 1, "magnitude_std": 100}
     >>> loss = po.optim.portilla_simoncelli_loss_factory(model, img, reweighting_dict)
     >>> loss(model(img), model(img2))
-    tensor(251.5188)
+    tensor(253.2572, dtype=torch.float64)
     """
     if reweighting_dict is None:
         reweighting_dict = {}

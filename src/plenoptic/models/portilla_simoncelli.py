@@ -68,6 +68,11 @@ class PortillaSimoncelli(nn.Module):
     variance, skew, and kurtosis) of the image and down-sampled versions of that image.
     See the paper and notebook for more description.
 
+    .. versionchanged:: 2.0.0
+       Default ``spatial_corr_width`` value changed from 9 to 7, in order to match
+       the value used to generate the figures in the Portilla and Simoncelli, 2000
+       [2]_, paper.
+
     Parameters
     ----------
     image_shape
@@ -114,7 +119,7 @@ class PortillaSimoncelli(nn.Module):
        >>> img = po.data.reptile_skin()
        >>> ps_model = po.models.PortillaSimoncelli(img.shape[2:])
        >>> ps_model(img)
-       tensor([[[0.4172, 0.0547, ..., 0.0048]]])
+       tensor([[[ 4.1716e-01, 5.4735e-02, ..., 4.7756e-03]]])
 
     Visualize texture statistics:
 
@@ -166,7 +171,7 @@ class PortillaSimoncelli(nn.Module):
         image_shape: tuple[int, int],
         n_scales: int = 4,
         n_orientations: int = 4,
-        spatial_corr_width: int = 9,
+        spatial_corr_width: int = 7,
     ):
         super().__init__()
 
@@ -455,7 +460,7 @@ class PortillaSimoncelli(nn.Module):
         >>> portilla_simoncelli_model = po.models.PortillaSimoncelli(img.shape[2:])
         >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_tensor.shape
-        torch.Size([1, 1, 1046])
+        torch.Size([1, 1, 710])
         """
         # pyr_dict is the dictionary of complex-valued tensors returned by the
         # steerable pyramid. pyr_coeffs is a list (length n_scales) of 5d
@@ -621,12 +626,12 @@ class PortillaSimoncelli(nn.Module):
         >>> portilla_simoncelli_model = po.models.PortillaSimoncelli(img.shape[2:])
         >>> representation_tensor = portilla_simoncelli_model(img)
         >>> representation_tensor.shape
-        torch.Size([1, 1, 1046])
+        torch.Size([1, 1, 710])
         >>> limited_representation_tensor = portilla_simoncelli_model.remove_scales(
         ...     representation_tensor, scales_to_keep=[0]
         ... )
         >>> limited_representation_tensor.shape
-        torch.Size([1, 1, 261])
+        torch.Size([1, 1, 181])
         """
         # this is necessary because object is the dtype of
         # self._representation_scales
@@ -735,7 +740,7 @@ class PortillaSimoncelli(nn.Module):
         >>> # Shape is (batch, channel, spatial_corr_width, spatial_corr_width,
         >>> # n_orientations, n_scales)
         >>> representation_dict["auto_correlation_magnitude"].shape
-        torch.Size([1, 1, 9, 9, 4, 3])
+        torch.Size([1, 1, 7, 7, 4, 3])
         >>> # Shape is (batch, channel, n_scales+1)
         >>> representation_dict["skew_reconstructed"].shape
         torch.Size([1, 1, 4])
@@ -745,7 +750,7 @@ class PortillaSimoncelli(nn.Module):
         >>> # Shape is (batch, channel, spatial_corr_width, spatial_corr_width,
         >>> # n_scales+1)
         >>> representation_dict["auto_correlation_reconstructed"].shape
-        torch.Size([1, 1, 9, 9, 4])
+        torch.Size([1, 1, 7, 7, 4])
         >>> # Shape is (batch, channel, n_scales+1)
         >>> representation_dict["std_reconstructed"].shape
         torch.Size([1, 1, 4])
