@@ -90,6 +90,8 @@ class Metamer(OptimizedSynthesis):
       <Figure size ...>
     """
 
+    __module__ = "plenoptic"
+
     loss_function: Callable[[Tensor, Tensor], Tensor]
     """Callable which specifies how close metamer representation is to target."""
 
@@ -1349,6 +1351,8 @@ class MetamerCTF(Metamer):
     Traceback (most recent call last):
     AttributeError: model has no scales attribute ...
     """
+
+    __module__ = "plenoptic"
 
     def __init__(
         self,

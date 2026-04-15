@@ -86,6 +86,8 @@ class MADCompetition(OptimizedSynthesis):
            https://dx.doi.org/10.1167/8.12.8
     """
 
+    __module__ = "plenoptic"
+
     penalty_function: Callable[[Tensor], Tensor]
     """Callable which penalizes additional properties of the MAD image, e.g.,
        an allowed range."""

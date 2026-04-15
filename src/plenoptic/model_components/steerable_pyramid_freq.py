@@ -155,6 +155,8 @@ class SteerablePyramidFreq(nn.Module):
     >>> spyr = po.model_components.SteerablePyramidFreq((256, 256))
     """
 
+    __module__ = "plenoptic.model_components"
+
     def __init__(
         self,
         image_shape: tuple[int, int],

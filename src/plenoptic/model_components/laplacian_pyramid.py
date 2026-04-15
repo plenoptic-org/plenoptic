@@ -54,6 +54,8 @@ class LaplacianPyramid(nn.Module):
     >>> lpyr = po.model_components.LaplacianPyramid(n_scales=4, scale_filter=True)
     """
 
+    __module__ = "plenoptic.model_components"
+
     def __init__(self, n_scales: int = 5, scale_filter: bool = False):
         super().__init__()
         self.n_scales = n_scales

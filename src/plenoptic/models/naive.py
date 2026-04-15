@@ -38,6 +38,8 @@ class Identity(torch.nn.Module):
     Identity()
     """
 
+    __module__ = "plenoptic.models"
+
     def __init__(self):
         super().__init__()
 
@@ -110,6 +112,8 @@ class Linear(nn.Module):
       (conv): Conv2d(1, 2, kernel_size=(5, 5), stride=(1, 1), bias=False)
     )
     """
+
+    __module__ = "plenoptic.models"
 
     def __init__(
         self,
@@ -214,6 +218,8 @@ class Gaussian(nn.Module):
     >>> gaussian_model
     Gaussian()
     """
+
+    __module__ = "plenoptic.models"
 
     def __init__(
         self,
@@ -367,6 +373,8 @@ class CenterSurround(nn.Module):
     >>> cs_model
     CenterSurround()
     """
+
+    __module__ = "plenoptic.models"
 
     def __init__(
         self,
