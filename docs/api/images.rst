@@ -3,15 +3,6 @@
 Loading, creating, and accessing images
 ---------------------------------------
 
-.. currentmodule:: plenoptic
-.. autosummary::
-   :signatures: none
-   :toctree: generated
-
-   ~load_images
-   ~to_numpy
-   ~convert_float_to_int
-
 .. rubric:: Example images
    :heading-level: 3
 

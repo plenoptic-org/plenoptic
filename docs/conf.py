@@ -341,6 +341,7 @@ api_order = [
     "synthesis.rst",
     "models.rst",
     "metrics.rst",
+    "top_level.rst",
     "display.rst",
     "components.rst",
     "images.rst",

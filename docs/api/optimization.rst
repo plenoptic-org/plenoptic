@@ -3,13 +3,6 @@
 Optimization
 ------------
 
-.. currentmodule:: plenoptic
-.. autosummary::
-   :signatures: none
-   :toctree: generated
-
-   ~set_seed
-
 .. rubric:: Loss functions
    :heading-level: 3
 
