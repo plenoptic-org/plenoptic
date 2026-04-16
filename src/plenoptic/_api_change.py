@@ -105,6 +105,8 @@ API_CHANGE = {
     "plenoptic.tools.polar_radius": "plenoptic.data.polar_radius",
     "plenoptic.tools.data.polar_angle": "plenoptic.data.polar_angle",
     "plenoptic.tools.polar_angle": "plenoptic.data.polar_angle",
+    "plenoptic.tools.data.load_images": "plenoptic.load_images",
+    "plenoptic.tools.load_images": "plenoptic.load_images",
     "plenoptic.tools.validate.remove_grad": "plenoptic.remove_grad",
     "plenoptic.tools.remove_grad": "plenoptic.remove_grad",
     "plenoptic.tools.validate.validate_model": "plenoptic.validate.validate_model",

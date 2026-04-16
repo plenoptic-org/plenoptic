@@ -8,9 +8,9 @@ __all__ = [
     "ssim_map",
 ]
 
-from .model_metric import model_metric_factory
-from .naive import mse
-from .perceptual_distance import (
+from ._model_metric import model_metric_factory
+from ._naive import mse
+from ._perceptual_distance import (
     ms_ssim,
     nlpd,
     normalized_laplacian_pyramid,

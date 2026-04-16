@@ -11,6 +11,6 @@ __all__ = [
     "disk",
 ]
 
-from .fetch import DOWNLOADABLE_FILES, fetch_data
+from ._fetch import DOWNLOADABLE_FILES, fetch_data
 from .images import color_wheel, curie, einstein, parrot, reptile_skin
 from .synthetic_images import disk, polar_angle, polar_radius

@@ -14,7 +14,7 @@ import numpy as np
 import pyrtools as pt
 import scipy.io as sio
 
-from .data.fetch import fetch_data
+from .data import fetch_data
 
 __all__ = [
     "plot_MAD_results",

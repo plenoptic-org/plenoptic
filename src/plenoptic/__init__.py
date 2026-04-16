@@ -34,8 +34,8 @@ def __getattr__(attr):  # noqa: ANN202, ANN001
         )
     elif attr.startswith("tools"):
         raise AttributeError(
-            f"`plenoptic.{attr.split('.')[0]}` was removed in "
-            "plenoptic 2.0. The corresponding functions now live in other "
+            f"`plenoptic.{attr.split('.')[0]}` not available from "
+            "plenoptic 2.0 onwards. The corresponding functions now live in other "
             "relevant modules. See Migration Guide in documentation for details."
         )
     elif attr in ["imshow", "animshow", "pyrshow"]:
