@@ -6,6 +6,7 @@
 
 # -- Path setup --------------------------------------------------------------
 
+import csv
 import glob
 import inspect
 import os
@@ -14,6 +15,8 @@ from importlib.metadata import version
 
 import torch
 from docutils import nodes
+
+from plenoptic import _api_change
 
 # by default, torch uses all avail threads which slows things run in parallel
 torch.set_num_threads(1)
@@ -450,6 +453,32 @@ def binder_role(name, rawtext, text, lineno, inliner, options={}, content=[]):
         rawtext, text, classes=["binder"], refuri=refuri, **options
     )
     return [ref_node], []
+
+
+migration_table = pathlib.Path("reference/migration_table.csv")
+
+table = [["plenoptic 1.x", "plenoptic 2.0"]]
+
+UPDATED_API = _api_change.API_CHANGE
+UPDATED_API.update(_api_change.SYNTH_PLOT_FUNCS)
+UPDATED_API.update(_api_change.PLOT_FUNCS)
+
+for k, v in UPDATED_API.items():
+    table.append([f"`{k}`", f"{{func}}`{v}`"])
+
+with migration_table.open("w", newline="") as f:
+    csv_writer = csv.writer(f)
+    csv_writer.writerows(table)
+
+deprecated_table = migration_table.with_stem("deprecated_table")
+table = []
+
+for k in _api_change.DEPRECATED:
+    table.append([f"`{k}`"])
+
+with deprecated_table.open("w", newline="") as f:
+    csv_writer = csv.writer(f)
+    csv_writer.writerows(table)
 
 
 # connect our custom method to the sphinx events callback API:
