@@ -265,19 +265,25 @@ class Synthesis(abc.ABC):
         )
         metadata = tmp_dict.pop("save_metadata")
         if metadata["synthesis_object"] != _get_name(self):
-            # in PR #418 (release 2.0.0), moved module of synthesis objects from
-            # plenoptic.synthesize to plenoptic._synthesize (publicly, these now all
-            # live under the top-level module, but that's not what we .__module__
-            # returns)
-            obj_name = metadata["synthesis_object"].replace(
-                ".synthesize", "._synthesize"
-            )
+            # in PR #418 (release 2.0.0), updated __module__ of synthesis objects from
+            # plenoptic.synthesize to the top-level one. this removes .synthesize and
+            # the three synthesis modules that were used before
+            obj_name = metadata["synthesis_object"].replace(".synthesize", "")
+            for mod_name in [".metamer", ".mad_competition", ".eigendistortion"]:
+                obj_name = obj_name.replace(mod_name, "")
             if obj_name != _get_name(self):
                 raise ValueError(
                     f"Saved object was a {metadata['synthesis_object']}"
                     f", but initialized object is {_get_name(self)}! "
                     f"{check_str}"
                 )
+            # in the same PR, also moved loss_function and penalty_function to private
+            # (making them properties like many of the other attributes), so support
+            # that as well.
+            if "loss_function" in tmp_dict:
+                tmp_dict["_loss_function"] = tmp_dict.pop("loss_function")
+            if "penalty_function" in tmp_dict:
+                tmp_dict["_penalty_function"] = tmp_dict.pop("penalty_function")
         # all attributes set at initialization should be present in the saved dictionary
         init_not_save = set(vars(self)) - set(tmp_dict)
         if len(init_not_save):
@@ -615,7 +621,7 @@ class OptimizedSynthesis(Synthesis):
         self._optimizer = None
         self._current_loss = None
         self._current_penalty = None
-        self.penalty_function = penalty_function
+        self._penalty_function = penalty_function
         if penalty_lambda < 0:
             raise Exception("penalty_lambda must be non-negative!")
         self._penalty_lambda = penalty_lambda
@@ -1044,6 +1050,12 @@ class OptimizedSynthesis(Synthesis):
                 )
             progress_info.update({"store_progress_iteration": store_progress_iter})
         return progress_info
+
+    @property
+    def penalty_function(self) -> Callable[[torch.Tensor], torch.Tensor]:
+        """Callable which penalizes additional properties of the synthesized image."""
+        # numpydoc ignore=RT01,ES01
+        return self._penalty_function
 
     @property
     def penalty_lambda(self) -> float:

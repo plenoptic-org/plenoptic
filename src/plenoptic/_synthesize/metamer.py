@@ -51,11 +51,11 @@ class Metamer(OptimizedSynthesis):
         The loss function used to compare the representations of the models
         in order to determine their loss.
     penalty_function
-            A function applied to the metamer during optimization, that returns
-            a scalar penalty to be minimized. By penalizing certain properties of
-            the image, like pixels values outside an allowed range, we can constrain
-            those image properties. See :ref:`metamer-regularization` in the
-            documentation for details and examples.
+        A function applied to the metamer during optimization, that returns
+        a scalar penalty to be minimized. By penalizing certain properties of
+        the image, like pixels values outside an allowed range, we can constrain
+        those image properties. See :ref:`metamer-regularization` in the
+        documentation for details and examples.
     penalty_lambda
         Weight of the penalty term. Must be non-negative.
 
@@ -92,13 +92,6 @@ class Metamer(OptimizedSynthesis):
 
     __module__ = "plenoptic"
 
-    loss_function: Callable[[Tensor, Tensor], Tensor]
-    """Callable which specifies how close metamer representation is to target."""
-
-    penalty_function: Callable[[Tensor], Tensor]
-    """Callable which penalizes additional properties of the metamer, e.g.,
-       an allowed range."""
-
     def __init__(
         self,
         image: Tensor,
@@ -123,7 +116,7 @@ class Metamer(OptimizedSynthesis):
         self._target_representation = self.model(self.image)
         self._scheduler = None
         self._scheduler_step_arg = False
-        self.loss_function = loss_function
+        self._loss_function = loss_function
         self._saved_metamer = []
         self._store_progress = None
         self._metamer = None
@@ -442,10 +435,9 @@ class Metamer(OptimizedSynthesis):
         """
         Compute the metamer synthesis loss.
 
-        This calls self.loss_function on
-        ``self.model(metamer, **analyze_kwargs)`` and
-        ``target_representation`` and then adds the weighted penalty
-        on ``metamer``.
+        This calls :attr:`loss_function` on ``self.model(metamer, **analyze_kwargs)``
+        and ``target_representation`` and then adds :attr:`penalty_lambda` times
+        :attr:`penalty_function` on ``metamer``.
 
         Its output over time is stored in :attr:`losses`.
 
@@ -851,8 +843,11 @@ class Metamer(OptimizedSynthesis):
         >>> met.save("metamers.pt")
         """
         save_io_attrs = [
-            ("loss_function", ("_target_representation", "2 * _target_representation")),
-            ("penalty_function", ("_image",)),
+            (
+                "_loss_function",
+                ("_target_representation", "2 * _target_representation"),
+            ),
+            ("_penalty_function", ("_image",)),
             ("_model", ("_image",)),
         ]
         save_state_dict_attrs = ["_optimizer", "_scheduler"]
@@ -1128,8 +1123,11 @@ class Metamer(OptimizedSynthesis):
         ]
         check_attributes += additional_check_attributes
         check_io_attrs = [
-            ("loss_function", ("_target_representation", "2 * _target_representation")),
-            ("penalty_function", ("_image",)),
+            (
+                "_loss_function",
+                ("_target_representation", "2 * _target_representation"),
+            ),
+            ("_penalty_function", ("_image",)),
             ("_model", ("_image",)),
         ]
         check_io_attrs += additional_check_io_attributes
@@ -1151,6 +1149,12 @@ class Metamer(OptimizedSynthesis):
         # fix that.
         if len(self._saved_metamer) and self._saved_metamer[0].device.type != "cpu":
             self._saved_metamer = [met.to("cpu") for met in self._saved_metamer]
+
+    @property
+    def loss_function(self) -> Callable[[Tensor, Tensor], Tensor]:
+        """Callable which specifies how close metamer representation is to target."""
+        # numpydoc ignore=RT01,ES01
+        return self._loss_function
 
     @property
     def model(self) -> torch.nn.Module:
@@ -1289,11 +1293,11 @@ class MetamerCTF(Metamer):
         The loss function to use to compare the representations of the models
         in order to determine their loss.
     penalty_function
-            A function applied to the metamer during optimization, that returns
-            a scalar penalty to be minimized. By penalizing certain properties of
-            the image, like pixels values outside an allowed range, we can constrain
-            those image properties. See :ref:`metamer-regularization` in the
-            documentation for details and examples.
+        A function applied to the metamer during optimization, that returns
+        a scalar penalty to be minimized. By penalizing certain properties of
+        the image, like pixels values outside an allowed range, we can constrain
+        those image properties. See :ref:`metamer-regularization` in the
+        documentation for details and examples.
     penalty_lambda
         Strength of the penalty term. Must be non-negative.
     coarse_to_fine
