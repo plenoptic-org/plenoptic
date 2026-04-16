@@ -21,6 +21,10 @@
 See our [documentation site](https://docs.plenoptic.org) for more details,
 including how to get started!
 
+> [!WARNING] Breaking API Changes!
+>
+> Plenoptic 2.0 introduces breaking changes to the API and will not work with code written to work with earlier versions! See the [documentation](https://docs.plenoptic.org/docs/branch/main/reference/migration_guide.html) for details, including a script to update your code.
+
 ### Installation
 
 The best way to install `plenoptic` is via `pip`:
