@@ -116,7 +116,7 @@ po.plot.metamer_synthesis_status(met, width_ratios={"metamer_representation_erro
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(1, 3, figsize=(25, 5), gridspec_kw={"width_ratios": [1, 1, 2]})
-po.plot.metamer_image(met, ax=axes[0])
+po.plot.metamer_imshow(met, ax=axes[0])
 po.plot.metamer_loss(met, ax=axes[1])
 po.plot.metamer_representation_error(met, ax=axes[2])
 ```
@@ -142,7 +142,7 @@ po.plot.metamer_synthesis_status(
 Since we have the ability to select which iteration to plot (as long as we've been storing the information), we can create an animation showing the synthesis over time. This {class}`~matplotlib.animation.FuncAnimation` object can either be viewed in the notebook (note that this requires the matplotlib configuration options in the first cell of this notebook) or saved as some video format (e.g., `anim.save('test.mp4'`).
 
 ```{code-cell} ipython3
-anim = po.plot.metamer_animate(met, width_ratios={"metamer_representation_error": 2})
+anim = po.plot.metamer_animshow(met, width_ratios={"metamer_representation_error": 2})
 anim
 ```
 
@@ -332,7 +332,7 @@ po.plot.imshow(
 And we can see these shifts happening in the animation of synthesis:
 
 ```{code-cell} ipython3
-po.plot.metamer_animate(met)
+po.plot.metamer_animshow(met)
 ```
 
 {class}`~plenoptic.MetamerCTF` has several attributes which are used in the course of coarse-to-fine synthesis:

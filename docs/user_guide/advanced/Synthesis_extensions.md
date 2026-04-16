@@ -127,18 +127,18 @@ We call synthesize in the same way and can even make use of the original {func}`
 
 ```{code-cell} ipython3
 old_mad.synthesize(store_progress=True)
-po.plot.mad_synthesis_status(old_mad, included_plots=["mad_image", "mad_loss"])
+po.plot.mad_synthesis_status(old_mad, included_plots=["mad_imshow", "mad_loss"])
 ```
 
 ```{code-cell} ipython3
 new_mad.synthesize(store_progress=True)
-po.plot.mad_synthesis_status(new_mad, included_plots=["mad_image", "mad_loss"])
+po.plot.mad_synthesis_status(new_mad, included_plots=["mad_imshow", "mad_loss"])
 ```
 
 For version initialized with the image of Marie Curie, let's also examine the metamer shortly after synthesis started, since the final version doesn't look that different:
 
 ```{code-cell} ipython3
-po.plot.mad_image(new_mad, iteration=10)
+po.plot.mad_imshow(new_mad, iteration=10)
 ```
 
 See the [synthesis design page](synthesis-objects) for more description of how the synthesis objects are structured to get ideas for how else to modify them, but some good methods to over-write include (note that not every object uses each of these methods): `setup` <!-- skip-lint -->, `_check_convergence`, and `objective_function` <!-- skip-lint -->. For a more serious change, you could also overwrite `synthesis` <!-- skip-lint --> and `_optimizer_step` (and possibly `_closure`) to really change how synthesis works. See {class}`~plenoptic.MetamerCTF` for an example of how to do this.

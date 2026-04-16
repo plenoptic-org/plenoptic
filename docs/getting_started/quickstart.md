@@ -161,8 +161,8 @@ It may seem strange that the synthesized image looks like it has high-frequency 
 We can also view a movie of our progress so far.
 
 ```{code-cell} ipython3
-po.plot.metamer_animate(
-    metamer, included_plots=["metamer_image", "metamer_loss"], figsize=(12, 5)
+po.plot.metamer_animshow(
+    metamer, included_plots=["metamer_imshow", "metamer_loss"], figsize=(12, 5)
 )
 ```
 

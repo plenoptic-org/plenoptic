@@ -171,7 +171,7 @@ The appearance of this figure is very customizable. There are several additional
 fig = po.plot.metamer_synthesis_status(
     met,
     included_plots=[
-        "metamer_image",
+        "metamer_imshow",
         "metamer_loss",
         "metamer_representation_error",
         "metamer_pixel_values",
@@ -186,7 +186,7 @@ In addition to being able to customize which plots to include, you can also pre-
 fig, axes = plt.subplots(2, 2, figsize=(12, 12))
 fig = po.plot.metamer_synthesis_status(
     met,
-    included_plots=["metamer_image", "metamer_loss", "metamer_pixel_values"],
+    included_plots=["metamer_imshow", "metamer_loss", "metamer_pixel_values"],
     fig=fig,
 )
 ```
@@ -195,10 +195,10 @@ For even more flexibility, you can specify which plot should go in which axes, b
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 2, figsize=(12, 12))
-axes_idx = {"metamer_image": 3, "metamer_pixel_values": 0}
+axes_idx = {"metamer_imshow": 3, "metamer_pixel_values": 0}
 fig = po.plot.metamer_synthesis_status(
     met,
-    included_plots=["metamer_image", "metamer_loss", "metamer_pixel_values"],
+    included_plots=["metamer_imshow", "metamer_loss", "metamer_pixel_values"],
     fig=fig,
     axes_idx=axes_idx,
 )
@@ -209,7 +209,7 @@ This allows enables you to create more complicated figures, with axes containing
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 3, figsize=(17, 12))
 # to tell metamer_synthesis_status to ignore plots, add them to the misc keys
-axes_idx = {"metamer_image": 5, "misc": [0, 4]}
+axes_idx = {"metamer_imshow": 5, "misc": [0, 4]}
 axes[0, 0].text(0.5, 0.5, "SUPER COOL TEXT", color="r")
 axes[1, 0].arrow(
     0,
@@ -220,18 +220,18 @@ axes[1, 0].arrow(
 axes[0, 0].plot(np.linspace(0, 1), np.random.rand(50))
 fig = po.plot.metamer_synthesis_status(
     met,
-    included_plots=["metamer_image", "metamer_loss", "metamer_pixel_values"],
+    included_plots=["metamer_imshow", "metamer_loss", "metamer_pixel_values"],
     fig=fig,
     axes_idx=axes_idx,
 )
 ```
 
-We similarly have an {func}`~plenoptic.plot.metamer_animate` function, which animates the above plots over time, and everything that I said above also holds for them. Note that {func}`~plenoptic.plot.metamer_animate` will take a fair amount of time to run and requires [ffmpeg](https://ffmpeg.org/download.html) on your system for most file formats (see [matplotlib docs](https://matplotlib.org/stable/api/animation_api.html#writer-classes) for more details).
+We similarly have an {func}`~plenoptic.plot.metamer_animshow` function, which animates the above plots over time, and everything that I said above also holds for them. Note that {func}`~plenoptic.plot.metamer_animshow` will take a fair amount of time to run and requires [ffmpeg](https://ffmpeg.org/download.html) on your system for most file formats (see [matplotlib docs](https://matplotlib.org/stable/api/animation_api.html#writer-classes) for more details).
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 3, figsize=(17, 12))
 # to tell metamer_synthesis_status to ignore plots, add them to the misc keys
-axes_idx = {"metamer_image": 5, "misc": [0, 4]}
+axes_idx = {"metamer_imshow": 5, "misc": [0, 4]}
 axes[0, 0].text(0.5, 0.5, "SUPER COOL TEXT", color="r")
 axes[1, 0].arrow(
     0,
@@ -240,9 +240,9 @@ axes[1, 0].arrow(
     0.25,
 )
 axes[0, 0].plot(np.linspace(0, 1), np.random.rand(50))
-po.plot.metamer_animate(
+po.plot.metamer_animshow(
     met,
-    included_plots=["metamer_image", "metamer_loss", "metamer_pixel_values"],
+    included_plots=["metamer_imshow", "metamer_loss", "metamer_pixel_values"],
     fig=fig,
     axes_idx=axes_idx,
 )
@@ -288,5 +288,5 @@ fig, _ = po.plot.metamer_synthesis_status(met)
 And again, we can animate this over time:
 
 ```{code-cell} ipython3
-po.plot.metamer_animate(met)
+po.plot.metamer_animshow(met)
 ```

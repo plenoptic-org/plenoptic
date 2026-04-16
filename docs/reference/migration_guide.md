@@ -16,7 +16,7 @@ If you have any problems with this process, please open [a Q&A discussion](https
 
 All plotting functions in plenoptic are now present within the `plot` module. This includes those that operates on tensors (e.g., {func}`plenoptic.plot.imshow`, previously `plenoptic.imshow`) and synthesis objects (e.g., {func}`plenoptic.plot.metamer_loss`, previously `plenoptic.synthesize.metamer.plot_loss`). Therefore, to avoid name collisions and redundancies (e.g., `plenoptic.plot.plot_loss`) and to clarify which functions operate on which synthesis objects, some of the function names have been changed. See [](migration-table) and search for `plot.` for a list.
 
-Additionally, the acceptable values for the `included_plots` arguments for {func}`~plenoptic.plot.metamer_synthesis_status`, {func}`~plenoptic.plot.metamer_animate`, {func}`~plenoptic.plot.mad_synthesis_status`, and {func}`~plenoptic.plot.mad_animate` have all changed to reflect the current names of their component functions. Consult their docstrings for details. (These argument names cannot be remapped automatically by the following [](migration-script) and so need to be updated manually.)
+Additionally, the acceptable values for the `included_plots` arguments for {func}`~plenoptic.plot.metamer_synthesis_status`, {func}`~plenoptic.plot.metamer_animshow`, {func}`~plenoptic.plot.mad_synthesis_status`, and {func}`~plenoptic.plot.mad_animshow` have all changed to reflect the current names of their component functions. Consult their docstrings for details. (These argument names cannot be remapped automatically by the following [](migration-script) and so need to be updated manually.)
 
 (migration-script)=
 ## Migration script

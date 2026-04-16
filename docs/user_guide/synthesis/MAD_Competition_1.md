@@ -298,7 +298,7 @@ If you look at the loss curves above, you can see that the "Minimize l1_norm" cu
 Now we'll show all the synthesized MAD images. In the following, the top row shows the reference and initial images, then the MAD images:
 
 ```{code-cell} ipython3
-po.plot.mad_image_all(*all_mad.values(), zoom=4, vrange=(0, 255));
+po.plot.mad_imshow_all(*all_mad.values(), zoom=4, vrange=(0, 255));
 ```
 
 If we go through them following the same logic as on the two-pixel case, we can see that our conclusions still hold. The following plots the difference between each of the above images and the reference image, to make the following points explicit:

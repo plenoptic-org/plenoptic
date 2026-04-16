@@ -29,7 +29,7 @@ See [Issue #365](https://github.com/plenoptic-org/plenoptic/issues/365) for an e
 
 In that investigation, we found that the {class}`~torch.optim.LBFGS` optimizer performs very well, finding good solutions in a relatively short amount of time. We have not had the opportunity to investigate this optimizer in other problems, but we recommend giving it a try.
 
-Additionally, it may be helpful to visualize the progression of synthesis, using each synthesis method's `animate` <!-- skip-lint --> or `plot_synthesis_status` <!-- skip-lint --> helper functions (e.g., {func}`~plenoptic.plot.metamer_animate`, {func}`~plenoptic.plot.metamer_synthesis_status`).
+Additionally, it may be helpful to visualize the progression of synthesis, using each synthesis method's `animshow` <!-- skip-lint --> or `synthesis_status` <!-- skip-lint --> helper functions (e.g., {func}`~plenoptic.plot.metamer_animshow`, {func}`~plenoptic.plot.metamer_synthesis_status`).
 
 (tips-model-tweak)=
 ### Tweaking the model

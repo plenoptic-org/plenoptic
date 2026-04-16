@@ -51,7 +51,7 @@ where:
 - $x$ is {attr}`~plenoptic.MADCompetition.image`
 - $\hat{x}$ is {attr}`~plenoptic.MADCompetition.mad_image`
 - $\epsilon$ is the initial noise
-- $\mathcal{B}$ is the `~plenoptic.MADCompetition.penalty_function` set at initialization (by default, a quadratic bound penalty)
+- $\mathcal{B}$ is the {attr}`~plenoptic.MADCompetition.penalty_function` set at initialization (by default, a quadratic bound penalty)
 - $\lambda_1$ is {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda`
 - $\lambda_2$ is {attr}`~plenoptic.MADCompetition.penalty_lambda`
 
@@ -183,18 +183,18 @@ fig = po.plot.mad_synthesis_status(mad_mse_max)
 
 The image above has increased the local contrast in different parts of the image, which SSIM generally doesn't care about but MSE does. For example, the collar, which in the original image is two different shades of gray, here is black and white. Similarly with the eyes, hair, and lips.
 
-While above we displayed the synthesized image and the loss together, these are actually handled by two helper functions, {func}`~plenoptic.plot.mad_image` and {func}`~plenoptic.plot.mad_loss`, which can be called separately as axes-level functions. They have additional arguments that may be worth playing around with:
+While above we displayed the synthesized image and the loss together, these are actually handled by two helper functions, {func}`~plenoptic.plot.mad_imshow` and {func}`~plenoptic.plot.mad_loss`, which can be called separately as axes-level functions. They have additional arguments that may be worth playing around with:
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(1, 2, figsize=(15, 5), gridspec_kw={"width_ratios": [1, 2]})
-po.plot.mad_image(mad, ax=axes[0], zoom=0.5)
+po.plot.mad_imshow(mad, ax=axes[0], zoom=0.5)
 po.plot.mad_loss(mad, axes=axes[1], iteration=-100)
 ```
 
 We also provide helper functions to plot a full set of MAD images together, either displaying all their synthesized images or their losses (note that we're calling our metric `SDSIM` because it's now the structural *dis*-similarity):
 
 ```{code-cell} ipython3
-po.plot.mad_image_all(mad, mad_mse_min, mad_ssim_max, mad_mse_max, "SDSIM");
+po.plot.mad_imshow_all(mad, mad_mse_min, mad_ssim_max, mad_mse_max, "SDSIM");
 ```
 
 The top row shows the reference and initial images, our picture of Marie Curie and that same image plus some normally-distributed noise. The next row of images has the same MSE as the right image in the top row (when compared against the reference image), but different SDSIM values. The left image has the lowest SDSIM and is thus considered the best image, while the right image has the highest SDSIM and is thus considered the worst. The next row of images has the same SDSIM as the right image in the top, but different MSE values. The left has the lowest MSE and is thus considered the best, while the right has highest MSE and is thus considered the worst.
