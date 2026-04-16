@@ -33,8 +33,7 @@ The above are the only requirements that all synthesis methods must meet.
 
 ## Helper / display functions
 
-It may also be useful to include some functions for investigating the status or output(s) of synthesis. As a general rule, if a function will be called during synthesis (e.g., to compute a loss value), it should be a method of the object. If it is only called afterwards (e.g., to display the synthesis outputs in a useful way), it should be included as a function in the same file (see {func}`~plenoptic.plot.metamer_image` for an example).
-
+It may also be useful to include some functions for investigating the status or output(s) of synthesis. As a general rule, if a function will be called during synthesis (e.g., to compute a loss value), it should be a method of the object. If it is only called afterwards (e.g., to display the synthesis outputs in a useful way), it should be included as a function in the plot module (`plenoptic.plot`, see {func}`~plenoptic.plot.metamer_image` for an example).
 
 Functions that show images or videos should be called `display_X`, whereas those that show numbers as a scatter plot, line plot, etc. should be called `plot_X`. These must be axes-level matplotlib functions: they must accept an axis as an optional argument named `ax`, which will contain the plot. If no `ax` is supplied, `matplotlib.pyplot.gca` must be used to create / grab the axis. If a multi-axis figure is called for (e.g., to display the synthesis output and plot the loss), a function named `plot_synthesis_status` <!-- skip-lint --> should be created. This must have an optional `fig` argument, creating a figure if none is supplied. See {func}`~plenoptic.plot.metamer_synthesis_status` for an example. If possible, this plot should be able to be animated to show progress over time. See {func}`~plenoptic.plot.metamer_synthesis_status` for an example.
 
