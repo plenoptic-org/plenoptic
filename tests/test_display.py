@@ -609,7 +609,7 @@ class TestDisplay:
         with pytest.raises(ValueError, match="3 or 4d"):
             po.plot.metamer_synthesis_status(met)
         with pytest.raises(ValueError, match="3 or 4d"):
-            po.plot.metamer_animate(met)
+            po.plot.metamer_animshow(met)
 
     @pytest.mark.parametrize("zoom", [None, 0.5, 1, 3, 0, -1, 1.5, 1.1])
     @pytest.mark.parametrize("func", ["imshow", "animshow"])
@@ -717,17 +717,17 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
     # need to figure out which plotting function to call
     if isinstance(synthesis_object, po.Metamer):
         plot_func = po.plot.metamer_synthesis_status
-        animate_func = po.plot.metamer_animate
+        animate_func = po.plot.metamer_animshow
         as_rgb = synthesis_object.image.shape[1] > 1
         plot_kwargs["metamer_representation_error_as_rgb"] = as_rgb
         str_rep = "metamer"
         included_plots.append("metamer_representation_error")
-        axes_idx = {"metamer_image": 0, "metamer_representation_error": 8}
+        axes_idx = {"metamer_imshow": 0, "metamer_representation_error": 8}
     elif isinstance(synthesis_object, po.MADCompetition):
         plot_func = po.plot.mad_synthesis_status
-        animate_func = po.plot.mad_animate
+        animate_func = po.plot.mad_animshow
         str_rep = "mad"
-        axes_idx = {"mad_image": 0}
+        axes_idx = {"mad_imshow": 0}
     included_plots.extend([f"{str_rep}_loss", f"{str_rep}_pixel_values"])
     if fig_creation.endswith("extra"):
         included_plots.append(f"{str_rep}_image")
@@ -815,7 +815,7 @@ class TestMADDisplay:
         return mad
 
     @pytest.mark.parametrize("iteration", [None, 1, -1])
-    @pytest.mark.parametrize("mad_image", [True, False])
+    @pytest.mark.parametrize("mad_imshow", [True, False])
     @pytest.mark.parametrize("loss", [True, False])
     @pytest.mark.parametrize("pixel_values", [True, False])
     @pytest.mark.parametrize(
@@ -829,7 +829,7 @@ class TestMADDisplay:
         self,
         synthesized_mad,
         iteration,
-        mad_image,
+        mad_imshow,
         loss,
         pixel_values,
         fig_creation,
@@ -839,7 +839,7 @@ class TestMADDisplay:
         template_test_synthesis_all_plot(
             synthesized_mad,
             iteration,
-            mad_image,
+            mad_imshow,
             loss,
             False,
             pixel_values,
@@ -897,14 +897,14 @@ class TestMADDisplay:
         if func == "loss":
             func = po.plot.mad_loss_all
         elif func == "image":
-            func = po.plot.mad_image_all
+            func = po.plot.mad_imshow_all
         fig = func(*all_mad)
         plt.close(fig)
 
     @pytest.mark.parametrize("func", ["plot", "animate"])
     # metamer_representation_error is an allowed value for metamer, but not MAD.
     # the second is just a typo
-    @pytest.mark.parametrize("val", ["metamer_representation_error", "plot_mad_image"])
+    @pytest.mark.parametrize("val", ["metamer_representation_error", "plot_mad_imshow"])
     @pytest.mark.parametrize("variable", ["included_plots", "width_ratios", "axes_idx"])
     @pytest.mark.filterwarnings(
         "ignore:SSIM was designed for grayscale images:UserWarning"
@@ -914,7 +914,7 @@ class TestMADDisplay:
         if func == "plot":
             func = po.plot.mad_synthesis_status
         elif func == "animate":
-            func = po.plot.mad_animate
+            func = po.plot.mad_animshow
         kwargs = {}
         if variable == "included_plots":
             kwargs["included_plots"] = [val, "mad_loss"]
@@ -935,7 +935,7 @@ class TestMADDisplay:
     @pytest.mark.filterwarnings("ignore:loss iteration and iteration for:UserWarning")
     def test_iteration(self, synthesized_mad_store_progress, iteration, batch_idx):
         included_plots = [
-            "mad_image",
+            "mad_imshow",
             "mad_loss",
             "mad_pixel_values",
         ]
@@ -1059,7 +1059,7 @@ class TestMetamerDisplay:
     # mix together func and iteration, because iteration doesn't make sense to
     # pass to animate
     @pytest.mark.parametrize("iteration", [None, 1, -1])
-    @pytest.mark.parametrize("metamer_image", [True, False])
+    @pytest.mark.parametrize("metamer_imshow", [True, False])
     @pytest.mark.parametrize("loss", [True, False])
     @pytest.mark.parametrize("representation_error", [True, False])
     @pytest.mark.parametrize("pixel_values", [True, False])
@@ -1070,7 +1070,7 @@ class TestMetamerDisplay:
         self,
         synthesized_met,
         iteration,
-        metamer_image,
+        metamer_imshow,
         loss,
         representation_error,
         pixel_values,
@@ -1081,7 +1081,7 @@ class TestMetamerDisplay:
         template_test_synthesis_all_plot(
             synthesized_met,
             iteration,
-            metamer_image,
+            metamer_imshow,
             loss,
             representation_error,
             pixel_values,
@@ -1112,7 +1112,7 @@ class TestMetamerDisplay:
 
     # mix together func and iteration, because iteration doesn't make sense to
     # pass to animate
-    @pytest.mark.parametrize("metamer_image", [True, False])
+    @pytest.mark.parametrize("metamer_imshow", [True, False])
     @pytest.mark.parametrize("loss", [True, False])
     @pytest.mark.parametrize("representation_error", [True, False])
     @pytest.mark.parametrize("pixel_values", [True, False])
@@ -1122,7 +1122,7 @@ class TestMetamerDisplay:
     def test_all_plot_nostore(
         self,
         synthesized_met_nostore,
-        metamer_image,
+        metamer_imshow,
         loss,
         representation_error,
         pixel_values,
@@ -1133,7 +1133,7 @@ class TestMetamerDisplay:
         template_test_synthesis_all_plot(
             synthesized_met_nostore,
             iteration=None,
-            synth_image=metamer_image,
+            synth_image=metamer_imshow,
             loss=loss,
             representation_error=representation_error,
             pixel_values=pixel_values,
@@ -1165,14 +1165,14 @@ class TestMetamerDisplay:
         )
 
     @pytest.mark.parametrize("func", ["plot", "animate"])
-    # mad_image is an allowed value for MAD but not metamer. the second is just a typo
-    @pytest.mark.parametrize("val", ["mad_image", "plot_metamer"])
+    # mad_imshow is an allowed value for MAD but not metamer. the second is just a typo
+    @pytest.mark.parametrize("val", ["mad_imshow", "plot_metamer"])
     @pytest.mark.parametrize("variable", ["included_plots", "width_ratios", "axes_idx"])
     def test_allowed_plots_exception(self, synthesized_met, func, val, variable):
         if func == "plot":
             func = po.plot.metamer_synthesis_status
         elif func == "animate":
-            func = po.plot.metamer_animate
+            func = po.plot.metamer_animshow
         kwargs = {}
         if variable == "included_plots":
             kwargs["included_plots"] = [val, "metamer_loss"]
@@ -1189,7 +1189,7 @@ class TestMetamerDisplay:
     @pytest.mark.filterwarnings("ignore:loss iteration and iteration for:UserWarning")
     def test_iteration(self, synthesized_met_store_progress, iteration, batch_idx):
         included_plots = [
-            "metamer_image",
+            "metamer_imshow",
             "metamer_loss",
             "metamer_representation_error",
             "metamer_pixel_values",

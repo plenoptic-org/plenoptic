@@ -153,15 +153,15 @@ class TestEigendistortionSynthesis:
         img = img[..., :SMALL_DIM, :SMALL_DIM]
         eigendist = po.Eigendistortion(img, model)
         eigendist.synthesize(k=k, method=method, max_iter=10)
-        po.plot.eigendistortion_image(eigendist, eigenindex=0, as_rgb=as_rgb)
-        po.plot.eigendistortion_image(eigendist, eigenindex=1, as_rgb=as_rgb)
+        po.plot.eigendistortion_imshow(eigendist, eigenindex=0, as_rgb=as_rgb)
+        po.plot.eigendistortion_imshow(eigendist, eigenindex=1, as_rgb=as_rgb)
 
         if method == "power":
-            po.plot.eigendistortion_image(eigendist, eigenindex=-1, as_rgb=as_rgb)
-            po.plot.eigendistortion_image(eigendist, eigenindex=-2, as_rgb=as_rgb)
+            po.plot.eigendistortion_imshow(eigendist, eigenindex=-1, as_rgb=as_rgb)
+            po.plot.eigendistortion_imshow(eigendist, eigenindex=-2, as_rgb=as_rgb)
         elif method == "randomized_svd":  # svd only has top k not bottom k eigendists
             with pytest.raises(ValueError, match="eigenindex must be the index"):
-                po.plot.eigendistortion_image(eigendist, eigenindex=-1)
+                po.plot.eigendistortion_imshow(eigendist, eigenindex=-1)
         plt.close("all")
 
     @pytest.mark.parametrize(
@@ -192,7 +192,7 @@ class TestEigendistortionSynthesis:
         elif isinstance(alpha, list) and len(alpha) != 1:
             expectation = pytest.raises(ValueError, match="If alpha is a list")
         with expectation:
-            po.plot.eigendistortion_image_all(
+            po.plot.eigendistortion_imshow_all(
                 eigendist, eigenindex=eigenindex, alpha=alpha, as_rgb=as_rgb
             )
         plt.close("all")

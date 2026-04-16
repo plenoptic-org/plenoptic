@@ -155,7 +155,7 @@ def mad_imshow(
     Warns
     -----
     UserWarning
-        If the iteration used for ``saved_mad_imshow`` is not the same as the argument
+        If the iteration used for ``saved_mad_image`` is not the same as the argument
         ``iteration`` (because e.g., you set ``iteration=3`` but
         ``mad.store_progress=2``).
 
