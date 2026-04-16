@@ -142,20 +142,20 @@ API_CHANGE = {
 
 SYNTH_PLOT_FUNCS = {
     "plenoptic.synthesize.metamer.plot_loss": "plenoptic.plot.metamer_loss",
-    "plenoptic.synthesize.metamer.display_metamer": "plenoptic.plot.metamer_image",
+    "plenoptic.synthesize.metamer.display_metamer": "plenoptic.plot.metamer_imshow",
     "plenoptic.synthesize.metamer.plot_pixel_values": "plenoptic.plot.metamer_pixel_values",
     "plenoptic.synthesize.metamer.plot_representation_error": "plenoptic.plot.metamer_representation_error",
     "plenoptic.synthesize.metamer.plot_synthesis_status": "plenoptic.plot.metamer_synthesis_status",
-    "plenoptic.synthesize.metamer.animate": "plenoptic.plot.metamer_animate",
-    "plenoptic.synthesize.mad_competition.display_mad_image": "plenoptic.plot.mad_image",
-    "plenoptic.synthesize.mad_competition.display_mad_image_all": "plenoptic.plot.mad_image_all",
+    "plenoptic.synthesize.metamer.animate": "plenoptic.plot.metamer_animshow",
+    "plenoptic.synthesize.mad_competition.display_mad_image": "plenoptic.plot.mad_imshow",
+    "plenoptic.synthesize.mad_competition.display_mad_image_all": "plenoptic.plot.mad_imshow_all",
     "plenoptic.synthesize.mad_competition.plot_loss": "plenoptic.plot.mad_loss",
     "plenoptic.synthesize.mad_competition.plot_loss_all": "plenoptic.plot.mad_loss_all",
     "plenoptic.synthesize.mad_competition.plot_pixel_values": "plenoptic.plot.mad_pixel_values",
     "plenoptic.synthesize.mad_competition.plot_synthesis_status": "plenoptic.plot.mad_synthesis_status",
-    "plenoptic.synthesize.mad_competition.animate": "plenoptic.plot.mad_animate",
-    "plenoptic.synthesize.eigendistortion.display_eigendistortion": "plenoptic.plot.eigendistortion_image",
-    "plenoptic.synthesize.eigendistortion.display_eigendistortion_all": "plenoptic.plot.eigendistortion_image_all",
+    "plenoptic.synthesize.mad_competition.animate": "plenoptic.plot.mad_animshow",
+    "plenoptic.synthesize.eigendistortion.display_eigendistortion": "plenoptic.plot.eigendistortion_imshow",
+    "plenoptic.synthesize.eigendistortion.display_eigendistortion_all": "plenoptic.plot.eigendistortion_imshow_all",
 }
 
 PLOT_FUNCS = {
@@ -170,8 +170,8 @@ PLOT_FUNCS = {
     "plenoptic.pyrshow": "plenoptic.plot.pyrshow",
     "plenoptic.tools.display.plot_representation": "plenoptic.plot.plot_representation",
     "plenoptic.tools.plot_representation": "plenoptic.plot.plot_representation",
-    "plenoptic.tools.display.clean_stem_plot": "plenoptic.plot.clean_stem_plot",
-    "plenoptic.tools.clean_stem_plot": "plenoptic.plot.clean_stem_plot",
+    "plenoptic.tools.display.clean_stem_plot": "plenoptic.plot.stem_plot",
+    "plenoptic.tools.clean_stem_plot": "plenoptic.plot.stem_plot",
     "plenoptic.tools.display.update_plot": "plenoptic.plot.update_plot",
     "plenoptic.tools.update_plot": "plenoptic.plot.update_plot",
 }

@@ -35,7 +35,7 @@ from ..model_components.steerable_pyramid_freq import (
 from ..model_components.steerable_pyramid_freq import (
     SteerablePyramidFreq,
 )
-from ..plot.display import clean_stem_plot, clean_up_axes, update_stem
+from ..plot.display import clean_up_axes, stem_plot, update_stem
 from ..tensors import to_numpy
 
 SCALES_TYPE = Literal["pixel_statistics"] | PYR_SCALES_TYPE
@@ -1330,7 +1330,7 @@ class PortillaSimoncelli(nn.Module):
         axes = []
         for i, (k, v) in enumerate(data.items()):
             ax = fig.add_subplot(gs[i // n_cols, i % n_cols])
-            ax = clean_stem_plot(to_numpy(v).flatten(), ax, k, ylim=ylim)
+            ax = stem_plot(to_numpy(v).flatten(), ax, k, ylim=ylim)
             axes.append(ax)
 
         if title is not None:

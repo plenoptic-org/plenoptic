@@ -15,7 +15,7 @@ from ..tensors import to_numpy
 
 __all__ = [
     "animshow",
-    "clean_stem_plot",
+    "stem_plot",
     "imshow",
     "plot_representation",
     "pyrshow",
@@ -216,11 +216,11 @@ def imshow(
 
     See Also
     --------
-    :func:`~plenoptic.plot.metamer_image`
+    :func:`~plenoptic.plot.metamer_imshow`
         Show the image synthesized by a :class:`~plenoptic.Metamer` object.
-    :func:`~plenoptic.plot.mad_image`
+    :func:`~plenoptic.plot.mad_imshow`
         Show the image synthesized by a :class:`~plenoptic.MADCompetition` object.
-    :func:`~plenoptic.plot.eigendistortion_image`
+    :func:`~plenoptic.plot.eigendistortion_imshow`
         Show the image synthesized by a :class:`~plenoptic.Eigendistortion` object.
     animshow
         Animate a video.
@@ -450,9 +450,9 @@ def animshow(
     --------
     imshow
         Display an image.
-    :func:`~plenoptic.plot.metamer_animate`
+    :func:`~plenoptic.plot.metamer_animshow`
         Animate synthesis process for a :class:`~plenoptic.Metamer` object.
-    :func:`~plenoptic.plot.mad_animate`
+    :func:`~plenoptic.plot.mad_animshow`
         Animate synthesis process for a :class:`~plenoptic.MADCompetition` object.
 
     Notes
@@ -816,7 +816,7 @@ def rescale_ylim(axes: list[mpl.axes.Axes], data: np.ndarray | torch.Tensor):
         ax.set_ylim((-y_max, y_max))
 
 
-def clean_stem_plot(
+def stem_plot(
     data: np.ndarray,
     ax: mpl.axes.Axes | None = None,
     title: str | None = "",
@@ -880,7 +880,7 @@ def clean_stem_plot(
       >>> # we want to draw the baseline from 0 to 14, 20 to 34, and 40 to
       >>> # 54, everywhere that we have non-NaN values for y
       >>> xvals = ([0, 20, 40], [14, 34, 54])
-      >>> po.plot.clean_stem_plot(y, xvals=xvals)
+      >>> po.plot.stem_plot(y, xvals=xvals)
       <Axes: >
 
     If we don't care about breaking up the x-axis, you can set ``xvals=None``.
@@ -894,7 +894,7 @@ def clean_stem_plot(
       >>> # if ylim=None, as in this example, the minimum y-valuewill get
       >>> # set to 0, so we want to make sure our values are all positive
       >>> y = np.abs(np.random.randn(55))
-      >>> po.plot.clean_stem_plot(y)
+      >>> po.plot.stem_plot(y)
       <Axes: >
     """
     if ax is None:
@@ -1202,7 +1202,7 @@ def plot_representation(
     - If ``model`` is ``None``, we fall-back to a type of plot based on the shape of
       ``data``. If it looks image-like, we'll use
       :func:`~plenoptic.plot.imshow` and if it looks vector-like, we'll use
-      :func:`~plenoptic.plot.clean_stem_plot`. If it's a dictionary, we'll
+      :func:`~plenoptic.plot.stem_plot`. If it's a dictionary, we'll
       assume each key, value pair gives the title and data to plot on a separate
       sub-plot.
 
@@ -1262,7 +1262,7 @@ def plot_representation(
     :func:`~plenoptic.plot.metamer_representation_error`
         Plot representation error for a :class:`~plenoptic.Metamer` object at a
         specified iteration.
-    clean_stem_plot
+    stem_plot
         If ``model`` does not have a ``plot_representation`` method and its output
         is 3d, the function used to visualize its output.
     imshow
@@ -1317,7 +1317,7 @@ def plot_representation(
                 # and if there's not you probably want to do things
                 # differently
                 for d in v[batch_idx]:
-                    ax = clean_stem_plot(to_numpy(d), ax, k, ylim)
+                    ax = stem_plot(to_numpy(d), ax, k, ylim)
                 axes.append(ax)
         elif len(list(data.values())[0].shape) == 4:
             # then this is 'image-like'

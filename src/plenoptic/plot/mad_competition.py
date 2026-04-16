@@ -15,11 +15,11 @@ from . import display
 
 __all__ = [
     "mad_loss",
-    "mad_image",
+    "mad_imshow",
     "mad_pixel_values",
     "mad_synthesis_status",
-    "mad_animate",
-    "mad_image_all",
+    "mad_animshow",
+    "mad_imshow_all",
     "mad_loss_all",
 ]
 
@@ -95,7 +95,7 @@ def mad_loss(
     return ax
 
 
-def mad_image(
+def mad_imshow(
     mad: MADCompetition,
     batch_idx: int = 0,
     channel_idx: int | None = None,
@@ -155,7 +155,7 @@ def mad_image(
     Warns
     -----
     UserWarning
-        If the iteration used for ``saved_mad_image`` is not the same as the argument
+        If the iteration used for ``saved_mad_imshow`` is not the same as the argument
         ``iteration`` (because e.g., you set ``iteration=3`` but
         ``mad.store_progress=2``).
 
@@ -166,7 +166,7 @@ def mad_image(
     mad_synthesis_status
         Create a figure combining this with other axis-level plots to summarize
         synthesis status at a given iteration.
-    mad_animate
+    mad_animshow
         Create a video animating this and other axis-level plots changing over
         the course of synthesis.
     """
@@ -351,7 +351,7 @@ def _check_included_plots(to_check: list[str] | dict[str, int], to_check_name: s
         If ``to_check`` takes an illegal value.
     """
     allowed_vals = [
-        "mad_image",
+        "mad_imshow",
         "mad_loss",
         "mad_pixel_values",
         "misc",
@@ -373,11 +373,11 @@ def _setup_synthesis_fig(
     axes_idx: dict[str, int] = {},
     figsize: tuple[float] | None = None,
     included_plots: list[str] = [
-        "mad_image",
+        "mad_imshow",
         "mad_loss",
         "mad_pixel_values",
     ],
-    mad_image_width: float = 1,
+    mad_imshow_width: float = 1,
     mad_loss_width: float = 2,
     mad_pixel_values_width: float = 1,
 ) -> tuple[mpl.figure.Figure, list[mpl.axes.Axes], dict[str, int]]:
@@ -409,9 +409,9 @@ def _setup_synthesis_fig(
         playing around to find a reasonable value. If ``None``, we attempt to
         make our best guess, aiming to have relative width=1 correspond to 5.
     included_plots
-        Which plots to include. Must be some subset of ``'mad_image',
+        Which plots to include. Must be some subset of ``'mad_imshow',
         'mad_loss', 'mad_pixel_values'``.
-    mad_image_width
+    mad_imshow_width
         Relative width of the axis for the synthesized image.
     mad_loss_width
         Relative width of the axis for loss plot.
@@ -430,11 +430,11 @@ def _setup_synthesis_fig(
     n_subplots = 0
     axes_idx = axes_idx.copy()
     width_ratios = []
-    if "mad_image" in included_plots:
+    if "mad_imshow" in included_plots:
         n_subplots += 1
-        width_ratios.append(mad_image_width)
-        if "mad_image" not in axes_idx:
-            axes_idx["mad_image"] = tensors._find_min_int(axes_idx.values())
+        width_ratios.append(mad_imshow_width)
+        if "mad_imshow" not in axes_idx:
+            axes_idx["mad_imshow"] = tensors._find_min_int(axes_idx.values())
     if "mad_loss" in included_plots:
         n_subplots += 1
         width_ratios.append(mad_loss_width)
@@ -489,7 +489,7 @@ def mad_synthesis_status(
     axes_idx: dict[str, int] = {},
     figsize: tuple[float] | None = None,
     included_plots: list[str] = [
-        "mad_image",
+        "mad_imshow",
         "mad_loss",
         "mad_pixel_values",
     ],
@@ -522,7 +522,7 @@ def mad_synthesis_status(
         ``mad.store_progress>1`` (that is, the MAD image was not cached on every
         iteration), then we use the cached MAD image from the nearest iteration.
     vrange
-        The vrange option to pass to :func:`mad_image()`. See
+        The vrange option to pass to :func:`mad_imshow()`. See
         docstring of :func:`~plenoptic.plot.imshow` for possible values.
     zoom
         How much to zoom in / enlarge the synthesized image, the ratio
@@ -535,7 +535,7 @@ def mad_synthesis_status(
     axes_idx
         Dictionary specifying which axes contains which type of plot, allows
         for more fine-grained control of the resulting figure. Probably only
-        helpful if fig is also defined. Possible keys: ``'mad_image',
+        helpful if fig is also defined. Possible keys: ``'mad_imshow',
         'mad_loss', 'mad_pixel_values', 'misc'``. Values should all be ints. If you
         tell this function to create a plot that doesn't have a corresponding
         key, we find the lowest int that is not already in the dict, so if you
@@ -545,12 +545,12 @@ def mad_synthesis_status(
         playing around to find a reasonable value. If ``None``, we attempt to
         make our best guess, aiming to have each axis be of size ``(5, 5)``.
     included_plots
-        Which plots to include. Must be some subset of ``'mad_image',
+        Which plots to include. Must be some subset of ``'mad_imshow',
         'mad_loss', 'mad_pixel_values'``.
     width_ratios
         If ``width_ratios`` is an empty dictionary, ``mad_loss`` will have
         double the width of the other plots. To change that, specify their
-        relative widths using the keys: ['mad_image', 'mad_loss',
+        relative widths using the keys: ['mad_imshow', 'mad_loss',
         'mad_pixel_values'] and floats specifying their relative width.
 
     Returns
@@ -594,13 +594,13 @@ def mad_synthesis_status(
         fig, axes_idx, figsize, included_plots, **width_ratios
     )
 
-    if "mad_image" in included_plots:
-        mad_image(
+    if "mad_imshow" in included_plots:
+        mad_imshow(
             mad,
             batch_idx=batch_idx,
             channel_idx=channel_idx,
             iteration=iteration,
-            ax=axes[axes_idx["mad_image"]],
+            ax=axes[axes_idx["mad_imshow"]],
             zoom=zoom,
             vrange=vrange,
         )
@@ -629,7 +629,7 @@ def mad_synthesis_status(
     return fig, axes_idx
 
 
-def mad_animate(
+def mad_animshow(
     mad: MADCompetition,
     framerate: int = 10,
     batch_idx: int = 0,
@@ -639,7 +639,7 @@ def mad_animate(
     axes_idx: dict[str, int] = {},
     figsize: tuple[float] | None = None,
     included_plots: list[str] = [
-        "mad_image",
+        "mad_imshow",
         "mad_loss",
         "mad_pixel_values",
     ],
@@ -686,7 +686,7 @@ def mad_animate(
     axes_idx
         Dictionary specifying which axes contains which type of plot, allows
         for more fine-grained control of the resulting figure. Probably only
-        helpful if fig is also defined. Possible keys: ``'mad_image',
+        helpful if fig is also defined. Possible keys: ``'mad_imshow',
         'mad_loss', 'mad_pixel_values', 'misc'``. Values should all be ints. If you
         tell this function to create a plot that doesn't have a corresponding
         key, we find the lowest int that is not already in the dict, so if you
@@ -696,12 +696,12 @@ def mad_animate(
         playing around to find a reasonable value. If ``None``, we attempt to
         make our best guess, aiming to have each axis be of size ``(5, 5)``.
     included_plots
-        Which plots to include. Must be some subset of ``'mad_image',
+        Which plots to include. Must be some subset of ``'mad_imshow',
         'mad_loss', 'mad_pixel_values'``.
     width_ratios
         If ``width_ratios`` is an empty dictionary, ``mad_loss`` will have
         double the width of the other plots. To change that, specify their
-        relative widths using the keys: ['mad_image', 'mad_loss',
+        relative widths using the keys: ['mad_imshow', 'mad_loss',
         'mad_pixel_values'] and floats specifying their relative width.
 
     Returns
@@ -722,7 +722,7 @@ def mad_animate(
     See Also
     --------
     :func:`~plenoptic.plot.update_plot`
-        Function used by this one to update ``mad_image`` plot.
+        Function used by this one to update ``mad_imshow`` plot.
 
     Notes
     -----
@@ -765,8 +765,8 @@ def mad_animate(
     # MAD image plot, because we use the update_plot function for that)
     if "mad_loss" in included_plots:
         scat = [fig.axes[i].collections[0] for i in axes_idx["mad_loss"]]
-    if "mad_image" in included_plots:
-        fig.axes[axes_idx["mad_image"]].set_title("MAD Image")
+    if "mad_imshow" in included_plots:
+        fig.axes[axes_idx["mad_imshow"]].set_title("MAD Image")
 
     def movie_plot(i: int) -> list[mpl.artist.Artist]:
         """
@@ -790,10 +790,10 @@ def mad_animate(
                 "ignore", message="loss iteration and iteration for"
             )
             artists = []
-            if "mad_image" in included_plots:
+            if "mad_imshow" in included_plots:
                 artists.extend(
                     display.update_plot(
-                        fig.axes[axes_idx["mad_image"]],
+                        fig.axes[axes_idx["mad_imshow"]],
                         data=mad.saved_mad_image[i],
                         batch_idx=batch_idx,
                     )
@@ -834,7 +834,7 @@ def mad_animate(
     return anim
 
 
-def mad_image_all(
+def mad_imshow_all(
     mad_metric1_min: MADCompetition,
     mad_metric2_min: MADCompetition,
     mad_metric1_max: MADCompetition,
@@ -930,7 +930,7 @@ def mad_image_all(
         **kwargs,
     )
     for ax, mad, title in zip(fig.axes[2:], mads, titles):
-        mad_image(mad, zoom=zoom, ax=ax, title=title, **kwargs)
+        mad_imshow(mad, zoom=zoom, ax=ax, title=title, **kwargs)
     return fig
 
 

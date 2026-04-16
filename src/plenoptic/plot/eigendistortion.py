@@ -13,8 +13,8 @@ from .._synthesize import Eigendistortion
 from .display import imshow
 
 __all__ = [
-    "eigendistortion_image",
-    "eigendistortion_image_all",
+    "eigendistortion_imshow",
+    "eigendistortion_imshow_all",
 ]
 
 
@@ -22,7 +22,7 @@ def __dir__() -> list[str]:
     return __all__
 
 
-def eigendistortion_image(
+def eigendistortion_imshow(
     eigendistortion: Eigendistortion,
     eigenindex: int = 0,
     alpha: float = 5.0,
@@ -74,7 +74,7 @@ def eigendistortion_image(
     --------
     :func:`~plenoptic.plot.imshow`
         Function used by this one to visualize the metamer image.
-    eigendistortion_image_all
+    eigendistortion_imshow_all
         Display base image and multiple eigendistortions, alone and added to image.
     """
     # reshape so channel dim is last
@@ -94,7 +94,7 @@ def eigendistortion_image(
     return fig
 
 
-def eigendistortion_image_all(
+def eigendistortion_imshow_all(
     eigendistortion: Eigendistortion,
     eigenindex: int | list[int] = [0, -1],
     alpha: float | list[float] = 5.0,
@@ -165,7 +165,7 @@ def eigendistortion_image_all(
 
     See Also
     --------
-    eigendistortion_image
+    eigendistortion_imshow
         Display single eigendistortion added to image.
 
     Examples
@@ -187,7 +187,7 @@ def eigendistortion_image_all(
       ...     map_location="cpu",
       ...     tensor_equality_atol=1e-7,
       ... )
-      >>> po.plot.eigendistortion_image_all(eig)
+      >>> po.plot.eigendistortion_imshow_all(eig)
       <PyrFigure size ...>
     """
     # reshape so channel dim is last

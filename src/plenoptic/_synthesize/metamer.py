@@ -288,7 +288,7 @@ class Metamer(OptimizedSynthesis):
             iteration. If an int, we save every ``store_progress`` iterations
             (note then that 0 is the same as False and 1 the same as True). This is
             primarily useful for using
-            :func:`~plenoptic.plot.metamer_animate` to create a video of the
+            :func:`~plenoptic.plot.metamer_animshow` to create a video of the
             course of synthesis.
         stop_criterion
             If the loss over the past ``stop_iters_to_check`` has changed
@@ -306,7 +306,7 @@ class Metamer(OptimizedSynthesis):
         --------
         :func:`~plenoptic.plot.metamer_synthesis_status`
             Create a plot summarizing synthesis status at a given iteration.
-        :func:`~plenoptic.plot.metamer_animate`
+        :func:`~plenoptic.plot.metamer_animshow`
             Create a video of the metamer changing over the course of
             synthesis.
 
@@ -326,7 +326,7 @@ class Metamer(OptimizedSynthesis):
         Synthesize a metamer, using ``store_progress`` so we can examine progress
         later. (This also enables us to create a video of the metamer changing over
         the course of synthesis, see
-        :func:`~plenoptic.plot.metamer_animate`.)
+        :func:`~plenoptic.plot.metamer_animshow`.)
 
         >>> met = po.Metamer(img, model)
         >>> # this isn't enough to run synthesis to completion, just an example
@@ -604,7 +604,7 @@ class Metamer(OptimizedSynthesis):
         --------
         :func:`~plenoptic.plot.metamer_synthesis_status`
             Create a plot summarizing synthesis status at a given iteration.
-        :func:`~plenoptic.plot.metamer_animate`
+        :func:`~plenoptic.plot.metamer_animshow`
             Create a video of the metamer changing over the course of
             synthesis.
 
@@ -1480,7 +1480,7 @@ class MetamerCTF(Metamer):
             iteration. If an int, we save every ``store_progress`` iterations
             (note then that 0 is the same as False and 1 the same as True). This is
             primarily useful for using
-            :func:`~plenoptic.plot.metamer_animate` to create a video of the
+            :func:`~plenoptic.plot.metamer_animshow` to create a video of the
             course of synthesis.
         stop_criterion
             If the loss over the past ``stop_iters_to_check`` has changed
@@ -1511,7 +1511,7 @@ class MetamerCTF(Metamer):
         --------
         :func:`~plenoptic.plot.metamer_synthesis_status`
             Create a plot summarizing synthesis status at a given iteration.
-        :func:`~plenoptic.plot.metamer_animate`
+        :func:`~plenoptic.plot.metamer_animshow`
             Create a video of the metamer changing over the course of
             synthesis.
 
@@ -1542,7 +1542,7 @@ class MetamerCTF(Metamer):
         Synthesize a metamer, using ``store_progress`` so we can examine progress
         later. (This also enables us to create a video of the metamer changing over
         the course of synthesis, see
-        :func:`~plenoptic.plot.metamer_animate`.)
+        :func:`~plenoptic.plot.metamer_animshow`.)
 
         >>> met = po.MetamerCTF(img, model)
         >>> # this isn't enough to run synthesis to completion, just an example
