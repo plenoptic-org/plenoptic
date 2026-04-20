@@ -1,3 +1,5 @@
+.. _top-level-api:
+
 Commonly-used helper functions
 ------------------------------
 
