@@ -6,6 +6,7 @@ The following helper functions are commonly-used when preparing data and models 
 .. currentmodule:: plenoptic
 .. autosummary::
    :signatures: none
+   :toctree: generated
 
    ~remove_grad
    ~set_seed
