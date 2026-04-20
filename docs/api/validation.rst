@@ -5,6 +5,7 @@ Validation
 
 The following functions are used to validate that the user-supplied inputs are compatible with our synthesis objects.
 
+.. currentmodule:: plenoptic
 .. autosummary::
    :signatures: none
    :toctree: generated
