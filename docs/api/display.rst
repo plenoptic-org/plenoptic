@@ -17,11 +17,11 @@ These functions all are intended to help visualize the status and outputs of `sy
    :toctree: generated
 
    ~metamer_loss
-   ~metamer_image
+   ~metamer_imshow
    ~metamer_pixel_values
    ~metamer_representation_error
    ~metamer_synthesis_status
-   ~metamer_animate
+   ~metamer_animshow
 
 .. rubric:: :class:`~plenoptic.MADCompetition`
    :heading-level: 4
@@ -29,13 +29,13 @@ These functions all are intended to help visualize the status and outputs of `sy
    :signatures: none
    :toctree: generated
 
-   ~mad_image
-   ~mad_image_all
+   ~mad_imshow
+   ~mad_imshow_all
    ~mad_loss
    ~mad_loss_all
    ~mad_pixel_values
    ~mad_synthesis_status
-   ~mad_animate
+   ~mad_animshow
 
 .. rubric:: :class:`~plenoptic.Eigendistortion`
    :heading-level: 4
@@ -43,8 +43,8 @@ These functions all are intended to help visualize the status and outputs of `sy
    :signatures: none
    :toctree: generated
 
-   ~eigendistortion_image
-   ~eigendistortion_image_all
+   ~eigendistortion_imshow
+   ~eigendistortion_imshow_all
 
 .. rubric:: Tensors
    :heading-level: 3
@@ -60,5 +60,5 @@ The following functions can be used to visualize :class:`torch.Tensor` objects d
    ~animshow
    ~pyrshow
    ~plot_representation
-   ~clean_stem_plot
+   ~stem_plot
    ~update_plot
