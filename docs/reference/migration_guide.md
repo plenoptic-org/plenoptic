@@ -21,73 +21,25 @@ Additionally, the acceptable values for the `included_plots` arguments for {func
 (migration-script)=
 ## Migration script
 
-The following script was used by the developers to update the plenoptic codebase, documentation, and tests during the migration. Hopefully, it will help with your migration, though we make no guarantees.
+The developers wrote a [little tool](https://github.com/plenoptic-org/plenoptic-migrate) to update the plenoptic codebase, documentation, and tests during the migration to plenoptic 2.0. You are welcome to use it on your own code, though we make no guarantees.
 
-:::{admonition} Backup your code!
-:class: important
+The recommended way to use the tool is via [uvx](https://docs.astral.sh/uv/#tools) or [pipx](https://pipx.pypa.io/stable/), both of which will create a temporary isolated virtual environment for the tool:
 
-The script in this section will make changes **without** asking for confirmation. Therefore it is highly recommended that you either have backups of any script you are modifying or are using version control, so you can easily see all the resulting changes.
-
-:::
-
-This script only changes fully resolvable plenoptic objects. For example, it will replace `plenoptic.synth.Metamer` with {class}`plenoptic.Metamer`, but will not touch `from plenoptic.synthesize import Metamer`.
-
-If you use the module aliases shown in our previous documentation (i.e., `po` for `plenoptic`, `synth` for `synthesize` <!-- skip-lint -->, and `simul` for `simulate`), this script will also handle them. If you use non-standard aliases (e.g., `import plenoptic as plen`), it will not.
-
-To use, copy the following code block into a python script called `plenoptic_rename_api.py` and run from within a virtual environment with `plenoptic>=2.0.0`, passing it whatever files you would like to change. For example: `python plenoptic_rename_api.py my_plenoptic_code.py` or `python plenoptic_rename_api.py my_project/*.py`.
-
+:::::{tab-set}
+::::{tab-item} pipx
+```{code-block} console
+$ pipx run plenoptic-migrate --help
 ```
-from plenoptic import _api_change
-import itertools
-import pathlib
-import sys
+::::
 
-deprecated = {}
-UPDATED_API = _api_change.API_CHANGE
-UPDATED_API.update(_api_change.SYNTH_PLOT_FUNCS)
-UPDATED_API.update(_api_change.PLOT_FUNCS)
-
-# check all possible combinations of the module aliases
-module_aliases = []
-for i in range(1, len(_api_change.MODULE_ALIASES)+1):
-    for mods in itertools.combinations(_api_change.MODULE_ALIASES, i):
-        module_aliases.append({k: _api_change.MODULE_ALIASES[k] for k in mods})
-
-for p in sys.argv[1:]:
-    p = pathlib.Path(p)
-    file_contents = p.read_text()
-    for old_func, new_func in UPDATED_API.items():
-        file_contents = file_contents.replace(old_func, new_func)
-        for aliases in module_aliases:
-            old_func_check = old_func
-            new_func_check = new_func
-            for mod, alias in aliases.items():
-                old_func_check = old_func_check.replace(mod, alias)
-                new_func_check = new_func_check.replace(mod, alias)
-                file_contents = file_contents.replace(old_func_check, new_func_check)
-    for dep_func in _api_change.DEPRECATED:
-        if dep_func in file_contents:
-            if dep_func in deprecated:
-                deprecated[dep_func].append(p)
-            else:
-                deprecated[dep_func] = [p]
-        for aliases in module_aliases:
-            dep_func_check = dep_func
-            for mod, alias in aliases.items():
-                dep_func_check = dep_func_check.replace(mod, alias)
-                if dep_func_check in file_contents:
-                    if dep_func_check in deprecated:
-                        deprecated[dep_func_check].append(p)
-                    else:
-                        deprecated[dep_func_check] = [p]
-    p.write_text(file_contents)
-
-if deprecated:
-    print("The following deprecated functions were found:")
-    for dep_func, dep_files in deprecated.items():
-        print(f"\t{dep_func}: {dep_files}")
+::::{tab-item} uvx
+```{code-block} console
+$ uvx plenoptic-migrate --help
 ```
+::::
+:::::
 
+View the tool's help or [README](https://github.com/plenoptic-org/plenoptic-migrate) for details on how to use.
 
 (migration-table)=
 ## Table of API Changes
