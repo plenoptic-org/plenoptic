@@ -1,4 +1,4 @@
-"""Tools for regularizing image synthesis."""
+"""Regularization functions for image synthesis."""
 # numpydoc ignore=ES01
 
 from typing import Any

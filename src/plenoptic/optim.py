@@ -1,4 +1,4 @@
-"""Tools related to optimization, such as objective functions."""
+"""Loss functions for image synthesis."""
 # numpydoc ignore=ES01
 
 # to avoid circular import error:
