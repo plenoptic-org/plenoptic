@@ -22,7 +22,7 @@ If `plenoptic` is the only environment that you want to run notebooks from and/o
 
    ```{code-block} console
    $ conda activate plenoptic
-   $ conda install -c conda-forge jupyterlab ipywidgets torchvision pooch
+   $ conda install -c conda-forge "jupyterlab>=4.5" ipywidgets torchvision "jupyterlab_myst>=2.6"
    ```
 
    With this setup, when you have another virtual environment that you wish to run jupyter notebooks from, you must reinstall jupyter into that separate virtual environment, which is wasteful.
@@ -33,10 +33,10 @@ If `plenoptic` is the only environment that you want to run notebooks from and/o
    $ # activate your 'base' environment, the default one created by conda/miniconda
    $ conda activate base
    $ # install jupyter lab and nb_conda_kernels in your base environment
-   $ conda install -c conda-forge jupyterlab ipywidgets
+   $ conda install -c conda-forge "jupyterlab>=4.5" ipywidgets "jupyterlab_myst>=2.6"
    $ conda install nb_conda_kernels
-   $ # install ipykernel, torchvision, and pooch in the plenoptic environment
-   $ conda install -n plenoptic ipykernel torchvision pooch
+   $ # install ipykernel, torchvision in the plenoptic environment
+   $ conda install -n plenoptic ipykernel torchvision
    ```
    With this setup, you have a single jupyter install that can run kernels from any of your conda environments. All you have to do is install `ipykernel` (and restart jupyter) and you should see the new kernel!
 
@@ -50,9 +50,9 @@ If `plenoptic` is the only environment that you want to run notebooks from and/o
    $ # activate your 'base' environment, the default one created by conda/miniconda
    $ conda activate base
    $ # install jupyter lab in your base environment
-   $ conda install -c conda-forge jupyterlab ipywidgets
+   $ conda install -c conda-forge "jupyterlab>=4.5" ipywidgets "jupyterlab_myst>=2.6"
    $ # install ipykernel and torchvision in the plenoptic environment
-   $ conda install -n plenoptic ipykernel torchvision pooch
+   $ conda install -n plenoptic ipykernel torchvision
    $ conda activate plenoptic
    $ python -m ipykernel install --prefix=/path/to/jupyter/env --name 'plenoptic'
    ```
@@ -140,10 +140,10 @@ If `plenoptic` is the only environment that you want to run notebooks from and/o
 
    ```{code-block} console
    $ source path/to/jupyter-env/bin/activate
-   $ pip install jupyterlab ipywidgets
+   $ pip install "jupyterlab>=4.5" ipywidgets "jupyterlab_myst>=2.6"
    $ cd path/to/plenoptic
    $ source .venv/bin/activate
-   $ pip install ipykernel torchvision pooch
+   $ pip install ipykernel torchvision
    $ python -m ipykernel install --prefix=path/to/environments/jupyter-env/ --name 'plenoptic'
    ```
    :::
@@ -152,9 +152,9 @@ If `plenoptic` is the only environment that you want to run notebooks from and/o
 
    ```{code-block} console
    $ source path/to/environments/jupyter-env/bin/activate
-   $ pip install jupyterlab ipywidgets
+   $ pip install "jupyterlab>=4.5" ipywidgets "jupyterlab_myst>=2.6"
    $ source path/to/environments/plenoptic-venv/bin/activate
-   $ pip install ipykernel torchvision pooch
+   $ pip install ipykernel torchvision
    $ python -m ipykernel install --prefix=path/to/environments/jupyter-env/ --name 'plenoptic'
    ```
    :::
@@ -172,10 +172,10 @@ If `plenoptic` is the only environment that you want to run notebooks from and/o
 
    ```{code-block} pwsh-session
    PS> path\to\environments\jupyter-venv\Scripts\activate
-   PS> pip install jupyterlab ipywidgets
+   PS> pip install "jupyterlab>=4.5" ipywidgets "jupyterlab_myst>=2.6"
    PS> cd path\to\plenoptic
    PS> .venv\Scripts\activate
-   PS> pip install ipykernel torchvision pooch
+   PS> pip install ipykernel torchvision
    PS> python -m ipykernel install --prefix=path\to\environments\jupyter-venv\ --name 'plenoptic'
    ```
    :::
@@ -184,9 +184,9 @@ If `plenoptic` is the only environment that you want to run notebooks from and/o
 
    ```{code-block} pwsh-session
    PS> path\to\environments\jupyter-venv\Scripts\activate
-   PS> pip install jupyterlab ipywidgets
+   PS> pip install "jupyterlab>=4.5" ipywidgets "jupyterlab_myst>=2.6"
    PS> path\to\environments\plenoptic-venv\Scripts\activate
-   PS> pip install ipykernel torchvision pooch
+   PS> pip install ipykernel torchvision
    PS> python -m ipykernel install --prefix=\path\to\environments\jupyter-env\ --name 'plenoptic'
    ```
    :::
