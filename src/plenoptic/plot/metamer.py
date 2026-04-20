@@ -486,7 +486,7 @@ def metamer_representation_error(
 
       >>> img = po.data.reptile_skin()
       >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
-      >>> met = po.MetamerCTF(img, model, po.optim.l2_norm)
+      >>> met = po.MetamerCTF(img, model, po.loss.l2_norm)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
       >>> po.plot.metamer_representation_error(met)
@@ -1005,7 +1005,7 @@ def metamer_synthesis_status(
 
       >>> img = po.data.reptile_skin()
       >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
-      >>> met = po.MetamerCTF(img, model, po.optim.l2_norm)
+      >>> met = po.MetamerCTF(img, model, po.loss.l2_norm)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
       >>> po.plot.metamer_synthesis_status(met)
@@ -1324,7 +1324,7 @@ def metamer_animshow(
 
       >>> img = po.data.reptile_skin()
       >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
-      >>> met = po.MetamerCTF(img, model, po.optim.l2_norm)
+      >>> met = po.MetamerCTF(img, model, po.loss.l2_norm)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
       >>> ani = po.plot.metamer_animshow(met)

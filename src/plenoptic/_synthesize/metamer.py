@@ -16,7 +16,7 @@ import torch
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from .. import optim, regularization
+from .. import loss, regularization
 from ..convergence import _coarse_to_fine_enough, _loss_convergence
 from ..model_components import signal
 from ..validate import validate_coarse_to_fine, validate_input, validate_model
@@ -96,7 +96,7 @@ class Metamer(OptimizedSynthesis):
         self,
         image: Tensor,
         model: torch.nn.Module,
-        loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
+        loss_function: Callable[[Tensor, Tensor], Tensor] = loss.mse,
         penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
         penalty_lambda: float = 0.1,
     ):
@@ -1332,7 +1332,7 @@ class MetamerCTF(Metamer):
       >>> # to work with MetamerCTF, models must have a scales attribute
       >>> model.scales
       ['pixel_statistics', 'residual_lowpass', 3, 2, 1, 0, 'residual_highpass']
-      >>> met = po.MetamerCTF(img, model, loss_function=po.optim.l2_norm)
+      >>> met = po.MetamerCTF(img, model, loss_function=po.loss.l2_norm)
       >>> # initialize with an image that has a comparable mean and standard deviation
       >>> init_img = (torch.rand_like(img) - 0.5) * 0.1 + img.mean()
       >>> met.setup(init_img)
@@ -1362,7 +1362,7 @@ class MetamerCTF(Metamer):
         self,
         image: Tensor,
         model: torch.nn.Module,
-        loss_function: Callable[[Tensor, Tensor], Tensor] = optim.mse,
+        loss_function: Callable[[Tensor, Tensor], Tensor] = loss.mse,
         penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
         penalty_lambda: float = 0.1,
         coarse_to_fine: Literal["together", "separate"] = "together",
@@ -1983,7 +1983,7 @@ class MetamerCTF(Metamer):
         >>> import plenoptic as po
         >>> img = po.data.reptile_skin().to(torch.float64)
         >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
-        >>> met = po.MetamerCTF(img, model, po.optim.l2_norm)
+        >>> met = po.MetamerCTF(img, model, po.loss.l2_norm)
         >>> print(met.metamer)
         tensor([])
         >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
@@ -1993,7 +1993,7 @@ class MetamerCTF(Metamer):
         If the saved ``MetamerCTF`` object lived on a CUDA device and you do not have
         CUDA on the loading machine, use ``map_location`` to change device:
 
-        >>> met = po.MetamerCTF(img, model, po.optim.l2_norm)
+        >>> met = po.MetamerCTF(img, model, po.loss.l2_norm)
         >>> met.image.device
         device(type='cpu')
         >>> met.load(po.data.fetch_data("example_metamerCTF_ps-cuda.pt"))
@@ -2016,7 +2016,7 @@ class MetamerCTF(Metamer):
         If the loading ``MetamerCTF`` object was not initialized with same values
         as the saved object, an error will be raised:
 
-        >>> met = po.MetamerCTF(torch.rand_like(img), model, po.optim.l2_norm)
+        >>> met = po.MetamerCTF(torch.rand_like(img), model, po.loss.l2_norm)
         >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
         Traceback (most recent call last):
         ValueError: Saved and initialized attribute image have different values...
@@ -2024,7 +2024,7 @@ class MetamerCTF(Metamer):
         If the loading ``MetamerCTF`` object has a different data type than the saved
         object, an error will be raised:
 
-        >>> met = po.MetamerCTF(img, model, po.optim.l2_norm)
+        >>> met = po.MetamerCTF(img, model, po.loss.l2_norm)
         >>> met.to(torch.float32)
         >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
         Traceback (most recent call last):

@@ -184,7 +184,7 @@ ctr_dim = (img.shape[-2] // 4, img.shape[-1] // 4)
 mask[..., ctr_dim[0] : 3 * ctr_dim[0], ctr_dim[1] : 3 * ctr_dim[1]] = True
 
 model = PortillaSimoncelliMask(img.shape[-2:], target=img, mask=mask).to(DEVICE)
-loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+loss = po.loss.portilla_simoncelli_loss_factory(model, img)
 met = po.Metamer(
     img,
     model,
@@ -239,7 +239,7 @@ img = po.load_images(img_files).to(DEVICE).to(torch.float64)
 img = torch.cat([img[:1, ..., 128:], img[1:, ..., :128]], -1)
 
 model = po.models.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
-loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+loss = po.loss.portilla_simoncelli_loss_factory(model, img)
 met = po.Metamer(
     img,
     model,

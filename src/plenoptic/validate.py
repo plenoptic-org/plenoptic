@@ -13,7 +13,7 @@ from collections.abc import Callable
 import torch
 from torch import Tensor
 
-from .optim import set_seed
+from .loss import set_seed
 
 __all__ = [
     "validate_input",

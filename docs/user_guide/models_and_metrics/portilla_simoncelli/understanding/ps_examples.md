@@ -111,7 +111,7 @@ img = img.to(DEVICE).to(torch.float64)
 # the last scale of auto_correlation_reconstructed is all NaNs)
 n_scales = 3 if fig_name == "fig12b" else 4
 model = po.models.PortillaSimoncelli(img.shape[-2:], n_scales=n_scales).to(DEVICE)
-loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+loss = po.tools.portilla_simoncelli_loss_factory(model, img)
 # to avoid running so many syntheses in this notebook, we load a cached version. see the
 # following admonition for how to run this yourself
 met = po.Metamer(
@@ -174,7 +174,7 @@ img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.models.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
-loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+loss = po.tools.portilla_simoncelli_loss_factory(model, img)
 # to avoid running so many syntheses in this notebook, we load a cached version. see the
 # following admonition for how to run this yourself
 met_left = po.Metamer(

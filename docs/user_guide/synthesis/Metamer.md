@@ -298,7 +298,7 @@ There are two choices for how to handle coarse-to-fine optimization: `'together'
 If our model meets the above requirements, then we can use the {class}`~plenoptic.MetamerCTF` class, which uses this coarse-to-fine procedure. We specify which of the two above options are used during initialization, and it will work through the scales as described above (and will resume correctly if you resume synthesis). Note that the progress bar now specifies which scale we're on.
 
 ```{code-cell} ipython3
-met = po.MetamerCTF(img, ps, loss_function=po.optim.l2_norm, coarse_to_fine="together")
+met = po.MetamerCTF(img, ps, loss_function=po.loss.l2_norm, coarse_to_fine="together")
 met.synthesize(store_progress=True, max_iter=100)
 # we don't show our synthesized image here, because it hasn't gone through all the
 # scales, and so hasn't finished synthesizing
@@ -312,7 +312,7 @@ im_init = torch.rand_like(img) * 0.1 + img.mean()
 met = po.MetamerCTF(
     img,
     ps,
-    loss_function=po.optim.l2_norm,
+    loss_function=po.loss.l2_norm,
     coarse_to_fine="together",
 )
 met.setup(im_init)

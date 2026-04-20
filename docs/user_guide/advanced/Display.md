@@ -272,7 +272,7 @@ po.plot.plot_representation(ps, rep);
 ```
 
 ```{code-cell} ipython3
-met = po.MetamerCTF(img, ps, loss_function=po.optim.l2_norm, coarse_to_fine="together")
+met = po.MetamerCTF(img, ps, loss_function=po.loss.l2_norm, coarse_to_fine="together")
 met.synthesize(
     max_iter=400,
     store_progress=10,

@@ -144,7 +144,7 @@ class PortillaSimoncelli(nn.Module):
       >>> import torch
       >>> img = po.data.reptile_skin()
       >>> ps_model = po.models.PortillaSimoncelli(img.shape[2:])
-      >>> loss = po.optim.portilla_simoncelli_loss_factory(ps_model, img)
+      >>> loss = po.loss.portilla_simoncelli_loss_factory(ps_model, img)
       >>> met = po.Metamer(img, ps_model, loss_function=loss)
       >>> opt_kwargs = {
       ...     "max_iter": 10,

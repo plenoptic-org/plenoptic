@@ -79,7 +79,7 @@ torch.save(old_save, "old_save.pt")
 
 Loading {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` objects saved before plenoptic 1.4 will result in a `FutureWarning` due to two changes:
 
-- {class}`~plenoptic.Metamer` objects' save method was updated allow saving of more general loss functions (e.g., {func}`~plenoptic.optim.portilla_simoncelli_loss_factory`).
+- {class}`~plenoptic.Metamer` objects' save method was updated allow saving of more general loss functions (e.g., {func}`~plenoptic.loss.portilla_simoncelli_loss_factory`).
 - {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` APIs were changed, replacing the range penalty with a more generic {attr}`~plenoptic.Metamer.penalty_function`. See [](metamer-regularization) for more details on how to use this new capability.
 
 You will be able to load {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` objects saved with version 1.2 through 1.3.1 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.

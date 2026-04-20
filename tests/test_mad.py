@@ -14,7 +14,7 @@ def rgb_mse(*args):
 
 
 def rgb_l2_norm(*args):
-    return po.optim.l2_norm(*args).mean()
+    return po.loss.l2_norm(*args).mean()
 
 
 # MAD requires metrics are *dis*-similarity metrics, so that they
@@ -207,7 +207,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -218,7 +218,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -230,7 +230,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -239,7 +239,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -254,7 +254,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -264,7 +264,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -278,7 +278,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -295,7 +295,7 @@ class TestMAD:
         if fail is False:
 
             def mse(x, y):
-                return po.optim.mse(x, y)
+                return po.loss.mse(x, y)
 
             metric2 = mse
             expectation = does_not_raise()
@@ -303,7 +303,7 @@ class TestMAD:
         elif fail == "name":
 
             def bad_metric(x, y):
-                return po.optim.mse(x, y)
+                return po.loss.mse(x, y)
 
             metric2 = bad_metric
             expectation = pytest.raises(
@@ -314,7 +314,7 @@ class TestMAD:
         elif fail == "behavior":
 
             def mse(x, y):
-                return po.optim.l2_norm(x, y)
+                return po.loss.l2_norm(x, y)
 
             metric2 = mse
             expectation = pytest.raises(
@@ -327,7 +327,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -336,7 +336,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             metric2,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -347,7 +347,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -363,7 +363,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -384,7 +384,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -393,14 +393,14 @@ class TestMAD:
 
         def new_metric(x, y):
             if metric_behav == "dtype":
-                return po.optim.mse(x, y).to(torch.float64)
+                return po.loss.mse(x, y).to(torch.float64)
             elif metric_behav == "shape":
-                return torch.stack([po.optim.mse(x, y) for _ in range(2)]).unsqueeze(0)
+                return torch.stack([po.loss.mse(x, y) for _ in range(2)]).unsqueeze(0)
             elif metric_behav == "name":
                 if metric == "optimized":
-                    return po.optim.mse(x, y)
+                    return po.loss.mse(x, y)
                 elif metric == "reference":
-                    return po.optim.l2_norm(x, y)
+                    return po.loss.l2_norm(x, y)
 
         if metric_behav == "name":
             expectation_str = (
@@ -419,7 +419,7 @@ class TestMAD:
                 mad = po.MADCompetition(
                     einstein_img,
                     new_metric,
-                    po.optim.l2_norm,
+                    po.loss.l2_norm,
                     "min",
                     metric_tradeoff_lambda=1,
                 )
@@ -441,7 +441,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
             penalty_lambda=0.1,
@@ -468,7 +468,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
             penalty_lambda=0.1,
@@ -485,7 +485,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -497,7 +497,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -529,7 +529,7 @@ class TestMAD:
         mad = po.MADCompetition(
             curie_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -574,7 +574,7 @@ class TestMAD:
         mad = po.MADCompetition(
             curie_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -779,7 +779,7 @@ class TestMAD:
         if not inspect.isfunction(metric):
             metric = metric()
         mad = po.MADCompetition(
-            curie_img, metric, po.optim.l2_norm, "min", metric_tradeoff_lambda=1
+            curie_img, metric, po.loss.l2_norm, "min", metric_tradeoff_lambda=1
         )
         mad.synthesize(max_iter=5)
         if to_type == "dtype":
@@ -801,7 +801,7 @@ class TestMAD:
         mad = po.MADCompetition(
             curie_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -810,7 +810,7 @@ class TestMAD:
         mad_copy = po.MADCompetition(
             curie_img.to("cpu"),
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -824,7 +824,7 @@ class TestMAD:
         mad = po.MADCompetition(
             curie_img,
             po.metric.mse,
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -849,7 +849,7 @@ class TestMAD:
         mad = po.MADCompetition(
             img,
             lambda *args: po.metric.mse(*args).mean(),
-            po.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -1101,7 +1101,7 @@ class TestMAD:
             po.MADCompetition(
                 img,
                 po.metric.mse,
-                po.optim.l2_norm,
+                po.loss.l2_norm,
                 "min",
                 metric_tradeoff_lambda=1,
             )
@@ -1150,7 +1150,7 @@ class TestMAD:
             metric = metric()
         for _ in range(5):
             mad = po.synth.MADCompetition(
-                img, metric, po.tools.optim.l2_norm, minmax, metric_tradeoff_lambda=1
+                img, metric, po.loss.l2_norm, minmax, metric_tradeoff_lambda=1
             )
             mad.setup(torch.rand(shape, device=DEVICE))
             loss = mad.objective_function()

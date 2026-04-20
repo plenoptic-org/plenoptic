@@ -636,7 +636,7 @@ class OptimizedSynthesis(Synthesis):
         r"""
         How good is the current synthesized object.
 
-        See ``plenoptic.optim`` for some examples.
+        See ``plenoptic.loss`` for some examples.
         """
         pass
 

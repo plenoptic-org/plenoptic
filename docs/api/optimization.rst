@@ -8,7 +8,7 @@ Optimization
 
 The following functions can be used as the ``loss_function`` argument for :class:`~plenoptic.Metamer` and :class:`~plenoptic.MetamerCTF`.
 
-.. currentmodule:: plenoptic.optim
+.. currentmodule:: plenoptic.loss
 .. autosummary::
    :signatures: none
    :toctree: generated

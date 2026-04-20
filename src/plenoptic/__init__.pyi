@@ -17,7 +17,7 @@ __all__ = [
     "convert_float_to_int",
     "external",
     "io",
-    "optim",
+    "loss",
     "regularization",
     "validate",
     "set_seed",
@@ -27,16 +27,16 @@ from . import (
     data,
     external,
     io,
+    loss,
     metric,
     model_components,
     models,
-    optim,
     plot,
     regularization,
     validate,
 )
 from ._synthesize import Eigendistortion, MADCompetition, Metamer, MetamerCTF
-from .optim import set_seed
+from .loss import set_seed
 from .tensors import convert_float_to_int, load_images, to_numpy
 from .validate import remove_grad
 from .version import __version__

@@ -156,7 +156,7 @@ def _groupwise_l2_norm_weights(
 
     This function returns a tensor that can be used to perform a groupwise reweighting
     of a model's representation. It is used by
-    :func:`~plenoptic.optim.groupwise_relative_l2_norm_factory` and similar
+    :func:`~plenoptic.loss.groupwise_relative_l2_norm_factory` and similar
     functions, which normalize model representations so that all statistics are roughly
     the same scale, which makes optimization easier.
 
@@ -320,10 +320,10 @@ def groupwise_relative_l2_norm_factory(
     >>> img = po.data.einstein()
     >>> img2 = torch.rand_like(img)
     >>> model = TestModel()
-    >>> loss = po.optim.groupwise_relative_l2_norm_factory(model, img)
+    >>> loss = po.loss.groupwise_relative_l2_norm_factory(model, img)
     >>> loss(model(img), model(img2))
     tensor(0.6512)
-    >>> po.optim.l2_norm(model(img), model(img2))
+    >>> po.loss.l2_norm(model(img), model(img2))
     tensor(78.5674)
 
     Use ``reweighting_dict`` to further tweak weighting.
@@ -350,14 +350,14 @@ def groupwise_relative_l2_norm_factory(
     >>> img2 = torch.rand_like(img)
     >>> model = TestModel()
     >>> reweighting_dict = {"channel_0": 0.5}
-    >>> loss = po.optim.groupwise_relative_l2_norm_factory(model, img, reweighting_dict)
+    >>> loss = po.loss.groupwise_relative_l2_norm_factory(model, img, reweighting_dict)
     >>> loss(model(img), model(img2))
     tensor(0.4822)
     >>> # channel_0 is of shape (1, 256, 256)
     >>> channel_0 = torch.ones_like(model.convert_to_dict(model(img))["channel_0"])
     >>> channel_0[..., 128:] = 0
     >>> reweighting_dict = {"channel_0": channel_0}
-    >>> loss = po.optim.groupwise_relative_l2_norm_factory(model, img, reweighting_dict)
+    >>> loss = po.loss.groupwise_relative_l2_norm_factory(model, img, reweighting_dict)
     >>> loss(model(img), model(img2))
     tensor(0.5612)
     """
@@ -442,10 +442,10 @@ def portilla_simoncelli_loss_factory(
     >>> img = po.data.einstein()
     >>> img2 = torch.rand_like(img)
     >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
-    >>> loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+    >>> loss = po.loss.portilla_simoncelli_loss_factory(model, img)
     >>> loss(model(img), model(img2))
     tensor(30.9390)
-    >>> po.optim.l2_norm(model(img), model(img2))
+    >>> po.loss.l2_norm(model(img), model(img2))
     tensor(30.5549)
 
     Use the loss function for metamer synthesis.
@@ -453,7 +453,7 @@ def portilla_simoncelli_loss_factory(
     >>> import plenoptic as po
     >>> img = po.data.einstein()
     >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
-    >>> loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+    >>> loss = po.loss.portilla_simoncelli_loss_factory(model, img)
     >>> met = po.Metamer(img, model, loss_function=loss)
 
     Use ``reweighting_dict`` to increase weight on image pixel moments, while keeping
@@ -470,7 +470,7 @@ def portilla_simoncelli_loss_factory(
     >>> pixel_stats = torch.as_tensor([10, 10, 10, 10, 0, 0])
     >>> pixel_stats = pixel_stats * torch.ones_like(rep["pixel_statistics"])
     >>> reweighting_dict = {"pixel_statistics": pixel_stats}
-    >>> loss = po.optim.portilla_simoncelli_loss_factory(model, img, reweighting_dict)
+    >>> loss = po.loss.portilla_simoncelli_loss_factory(model, img, reweighting_dict)
     >>> loss(model(img), model(img2))
     tensor(35.1118)
 
@@ -484,7 +484,7 @@ def portilla_simoncelli_loss_factory(
     >>> img2 = torch.rand_like(img)
     >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
     >>> reweighting_dict = {"pixel_statistics": 1, "magnitude_std": 100}
-    >>> loss = po.optim.portilla_simoncelli_loss_factory(model, img, reweighting_dict)
+    >>> loss = po.loss.portilla_simoncelli_loss_factory(model, img, reweighting_dict)
     >>> loss(model(img), model(img2))
     tensor(253.2572, dtype=torch.float64)
     """

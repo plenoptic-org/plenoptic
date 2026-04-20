@@ -344,7 +344,7 @@ class TestDoctest:
         print(np.random.get_state())
         img = po.data.reptile_skin().to(torch.float64).to(DEVICE)
         model = po.models.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
-        met = po.MetamerCTF(img, model, po.optim.l2_norm)
+        met = po.MetamerCTF(img, model, po.loss.l2_norm)
         # needed to initialize optimizer for following, see issue #404
         met.setup()
         init_state_dict = met.optimizer.state_dict()
@@ -352,7 +352,7 @@ class TestDoctest:
             150, change_scale_criterion=None, ctf_iters_to_check=7, store_progress=10
         )
         met.save("uploaded_files/example_metamerCTF_ps-cuda.pt")
-        met_up = po.MetamerCTF(img, model, po.optim.l2_norm)
+        met_up = po.MetamerCTF(img, model, po.loss.l2_norm)
         met_up.load(
             po.data.fetch_data("example_metamerCTF_ps-cuda.pt"),
             tensor_equality_atol=1e-7,
@@ -527,7 +527,7 @@ class TestTutorialNotebooks:
             n_scales = 3 if fig_name == "fig12b" else 4
             model = po.models.PortillaSimoncelli(img.shape[-2:], n_scales=n_scales)
             model.to(DEVICE)
-            loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+            loss = po.loss.portilla_simoncelli_loss_factory(model, img)
             met = po.Metamer(img, model, loss_function=loss)
             opt_kwargs = {
                 "max_iter": 10,
@@ -563,7 +563,7 @@ class TestTutorialNotebooks:
                 img.shape[-2:], remove_keys=["pixel_statistics"]
             )
             model.to(DEVICE).to(torch.float64)
-            loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+            loss = po.loss.portilla_simoncelli_loss_factory(model, img)
             met = po.Metamer(img, model, loss_function=loss)
             opt_kwargs = {
                 "max_iter": 10,
@@ -646,7 +646,7 @@ class TestTutorialNotebooks:
             else:
                 model = po.models.PortillaSimoncelli(img.shape[-2:])
             model.to(DEVICE2).to(torch.float64)
-            loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+            loss = po.loss.portilla_simoncelli_loss_factory(model, img)
             met = po.Metamer(img, model, loss_function=loss)
             opt_kwargs = {
                 "max_iter": 10,
@@ -687,7 +687,7 @@ class TestTutorialNotebooks:
             mask[..., ctr_dim[0] : 3 * ctr_dim[0], ctr_dim[1] : 3 * ctr_dim[1]] = True
             model = PortillaSimoncelliMask(img.shape[-2:], target=img, mask=mask)
             model.to(DEVICE2).to(torch.float64)
-            loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+            loss = po.loss.portilla_simoncelli_loss_factory(model, img)
             met = po.Metamer(img, model, loss_function=loss)
             opt_kwargs = {
                 "max_iter": 10,
@@ -742,7 +742,7 @@ class TestTutorialNotebooks:
             ).to(DEVICE2)
             model = po.models.PortillaSimoncelli(img.shape[-2:])
             model.to(DEVICE2).to(torch.float64)
-            loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+            loss = po.loss.portilla_simoncelli_loss_factory(model, img)
             met = po.Metamer(img, model, loss_function=loss)
             opt_kwargs = {
                 "max_iter": 10,
@@ -785,7 +785,7 @@ class TestTutorialNotebooks:
                     img.shape[-2:], spatial_corr_width=7
                 )
             model.to(DEVICE2).to(torch.float64)
-            loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+            loss = po.loss.portilla_simoncelli_loss_factory(model, img)
             met = po.Metamer(img, model, loss_function=loss)
             opt_kwargs = {
                 "max_iter": 10,

@@ -44,9 +44,9 @@ class TestMetamers:
         tmp_path,
     ):
         if loss_func == "mse":
-            loss = po.optim.mse
+            loss = po.loss.mse
         elif loss_func == "l2":
-            loss = po.optim.l2_norm
+            loss = po.loss.l2_norm
         elif loss_func == "custom":
             loss = custom_loss
         if penalty_function == "range":
@@ -78,7 +78,7 @@ class TestMetamers:
                     match=("Saved and initialized model output have different values"),
                 )
             elif fail == "loss":
-                loss = po.optim.relative_sse
+                loss = po.loss.relative_sse
                 expectation = pytest.raises(
                     ValueError,
                     match=(
@@ -390,11 +390,11 @@ class TestMetamers:
 
         def new_loss(x, y):
             if loss_behav == "dtype":
-                return po.optim.mse(x, y).to(torch.float64)
+                return po.loss.mse(x, y).to(torch.float64)
             elif loss_behav == "shape":
-                return torch.stack([po.optim.mse(x, y) for _ in range(2)]).unsqueeze(0)
+                return torch.stack([po.loss.mse(x, y) for _ in range(2)]).unsqueeze(0)
             elif loss_behav == "name":
-                return po.optim.mse(x, y)
+                return po.loss.mse(x, y)
 
         met = po.Metamer(einstein_img, model, loss_function=new_loss)
         if loss_behav == "name":

@@ -976,7 +976,7 @@ class TestOptim:
     def test_ps_loss_factory(self, n_scales, n_ori, einstein_img):
         model = po.models.PortillaSimoncelli(einstein_img.shape[-2:], n_scales, n_ori)
         model.to(DEVICE)
-        loss = po.optim.portilla_simoncelli_loss_factory(model, einstein_img)
+        loss = po.loss.portilla_simoncelli_loss_factory(model, einstein_img)
         assert loss(model(einstein_img), model(torch.rand_like(einstein_img))) > 0
         assert loss(model(einstein_img), model(einstein_img)) == 0
         model = po.models.PortillaSimoncelli(einstein_img.shape[-2:], 4, 5)
@@ -999,10 +999,10 @@ class TestOptim:
         model = po.models.PortillaSimoncelli(img.shape[-2:], n_scales, n_ori)
         model.to(DEVICE)
         reweighting_dict = {"pixel_statistics": 1, "var_highpass_residual": 1}
-        loss = po.optim.portilla_simoncelli_loss_factory(model, img, reweighting_dict)
+        loss = po.loss.portilla_simoncelli_loss_factory(model, img, reweighting_dict)
         comp = torch.rand_like(img)
         custom_val = loss(model(img), model(comp))
-        l2_val = po.optim.l2_norm(model(img), model(comp))
+        l2_val = po.loss.l2_norm(model(img), model(comp))
         assert custom_val == l2_val
 
     @pytest.mark.parametrize(
@@ -1014,7 +1014,7 @@ class TestOptim:
         img = torch.rand((1, 1, 256, 256), device=DEVICE)
         reweighting_dict = {"pixel_statistic": 1}
         with pytest.raises(ValueError, match="reweighting_dict contains key"):
-            po.optim.portilla_simoncelli_loss_factory(model, img, reweighting_dict)
+            po.loss.portilla_simoncelli_loss_factory(model, img, reweighting_dict)
 
     @pytest.mark.parametrize(
         "missing_key", ["pixel_statistics", "var_highpass_residual"]
@@ -1040,7 +1040,7 @@ class TestOptim:
         model.to(DEVICE)
         msg = f"{missing_key} not found in your model representation"
         with pytest.warns(UserWarning, match=msg):
-            po.optim.portilla_simoncelli_loss_factory(model, einstein_img)
+            po.loss.portilla_simoncelli_loss_factory(model, einstein_img)
 
     @pytest.mark.parametrize("how", ["fail", "rewt_dict"])
     @pytest.mark.parametrize("rep_key", ["pixel_statistics", "var_highpass_residual"])
@@ -1076,7 +1076,7 @@ class TestOptim:
         if how == "fail":
             msg = f"Expected model's '{rep_key}' representation "
             with pytest.raises(ValueError, match=msg):
-                po.optim.portilla_simoncelli_loss_factory(model, einstein_img)
+                po.loss.portilla_simoncelli_loss_factory(model, einstein_img)
         else:
             rep = model.convert_to_dict(model(einstein_img))
             if rep_key == "pixel_statistics":
@@ -1093,7 +1093,7 @@ class TestOptim:
                 )
                 var_high = var_high * torch.ones_like(rep["var_highpass_residual"])
                 reweighting_dict = {"var_highpass_residual": var_high}
-            po.optim.portilla_simoncelli_loss_factory(
+            po.loss.portilla_simoncelli_loss_factory(
                 model, einstein_img, reweighting_dict
             )
 
@@ -1102,7 +1102,7 @@ class TestOptim:
         po.set_seed(seed)
         img = torch.rand((1, 1, 256, 256), device=DEVICE)
         comp = torch.rand_like(img)
-        loss = po.optim.groupwise_relative_l2_norm_factory(test_model, img)
+        loss = po.loss.groupwise_relative_l2_norm_factory(test_model, img)
         norm_img = test_model(img).pow(2).sum((-2, -1), keepdim=True).sqrt()
         loss_val = loss(test_model(img), test_model(comp))
         manual_val = (test_model(img) / norm_img) - (test_model(comp) / norm_img)
@@ -1112,7 +1112,7 @@ class TestOptim:
 
     def test_groupwise_l2_factory_synth(self, test_model):
         img = torch.rand((1, 1, 32, 32), device=DEVICE)
-        loss = po.optim.groupwise_relative_l2_norm_factory(test_model, img)
+        loss = po.loss.groupwise_relative_l2_norm_factory(test_model, img)
         met = po.Metamer(img, test_model, loss)
         met.synthesize(5)
 
@@ -1120,7 +1120,7 @@ class TestOptim:
         img = torch.rand((1, 1, 32, 32), device=DEVICE)
         reweighting_dict = {"channel": 1}
         with pytest.raises(ValueError, match="reweighting_dict contains key"):
-            po.optim.groupwise_relative_l2_norm_factory(
+            po.loss.groupwise_relative_l2_norm_factory(
                 test_model, img, reweighting_dict
             )
 

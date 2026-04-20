@@ -199,7 +199,7 @@ img = img.to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.models.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
-loss = po.optim.portilla_simoncelli_loss_factory(model, img)
+loss = po.loss.portilla_simoncelli_loss_factory(model, img)
 # to avoid running so many syntheses in this notebook, we load a cached version. see the
 # following admonition for how to run this yourself
 met = po.Metamer(
@@ -213,7 +213,7 @@ met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVIC
 model_remove = PortillaSimoncelliRemove(
     img.shape[-2:], remove_keys=remove_statistics
 ).to(DEVICE)
-loss_remove = po.optim.portilla_simoncelli_loss_factory(model_remove, img)
+loss_remove = po.loss.portilla_simoncelli_loss_factory(model_remove, img)
 met_remove = po.Metamer(
     img,
     model_remove,
@@ -297,7 +297,7 @@ met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVIC
 model_remove = PortillaSimoncelliRemove(
     img.shape[-2:], remove_keys=remove_statistics
 ).to(DEVICE)
-loss_remove = po.optim.portilla_simoncelli_loss_factory(model_remove, img)
+loss_remove = po.loss.portilla_simoncelli_loss_factory(model_remove, img)
 met_remove = po.Metamer(
     img,
     model_remove,
@@ -396,7 +396,7 @@ met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVIC
 model_remove = PortillaSimoncelliRemove(
     img.shape[-2:], remove_keys=remove_statistics
 ).to(DEVICE)
-loss_remove = po.optim.portilla_simoncelli_loss_factory(model_remove, img)
+loss_remove = po.loss.portilla_simoncelli_loss_factory(model_remove, img)
 met_remove = po.Metamer(
     img,
     model_remove,
@@ -483,7 +483,7 @@ met.load(CACHE_DIR / f"ps_remove_{fig_name}_remove-False.pt", map_location=DEVIC
 model_remove = PortillaSimoncelliRemove(
     img.shape[-2:], remove_keys=remove_statistics
 ).to(DEVICE)
-loss_remove = po.optim.portilla_simoncelli_loss_factory(model_remove, img)
+loss_remove = po.loss.portilla_simoncelli_loss_factory(model_remove, img)
 met_remove = po.Metamer(
     img,
     model_remove,
