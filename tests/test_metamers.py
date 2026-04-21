@@ -1277,7 +1277,7 @@ class TestMetamers:
         po.remove_grad(model)
         model = model.to(DEVICE).to(einstein_img_double.dtype)
         met = po.Metamer(einstein_img_double, model)
-        txt1 = "The saved object was saved before penalty_function"
+        txt1 = "The saved object was saved after penalty_function"
         txt2 = "You will need to call setup"
         old_met = po.data.fetch_data("example_metamer_gaussian-old.pt")
         with (
