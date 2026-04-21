@@ -9,7 +9,11 @@ Plenoptic version 2.0 introduces a substantial change to the package API: every 
 
 A [](migration-script) is provided below which should hopefully simplify this migration. We also recommend reading through the [](plotting-func-changes) to see if any of the changes to plotting functions are applicable for your usage. Finally, a [](migration-table) can be found on this page which summarizes all changes.
 
-If you have any problems with this process, please open [a discussion](https://github.com/plenoptic-org/plenoptic/discussions) with the category "Plenoptic 2.0 Migration Help" in the title, and we'll help with this process!
+If you have any problems with this process, please open [a discussion](https://github.com/plenoptic-org/plenoptic/discussions/new?category=plenoptic-2-0-migration-help) with the category "Plenoptic 2.0 Migration Help", and we'll help with this process!
+
+:::{contents}
+:local:
+:::
 
 (plotting-func-changes)=
 ## Plotting function changes
