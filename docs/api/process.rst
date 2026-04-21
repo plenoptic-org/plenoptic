@@ -18,6 +18,8 @@ These functions are used by the :ref:`metrics-api`. While they are not compatibl
    ~ssim_map
    ~normalized_laplacian_pyramid
 
+.. _pyramids-api:
+
 .. rubric:: Image pyramids
    :heading-level: 3
 

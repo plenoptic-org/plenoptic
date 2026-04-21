@@ -1,6 +1,8 @@
-"""Canonical computations.
+"""Image-processing methods.
 
-These functions and classes may be useful when building models.
+These classes and functions all process images in some way, and thus may be helpful for
+constructing custom models or metrics. As is, they are not compatible with any of the
+synthesis methods.
 """
 
 import lazy_loader as lazy

@@ -343,7 +343,7 @@ api_order = [
     "metrics.rst",
     "top_level.rst",
     "display.rst",
-    "components.rst",
+    "process.rst",
     "images.rst",
     "validation.rst",
     "optimization.rst",

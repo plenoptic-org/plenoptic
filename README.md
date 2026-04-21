@@ -48,7 +48,7 @@ for more details).
 `plenoptic` is also built on top of
 [pyrtools](https://pyrtools.readthedocs.io/en/latest/). `pyrtools` includes
 `numpy` implementations of the [image
-pyramids](https://docs.plenoptic.org/docs/branch/main/api/components.html) found
+pyramids](https://docs.plenoptic.org/docs/branch/main/api/process.html) found
 in plenoptic, as well as other image-processing tools.
 
 See the [installation
