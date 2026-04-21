@@ -16,7 +16,7 @@ from typing import Any, Literal
 import numpy as np
 import torch
 
-from .. import regularization
+from .. import regularize
 from ..io import _parse_save_io_attr_name, examine_saved_synthesis
 from ..tensors import _check_tensor_equality
 
@@ -333,9 +333,7 @@ class Synthesis(abc.ABC):
                     # Defining `penalize_range` is necessary for compatibility between
                     # old and new objects, see discussion in
                     # https://github.com/plenoptic-org/plenoptic/pull/383#discussion_r2709817411
-                    return regularization.penalize_range(
-                        img, allowed_range=allowed_range
-                    )
+                    return regularize.penalize_range(img, allowed_range=allowed_range)
 
                 tmp_dict["penalty_function"] = (
                     _get_name(penalize_range),
@@ -609,7 +607,7 @@ class OptimizedSynthesis(Synthesis):
         self,
         penalty_function: Callable[
             [torch.Tensor], torch.Tensor
-        ] = regularization.penalize_range,
+        ] = regularize.penalize_range,
         penalty_lambda: float = 0.1,
     ):
         super().__init__()

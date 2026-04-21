@@ -964,12 +964,12 @@ class TestOptim:
     def test_penalize_range_above(self):
         img = 0.5 * torch.ones((1, 1, 4, 4))
         img[..., 0, :] = 2
-        assert po.regularization.penalize_range(img).item() == 4
+        assert po.regularize.penalize_range(img).item() == 4
 
     def test_penalize_range_below(self):
         img = 0.5 * torch.ones((1, 1, 4, 4))
         img[..., 0, :] = -1
-        assert po.regularization.penalize_range(img).item() == 4
+        assert po.regularize.penalize_range(img).item() == 4
 
     @pytest.mark.parametrize("n_scales", [2, 3, 4])
     @pytest.mark.parametrize("n_ori", [2, 3, 4])

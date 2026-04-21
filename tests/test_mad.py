@@ -24,11 +24,11 @@ def dis_ssim(*args):
 
 
 def custom_penalty(x1):
-    return po.regularization.penalize_range(x1, allowed_range=(0.2, 0.8))
+    return po.regularize.penalize_range(x1, allowed_range=(0.2, 0.8))
 
 
 def custom_penalty2(x1):
-    return po.regularization.penalize_range(x1, allowed_range=(0.3, 0.7))
+    return po.regularize.penalize_range(x1, allowed_range=(0.3, 0.7))
 
 
 class ModuleMetric(torch.nn.Module):
@@ -100,7 +100,7 @@ class TestMAD:
         target = "min"
         tradeoff = 1
         if penalty_function == "range":
-            penalty = po.regularization.penalize_range
+            penalty = po.regularize.penalize_range
         elif penalty_function == "custom":
             penalty = custom_penalty
         mad = po.MADCompetition(
@@ -436,7 +436,7 @@ class TestMAD:
     @pytest.mark.parametrize("penalty_behav", ["dtype", "shape", "name"])
     def test_load_penalty_change(self, einstein_img, penalty_behav, tmp_path):
         def base_penalty(x):
-            return po.regularization.penalize_range(x)
+            return po.regularize.penalize_range(x)
 
         mad = po.MADCompetition(
             einstein_img,
@@ -1111,7 +1111,7 @@ class TestMAD:
     def test_penalty_effect(self, einstein_img, penalty_function):
         """Higher penalty_lambda should yield smaller penalty values."""
         if penalty_function == "range":
-            penalty = po.regularization.penalize_range
+            penalty = po.regularize.penalize_range
         elif penalty_function == "custom":
             penalty = custom_penalty
         penalty_lambdas = [0.0, 0.5]

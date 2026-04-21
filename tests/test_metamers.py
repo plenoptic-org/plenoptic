@@ -15,11 +15,11 @@ def custom_loss(x1, x2):
 
 
 def custom_penalty(x1):
-    return po.regularization.penalize_range(x1, allowed_range=(0.2, 0.8))
+    return po.regularize.penalize_range(x1, allowed_range=(0.2, 0.8))
 
 
 def custom_penalty2(x1):
-    return po.regularization.penalize_range(x1, allowed_range=(0.3, 0.7))
+    return po.regularize.penalize_range(x1, allowed_range=(0.3, 0.7))
 
 
 class TestMetamers:
@@ -50,7 +50,7 @@ class TestMetamers:
         elif loss_func == "custom":
             loss = custom_loss
         if penalty_function == "range":
-            penalty = po.regularization.penalize_range
+            penalty = po.regularize.penalize_range
         elif penalty_function == "custom":
             penalty = custom_penalty
         met = po.Metamer(
@@ -1218,7 +1218,7 @@ class TestMetamers:
         """Stronger penalty_lambda should lead to lower value of penalty,
         if regularization is working properly."""
         if penalty_function == "range":
-            penalty = po.regularization.penalize_range
+            penalty = po.regularize.penalize_range
         elif penalty_function == "custom":
             penalty = custom_penalty
         penalty_lambdas = [0.0, 0.5]

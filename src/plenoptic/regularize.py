@@ -53,7 +53,7 @@ def penalize_range(
     >>> po.remove_grad(model)
     >>> # Make function penalizing values outside (0.2, 0.8)
     >>> def custom_range(x):
-    ...     penalty = po.regularization.penalize_range(x, allowed_range=(0.2, 0.8))
+    ...     penalty = po.regularize.penalize_range(x, allowed_range=(0.2, 0.8))
     ...     return penalty
     >>> met_default = po.Metamer(img, model)
     >>> met_custom = po.Metamer(img, model, penalty_function=custom_range)

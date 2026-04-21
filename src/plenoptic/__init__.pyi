@@ -18,7 +18,7 @@ __all__ = [
     "external",
     "io",
     "loss",
-    "regularization",
+    "regularize",
     "validate",
     "set_seed",
 ]
@@ -32,7 +32,7 @@ from . import (
     model_components,
     models,
     plot,
-    regularization,
+    regularize,
     validate,
 )
 from ._synthesize import Eigendistortion, MADCompetition, Metamer, MetamerCTF

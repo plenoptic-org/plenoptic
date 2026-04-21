@@ -523,7 +523,7 @@ def validate_penalty(
     Check that one of our built-in penalty functions work:
 
     >>> import plenoptic as po
-    >>> penalty_fun = po.regularization.penalize_range
+    >>> penalty_fun = po.regularize.penalize_range
     >>> po.validate.validate_penalty(penalty_fun)
 
     Intentionally fail:
