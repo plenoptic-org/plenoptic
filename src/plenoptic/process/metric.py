@@ -190,7 +190,8 @@ def ssim_map(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
     between -1 and 1.
 
     This function returns the SSIM map, showing the SSIM values across the
-    image. For the mean SSIM (a single value metric), call :func:`ssim`.
+    image. For the mean SSIM (a single value metric), call
+    :func:`~plenoptic.metric.ssim`.
 
     Parameters
     ----------
