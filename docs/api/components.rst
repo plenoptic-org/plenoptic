@@ -1,9 +1,9 @@
-.. _components-api:
+.. _processing-api:
 
-Model and metric components
----------------------------
+Image-processing methods
+------------------------
 
-These classes and functions may be helpful for constructing your own models or metrics. As is, they are not compatible with any of the synthesis methods.
+These classes and functions all process images in some way, and thus may be helpful for constructing your own models or metrics. As is, they are not compatible with any of the synthesis methods.
 
 .. rubric:: Metric components
    :heading-level: 3
