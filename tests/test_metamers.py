@@ -1139,9 +1139,9 @@ class TestMetamers:
         met = po.Metamer(einstein_img, model)
         met.save(tmp_path / "test_metamer_load_loss_change.pt")
         loaded = torch.load(tmp_path / "test_metamer_load_loss_change.pt")
-        loss_func = list(loaded["loss_function"])
+        loss_func = list(loaded["_loss_function"])
         loss_func[1] = ("_image", "_metamer")
-        loaded["loss_function"] = tuple(loss_func)
+        loaded["_loss_function"] = tuple(loss_func)
         torch.save(loaded, tmp_path / "test_metamer_load_loss_change.pt")
         met_copy = po.Metamer(einstein_img, model)
         with pytest.warns(
@@ -1150,7 +1150,7 @@ class TestMetamers:
             met_copy.load(tmp_path / "test_metamer_load_loss_change.pt")
 
     @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
-    @pytest.mark.parametrize("check_attr", ["_model", "loss_function"])
+    @pytest.mark.parametrize("check_attr", ["_model", "_loss_function"])
     def test_load_check_change(self, model, check_attr, einstein_img, tmp_path):
         # this is an error triggered in the situation that the futurewarning in
         # test_load_loss_change_warning is a specific version of: the saved and
@@ -1159,7 +1159,7 @@ class TestMetamers:
         met.save(tmp_path / "test_metamer_load_loss_change.pt")
         loaded = torch.load(tmp_path / "test_metamer_load_loss_change.pt")
         attr = list(loaded[check_attr])
-        if check_attr == "loss_function":
+        if check_attr == "_loss_function":
             attr[1] = ("something_else", "bad")
         elif check_attr == "_model":
             attr[1] = "something_else"
@@ -1273,7 +1273,7 @@ class TestMetamers:
     def test_penalties_old_compatability(self, einstein_img_double):
         # test behavior when loading metamer saved before _penalties added: should be
         # able to load (with warning) and call get_progress
-        model = po.simul.Gaussian(30).eval()
+        model = po.models.Gaussian(30).eval()
         po.remove_grad(model)
         model = model.to(DEVICE).to(einstein_img_double.dtype)
         met = po.synth.Metamer(einstein_img_double, model)

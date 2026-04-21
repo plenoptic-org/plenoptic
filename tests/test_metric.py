@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 import scipy.io as sio
 import torch
-from plenoptic.data.fetch import fetch_data
 
 import plenoptic as po
 from conftest import DEVICE
+from plenoptic.data import fetch_data
 
 
 @pytest.fixture()

@@ -590,8 +590,8 @@ class TestDisplay:
             po.plot.update_plot(fig.axes[0], einstein_img.squeeze())
 
     def test_synthesis_plot_shape_fail(self, einstein_img):
-        # Synthesis plot_synthesis_status and animate expect 3 or 4d data --
-        # this checks that plot_synthesis_status() and animate() both fail with
+        # Synthesis plot_synthesis_status and animshow expect 3 or 4d data --
+        # this checks that plot_synthesis_status() and animshow() both fail with
         # 2d data and raise the proper exception
         class TestModel(po.models.LinearNonlinear):
             def __init__(self):
@@ -675,7 +675,7 @@ def template_test_synthesis_all_plot(
         plot_func = po.plot.mad_synthesis_status
         str_rep = "mad"
     if synth_image:
-        included_plots.append(f"{str_rep}_image")
+        included_plots.append(f"{str_rep}_imshow")
     if loss:
         included_plots.append(f"{str_rep}_loss")
     if representation_error:
@@ -690,7 +690,7 @@ def template_test_synthesis_all_plot(
             if loss:
                 width_ratios[f"{str_rep}_loss"] = 2
             elif synth_image:
-                width_ratios[f"{str_rep}_image"] = 2
+                width_ratios[f"{str_rep}_imshow"] = 2
     elif fig_creation.startswith("pass"):
         fig, axes, axes_idx = setup_func(None, {}, None, included_plots=included_plots)
         if fig_creation.endswith("without"):
@@ -730,7 +730,7 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
         axes_idx = {"mad_imshow": 0}
     included_plots.extend([f"{str_rep}_loss", f"{str_rep}_pixel_values"])
     if fig_creation.endswith("extra"):
-        included_plots.append(f"{str_rep}_image")
+        included_plots.append(f"{str_rep}_imshow")
     fig, axes = plt.subplots(3, 3, figsize=(35, 17))
     if "-" in fig_creation:
         axes_idx["misc"] = [1, 4]

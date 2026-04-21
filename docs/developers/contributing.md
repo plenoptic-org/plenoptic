@@ -514,7 +514,7 @@ compares it against a cached version stored in our OSF project. See
     they should contain `lint_ignore` somewhere on the line, **not in a
     comment** (e.g., `this_variable_lint_ignore = 100` but not `this_variable =
     100 # lint_ignore`).
-- `src/plenoptic/data/fetch.py` needs the hash and the URL slug of each new
+- `src/plenoptic/data/_fetch.py` needs the hash and the URL slug of each new
   file, so make sure to update them. The hash can be computed by calling
   `openssl sha256 path/to/file` on the command line.
 
