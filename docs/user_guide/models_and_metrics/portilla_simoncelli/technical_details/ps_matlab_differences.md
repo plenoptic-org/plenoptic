@@ -320,9 +320,9 @@ Now, let's initialize our models and images for synthesis:
 ```{code-cell} ipython3
 img = po.load_images(IMG_PATH / "fig4a.jpg").to(DEVICE).to(torch.float64)
 model = po.models.PortillaSimoncelli(img.shape[-2:], spatial_corr_width=7).to(DEVICE)
-loss = po.tools.portilla_simoncelli_loss_factory(model, img)
+loss = po.loss.portilla_simoncelli_loss_factory(model, img)
 model_mag_means = PortillaSimoncelliMagMeans(img.shape[-2:]).to(DEVICE)
-loss_mag_means = po.tools.portilla_simoncelli_loss_factory(model_mag_means, img)
+loss_mag_means = po.loss.portilla_simoncelli_loss_factory(model_mag_means, img)
 ```
 
 And run the synthesis with the regular model, which does not include the mean of the steerable pyramid magnitudes, and then the augmented model, which does.

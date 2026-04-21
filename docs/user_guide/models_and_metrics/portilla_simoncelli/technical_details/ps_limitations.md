@@ -93,7 +93,7 @@ img = po.data.einstein().to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.models.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
-loss = po.tools.portilla_simoncelli_loss_factory(model, img)
+loss = po.loss.portilla_simoncelli_loss_factory(model, img)
 # to avoid running so many syntheses in this notebook, we load a cached version. see the
 # following admonition for how to run this yourself
 met = po.Metamer(

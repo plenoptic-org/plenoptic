@@ -905,7 +905,7 @@ class TestMAD:
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
     def test_mad_loss_penalty_length(self, einstein_img, optim):
-        po.tools.set_seed(0)
+        po.set_seed(0)
         mad = po.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
@@ -1141,7 +1141,7 @@ class TestMAD:
     def test_closure(self, seed, metric, minmax):
         # closure and objective_function separately compute the same thing, so test that
         # they're identical.
-        po.tools.set_seed(seed)
+        po.set_seed(seed)
         shape = (1, 1, 100, 100)
         img = torch.rand(shape, device=DEVICE)
         # if metric is not the po.metric.mse function above, initialize it here,

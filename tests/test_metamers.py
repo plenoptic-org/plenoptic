@@ -717,7 +717,7 @@ class TestMetamers:
     )
     @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
     def test_metamer_loss_penalty_length(self, einstein_img, model, optim):
-        po.tools.set_seed(0)
+        po.set_seed(0)
         if hasattr(model, "scales"):
             met = po.MetamerCTF(einstein_img, model)
         else:
@@ -1247,7 +1247,7 @@ class TestMetamers:
     def test_closure(self, seed, model, optim):
         # closure and objective_function separately compute the same thing, so test that
         # they're identical.
-        po.tools.set_seed(seed)
+        po.set_seed(seed)
         shape = (1, 1, 100, 100)
         img = torch.rand(shape, device=DEVICE)
         for _ in range(5):
@@ -1261,7 +1261,7 @@ class TestMetamers:
     def test_closure_ctf(self, seed, model):
         # closure and objective_function separately compute the same thing, so test that
         # they're identical.
-        po.tools.set_seed(seed)
+        po.set_seed(seed)
         shape = (1, 1, 256, 256)
         img = torch.rand(shape, device=DEVICE)
         for _ in range(3):
@@ -1274,7 +1274,7 @@ class TestMetamers:
         # test behavior when loading metamer saved before _penalties added: should be
         # able to load (with warning) and call get_progress
         model = po.simul.Gaussian(30).eval()
-        po.tools.remove_grad(model)
+        po.remove_grad(model)
         model = model.to(DEVICE).to(einstein_img_double.dtype)
         met = po.synth.Metamer(einstein_img_double, model)
         txt1 = "The saved object was saved before penalty_function"

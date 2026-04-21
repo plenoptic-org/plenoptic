@@ -61,7 +61,7 @@ def l1_norm(x, y):
     return torch.linalg.vector_norm(x - y, ord=1)
 
 
-metrics = [po.tools.l2_norm, l1_norm]
+metrics = [po.loss.l2_norm, l1_norm]
 all_mad = {}
 
 # this gets us all four possibilities
@@ -240,7 +240,7 @@ def l1_norm(x, y):
     return torch.linalg.vector_norm(x - y, ord=1)
 
 
-metrics = [po.tools.l2_norm, l1_norm]
+metrics = [po.loss.l2_norm, l1_norm]
 tradeoffs = {
     "l2_norm_max": 1e-4,
     "l2_norm_min": 1e-4,

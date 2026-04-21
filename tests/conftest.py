@@ -135,7 +135,7 @@ def get_model(name):
         return model
     elif name == "naive.CenterSurround.nograd":
         model = po.simul.CenterSurround((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "naive.Gaussian":
@@ -145,7 +145,7 @@ def get_model(name):
     elif name == "naive.Gaussian.nograd":
         model = po.simul.Gaussian((31, 31)).to(DEVICE)
         model.eval()
-        po.tools.remove_grad(model)
+        po.remove_grad(model)
         return model
     elif name == "naive.Linear":
         model = po.models.Linear((31, 31)).to(DEVICE)
@@ -153,7 +153,7 @@ def get_model(name):
         return model
     elif name == "naive.Linear.nograd":
         model = po.simul.Linear((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        po.remove_grad(model)
         model.eval()
         return model
 
@@ -173,7 +173,7 @@ def get_model(name):
         return model
     elif name == "frontend.LuminanceGainControl.nograd":
         model = po.simul.LuminanceGainControl((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "frontend.LuminanceContrastGainControl":
@@ -182,7 +182,7 @@ def get_model(name):
         return model
     elif name == "frontend.LuminanceContrastGainControl.nograd":
         model = po.simul.LuminanceContrastGainControl((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "frontend.OnOff":
