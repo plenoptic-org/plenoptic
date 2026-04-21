@@ -471,7 +471,7 @@ class TestDisplay:
             plot_complex = "rectangular"
         else:
             is_complex = True
-        steerpyr = po.model_components.SteerablePyramidFreq(
+        steerpyr = po.process.SteerablePyramidFreq(
             (32, 32), height=2, order=1, is_complex=is_complex
         ).to(DEVICE)
         expectation = does_not_raise()
@@ -983,7 +983,7 @@ class TestMetamerDisplay:
         #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
         #  we'd have the residuals and one filter output for each channel,
         #  and our code doesn't know how to handle that)
-        class SPyr(po.model_components.SteerablePyramidFreq):
+        class SPyr(po.process.SteerablePyramidFreq):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
@@ -1012,7 +1012,7 @@ class TestMetamerDisplay:
         #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
         #  we'd have the residuals and one filter output for each channel,
         #  and our code doesn't know how to handle that)
-        class SPyr(po.model_components.SteerablePyramidFreq):
+        class SPyr(po.process.SteerablePyramidFreq):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
@@ -1044,7 +1044,7 @@ class TestMetamerDisplay:
         #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
         #  we'd have the residuals and one filter output for each channel,
         #  and our code doesn't know how to handle that)
-        class SPyr(po.model_components.SteerablePyramidFreq):
+        class SPyr(po.process.SteerablePyramidFreq):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 

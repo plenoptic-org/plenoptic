@@ -76,7 +76,7 @@ fig = po.plot.imshow(rgb, as_rgb=True);
  This is because we don't want to assume that a tensor with 3 or 4 channels is always RGB. To pick a somewhat-contrived example, imagine the following steerable pyramid:
 
 ```{code-cell} ipython3
-pyr = po.model_components.SteerablePyramidFreq(
+pyr = po.process.SteerablePyramidFreq(
     img.shape[-2:], downsample=False, height=1, order=2
 )
 ```
@@ -105,7 +105,7 @@ po.plot.imshow(coeffs[:, 1:-1], channel_idx=0);
 {func}`~plenoptic.plot.animshow` works analogously to {func}`~plenoptic.plot.imshow`, but expecting a 5d tensor: `(batch, channel, time, height, width)`. It returns a `matplotlib.animation.FuncAnimation` object, which can be saved as an mp4 or converted to an html object for display in a Jupyter notebook (because of the matplotlib configuration options set in the first cell of this notebook, and others in our documentation that make use of them, this happens automatically).
 
 ```{code-cell} ipython3
-pyr = po.model_components.SteerablePyramidFreq(
+pyr = po.process.SteerablePyramidFreq(
     img.shape[-2:],
     downsample=False,
     height="auto",

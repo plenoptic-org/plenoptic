@@ -14,7 +14,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from ..model_components import LaplacianPyramid, circular_gaussian2d, same_padding
+from ..process import LaplacianPyramid, circular_gaussian2d, same_padding
 
 DIRNAME = resources.files("plenoptic.metric")
 

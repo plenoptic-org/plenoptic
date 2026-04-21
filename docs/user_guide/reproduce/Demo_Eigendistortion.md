@@ -65,9 +65,7 @@ Let's load the parrot image used in the paper and display it:
 ```{code-cell} ipython3
 # crop the image to be square:
 image_tensor = po.data.parrot().to(DEVICE).to(torch.float64)
-image_tensor = po.model_components.center_crop(
-    image_tensor, min(image_tensor.shape[-2:])
-)
+image_tensor = po.process.center_crop(image_tensor, min(image_tensor.shape[-2:]))
 
 print("Torch image shape:", image_tensor.shape)
 

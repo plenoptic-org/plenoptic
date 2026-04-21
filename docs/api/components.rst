@@ -25,7 +25,7 @@ Image pyramids decompose images into bands corresponding to different spatial fr
 
 See :external+pyrtools:std:doc:`index` for more information, including links to resources for learning more.
 
-.. currentmodule:: plenoptic.model_components
+.. currentmodule:: plenoptic.process
 .. autosummary::
    :signatures: none
    :toctree: generated

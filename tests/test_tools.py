@@ -160,18 +160,18 @@ class TestData:
 class TestSignal:
     def test_polar_amplitude_zero(self):
         a = torch.rand(10, device=DEVICE) * -1
-        b = po.model_components.rescale(torch.randn(10, device=DEVICE), -pi / 2, pi / 2)
+        b = po.process.rescale(torch.randn(10, device=DEVICE), -pi / 2, pi / 2)
 
         with pytest.raises(ValueError) as _:
-            _, _ = po.model_components.polar_to_rectangular(a, b)
+            _, _ = po.process.polar_to_rectangular(a, b)
 
     def test_coordinate_identity_transform_rectangular(self):
         dims = (10, 5, 256, 256)
         x = torch.randn(dims, device=DEVICE)
         y = torch.randn(dims, device=DEVICE)
 
-        z = po.model_components.polar_to_rectangular(
-            *po.model_components.rectangular_to_polar(torch.complex(x, y))
+        z = po.process.polar_to_rectangular(
+            *po.process.rectangular_to_polar(torch.complex(x, y))
         )
 
         assert torch.linalg.vector_norm((x - z.real).flatten(), ord=2) < 1e-3
@@ -183,13 +183,9 @@ class TestSignal:
         # ensure vec len a is non-zero by adding .1 and then re-normalizing
         a = torch.rand(dims, device=DEVICE) + 0.1
         a = a / a.max()
-        b = po.model_components.rescale(
-            torch.randn(dims, device=DEVICE), -pi / 2, pi / 2
-        )
+        b = po.process.rescale(torch.randn(dims, device=DEVICE), -pi / 2, pi / 2)
 
-        A, B = po.model_components.rectangular_to_polar(
-            po.model_components.polar_to_rectangular(a, b)
-        )
+        A, B = po.process.rectangular_to_polar(po.process.polar_to_rectangular(a, b))
 
         assert torch.linalg.vector_norm((a - A).flatten(), ord=2) < 1e-3
         assert torch.linalg.vector_norm((b - B).flatten(), ord=2) < 1e-3
@@ -221,14 +217,14 @@ class TestSignal:
     )
     def test_center_crop(self, einstein_img, size, expectation):
         with expectation:
-            po.model_components.center_crop(einstein_img, size)
+            po.process.center_crop(einstein_img, size)
 
     @pytest.mark.parametrize("n", range(1, 15))
     def test_autocorrelation(self, n, basic_stim):
         x = basic_stim
         x_centered = x - x.mean((2, 3), keepdim=True)
-        a = po.model_components.autocorrelation(x_centered)
-        a = po.model_components.center_crop(a, n)
+        a = po.process.autocorrelation(x_centered)
+        a = po.process.center_crop(a, n)
 
         # autocorr with zero delay is variance
         assert (
@@ -264,9 +260,9 @@ class TestSignal:
         B = size_B * [4]
         if size_A != size_B and size_A != 1 and size_B != 1:
             with pytest.raises(Exception):
-                po.model_components.add_noise(A, B)
+                po.process.add_noise(A, B)
         else:
-            assert po.model_components.add_noise(A, B).shape[0] == max(size_A, size_B)
+            assert po.process.add_noise(A, B).shape[0] == max(size_A, size_B)
 
     @pytest.mark.parametrize("factor", [0.5, 1, 1.5, 2, 1.1])
     @pytest.mark.parametrize("img_size", [256, 128, 200])
@@ -287,7 +283,7 @@ class TestSignal:
         else:
             expectation = does_not_raise()
         with expectation:
-            expanded = po.model_components.expand(einstein_img, factor)
+            expanded = po.process.expand(einstein_img, factor)
             np.testing.assert_equal(
                 expanded.shape[-2:],
                 [factor * s for s in einstein_img.shape[-2:]],
@@ -312,7 +308,7 @@ class TestSignal:
         else:
             expectation = does_not_raise()
         with expectation:
-            shrunk = po.model_components.shrink(einstein_img, factor)
+            shrunk = po.process.shrink(einstein_img, factor)
             np.testing.assert_equal(
                 shrunk.shape[-2:],
                 [s / factor for s in einstein_img.shape[-2:]],
@@ -320,17 +316,13 @@ class TestSignal:
 
     @pytest.mark.parametrize("batch_channel", [[1, 3], [2, 1], [2, 3]])
     def test_shrink_batch_channel(self, batch_channel, einstein_img):
-        shrunk = po.model_components.shrink(
-            einstein_img.repeat((*batch_channel, 1, 1)), 2
-        )
+        shrunk = po.process.shrink(einstein_img.repeat((*batch_channel, 1, 1)), 2)
         size = batch_channel + [s / 2 for s in einstein_img.shape[-2:]]
         np.testing.assert_equal(shrunk.shape, size)
 
     @pytest.mark.parametrize("batch_channel", [[1, 3], [2, 1], [2, 3]])
     def test_expand_batch_channel(self, batch_channel, einstein_img):
-        expanded = po.model_components.expand(
-            einstein_img.repeat((*batch_channel, 1, 1)), 2
-        )
+        expanded = po.process.expand(einstein_img.repeat((*batch_channel, 1, 1)), 2)
         size = batch_channel + [2 * s for s in einstein_img.shape[-2:]]
         np.testing.assert_equal(expanded.shape, size)
 
@@ -340,9 +332,7 @@ class TestSignal:
         # expand then shrink will be the same as the original image, up to this
         # fudge factor
         img = po.load_images(IMG_DIR / "256" / f"{img}.pgm").to(DEVICE)
-        modified = po.model_components.shrink(
-            po.model_components.expand(img, factor), factor
-        )
+        modified = po.process.shrink(po.process.expand(img, factor), factor)
         torch.testing.assert_close(img, modified, atol=2e-2, rtol=1e-6)
 
     @pytest.mark.parametrize("phase", [0, np.pi / 2, np.pi])
@@ -358,12 +348,12 @@ class TestSignal:
         X = X.unsqueeze(0).unsqueeze(0)
         X = torch.sin(8 * X) + torch.sin(16 * X + phase)
 
-        pyr = po.model_components.SteerablePyramidFreq(X.shape[-2:], is_complex=True)
+        pyr = po.process.SteerablePyramidFreq(X.shape[-2:], is_complex=True)
         pyr_coeffs = pyr(X)
         a = pyr_coeffs[3][:, :, 2]
         b = pyr_coeffs[2][:, :, 2]
-        a = po.model_components.expand(a, 2) / 4
-        a = po.model_components.modulate_phase(a, 2)
+        a = po.process.expand(a, 2) / 4
+        a = po.process.modulate_phase(a, 2)
 
         # this is the correlation as computed in the PS texture model, which is
         # where modulate phase is used
@@ -379,7 +369,7 @@ class TestSignal:
         X = X.unsqueeze(0).unsqueeze(0)
 
         with pytest.raises(TypeError, match="x must be a complex-valued tensor"):
-            po.model_components.modulate_phase(X)
+            po.process.modulate_phase(X)
 
     @pytest.mark.parametrize("batch_channel", [(1, 3), (2, 1), (2, 3)])
     def test_modulate_phase_batch_channel(self, batch_channel):
@@ -387,11 +377,11 @@ class TestSignal:
         X = X.unsqueeze(0).unsqueeze(0).repeat((*batch_channel, 1, 1))
         X = torch.sin(8 * X) + torch.sin(16 * X)
 
-        pyr = po.model_components.SteerablePyramidFreq(X.shape[-2:], is_complex=True)
+        pyr = po.process.SteerablePyramidFreq(X.shape[-2:], is_complex=True)
         pyr_coeffs = pyr(X)
         a = pyr_coeffs[3][:, :, 2]
-        a = po.model_components.expand(a, 2) / 4
-        a = po.model_components.modulate_phase(a, 2)
+        a = po.process.expand(a, 2) / 4
+        a = po.process.modulate_phase(a, 2)
 
         # shape should be preferred
         np.testing.assert_equal(a.shape[:2], batch_channel)
@@ -409,43 +399,43 @@ class TestStats:
         B, D = 32, 512
         x = torch.randn(B, D)
         m = torch.mean(x, dim=1, keepdim=True)
-        v = po.model_components.variance(x, mean=m, dim=1, keepdim=True)
+        v = po.process.variance(x, mean=m, dim=1, keepdim=True)
         assert (
             torch.abs(v - torch.var(x, dim=1, keepdim=True, unbiased=False)) < 1e-5
         ).all()
-        po.model_components.skew(x, mean=m, var=v, dim=1)
-        k = po.model_components.kurtosis(x, mean=m, var=v, dim=1)
+        po.process.skew(x, mean=m, var=v, dim=1)
+        k = po.process.kurtosis(x, mean=m, var=v, dim=1)
         assert torch.abs(k.mean() - 3) < 1e-1
 
-        k = po.model_components.kurtosis(torch.rand(B, D), dim=1)
+        k = po.process.kurtosis(torch.rand(B, D), dim=1)
         assert k.mean() < 3
 
         scale = 2
         exp_samples1 = -scale * torch.log(torch.rand(B, D))
         exp_samples2 = -scale * torch.log(torch.rand(B, D))
         lap_samples = exp_samples1 - exp_samples2
-        k = po.model_components.kurtosis(lap_samples, dim=1)
+        k = po.process.kurtosis(lap_samples, dim=1)
         assert k.mean() > 3
 
     @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
     def test_var_multidim(self, batch_channel):
         B, D = 32, 512
         x = torch.randn(*batch_channel, B, D)
-        var = po.model_components.variance(x, dim=(-1, -2))
+        var = po.process.variance(x, dim=(-1, -2))
         np.testing.assert_equal(var.shape, batch_channel)
 
     @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
     def test_skew_multidim(self, batch_channel):
         B, D = 32, 512
         x = torch.randn(*batch_channel, B, D)
-        skew = po.model_components.skew(x, dim=(-1, -2))
+        skew = po.process.skew(x, dim=(-1, -2))
         np.testing.assert_equal(skew.shape, batch_channel)
 
     @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
     def test_kurt_multidim(self, batch_channel):
         B, D = 32, 512
         x = torch.randn(*batch_channel, B, D)
-        kurt = po.model_components.kurtosis(x, dim=(-1, -2))
+        kurt = po.process.kurtosis(x, dim=(-1, -2))
         np.testing.assert_equal(kurt.shape, batch_channel)
 
 
@@ -461,10 +451,8 @@ class TestDownsampleUpsample:
         filt[5, 5] = 1
         filt = scipy.ndimage.gaussian_filter(filt, sigma=1)
         filt = torch.as_tensor(filt, dtype=dtype, device=DEVICE)
-        img_down = po.model_components.correlate_downsample(img, filt=filt)
-        img_up = po.model_components.upsample_convolve(
-            img_down, odd=(odd, 1), filt=filt
-        )
+        img_down = po.process.correlate_downsample(img, filt=filt)
+        img_up = po.process.upsample_convolve(img_down, odd=(odd, 1), filt=filt)
         assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (
             0,
             0,
@@ -472,10 +460,8 @@ class TestDownsampleUpsample:
             24,
         )
 
-        img_down = po.model_components.blur_downsample(img, n_scales=n_scales)
-        img_up = po.model_components.upsample_blur(
-            img_down, odd=(odd, 1), n_scales=n_scales
-        )
+        img_down = po.process.blur_downsample(img, n_scales=n_scales)
+        img_up = po.process.upsample_blur(img_down, odd=(odd, 1), n_scales=n_scales)
         assert np.unravel_index(img_up.cpu().numpy().argmax(), img_up.shape) == (
             0,
             0,
@@ -491,7 +477,7 @@ class TestDownsampleUpsample:
         else:
             expectation = does_not_raise()
         with expectation:
-            us_img = po.model_components.upsample_blur(
+            us_img = po.process.upsample_blur(
                 einstein_img, (0, 0), n_scales, scale_filter=scale_filter
             )
             us_mn = us_img.mean()
@@ -518,7 +504,7 @@ class TestDownsampleUpsample:
         else:
             expectation = does_not_raise()
         with expectation:
-            ds_img = po.model_components.blur_downsample(
+            ds_img = po.process.blur_downsample(
                 einstein_img, n_scales, scale_filter=scale_filter
             )
             ds_mn = ds_img.mean()
@@ -542,12 +528,12 @@ class TestDownsampleUpsample:
     def test_multichannel(self):
         img = torch.randn([10, 3, 24, 25], device=DEVICE, dtype=torch.float32)
         filt = torch.randn([5, 5], device=DEVICE, dtype=torch.float32)
-        img_down = po.model_components.correlate_downsample(img, filt=filt)
-        img_up = po.model_components.upsample_convolve(img_down, odd=(0, 1), filt=filt)
+        img_down = po.process.correlate_downsample(img, filt=filt)
+        img_up = po.process.upsample_convolve(img_down, odd=(0, 1), filt=filt)
         assert img_up.shape == img.shape
 
-        img_down = po.model_components.blur_downsample(img)
-        img_up = po.model_components.upsample_blur(img_down, odd=(0, 1))
+        img_down = po.process.blur_downsample(img)
+        img_up = po.process.upsample_blur(img_down, odd=(0, 1))
         assert img_up.shape == img.shape
 
 

@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 import scipy.io as sio
 import torch
+from plenoptic.data.fetch import fetch_data
 
 import plenoptic as po
 from conftest import DEVICE
-from plenoptic.data.fetch import fetch_data
 
 
 @pytest.fixture()
@@ -97,7 +97,7 @@ class TestPerceptualMetrics:
             noise_lvl = 1
         elif mode == "one-to-many":
             noise_lvl = [1, 1]
-        noisy = po.model_components.add_noise(einstein_img, noise_lvl)
+        noisy = po.process.add_noise(einstein_img, noise_lvl)
         assert not torch.equal(*noisy)
 
     @pytest.mark.parametrize("noise_lvl", [[1], [128], [2, 4], [2, 4, 8], [0]])
@@ -107,7 +107,7 @@ class TestPerceptualMetrics:
             noise_lvl = torch.as_tensor(
                 noise_lvl, dtype=torch.float32, device=DEVICE
             ).unsqueeze(1)
-        noisy = po.model_components.add_noise(einstein_img, noise_lvl).to(DEVICE)
+        noisy = po.process.add_noise(einstein_img, noise_lvl).to(DEVICE)
         if not noise_as_tensor:
             # always needs to be a tensor to properly check with allclose
             noise_lvl = torch.as_tensor(

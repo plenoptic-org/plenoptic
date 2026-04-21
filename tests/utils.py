@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyrtools as pt
 import torch
+from plenoptic.data.fetch import fetch_data
 
 import plenoptic as po
-from plenoptic.data.fetch import fetch_data
 from test_models import TestPortillaSimoncelli
 
 

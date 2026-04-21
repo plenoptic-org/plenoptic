@@ -69,15 +69,13 @@ class SimpleModel(torch.nn.Module):
         self.conv = torch.nn.Conv2d(
             1, 1, kernel_size=kernel_size, padding=(0, 0), bias=False
         )
-        self.conv.weight.data[0, 0] = po.model_components.circular_gaussian2d(
-            kernel_size, 3.0
-        )
+        self.conv.weight.data[0, 0] = po.process.circular_gaussian2d(kernel_size, 3.0)
 
     # the forward pass of the model defines how to get from an image to the model's
     # representation
     def forward(self, x):
         # use circular padding so our output is the same size as our input
-        x = po.model_components.same_padding(x, self.kernel_size, pad_mode="circular")
+        x = po.process.same_padding(x, self.kernel_size, pad_mode="circular")
         return self.conv(x)
 
 

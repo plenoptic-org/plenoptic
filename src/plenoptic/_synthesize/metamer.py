@@ -18,7 +18,7 @@ from tqdm.auto import tqdm
 
 from .. import loss, regularize
 from ..convergence import _coarse_to_fine_enough, _loss_convergence
-from ..model_components import signal
+from ..process import signal
 from ..validate import validate_coarse_to_fine, validate_input, validate_model
 from .synthesis import OptimizedSynthesis
 

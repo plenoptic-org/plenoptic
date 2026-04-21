@@ -564,7 +564,7 @@ def pyrshow(
     pyr_coeffs
         Pyramid coefficients in the standard dictionary format as returned by the
         steerable pyramid's
-        :func:`~plenoptic.model_components.SteerablePyramidFreq.forward`
+        :func:`~plenoptic.process.SteerablePyramidFreq.forward`
         method.
     vrange
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to

@@ -44,9 +44,9 @@ def rescale(x: Tensor, a: float = 0.0, b: float = 1.0) -> Tensor:
     >>> import plenoptic as po
     >>> import torch
     >>> x = torch.tensor([2.0, 4.0, 6.0, 8.0])
-    >>> po.model_components.rescale(x)
+    >>> po.process.rescale(x)
     tensor([0.0000, 0.3333, 0.6667, 1.0000])
-    >>> po.model_components.rescale(x, a=-1, b=1)
+    >>> po.process.rescale(x, a=-1, b=1)
     tensor([-1.0000, -0.3333, 0.3333, 1.0000])
     """  # numpydoc ignore=ES01
     v = x.max() - x.min()
@@ -152,11 +152,11 @@ def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
 
     See Also
     --------
-    :func:`~plenoptic.model_components.rectangular_to_polar_dict`
+    :func:`~plenoptic.process.rectangular_to_polar_dict`
         Same operation on dictionaries.
     polar_to_rectangular
         The inverse operation.
-    :func:`~plenoptic.model_components.local_gain_control`
+    :func:`~plenoptic.process.local_gain_control`
         The analogous function for real-valued signals.
 
     Examples
@@ -167,7 +167,7 @@ def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
       >>> import plenoptic as po
       >>> import torch
       >>> x = torch.tensor([1 + 1j, 1 - 1j])
-      >>> amplitude, phase = po.model_components.rectangular_to_polar(x)
+      >>> amplitude, phase = po.process.rectangular_to_polar(x)
       >>> amplitude
       tensor([1.4142, 1.4142])
       >>> phase
@@ -183,20 +183,18 @@ def rectangular_to_polar(x: Tensor) -> tuple[Tensor, Tensor]:
       >>> img = po.data.einstein()
       >>> img.shape
       torch.Size([1, 1, 256, 256])
-      >>> spyr = po.model_components.SteerablePyramidFreq(
-      ...     img.shape[-2:], is_complex=True
-      ... )
+      >>> spyr = po.process.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
       >>> # let's only look at 1 scale and 1 orientation
       >>> coeff = spyr(img)[0][:, :, 0]
       >>> # the coefficients returned by spyr (forward) are in rectangular coordinates
       >>> # so we can now use this function to get the polar coordinates
-      >>> amplitude, phase = po.model_components.rectangular_to_polar(coeff)
+      >>> amplitude, phase = po.process.rectangular_to_polar(coeff)
       >>> amplitude.shape
       torch.Size([1, 1, 256, 256])
       >>> phase.shape
       torch.Size([1, 1, 256, 256])
       >>> # we can then invert the operation to verify that we get back the original
-      >>> rectangular_coeff = po.model_components.polar_to_rectangular(amplitude, phase)
+      >>> rectangular_coeff = po.process.polar_to_rectangular(amplitude, phase)
       >>> torch.allclose(coeff, rectangular_coeff)
       True
       >>> po.plot.imshow([amplitude, phase], title=["amplitude", "phase"])
@@ -230,11 +228,11 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
 
     See Also
     --------
-    :func:`~plenoptic.model_components.polar_to_rectangular_dict`
+    :func:`~plenoptic.process.polar_to_rectangular_dict`
         Same operation on dictionaries.
     rectangular_to_polar
         The inverse operation.
-    :func:`~plenoptic.model_components.local_gain_release`
+    :func:`~plenoptic.process.local_gain_release`
         The analogous function for real-valued signals.
 
     Examples
@@ -243,7 +241,7 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
     >>> import torch
     >>> amplitude = torch.tensor([1.4142, 1.4142])
     >>> phase = torch.tensor([0.7854, -0.7854])
-    >>> po.model_components.polar_to_rectangular(amplitude, phase)
+    >>> po.process.polar_to_rectangular(amplitude, phase)
     tensor([1.+1.j, 1.-1.j])
 
     In plenoptic, this function is typically used
@@ -255,7 +253,7 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
     >>> img = po.data.einstein()
     >>> img.shape
     torch.Size([1, 1, 256, 256])
-    >>> spyr = po.model_components.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
+    >>> spyr = po.process.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
     >>> # let's only look at 1 scale and 1 orientation
     >>> coeff = spyr(img)[0][:, :, 0]
     >>> # the coefficients returned by spyr (forward) are in rectangular coordinates
@@ -266,7 +264,7 @@ def polar_to_rectangular(amplitude: Tensor, phase: Tensor) -> Tensor:
     >>> phase.shape
     torch.Size([1, 1, 256, 256])
     >>> # from those, we can use this function to recover the rectangular coordinates
-    >>> rectangular_coeff = po.model_components.polar_to_rectangular(amplitude, phase)
+    >>> rectangular_coeff = po.process.polar_to_rectangular(amplitude, phase)
     >>> rectangular_coeff.shape
     torch.Size([1, 1, 256, 256])
     >>> # we can verify that they match the original
@@ -415,7 +413,7 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
       >>> img = po.data.einstein()
       >>> img.shape
       torch.Size([1, 1, 256, 256])
-      >>> noisy = po.model_components.add_noise(img, noise_mse=0.1)
+      >>> noisy = po.process.add_noise(img, noise_mse=0.1)
       >>> noisy.shape
       torch.Size([1, 1, 256, 256])
       >>> po.plot.imshow([img, noisy])
@@ -426,7 +424,7 @@ def add_noise(img: Tensor, noise_mse: float | list[float]) -> Tensor:
     .. plot::
       :context: close-figs
 
-      >>> noisy_multi = po.model_components.add_noise(img, noise_mse=[0.01, 0.1, 1.0])
+      >>> noisy_multi = po.process.add_noise(img, noise_mse=[0.01, 0.1, 1.0])
       >>> noisy_multi.shape
       torch.Size([3, 1, 256, 256])
       >>> po.plot.imshow([img, noisy_multi])
@@ -482,12 +480,10 @@ def modulate_phase(x: Tensor, phase_factor: float = 2.0) -> Tensor:
       >>> import plenoptic as po
       >>> import torch
       >>> img = po.data.einstein()
-      >>> spyr = po.model_components.SteerablePyramidFreq(
-      ...     img.shape[-2:], is_complex=True
-      ... )
+      >>> spyr = po.process.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
       >>> # let's only look at 1 scale and 1 orientation
       >>> coeff = spyr(img)[3][:, :, 0]
-      >>> mod_coeff = po.model_components.modulate_phase(coeff, 2)
+      >>> mod_coeff = po.process.modulate_phase(coeff, 2)
       >>> po.plot.imshow([coeff, mod_coeff], title=["original", "modulated"], zoom=8)
       <PyrFigure ...>
 
@@ -545,7 +541,7 @@ def autocorrelation(x: Tensor) -> Tensor:
       >>> import plenoptic as po
       >>> import torch
       >>> img = po.data.einstein()
-      >>> ac = po.model_components.autocorrelation(img)
+      >>> ac = po.process.autocorrelation(img)
       >>> po.plot.imshow([img, ac], title=["image", "autocorrelation"])
       <PyrFigure...>
 
@@ -556,7 +552,7 @@ def autocorrelation(x: Tensor) -> Tensor:
       :context: close-figs
 
       >>> random_img = torch.rand(size=(1, 1, 256, 256))
-      >>> ac_noise = po.model_components.autocorrelation(random_img)
+      >>> ac_noise = po.process.autocorrelation(random_img)
       >>> po.plot.imshow(
       ...     [random_img, ac_noise], title=["random noise", "autocorrelation"]
       ... )
@@ -564,12 +560,12 @@ def autocorrelation(x: Tensor) -> Tensor:
 
     Plenoptic models typically do not use the full autocorrelation, but rather
     the first couple shifts only. Using a combination of this function and
-    :func:`~plenoptic.model_components.center_crop`, that is easily achieved:
+    :func:`~plenoptic.process.center_crop`, that is easily achieved:
 
     .. plot::
       :context: close-figs
 
-      >>> ac_cropped = po.model_components.center_crop(ac, 16)
+      >>> ac_cropped = po.process.center_crop(ac, 16)
       >>> po.plot.imshow(
       ...     [img, ac, ac_cropped],
       ...     title=["image", "autocorrelation", "cropped autocorrelation"],
@@ -624,7 +620,7 @@ def center_crop(x: Tensor, output_size: int) -> Tensor:
       >>> img = po.data.einstein()
       >>> img.shape
       torch.Size([1, 1, 256, 256])
-      >>> crop = po.model_components.center_crop(img, 128)
+      >>> crop = po.process.center_crop(img, 128)
       >>> crop.shape
       torch.Size([1, 1, 128, 128])
       >>> po.plot.imshow([img, crop], title=["input", "cropped"])
@@ -678,7 +674,7 @@ def expand(x: Tensor, factor: float) -> Tensor:
     --------
     shrink
         The inverse operation.
-    :func:`~plenoptic.model_components.upsample_blur`
+    :func:`~plenoptic.process.upsample_blur`
         An alternative upsampling operation.
 
     Examples
@@ -691,7 +687,7 @@ def expand(x: Tensor, factor: float) -> Tensor:
       >>> img = po.data.einstein()
       >>> img.shape
       torch.Size([1, 1, 256, 256])
-      >>> expanded = po.model_components.expand(img, factor=2)
+      >>> expanded = po.process.expand(img, factor=2)
       >>> expanded.shape
       torch.Size([1, 1, 512, 512])
       >>> po.plot.imshow(
@@ -707,13 +703,13 @@ def expand(x: Tensor, factor: float) -> Tensor:
     (tensor(-0.1648), tensor(1.0239))
 
     An alternative method for upsampling images is to use
-    :func:`~plenoptic.model_components.upsample_blur`:
+    :func:`~plenoptic.process.upsample_blur`:
 
     .. plot::
       :context: close-figs
 
       >>> po.plot.imshow(
-      ...     [img, expanded, po.model_components.upsample_blur(img, (0, 0))],
+      ...     [img, expanded, po.process.upsample_blur(img, (0, 0))],
       ...     title=["original", "expanded", "blurred"],
       ...     vrange=(0, 1),
       ... )
@@ -809,7 +805,7 @@ def shrink(x: Tensor, factor: int) -> Tensor:
     --------
     expand
         The inverse operation.
-    :func:`~plenoptic.model_components.blur_downsample`
+    :func:`~plenoptic.process.blur_downsample`
         An alternative downsampling operation.
 
     Examples
@@ -822,7 +818,7 @@ def shrink(x: Tensor, factor: int) -> Tensor:
       >>> img = po.data.einstein()
       >>> img.shape
       torch.Size([1, 1, 256, 256])
-      >>> shrunk = po.model_components.shrink(img, factor=2)
+      >>> shrunk = po.process.shrink(img, factor=2)
       >>> shrunk.shape
       torch.Size([1, 1, 128, 128])
       >>> po.plot.imshow([img, shrunk], title=["original", "shrunk"])
@@ -830,25 +826,25 @@ def shrink(x: Tensor, factor: int) -> Tensor:
 
     Note the horizontal/vertical lines in the shrunk version of the image.
     These are the result of aliasing.
-    To avoid these, use :func:`~plenoptic.model_components.blur_downsample`:
+    To avoid these, use :func:`~plenoptic.process.blur_downsample`:
 
     .. plot::
       :context: close-figs
 
       >>> po.plot.imshow(
-      ...     [img, shrunk, po.model_components.blur_downsample(img)],
+      ...     [img, shrunk, po.process.blur_downsample(img)],
       ...     title=["original", "shrunk", "blurred"],
       ... )
       <PyrFigure...>
 
-    You can invert ``shrink`` using :func:`~plenoptic.model_components.expand`, but the
+    You can invert ``shrink`` using :func:`~plenoptic.process.expand`, but the
     inversion is not perfect; shrinking discards information that can not be recovered:
 
     .. plot::
       :context: close-figs
 
-      >>> expand_after_shrink = po.model_components.expand(
-      ...     po.model_components.shrink(img, factor=2), factor=2
+      >>> expand_after_shrink = po.process.expand(
+      ...     po.process.shrink(img, factor=2), factor=2
       ... )
       >>> torch.allclose(img, expand_after_shrink, atol=1e-2)
       False
@@ -865,8 +861,8 @@ def shrink(x: Tensor, factor: int) -> Tensor:
     .. plot::
       :context: close-figs
 
-      >>> shrink_after_expand = po.model_components.shrink(
-      ...     po.model_components.expand(img, factor=2), factor=2
+      >>> shrink_after_expand = po.process.shrink(
+      ...     po.process.expand(img, factor=2), factor=2
       ... )
       >>> torch.allclose(img, shrink_after_expand, atol=1e-2)
       True

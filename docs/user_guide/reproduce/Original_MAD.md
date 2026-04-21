@@ -67,7 +67,7 @@ We have tests to show that this matches the output of the MATLAB code, won't sho
 ```{code-cell} ipython3
 img1 = po.data.einstein()
 img2 = po.data.curie()
-noisy = po.model_components.add_noise(img1, [2, 4, 8])
+noisy = po.process.add_noise(img1, [2, 4, 8])
 ```
 
 We can see that increasing the noise level decreases the SSIM value, but not linearly

@@ -3,7 +3,7 @@
 __all__ = [
     "__version__",
     "models",
-    "model_components",
+    "process",
     "data",
     "metric",
     "plot",
@@ -29,9 +29,9 @@ from . import (
     io,
     loss,
     metric,
-    model_components,
     models,
     plot,
+    process,
     regularize,
     validate,
 )

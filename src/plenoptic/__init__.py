@@ -29,7 +29,7 @@ def __getattr__(attr):  # noqa: ANN202, ANN001
             f"`plenoptic.{attr.split('.')[0]}` not available from "
             "plenoptic 2.0 onwards. All model objects now live in "
             "the `plenoptic.models` namespace, and all "
-            "canonical_computations live in the `plenoptic.model_components`"
+            "canonical_computations live in the `plenoptic.process`"
             " namespace. See Migration Guide in documentation for details."
         )
     elif attr.startswith("tools"):

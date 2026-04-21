@@ -73,9 +73,7 @@ def circular_gaussian2d(
       >>> import torch
       >>> import matplotlib.pyplot as plt
       >>> kernel_size = 32
-      >>> filt_2d = po.model_components.circular_gaussian2d(
-      ...     kernel_size=kernel_size, std=2
-      ... )
+      >>> filt_2d = po.process.circular_gaussian2d(kernel_size=kernel_size, std=2)
       >>> filt_2d.shape
       torch.Size([1, 1, 32, 32])
       >>> einstein_img = po.data.einstein()
@@ -92,7 +90,7 @@ def circular_gaussian2d(
       :context: close-figs
 
       >>> kernel_size = 32
-      >>> filt_2d = po.model_components.circular_gaussian2d(
+      >>> filt_2d = po.process.circular_gaussian2d(
       ...     kernel_size=kernel_size, std=[2, 5.5], out_channels=2
       ... )
       >>> filt_2d.shape
@@ -116,7 +114,7 @@ def circular_gaussian2d(
       :context: close-figs
 
       >>> kernel_size = 32
-      >>> filt_2d = po.model_components.circular_gaussian2d(
+      >>> filt_2d = po.process.circular_gaussian2d(
       ...     kernel_size=kernel_size, std=[2, 5.5], out_channels=2
       ... ).repeat(3, 1, 1, 1)
       >>> filt_2d.shape
