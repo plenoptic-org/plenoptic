@@ -1149,7 +1149,7 @@ class TestMAD:
         if not inspect.isfunction(metric):
             metric = metric()
         for _ in range(5):
-            mad = po.synth.MADCompetition(
+            mad = po.MADCompetition(
                 img, metric, po.loss.l2_norm, minmax, metric_tradeoff_lambda=1
             )
             mad.setup(torch.rand(shape, device=DEVICE))

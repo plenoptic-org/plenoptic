@@ -1251,7 +1251,7 @@ class TestMetamers:
         shape = (1, 1, 100, 100)
         img = torch.rand(shape, device=DEVICE)
         for _ in range(5):
-            met = po.synth.Metamer(img, model)
+            met = po.Metamer(img, model)
             met.setup(torch.rand(shape, device=DEVICE), optimizer=optim)
             loss = met.objective_function()
             assert loss == met._closure()
@@ -1265,7 +1265,7 @@ class TestMetamers:
         shape = (1, 1, 256, 256)
         img = torch.rand(shape, device=DEVICE)
         for _ in range(3):
-            met = po.synth.Metamer(img, model)
+            met = po.Metamer(img, model)
             met.setup(torch.rand(shape, device=DEVICE))
             loss = met.objective_function()
             assert loss == met._closure()
@@ -1276,7 +1276,7 @@ class TestMetamers:
         model = po.models.Gaussian(30).eval()
         po.remove_grad(model)
         model = model.to(DEVICE).to(einstein_img_double.dtype)
-        met = po.synth.Metamer(einstein_img_double, model)
+        met = po.Metamer(einstein_img_double, model)
         txt1 = "The saved object was saved before penalty_function"
         txt2 = "You will need to call setup"
         old_met = po.data.fetch_data("example_metamer_gaussian-old.pt")
