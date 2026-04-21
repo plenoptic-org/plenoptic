@@ -32,7 +32,7 @@ Additionally, please cite the following paper(s) depending on which component yo
 - {class}`~plenoptic.process.SteerablePyramidFreq`: {cite:alp}`Simoncelli1995-steer-pyram` ({cite:alp}`Simoncelli1992-shift-multi` contains a longer discussion about the motivation and the logic, while {cite:alp}`Simoncelli1995-steer-pyram` describes the implementation that is used here).
 - {class}`~plenoptic.models.PortillaSimoncelli`: {cite:alp}`Portilla2000-param-textur`.
 - {mod}`~plenoptic.models.LinearNonlinear`, {mod}`~plenoptic.models.LuminanceGainControl`, {mod}`~plenoptic.models.LuminanceContrastGainControl`, {mod}`~plenoptic.models.OnOff`: {cite:alp}`Berardino2017-eigen`.
-- {func}`~plenoptic.metric.ssim` or {func}`~plenoptic.metric.ssim_map`: {cite:alp}`Wang2004-image-qualit-asses` if `weighted=False`, {cite:alp}`Wang2008-maxim-differ` if `weighted=True`.
+- {func}`~plenoptic.metric.ssim` or {func}`~plenoptic.process.ssim_map`: {cite:alp}`Wang2004-image-qualit-asses` if `weighted=False`, {cite:alp}`Wang2008-maxim-differ` if `weighted=True`.
 - {func}`~plenoptic.metric.ms_ssim`: {cite:alp}`Wang2003-multis`.
 - {func}`~plenoptic.metric.nlpd`: {cite:alp}`Laparra2017-percep-optim`.
 

@@ -8,9 +8,9 @@ These classes and functions may be helpful for constructing your own models or m
 .. rubric:: Metric components
    :heading-level: 3
 
-These functions are used by the :ref:`metrics-api` above. While they are not compatible with any of our synthesis methods, they may be useful to better understand the behavior of their respective metrics.
+These functions are used by the :ref:`metrics-api`. While they are not compatible with any of our synthesis methods, they may be useful to better understand the behavior of their respective metrics.
 
-.. currentmodule:: plenoptic.metric
+.. currentmodule:: plenoptic.process
 .. autosummary::
    :signatures: none
    :toctree: generated
@@ -25,7 +25,6 @@ Image pyramids decompose images into bands corresponding to different spatial fr
 
 See :external+pyrtools:std:doc:`index` for more information, including links to resources for learning more.
 
-.. currentmodule:: plenoptic.process
 .. autosummary::
    :signatures: none
    :toctree: generated

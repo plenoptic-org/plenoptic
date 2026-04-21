@@ -24,7 +24,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import torch.fft
 import torch.nn as nn
 from torch import Tensor
 
