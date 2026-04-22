@@ -526,7 +526,9 @@ def metamer_pixel_values(
     channel_idx: int | None = None,
     iteration: int | None = None,
     ylim: tuple[float, float] | Literal[False] = False,
+    xlim: tuple[float, float] | Literal[False, "range"] = "range",
     ax: mpl.axes.Axes | None = None,
+    alpha: float = 0.4,
     **kwargs: Any,
 ) -> mpl.axes.Axes:
     r"""
@@ -552,9 +554,15 @@ def metamer_pixel_values(
     ylim
         If tuple, the ylimit to set for this axis. If ``False``, we leave
         it untouched.
+    xlim
+        If ``"range"``, set the xlimits to the range across plotted data.
+        If tuple, the xlimit to set for this axis. If ``False``, we leave
+        it untouched.
     ax
         Pre-existing axes for plot. If ``None``, we call
         :func:`matplotlib.pyplot.gca()`.
+    alpha
+        Alpha value for the histogram bars.
     **kwargs
         Passed to :func:`matplotlib.pyplot.hist`.
 
@@ -577,6 +585,8 @@ def metamer_pixel_values(
 
     See Also
     --------
+    :func:`~plenoptic.plot.histogram`
+        The plotting function used to created this plot.
     metamer_synthesis_status
         Create a figure combining this with other axis-level plots to summarize
         synthesis status at a given iteration.
@@ -618,36 +628,6 @@ def metamer_pixel_values(
       >>> po.plot.metamer_pixel_values(met, ax=axes[1])
       <Axes: ... 'Histogram of pixel values'...>
     """
-
-    def _freedman_diaconis_bins(a: np.ndarray) -> int:
-        """
-        Calculate number of hist bins using Freedman-Diaconis rule.
-
-        Copied from seaborn.
-
-        Parameters
-        ----------
-        a
-            The array to histogram.
-
-        Returns
-        -------
-        n_bins
-            Number of bins to use for histogram.
-        """  # numpydoc ignore=EX01
-        # From https://stats.stackexchange.com/questions/798/
-        a = np.asarray(a)
-        iqr = np.diff(np.percentile(a, [0.25, 0.75]))[0]
-        if len(a) < 2:
-            return 1
-        h = 2 * iqr / (len(a) ** (1 / 3))
-        # fall back to sqrt(a) bins if iqr is 0
-        if h == 0:
-            return int(np.sqrt(a.size))
-        else:
-            return int(np.ceil((a.max() - a.min()) / h))
-
-    kwargs.setdefault("alpha", 0.4)
     progress = metamer.get_progress(iteration)
     try:
         met = progress["saved_metamer"]
@@ -660,32 +640,17 @@ def metamer_pixel_values(
         met = metamer.metamer
         # losses will always have one extra value, the current loss.
         iter = len(metamer.losses) - 1
-    image = metamer.image[batch_idx]
-    if channel_idx is not None:
-        image = image[channel_idx]
-        met = met[channel_idx]
-    image = tensors.to_numpy(image).flatten()
-    met = tensors.to_numpy(met).flatten()
-
-    if ax is None:
-        ax = plt.gca()
-    ax.hist(
-        met,
-        bins=min(_freedman_diaconis_bins(image), 50),
-        label=f"Metamer [iteration={iter}]",
+    return display.histogram(
+        [met, metamer.image],
+        [f"Metamer [iteration={iter}]", "Target image"],
+        batch_idx,
+        channel_idx,
+        ylim,
+        xlim,
+        ax=ax,
+        alpha=alpha,
         **kwargs,
     )
-    ax.hist(
-        image,
-        bins=min(_freedman_diaconis_bins(image), 50),
-        label="Target image",
-        **kwargs,
-    )
-    ax.legend()
-    if ylim:
-        ax.set_ylim(ylim)
-    ax.set_title("Histogram of pixel values")
-    return ax
 
 
 def _check_included_plots(to_check: list[str] | dict[str, float], to_check_name: str):

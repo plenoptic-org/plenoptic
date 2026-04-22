@@ -20,6 +20,7 @@ __all__ = [
     "plot_representation",
     "pyrshow",
     "update_plot",
+    "histogram",
 ]
 
 
@@ -817,7 +818,7 @@ def rescale_ylim(axes: list[mpl.axes.Axes], data: np.ndarray | torch.Tensor):
 
 
 def stem_plot(
-    data: np.ndarray,
+    data: torch.Tensor,
     ax: mpl.axes.Axes | None = None,
     title: str | None = "",
     ylim: tuple | None | Literal[False] = None,
@@ -1349,3 +1350,168 @@ def plot_representation(
             data = torch.cat(list(data.values()), dim=2)
         rescale_ylim(axes, data)
     return axes
+
+
+def histogram(
+    data: torch.Tensor | list[torch.Tensor],
+    labels: str | list[str] | None = None,
+    batch_idx: int | None = 0,
+    channel_idx: int | None = None,
+    ylim: tuple[float, float] | Literal[False] = False,
+    xlim: tuple[float, float] | Literal[False, "range"] = "range",
+    xlabel: str | Literal[False] = "Pixel values",
+    ax: mpl.axes.Axes | None = None,
+    title: str = "Histogram of pixel values",
+    alpha: float = 0.4,
+    **kwargs: Any,
+) -> mpl.axes.Axes:
+    r"""
+    Plot histogram of values from tensor.
+
+    Intended use for this is to plot distributions of pixel values.
+
+    Parameters
+    ----------
+    data
+        The data to plot. Must either be a single tensor or a list of tensors.
+    labels
+        Labels to use for legend. Must match ``data``: if ``data`` is a single
+        tensor, must be a single string; if ``data`` is a list of tensors, must
+        be a list of the same length. If ``None``, no legend is created.
+    batch_idx
+        Which index to take from the batch (first) dimension.  If ``None``, we
+        use all batches.
+    channel_idx
+        Which index to take from the channel (second) dimension. If ``None``,
+        we use all channels.
+    ylim
+        If tuple, the ylimit to set for this axis. If ``False``, we leave
+        it untouched.
+    xlim
+        If ``"range"``, set the xlimits to the range across plotted data.
+        If tuple, the xlimit to set for this axis. If ``False``, we leave
+        it untouched.
+    xlabel
+        Label to put on the x-axis.
+    ax
+        Pre-existing axes for plot. If ``None``, we call
+        :func:`matplotlib.pyplot.gca()`.
+    title
+        Title for the axis.
+    alpha
+        Alpha value for the histogram bars.
+    **kwargs
+        Passed to :func:`matplotlib.pyplot.hist`.
+
+    Returns
+    -------
+    ax
+        Created axes.
+
+    Raises
+    ------
+    ValueError
+        If ``labels`` and ``data`` are both lists but have different lengths
+    ValueError
+        If ``labels`` and ``data`` are both lists but have different lengths
+
+    See Also
+    --------
+    :func:`~plenoptic.plot.synthesis_histogram`
+        Use this function to plot histogram of values from a synthesis object.
+
+    Examples
+    --------
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
+      >>> po.plot.histogram(met)
+      <Axes: ... 'Histogram of pixel values'...>
+
+    Plot on an existing axis:
+
+    .. plot::
+      :context: close-figs
+
+      >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+      >>> po.plot.histogram(img, ax=axes[1])
+      <Axes: ... 'Histogram of pixel values'...>
+    """
+
+    def _freedman_diaconis_bins(a: np.ndarray) -> int:
+        """
+        Calculate number of hist bins using Freedman-Diaconis rule.
+
+        Copied from seaborn.
+
+        Parameters
+        ----------
+        a
+            The array to histogram.
+
+        Returns
+        -------
+        n_bins
+            Number of bins to use for histogram.
+        """  # numpydoc ignore=EX01
+        # From https://stats.stackexchange.com/questions/798/
+        a = np.asarray(a)
+        iqr = np.diff(np.percentile(a, [0.25, 0.75]))[0]
+        if len(a) < 2:
+            return 1
+        h = 2 * iqr / (len(a) ** (1 / 3))
+        # fall back to sqrt(a) bins if iqr is 0
+        if h == 0:
+            return int(np.sqrt(a.size))
+        else:
+            return int(np.ceil((a.max() - a.min()) / h))
+
+    if not isinstance(data, list):
+        data = [data]
+
+    if labels is None:
+        create_legend = False
+        # so we can iterate through labels along with data
+        labels = len(data) * [""]
+    else:
+        create_legend = True
+        if not isinstance(labels, list):
+            labels = [labels]
+        if len(labels) != len(data):
+            raise ValueError("labels must have the same length as data!")
+
+    if batch_idx is not None:
+        data = [d[batch_idx] for d in data]
+    if channel_idx is not None:
+        data = [d[channel_idx] for d in data]
+    data = [to_numpy(d).flatten() for d in data]
+
+    if xlim == "range":
+        tmp_data = np.concatenate(data)
+        xlim = (tmp_data.min(), tmp_data.max())
+
+    if ax is None:
+        ax = plt.gca()
+
+    for d, lab in zip(data, labels):
+        ax.hist(
+            d,
+            bins=min(_freedman_diaconis_bins(d), 50),
+            label=lab,
+            alpha=alpha,
+            **kwargs,
+        )
+
+    if create_legend:
+        ax.legend()
+    if ylim:
+        ax.set_ylim(ylim)
+    if xlim:
+        ax.set_xlim(xlim)
+    if xlabel:
+        ax.set_xlabel(xlabel)
+    ax.set_title(title)
+    return ax

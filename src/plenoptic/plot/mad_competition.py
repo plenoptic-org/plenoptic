@@ -211,7 +211,9 @@ def mad_pixel_values(
     channel_idx: int | None = None,
     iteration: int | None = None,
     ylim: tuple[float] | Literal[False] = False,
+    xlim: tuple[float, float] | Literal[False, "range"] = "range",
     ax: mpl.axes.Axes | None = None,
+    alpha: float = 0.4,
     **kwargs: Any,
 ) -> mpl.axes.Axes:
     r"""
@@ -237,9 +239,15 @@ def mad_pixel_values(
     ylim
         If tuple, the ylimit to set for this axis. If ``False``, we leave
         it untouched.
+    xlim
+        If ``"range"``, set the xlimits to the range across plotted data.
+        If tuple, the xlimit to set for this axis. If ``False``, we leave
+        it untouched.
     ax
         Pre-existing axes for plot. If ``None``, we call
         :func:`matplotlib.pyplot.gca()`.
+    alpha
+        Alpha value for the histogram bars.
     **kwargs
         Passed to :func:`matplotlib.pyplot.hist`.
 
@@ -259,37 +267,18 @@ def mad_pixel_values(
         If the iteration used for ``saved_mad_image`` is not the same as the argument
         ``iteration`` (because e.g., you set ``iteration=3`` but
         ``mad.store_progress=2``).
+
+    See Also
+    --------
+    :func:`~plenoptic.plot.histogram`
+        The plotting function used to created this plot.
+    mad_synthesis_status
+        Create a figure combining this with other axis-level plots to summarize
+        synthesis status at a given iteration.
+    mad_animshow
+        Create a video animating this and other axis-level plots changing over
+        the course of synthesis.
     """
-
-    def _freedman_diaconis_bins(a: np.ndarray) -> int:
-        """
-        Calculate number of hist bins using Freedman-Diaconis rule.
-
-        Copied from seaborn.
-
-        Parameters
-        ----------
-        a
-            The array to histogram.
-
-        Returns
-        -------
-        n_bins
-            Number of bins to use for histogram.
-        """
-        # From https://stats.stackexchange.com/questions/798/
-        a = np.asarray(a)
-        iqr = np.diff(np.percentile(a, [0.25, 0.75]))[0]
-        if len(a) < 2:
-            return 1
-        h = 2 * iqr / (len(a) ** (1 / 3))
-        # fall back to sqrt(a) bins if iqr is 0
-        if h == 0:
-            return int(np.sqrt(a.size))
-        else:
-            return int(np.ceil((a.max() - a.min()) / h))
-
-    kwargs.setdefault("alpha", 0.4)
     progress = mad.get_progress(iteration)
     try:
         mad_image = progress["saved_mad_image"]
@@ -300,32 +289,17 @@ def mad_pixel_values(
         mad_image = mad.mad_image
         # losses will always have one extra value, the current loss.
         iter = len(mad.losses) - 1
-    image = mad.image[batch_idx]
-    if channel_idx is not None:
-        image = image[channel_idx]
-        mad_image = mad_image[channel_idx]
-    image = tensors.to_numpy(image).flatten()
-    mad_image = tensors.to_numpy(mad_image).flatten()
-
-    if ax is None:
-        ax = plt.gca()
-    ax.hist(
-        mad_image,
-        bins=min(_freedman_diaconis_bins(image), 50),
-        label=f"MAD image [iteration={iter}]",
+    return display.histogram(
+        [mad_image, mad.image],
+        [f"MAD [iteration={iter}]", "Reference image"],
+        batch_idx,
+        channel_idx,
+        ylim,
+        xlim,
+        ax=ax,
+        alpha=alpha,
         **kwargs,
     )
-    ax.hist(
-        image,
-        bins=min(_freedman_diaconis_bins(image), 50),
-        label="Reference image",
-        **kwargs,
-    )
-    ax.legend()
-    if ylim:
-        ax.set_ylim(ylim)
-    ax.set_title("Histogram of pixel values")
-    return ax
 
 
 def _check_included_plots(to_check: list[str] | dict[str, int], to_check_name: str):

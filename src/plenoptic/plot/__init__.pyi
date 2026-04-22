@@ -5,6 +5,7 @@ __all__ = [
     "stem_plot",
     "update_plot",
     "plot_representation",
+    "histogram",
     "eigendistortion_imshow",
     "eigendistortion_imshow_all",
     "mad_loss",
@@ -24,6 +25,7 @@ __all__ = [
 
 from .display import (
     animshow,
+    histogram,
     imshow,
     plot_representation,
     pyrshow,
