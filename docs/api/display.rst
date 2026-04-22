@@ -62,3 +62,4 @@ The following functions can be used to visualize :class:`torch.Tensor` objects d
    ~plot_representation
    ~stem_plot
    ~update_plot
+   ~histogram
