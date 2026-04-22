@@ -10,21 +10,40 @@ features that are enhanced, suppressed, or discarded. More importantly, they can
 facilitate the scientific process, through use in further perceptual or neural
 experiments aimed at validating or falsifying model predictions.
 """
-# ruff: noqa: F401
-# ruff: noqa: I001
-# Import order matters here to avoid circular dependencies
 
-from . import simulate as simul
-from . import synthesize as synth
-from . import data, metric, tools
-from .tools.data import load_images, to_numpy
-from .tools.display import animshow, imshow, pyrshow
+import lazy_loader as lazy
 
-# preface with underscore so they're not exposed to __all__
-from importlib.metadata import PackageNotFoundError as _PackageNotFoundError
-from importlib.metadata import version as _get_version
-import contextlib as _contextlib
+__default_getattr__, __dir__, __all__ = lazy.attach_stub(__name__, __file__)
 
 
-with _contextlib.suppress(_PackageNotFoundError):
-    __version__ = _get_version("plenoptic")
+def __getattr__(attr):  # noqa: ANN202, ANN001
+    if attr.startswith("synth"):
+        raise AttributeError(
+            f"`plenoptic.{attr.split('.')[0]}` not available from "
+            "plenoptic 2.0 onwards. All synthesis objects now live in "
+            "the main namespace (e.g., `plenoptic.Metamer`). See "
+            "Migration Guide in documentation for details."
+        )
+    elif attr.startswith("simul"):
+        raise AttributeError(
+            f"`plenoptic.{attr.split('.')[0]}` not available from "
+            "plenoptic 2.0 onwards. All model objects now live in "
+            "the `plenoptic.models` namespace, and all "
+            "canonical_computations live in the `plenoptic.process`"
+            " namespace. See Migration Guide in documentation for details."
+        )
+    elif attr.startswith("tools"):
+        raise AttributeError(
+            f"`plenoptic.{attr.split('.')[0]}` not available from "
+            "plenoptic 2.0 onwards. The corresponding functions now live in other "
+            "relevant modules. See Migration Guide in documentation for details."
+        )
+    elif attr in ["imshow", "animshow", "pyrshow"]:
+        raise AttributeError(
+            f"`plenoptic.{attr}` was moved in "
+            "plenoptic 2.0. It can be found in the `plenoptic.plot` namespace"
+            f" (i.e., `plenoptic.plot.{attr}`). See Migration Guide in "
+            "documentation for details."
+        )
+    else:
+        return __default_getattr__(attr)

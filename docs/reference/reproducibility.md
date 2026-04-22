@@ -9,7 +9,7 @@
 
 plenoptic's synthesis methods are high-dimensional non-linear optimization problems. Thus, when trying to make your results reproducible, you should follow the guidelines below, which plenoptic uses for its tests and documentation:
 
-- Set the seed for the random number generator. In plenoptic's synthesis methods, this largely affects the initialization of the synthesis method (e.g., with random noise for {class}`plenoptic.synthesize.metamer.Metamer`). We provide a convenience function for this, {func}`~plenoptic.tools.optim.set_seed`, which sets both the pytorch and numpy seeds.
+- Set the seed for the random number generator. In plenoptic's synthesis methods, this largely affects the initialization of the synthesis method (e.g., with random noise for {class}`plenoptic.Metamer`). We provide a convenience function for this, {func}`~plenoptic.set_seed`, which sets both the pytorch and numpy seeds.
 - Use `torch.float64` dtype (torch defaults to `torch.float32`). {func}`torch.set_default_dtype` might be helpful for this. See {class}`torch.dtype` for more information.
 - Note the versions of plenoptic and pytorch when performing your analysis. We do not believe the versions of other packages are likely to affect reproducibility, but breaking changes in both plenoptic and pytorch have broken reproducibility.
 - If you *really* need to guarantee reproducibility and you used a GPU, note all relevant information, especially the CUDA and driver versions. See [plenoptic issue #368](https://github.com/plenoptic-org/plenoptic/issues/368) for a discussion here.
@@ -63,7 +63,7 @@ Prior to plenoptic 1.2, we were saving python functions and pytorch optimization
 
 ### FutureWarning in load in plenoptic 1.3.1
 
-A small change was made to the {class}`~plenoptic.synthesize.metamer.Metamer` and {class}`~plenoptic.synthesize.mad_competition.MADCompetition` APIs in `plenoptic` 1.3.1. You will be able to load {class}`~plenoptic.synthesize.metamer.Metamer` and {class}`~plenoptic.synthesize.mad_competition.MADCompetition` objects saved with version 1.2 and 1.3 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
+A small change was made to the {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` APIs in `plenoptic` 1.3.1. You will be able to load {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` objects saved with version 1.2 and 1.3 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
 
 In order to make an object compatible with future releases, you can either load it in with `plenoptic` 1.3.1 and re-save it, or do the following:
 
@@ -77,20 +77,20 @@ torch.save(old_save, "old_save.pt")
 
 ### FutureWarning in load in plenoptic 1.4
 
-Loading {class}`~plenoptic.synthesize.metamer.Metamer` and {class}`~plenoptic.synthesize.mad_competition.MADCompetition` objects saved before plenoptic 1.4 will result in a `FutureWarning` due to two changes:
+Loading {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` objects saved before plenoptic 1.4 will result in a `FutureWarning` due to two changes:
 
-- {class}`~plenoptic.synthesize.metamer.Metamer` objects' save method was updated allow saving of more general loss functions (e.g., {func}`~plenoptic.tools.optim.portilla_simoncelli_loss_factory`).
-- {class}`~plenoptic.synthesize.metamer.Metamer` and {class}`~plenoptic.synthesize.mad_competition.MADCompetition` APIs were changed, replacing the range penalty with a more generic {attr}`~plenoptic.synthesize.metamer.Metamer.penalty_function`. See [](metamer-regularization) for more details on how to use this new capability.
+- {class}`~plenoptic.Metamer` objects' save method was updated allow saving of more general loss functions (e.g., {func}`~plenoptic.loss.portilla_simoncelli_loss_factory`).
+- {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` APIs were changed, replacing the range penalty with a more generic {attr}`~plenoptic.Metamer.penalty_function`. See [](metamer-regularization) for more details on how to use this new capability.
 
-You will be able to load {class}`~plenoptic.synthesize.metamer.Metamer` and {class}`~plenoptic.synthesize.mad_competition.MADCompetition` objects saved with version 1.2 through 1.3.1 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
+You will be able to load {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` objects saved with version 1.2 through 1.3.1 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
 
 In order to make an object compatible with future releases, you can load it in with `plenoptic` 1.4 and re-save it.
 
 #### Penalties attribute
 
-Accompanying the new {attr}`~plenoptic.synthesize.metamer.Metamer.penalty_function` attribute is the new attribute {attr}`~plenoptic.synthesize.metamer.Metamer.penalties`, which tracks the penalty function output over synthesis iterations (analogous to how {attr}`~plenoptic.synthesize.metamer.Metamer.losses` tracks the value of the objective function over synthesis iterations). Because this data was not tracked before this release, we are unable to produce it when loading an old object. Instead, {attr}`~plenoptic.synthesize.metamer.Metamer.penalties` will be set to an appropriately-sized tensor of `torch.nan` to signify the missing values.
+Accompanying the new {attr}`~plenoptic.Metamer.penalty_function` attribute is the new attribute {attr}`~plenoptic.Metamer.penalties`, which tracks the penalty function output over synthesis iterations (analogous to how {attr}`~plenoptic.Metamer.losses` tracks the value of the objective function over synthesis iterations). Because this data was not tracked before this release, we are unable to produce it when loading an old object. Instead, {attr}`~plenoptic.Metamer.penalties` will be set to an appropriately-sized tensor of `torch.nan` to signify the missing values.
 
-If you called {func}`~plenoptic.synthesize.metamer.Metamer.synthesize` with the optional `store_progress` argument, the metamer-in-progress was cached over synthesis with some frequency and so you can manually compute the corresponding penalty values. To do so:
+If you called {func}`~plenoptic.Metamer.synthesize` with the optional `store_progress` argument, the metamer-in-progress was cached over synthesis with some frequency and so you can manually compute the corresponding penalty values. To do so:
 
 ```python
 # initialize your Metamer object
@@ -110,4 +110,4 @@ assert len(saved_mets) == len(penalties)
 Note that, if `store_progress>1`, then the synthesis procedure did not cache the metamer-in-progress on every iteration and so `len(penalties) < len(met.losses)`.
 :::
 
-(The above all holds for both {class}`~plenoptic.synthesize.metamer.Metamer` and {class}`~plenoptic.synthesize.mad_competition.MADCompetition`.)
+(The above all holds for both {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition`.)

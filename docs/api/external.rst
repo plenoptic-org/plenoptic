@@ -5,7 +5,7 @@ External
 
 Functions for interacting with other code and packages.
 
-.. currentmodule:: plenoptic.tools
+.. currentmodule:: plenoptic
 .. autosummary::
    :signatures: none
    :toctree: generated

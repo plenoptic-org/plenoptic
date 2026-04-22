@@ -25,6 +25,13 @@
 
 `plenoptic` is a python library for model-based synthesis of perceptual stimuli, built on top of [pytorch](https://pytorch.org/). For `plenoptic`, models are those of visual [^footnote-1] information processing: they accept an image[^footnote-2] as input, perform some computations, and return some output, which can be mapped to neuronal firing rate, fMRI BOLD response, behavior on some task, image category, etc. The intended audience is researchers in neuroscience, psychology, and machine learning. For any pytorch model, users can generate stimuli which enable interpretation of model properties through examination of features that are enhanced, suppressed, or discarded. More importantly, these stimuli facilitate the scientific process, through use in further perceptual or neural experiments aimed at validating or falsifying model predictions.
 
+:::{admonition} Breaking API Changes!
+:class: warning
+
+Plenoptic 2.0 introduces breaking changes to the API and will not work with code written to work with earlier versions! See the [](migrating-guide) for details, including a script to update your code.
+
+:::
+
 ::::{grid} auto
 :::{grid-item}
 ```{button-ref} install-doc

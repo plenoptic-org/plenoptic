@@ -6,7 +6,7 @@ import pytest
 import torch
 
 import plenoptic as po
-from plenoptic.data.fetch import fetch_data
+from plenoptic.data import fetch_data
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # if we have a second gpu, can use it for some tests
@@ -53,7 +53,7 @@ def einstein_img():
 
 @pytest.fixture(scope="package")
 def einstein_img_small(einstein_img):
-    return po.tools.center_crop(einstein_img, 64).to(DEVICE)
+    return po.process.center_crop(einstein_img, 64).to(DEVICE)
 
 
 @pytest.fixture(scope="package")
@@ -65,7 +65,7 @@ def color_img():
 @pytest.fixture(scope="package")
 def parrot_square():
     img = po.load_images(IMG_DIR / "mixed" / "Parrot.png").to(DEVICE)
-    return po.tools.center_crop(img, 254)
+    return po.process.center_crop(img, 254)
 
 
 @pytest.fixture(scope="package")
@@ -88,14 +88,14 @@ def get_model(name):
         # in order to get a tensor back, need to wrap steerable pyramid so that
         # we can call convert_pyr_to_tensor in the forward call. in order for
         # that to work, downsample must be False
-        class spyr(po.simul.SteerablePyramidFreq):
+        class spyr(po.process.SteerablePyramidFreq):
             def __init__(self, *args, **kwargs):
                 kwargs.pop("downsample", None)
                 super().__init__(*args, downsample=False, **kwargs)
 
             def forward(self, *args, **kwargs):
                 coeffs = super().forward(*args, **kwargs)
-                pyr_tensor, _ = po.simul.SteerablePyramidFreq.convert_pyr_to_tensor(
+                pyr_tensor, _ = po.process.SteerablePyramidFreq.convert_pyr_to_tensor(
                     coeffs
                 )
                 return pyr_tensor
@@ -105,7 +105,7 @@ def get_model(name):
     elif name == "LPyr":
         # in order to get a tensor back, need to wrap laplacian pyramid so that
         # we can flatten the output. in practice, not the best way to use this
-        class lpyr(po.simul.LaplacianPyramid):
+        class lpyr(po.process.LaplacianPyramid):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
@@ -117,86 +117,86 @@ def get_model(name):
     elif name == "nlpd":
         return po.metric.nlpd
     elif name == "mse":
-        return po.metric.naive.mse
+        return po.metric.mse
     elif name == "ColorModel":
         model = ColorModel().to(DEVICE)
-        po.tools.remove_grad(model)
+        po.remove_grad(model)
         model.eval()
         return model
 
     # naive models
     elif name == "naive.Identity":
-        model = po.simul.Identity().to(DEVICE)
+        model = po.models.Identity().to(DEVICE)
         model.eval()
         return model
     elif name == "naive.CenterSurround":
-        model = po.simul.CenterSurround((31, 31)).to(DEVICE)
+        model = po.models.CenterSurround((31, 31)).to(DEVICE)
         model.eval()
         return model
     elif name == "naive.CenterSurround.nograd":
-        model = po.simul.CenterSurround((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        model = po.models.CenterSurround((31, 31)).to(DEVICE)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "naive.Gaussian":
-        model = po.simul.Gaussian((31, 31)).to(DEVICE)
+        model = po.models.Gaussian((31, 31)).to(DEVICE)
         model.eval()
         return model
     elif name == "naive.Gaussian.nograd":
-        model = po.simul.Gaussian((31, 31)).to(DEVICE)
+        model = po.models.Gaussian((31, 31)).to(DEVICE)
         model.eval()
-        po.tools.remove_grad(model)
+        po.remove_grad(model)
         return model
     elif name == "naive.Linear":
-        model = po.simul.Linear((31, 31)).to(DEVICE)
+        model = po.models.Linear((31, 31)).to(DEVICE)
         model.eval()
         return model
     elif name == "naive.Linear.nograd":
-        model = po.simul.Linear((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        model = po.models.Linear((31, 31)).to(DEVICE)
+        po.remove_grad(model)
         model.eval()
         return model
 
     # FrontEnd models:
     elif name == "frontend.LinearNonlinear":
-        model = po.simul.LinearNonlinear((31, 31)).to(DEVICE)
+        model = po.models.LinearNonlinear((31, 31)).to(DEVICE)
         model.eval()
         return model
     elif name == "frontend.LinearNonlinear.nograd":
-        model = po.simul.LinearNonlinear((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        model = po.models.LinearNonlinear((31, 31)).to(DEVICE)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "frontend.LuminanceGainControl":
-        model = po.simul.LuminanceGainControl((31, 31)).to(DEVICE)
+        model = po.models.LuminanceGainControl((31, 31)).to(DEVICE)
         model.eval()
         return model
     elif name == "frontend.LuminanceGainControl.nograd":
-        model = po.simul.LuminanceGainControl((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        model = po.models.LuminanceGainControl((31, 31)).to(DEVICE)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "frontend.LuminanceContrastGainControl":
-        model = po.simul.LuminanceContrastGainControl((31, 31)).to(DEVICE)
+        model = po.models.LuminanceContrastGainControl((31, 31)).to(DEVICE)
         model.eval()
         return model
     elif name == "frontend.LuminanceContrastGainControl.nograd":
-        model = po.simul.LuminanceContrastGainControl((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        model = po.models.LuminanceContrastGainControl((31, 31)).to(DEVICE)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "frontend.OnOff":
-        model = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
+        model = po.models.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
         model.eval()
         return model
     elif name == "frontend.OnOff.nograd":
-        model = po.simul.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
-        po.tools.remove_grad(model)
+        model = po.models.OnOff((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "frontend.OnOff.nograd.ctf":
 
-        class OnOffCTF(po.simul.OnOff):
+        class OnOffCTF(po.models.OnOff):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.scales = [0, 1]
@@ -208,13 +208,13 @@ def get_model(name):
                 return rep
 
         model = OnOffCTF((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "VideoModel":
         # super simple model that combines across the batch dimension, as a
         # model with a temporal component would do
-        class VideoModel(po.simul.OnOff):
+        class VideoModel(po.models.OnOff):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
@@ -224,11 +224,11 @@ def get_model(name):
                 return rep.mean(0)
 
         model = VideoModel((31, 31), pretrained=True, cache_filt=True).to(DEVICE)
-        po.tools.remove_grad(model)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "PortillaSimoncelli":
-        return po.simul.PortillaSimoncelli((256, 256)).to(DEVICE)
+        return po.models.PortillaSimoncelli((256, 256)).to(DEVICE)
     elif name == "NonModule":
 
         class NonModule:
@@ -290,3 +290,110 @@ def check_loss_saved_synth(
         loss = objective_function(saved.to(DEVICE)).squeeze()
         if not torch.equal(loss, synth_loss):
             raise ValueError("saved_synth and loss are misaligned!")
+
+
+# this list was created from the api/index.rst page for version 1.4.0
+OLD_API = [
+    "plenoptic.synthesize.metamer.Metamer",
+    "plenoptic.synthesize.metamer.MetamerCTF",
+    "plenoptic.synthesize.eigendistortion.Eigendistortion",
+    "plenoptic.synthesize.mad_competition.MADCompetition",
+    "plenoptic.simulate.models.portilla_simoncelli.PortillaSimoncelli",
+    "plenoptic.simulate.models.frontend.LinearNonlinear",
+    "plenoptic.simulate.models.frontend.LuminanceGainControl",
+    "plenoptic.simulate.models.frontend.LuminanceContrastGainControl",
+    "plenoptic.simulate.models.frontend.OnOff",
+    "plenoptic.simulate.models.naive.Identity",
+    "plenoptic.simulate.models.naive.Linear",
+    "plenoptic.simulate.models.naive.Gaussian",
+    "plenoptic.simulate.models.naive.CenterSurround",
+    "plenoptic.metric.naive.mse",
+    "plenoptic.metric.model_metric.model_metric_factory",
+    "plenoptic.metric.perceptual_distance.ssim",
+    "plenoptic.metric.perceptual_distance.ms_ssim",
+    "plenoptic.metric.perceptual_distance.nlpd",
+    "plenoptic.synthesize.metamer.plot_loss",
+    "plenoptic.synthesize.metamer.display_metamer",
+    "plenoptic.synthesize.metamer.plot_pixel_values",
+    "plenoptic.synthesize.metamer.plot_representation_error",
+    "plenoptic.synthesize.metamer.plot_synthesis_status",
+    "plenoptic.synthesize.metamer.animate",
+    "plenoptic.synthesize.mad_competition.display_mad_image",
+    "plenoptic.synthesize.mad_competition.display_mad_image_all",
+    "plenoptic.synthesize.mad_competition.plot_loss",
+    "plenoptic.synthesize.mad_competition.plot_loss_all",
+    "plenoptic.synthesize.mad_competition.plot_pixel_values",
+    "plenoptic.synthesize.mad_competition.plot_synthesis_status",
+    "plenoptic.synthesize.mad_competition.animate",
+    "plenoptic.synthesize.eigendistortion.display_eigendistortion",
+    "plenoptic.synthesize.eigendistortion.display_eigendistortion_all",
+    "plenoptic.metric.perceptual_distance.ssim_map",
+    "plenoptic.metric.perceptual_distance.normalized_laplacian_pyramid",
+    "plenoptic.simulate.canonical_computations.laplacian_pyramid.LaplacianPyramid",
+    "plenoptic.simulate.canonical_computations.steerable_pyramid_freq.SteerablePyramidFreq",
+    "plenoptic.simulate.canonical_computations.filters.circular_gaussian2d",
+    "plenoptic.tools.signal.rectangular_to_polar",
+    "plenoptic.tools.signal.polar_to_rectangular",
+    "plenoptic.simulate.canonical_computations.non_linearities.local_gain_control",
+    "plenoptic.simulate.canonical_computations.non_linearities.local_gain_release",
+    "plenoptic.simulate.canonical_computations.non_linearities.rectangular_to_polar_dict",
+    "plenoptic.simulate.canonical_computations.non_linearities.polar_to_rectangular_dict",
+    "plenoptic.simulate.canonical_computations.non_linearities.local_gain_control_dict",
+    "plenoptic.simulate.canonical_computations.non_linearities.local_gain_release_dict",
+    "plenoptic.tools.conv.correlate_downsample",
+    "plenoptic.tools.conv.blur_downsample",
+    "plenoptic.tools.conv.upsample_convolve",
+    "plenoptic.tools.conv.upsample_blur",
+    "plenoptic.tools.conv.same_padding",
+    "plenoptic.tools.signal.shrink",
+    "plenoptic.tools.signal.expand",
+    "plenoptic.tools.signal.rescale",
+    "plenoptic.tools.signal.add_noise",
+    "plenoptic.tools.signal.center_crop",
+    "plenoptic.tools.signal.modulate_phase",
+    "plenoptic.tools.signal.autocorrelation",
+    "plenoptic.tools.stats.variance",
+    "plenoptic.tools.stats.skew",
+    "plenoptic.tools.stats.kurtosis",
+    "plenoptic.tools.load_images",
+    "plenoptic.tools.to_numpy",
+    "plenoptic.tools.convert_float_to_int",
+    "plenoptic.data.einstein",
+    "plenoptic.data.curie",
+    "plenoptic.data.parrot",
+    "plenoptic.data.reptile_skin",
+    "plenoptic.data.color_wheel",
+    "plenoptic.data.fetch.fetch_data",
+    "plenoptic.data.fetch.DOWNLOADABLE_FILES",
+    "plenoptic.tools.make_disk",
+    "plenoptic.tools.polar_radius",
+    "plenoptic.tools.polar_angle",
+    "plenoptic.tools.validate.remove_grad",
+    "plenoptic.tools.validate.validate_model",
+    "plenoptic.tools.validate.validate_input",
+    "plenoptic.tools.validate.validate_metric",
+    "plenoptic.tools.validate.validate_coarse_to_fine",
+    "plenoptic.tools.validate.validate_convert_tensor_dict",
+    "plenoptic.tools.display.imshow",
+    "plenoptic.tools.display.animshow",
+    "plenoptic.tools.display.pyrshow",
+    "plenoptic.tools.display.plot_representation",
+    "plenoptic.tools.clean_up_axes",
+    "plenoptic.tools.display.clean_up_axes",
+    "plenoptic.tools.display.clean_stem_plot",
+    "plenoptic.tools.display.rescale_ylim",
+    "plenoptic.tools.rescale_ylim",
+    "plenoptic.tools.display.update_plot",
+    "plenoptic.tools.display.update_stem",
+    "plenoptic.tools.update_stem",
+    "plenoptic.tools.io.examine_saved_synthesis",
+    "plenoptic.tools.external.plot_MAD_results",
+    "plenoptic.tools.optim.set_seed",
+    "plenoptic.tools.optim.mse",
+    "plenoptic.tools.optim.l2_norm",
+    "plenoptic.tools.optim.relative_sse",
+    "plenoptic.tools.optim.portilla_simoncelli_loss_factory",
+    "plenoptic.tools.optim.groupwise_relative_l2_norm_factory",
+    "plenoptic.tools.regularization.penalize_range",
+    "plenoptic.__version__",
+]

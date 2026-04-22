@@ -4,8 +4,8 @@ import scipy.io as sio
 import torch
 
 import plenoptic as po
-from conftest import DEVICE, IMG_DIR
-from plenoptic.data.fetch import fetch_data
+from conftest import DEVICE
+from plenoptic.data import fetch_data
 
 
 @pytest.fixture()
@@ -31,26 +31,6 @@ def msssim_images():
 def ssim_analysis():
     ssim_analysis = fetch_data("ssim_analysis.mat")
     return sio.loadmat(ssim_analysis, squeeze_me=True)
-
-
-@pytest.mark.parametrize(
-    "paths",
-    [
-        IMG_DIR / "mixed",
-        IMG_DIR / "256" / "einstein.pgm",
-        [IMG_DIR / "256" / "einstein.pgm", IMG_DIR / "256" / "curie.pgm"],
-    ],
-)
-@pytest.mark.parametrize("as_gray", [True, False])
-def test_load_images(paths, as_gray):
-    if paths == IMG_DIR / "mixed":
-        # there are images of different sizes in here, which means we should raise
-        # an Exception
-        with pytest.raises(Exception):
-            images = po.tools.data.load_images(paths, as_gray)
-    else:
-        images = po.tools.data.load_images(paths, as_gray)
-        assert images.ndimension() == 4, "load_images did not return a 4d tensor!"
 
 
 class TestPerceptualMetrics:
@@ -117,7 +97,7 @@ class TestPerceptualMetrics:
             noise_lvl = 1
         elif mode == "one-to-many":
             noise_lvl = [1, 1]
-        noisy = po.tools.add_noise(einstein_img, noise_lvl)
+        noisy = po.process.add_noise(einstein_img, noise_lvl)
         assert not torch.equal(*noisy)
 
     @pytest.mark.parametrize("noise_lvl", [[1], [128], [2, 4], [2, 4, 8], [0]])
@@ -127,7 +107,7 @@ class TestPerceptualMetrics:
             noise_lvl = torch.as_tensor(
                 noise_lvl, dtype=torch.float32, device=DEVICE
             ).unsqueeze(1)
-        noisy = po.tools.add_noise(einstein_img, noise_lvl).to(DEVICE)
+        noisy = po.process.add_noise(einstein_img, noise_lvl).to(DEVICE)
         if not noise_as_tensor:
             # always needs to be a tensor to properly check with allclose
             noise_lvl = torch.as_tensor(

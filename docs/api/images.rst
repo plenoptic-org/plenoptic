@@ -3,15 +3,6 @@
 Loading, creating, and accessing images
 ---------------------------------------
 
-.. currentmodule:: plenoptic
-.. autosummary::
-   :signatures: none
-   :toctree: generated
-
-   ~tools.load_images
-   ~tools.to_numpy
-   ~tools.convert_float_to_int
-
 .. rubric:: Example images
    :heading-level: 3
 
@@ -34,19 +25,18 @@ Plenoptic includes a helper function for downloading additional data, which incl
    :signatures: none
    :toctree: generated
 
-   ~fetch.fetch_data
-   ~fetch.DOWNLOADABLE_FILES
+   ~fetch_data
+   ~DOWNLOADABLE_FILES
 
 .. rubric:: Synthetic images
    :heading-level: 3
 
 The following functions create synthetic image tensors. See :external+pyrtools:mod:`pyrtools.tools.synthetic_images` for more synthetic images.
 
-.. currentmodule:: plenoptic.tools
 .. autosummary::
    :signatures: none
    :toctree: generated
 
-   ~make_disk
+   ~disk
    ~polar_radius
    ~polar_angle

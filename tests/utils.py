@@ -9,13 +9,13 @@ import pyrtools as pt
 import torch
 
 import plenoptic as po
-from plenoptic.data.fetch import fetch_data
+from plenoptic.data import fetch_data
 from test_models import TestPortillaSimoncelli
 
 
 def update_ps_synthesis_test_file(
     torch_version: str | None = None,
-) -> po.synthesize.metamer.Metamer:
+) -> po.Metamer:
     """Create new test file for test_models.test_ps_synthesis().
 
     We cannot guarantee perfect reproducibility across pytorch versions, but we
@@ -107,7 +107,7 @@ def update_ps_torch_output(save_dir):
         for ori in n_orientations:
             for width in spatial_corr_width:
                 for im, name in zip(ims, im_names):
-                    ps = po.simul.PortillaSimoncelli(
+                    ps = po.models.PortillaSimoncelli(
                         im.shape[-2:],
                         n_scales=scale,
                         n_orientations=ori,
@@ -144,7 +144,7 @@ def update_ps_scales(save_path):
     for scale in n_scales:
         for ori in n_orientations:
             for width in spatial_corr_width:
-                ps = po.simul.PortillaSimoncelli(
+                ps = po.models.PortillaSimoncelli(
                     (256, 256),
                     n_scales=scale,
                     n_orientations=ori,
@@ -159,7 +159,7 @@ def visualize_ps_regression(in_path: str, out_path: str):
     """
     Plot the output of one of the PortillaSimoncelli regression tests.
     """
-    model = po.simul.PortillaSimoncelli((256, 256))
+    model = po.models.PortillaSimoncelli((256, 256))
     regression_out = torch.load(in_path, map_location="cpu")
     image = regression_out["_image"]
     met = regression_out["_metamer"]
@@ -171,7 +171,7 @@ def visualize_ps_regression(in_path: str, out_path: str):
         title = "Ignore the center here -- synthesis doesn't involve it"
     else:
         title = ""
-    po.imshow(met, ax=axes[0], title=title)
+    po.plot.imshow(met, ax=axes[0], title=title)
     axes[0].xaxis.set_visible(False)
     axes[0].yaxis.set_visible(False)
     axes[1].semilogy(losses)

@@ -14,7 +14,7 @@ def rgb_mse(*args):
 
 
 def rgb_l2_norm(*args):
-    return po.tools.optim.l2_norm(*args).mean()
+    return po.loss.l2_norm(*args).mean()
 
 
 # MAD requires metrics are *dis*-similarity metrics, so that they
@@ -24,17 +24,17 @@ def dis_ssim(*args):
 
 
 def custom_penalty(x1):
-    return po.tools.regularization.penalize_range(x1, allowed_range=(0.2, 0.8))
+    return po.regularize.penalize_range(x1, allowed_range=(0.2, 0.8))
 
 
 def custom_penalty2(x1):
-    return po.tools.regularization.penalize_range(x1, allowed_range=(0.3, 0.7))
+    return po.regularize.penalize_range(x1, allowed_range=(0.3, 0.7))
 
 
 class ModuleMetric(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.mdl = po.simul.Gaussian((31, 31)).to(DEVICE)
+        self.mdl = po.models.Gaussian((31, 31)).to(DEVICE)
 
     def forward(self, x, y):
         return (self.mdl(x) - self.mdl(y)).abs().mean()
@@ -60,7 +60,7 @@ class TestMAD:
         elif model_order == "ssim-mse":
             model = dis_ssim
             model2 = po.metric.mse
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             curie_img, model, model2, target, metric_tradeoff_lambda=1
         )
         mad.synthesize(max_iter=5, store_progress=store_progress)
@@ -100,10 +100,10 @@ class TestMAD:
         target = "min"
         tradeoff = 1
         if penalty_function == "range":
-            penalty = po.tools.regularization.penalize_range
+            penalty = po.regularize.penalize_range
         elif penalty_function == "custom":
             penalty = custom_penalty
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             curie_img,
             metric,
             metric2,
@@ -172,7 +172,7 @@ class TestMAD:
                     ValueError,
                     match=("Saved and initialized penalty_lambda are different"),
                 )
-            mad_copy = po.synth.MADCompetition(
+            mad_copy = po.MADCompetition(
                 curie_img,
                 metric,
                 metric2,
@@ -187,7 +187,7 @@ class TestMAD:
                     map_location=DEVICE,
                 )
         else:
-            mad_copy = po.synth.MADCompetition(
+            mad_copy = po.MADCompetition(
                 curie_img,
                 metric,
                 metric2,
@@ -204,10 +204,10 @@ class TestMAD:
             curie_img = curie_img.mean(1, True)
 
     def test_setup_initial_noise(self, einstein_img):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -215,10 +215,10 @@ class TestMAD:
         mad.synthesize(5)
 
     def test_setup_fail(self, einstein_img):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -227,19 +227,19 @@ class TestMAD:
             mad.setup()
 
     def test_setup_load_fail(self, einstein_img, tmp_path):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
         mad.synthesize(max_iter=4)
         mad.save(tmp_path / "test_mad_setup_load_fail.pt")
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -251,20 +251,20 @@ class TestMAD:
 
     @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
     def test_synth_then_setup(self, einstein_img, tmp_path):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
         mad.setup(optimizer=torch.optim.SGD)
         mad.synthesize(max_iter=4)
         mad.save(tmp_path / "test_mad_synth_then_setup.pt")
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -275,10 +275,10 @@ class TestMAD:
         mad.synthesize(5)
 
     def test_load_init_fail(self, einstein_img, tmp_path):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -295,7 +295,7 @@ class TestMAD:
         if fail is False:
 
             def mse(x, y):
-                return po.tools.optim.mse(x, y)
+                return po.loss.mse(x, y)
 
             metric2 = mse
             expectation = does_not_raise()
@@ -303,7 +303,7 @@ class TestMAD:
         elif fail == "name":
 
             def bad_metric(x, y):
-                return po.tools.optim.mse(x, y)
+                return po.loss.mse(x, y)
 
             metric2 = bad_metric
             expectation = pytest.raises(
@@ -314,7 +314,7 @@ class TestMAD:
         elif fail == "behavior":
 
             def mse(x, y):
-                return po.tools.optim.l2_norm(x, y)
+                return po.loss.l2_norm(x, y)
 
             metric2 = mse
             expectation = pytest.raises(
@@ -324,19 +324,19 @@ class TestMAD:
                     " values"
                 ),
             )
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
         mad.synthesize(max_iter=4, store_progress=True)
         mad.save(tmp_path / f"test_mad_load_names_{fail}.pt")
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             metric2,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -344,35 +344,35 @@ class TestMAD:
             mad.load(tmp_path / f"test_mad_load_names_{fail}.pt")
 
     def test_examine_saved_object(self, einstein_img, tmp_path):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
         mad.synthesize(max_iter=4, store_progress=True)
         mad.save(tmp_path / "test_mad_examine.pt")
-        po.tools.examine_saved_synthesis(tmp_path / "test_mad_examine.pt")
+        po.io.examine_saved_synthesis(tmp_path / "test_mad_examine.pt")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
     @pytest.mark.parametrize("synth_type", ["eig", "met"])
     def test_load_object_type(self, einstein_img, model, synth_type, tmp_path):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
         mad.synthesize(max_iter=4, store_progress=True)
         mad.save(tmp_path / "test_mad_load_object_type.pt")
         if synth_type == "eig":
-            mad = po.synth.Eigendistortion(einstein_img, model)
+            mad = po.Eigendistortion(einstein_img, model)
         elif synth_type == "met":
-            mad = po.synth.Metamer(einstein_img, model)
+            mad = po.Metamer(einstein_img, model)
         with pytest.raises(
             ValueError, match="Saved object was a.* but initialized object is"
         ):
@@ -381,10 +381,10 @@ class TestMAD:
     @pytest.mark.parametrize("metric_behav", ["dtype", "shape", "name"])
     @pytest.mark.parametrize("metric", ["optimized", "reference"])
     def test_load_metric_change(self, einstein_img, metric, metric_behav, tmp_path):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -393,16 +393,14 @@ class TestMAD:
 
         def new_metric(x, y):
             if metric_behav == "dtype":
-                return po.tools.optim.mse(x, y).to(torch.float64)
+                return po.loss.mse(x, y).to(torch.float64)
             elif metric_behav == "shape":
-                return torch.stack(
-                    [po.tools.optim.mse(x, y) for _ in range(2)]
-                ).unsqueeze(0)
+                return torch.stack([po.loss.mse(x, y) for _ in range(2)]).unsqueeze(0)
             elif metric_behav == "name":
                 if metric == "optimized":
-                    return po.tools.optim.mse(x, y)
+                    return po.loss.mse(x, y)
                 elif metric == "reference":
-                    return po.tools.optim.l2_norm(x, y)
+                    return po.loss.l2_norm(x, y)
 
         if metric_behav == "name":
             expectation_str = (
@@ -418,15 +416,15 @@ class TestMAD:
             )
         with pytest.raises(ValueError, match=expectation_str):
             if metric == "optimized":
-                mad = po.synth.MADCompetition(
+                mad = po.MADCompetition(
                     einstein_img,
                     new_metric,
-                    po.tools.optim.l2_norm,
+                    po.loss.l2_norm,
                     "min",
                     metric_tradeoff_lambda=1,
                 )
             elif metric == "reference":
-                mad = po.synth.MADCompetition(
+                mad = po.MADCompetition(
                     einstein_img,
                     po.metric.mse,
                     new_metric,
@@ -438,12 +436,12 @@ class TestMAD:
     @pytest.mark.parametrize("penalty_behav", ["dtype", "shape", "name"])
     def test_load_penalty_change(self, einstein_img, penalty_behav, tmp_path):
         def base_penalty(x):
-            return po.tools.regularization.penalize_range(x)
+            return po.regularize.penalize_range(x)
 
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
             penalty_lambda=0.1,
@@ -467,10 +465,10 @@ class TestMAD:
                 "Saved and initialized penalty_function output have different"
                 f" {penalty_behav}"
             )
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
             penalty_lambda=0.1,
@@ -484,10 +482,10 @@ class TestMAD:
     )
     @pytest.mark.parametrize("attribute", ["saved", "init"])
     def test_load_attributes(self, einstein_img, model, attribute, tmp_path):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -496,10 +494,10 @@ class TestMAD:
             mad.test = "BAD"
             err_str = "Saved"
         mad.save(tmp_path / "test_mad_load_attributes.pt")
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -528,10 +526,10 @@ class TestMAD:
     @pytest.mark.parametrize("fail", [True, False])
     @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
     def test_load_optimizer(self, curie_img, optim_opts, fail, tmp_path):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             curie_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -573,10 +571,10 @@ class TestMAD:
         )
         mad.synthesize(max_iter=5)
         mad.save(tmp_path / "test_mad_optimizer.pt")
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             curie_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -665,7 +663,7 @@ class TestMAD:
 
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_load_tol(self, einstein_img, tmp_path):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,
             lambda *args: 1 - po.metric.ssim(*args),
@@ -674,7 +672,7 @@ class TestMAD:
         )
         mad.synthesize(5)
         mad.save(tmp_path / "test_mad_load_tol.pt")
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             (1 - 1e-7) * einstein_img + 1e-7 * torch.rand_like(einstein_img),
             po.metric.mse,
             lambda *args: 1 - po.metric.ssim(*args),
@@ -701,7 +699,7 @@ class TestMAD:
     )
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_optimizer(self, curie_img, optimizer):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             curie_img,
             po.metric.mse,
             lambda *args: 1 - po.metric.ssim(*args),
@@ -780,8 +778,8 @@ class TestMAD:
         # otherwise we can get a weird state-dependence
         if not inspect.isfunction(metric):
             metric = metric()
-        mad = po.synth.MADCompetition(
-            curie_img, metric, po.tools.optim.l2_norm, "min", metric_tradeoff_lambda=1
+        mad = po.MADCompetition(
+            curie_img, metric, po.loss.l2_norm, "min", metric_tradeoff_lambda=1
         )
         mad.synthesize(max_iter=5)
         if to_type == "dtype":
@@ -800,19 +798,19 @@ class TestMAD:
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     def test_map_location(self, curie_img, tmp_path):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             curie_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
         mad.synthesize(max_iter=4, store_progress=True)
         mad.save(tmp_path / "test_mad_map_location.pt")
-        mad_copy = po.synth.MADCompetition(
+        mad_copy = po.MADCompetition(
             curie_img.to("cpu"),
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -823,10 +821,10 @@ class TestMAD:
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     def test_to_midsynth(self, curie_img):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             curie_img,
             po.metric.mse,
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -848,10 +846,10 @@ class TestMAD:
     # images in parallel
     def test_batch_synthesis(self, curie_img, einstein_img):
         img = torch.cat([curie_img, einstein_img], dim=0)
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             img,
             lambda *args: po.metric.mse(*args).mean(),
-            po.tools.optim.l2_norm,
+            po.loss.l2_norm,
             "min",
             metric_tradeoff_lambda=1,
         )
@@ -866,13 +864,13 @@ class TestMAD:
         img = einstein_img.squeeze()
         while img.ndimension() < input_dim:
             img = img.unsqueeze(0)
-        mad = po.synth.MADCompetition(img, rgb_mse, rgb_l2_norm, "min", 1)
+        mad = po.MADCompetition(img, rgb_mse, rgb_l2_norm, "min", 1)
         mad.synthesize(5)
 
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     @pytest.mark.parametrize("store_progress", [True, 2, 3])
     def test_store_rep(self, einstein_img, store_progress):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
         max_iter = 3
@@ -897,7 +895,7 @@ class TestMAD:
 
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_save_mad_empty(self, einstein_img):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
         torch.equal(mad.saved_mad_image, torch.empty(0))
@@ -907,8 +905,8 @@ class TestMAD:
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
     def test_mad_loss_penalty_length(self, einstein_img, optim):
-        po.tools.set_seed(0)
-        mad = po.synth.MADCompetition(
+        po.set_seed(0)
+        mad = po.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
         assert mad.objective_function().numel() == 0
@@ -933,7 +931,7 @@ class TestMAD:
     def test_mad_get_progress(
         self, einstein_img, iteration, store_progress, iteration_selection
     ):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
         mad.synthesize(max_iter=5, store_progress=store_progress)
@@ -1022,7 +1020,7 @@ class TestMAD:
 
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_continue(self, einstein_img):
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
         mad.synthesize(max_iter=3, store_progress=True)
@@ -1032,7 +1030,7 @@ class TestMAD:
     def test_nan_loss(self, einstein_img):
         # clone to prevent NaN from showing up in other tests
         img = einstein_img.clone()
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
         mad.synthesize(max_iter=5)
@@ -1044,14 +1042,14 @@ class TestMAD:
     def test_change_precision_save_load(self, einstein_img, tmp_path):
         # Identity model doesn't change when you call .to() with a dtype
         # (unlike those models that have weights) so we use it here
-        mad = po.synth.MADCompetition(
+        mad = po.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
         mad.synthesize(max_iter=5)
         mad.to(torch.float64)
         assert mad.mad_image.dtype == torch.float64, "dtype incorrect!"
         mad.save(tmp_path / "test_change_prec_save_load.pt")
-        mad_copy = po.synth.MADCompetition(
+        mad_copy = po.MADCompetition(
             einstein_img.to(torch.float64),
             po.metric.mse,
             dis_ssim,
@@ -1067,8 +1065,8 @@ class TestMAD:
     def test_stop_criterion(self, einstein_img):
         # checking that this hits the criterion and stops early, so set seed
         # for reproducibility
-        po.tools.set_seed(0)
-        mad = po.synth.MADCompetition(
+        po.set_seed(0)
+        mad = po.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=0.1
         )
         # losses[-1] corresponds to the *current* loss (of mad.mad_image), not the loss
@@ -1100,10 +1098,10 @@ class TestMAD:
     def test_warn_out_of_range_input(self, einstein_img):
         img = einstein_img + 1
         with pytest.warns(UserWarning, match="input_tensor range is"):
-            po.synth.MADCompetition(
+            po.MADCompetition(
                 img,
                 po.metric.mse,
-                po.tools.optim.l2_norm,
+                po.loss.l2_norm,
                 "min",
                 metric_tradeoff_lambda=1,
             )
@@ -1113,15 +1111,15 @@ class TestMAD:
     def test_penalty_effect(self, einstein_img, penalty_function):
         """Higher penalty_lambda should yield smaller penalty values."""
         if penalty_function == "range":
-            penalty = po.tools.regularization.penalize_range
+            penalty = po.regularize.penalize_range
         elif penalty_function == "custom":
             penalty = custom_penalty
         penalty_lambdas = [0.0, 0.5]
         output_penalty = []
         # Synthesize with each penalty lambda and record penalty value
         for pl in penalty_lambdas:
-            po.tools.set_seed(0)
-            mad = po.synth.MADCompetition(
+            po.set_seed(0)
+            mad = po.MADCompetition(
                 einstein_img,
                 po.metric.mse,
                 dis_ssim,
@@ -1143,7 +1141,7 @@ class TestMAD:
     def test_closure(self, seed, metric, minmax):
         # closure and objective_function separately compute the same thing, so test that
         # they're identical.
-        po.tools.set_seed(seed)
+        po.set_seed(seed)
         shape = (1, 1, 100, 100)
         img = torch.rand(shape, device=DEVICE)
         # if metric is not the po.metric.mse function above, initialize it here,
@@ -1151,8 +1149,8 @@ class TestMAD:
         if not inspect.isfunction(metric):
             metric = metric()
         for _ in range(5):
-            mad = po.synth.MADCompetition(
-                img, metric, po.tools.optim.l2_norm, minmax, metric_tradeoff_lambda=1
+            mad = po.MADCompetition(
+                img, metric, po.loss.l2_norm, minmax, metric_tradeoff_lambda=1
             )
             mad.setup(torch.rand(shape, device=DEVICE))
             loss = mad.objective_function()

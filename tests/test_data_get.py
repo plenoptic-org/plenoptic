@@ -15,7 +15,13 @@ def test_data_module(item_name):
     elif item_name == "fetch_data":
         assert callable(eval(f"po.data.{item_name}"))
     else:
-        assert isinstance(eval(f"po.data.{item_name}()"), Tensor)
+        try:
+            # most of the images don't need any arguments
+            assert isinstance(eval(f"po.data.{item_name}()"), Tensor)
+        except TypeError:
+            # the others only need a size
+            assert isinstance(eval(f"po.data.{item_name}(256)"), Tensor)
+            assert isinstance(eval(f"po.data.{item_name}(256)"), Tensor)
 
 
 @pytest.mark.parametrize(

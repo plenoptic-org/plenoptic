@@ -34,6 +34,7 @@ docs/_build
 docs/api/generated
 docs/api/index.rst
 docs/tutorials/assets
+docs/reference/*csv
 
 *.mypy_cache
 

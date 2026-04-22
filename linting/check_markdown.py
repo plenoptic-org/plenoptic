@@ -13,9 +13,9 @@ try:
     objects_to_check = []
     for obj in objects:
         # this will give a list of strings like (for
-        # plenoptic.tools.validate.validate_model):
-        # plenoptic.tools.validate.validate_model,
-        # tools.validate.validate_model, validate.validate_model, validate_model
+        # plenoptic.validate.validate_model):
+        # plenoptic.validate.validate_model,
+        # validate.validate_model, validate_model
         obj = [".".join(obj.split(".")[i:]) for i in range(obj.count(".") + 1)]
         objects_to_check.extend(obj)
     objects_to_check = set(objects_to_check)
