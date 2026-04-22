@@ -83,6 +83,7 @@ repos:
       name: Ensure all public functions / classes are included in API docs
       entry: python linting/check_apidocs.py
       always_run: true
+      pass_filenames: false
     - id: check-inline
       language: python
       name: Check for matplotlib inline directive in md notebooks
