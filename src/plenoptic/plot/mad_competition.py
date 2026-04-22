@@ -80,7 +80,7 @@ def mad_loss(
     if axes is None:
         axes = plt.gca()
     if not hasattr(axes, "__iter__"):
-        axes = display.clean_up_axes(
+        axes = display._clean_up_axes(
             axes, False, ["top", "right", "bottom", "left"], ["x", "y"]
         )
         gs = axes.get_subplotspec().subgridspec(1, 2)

@@ -27,7 +27,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from ..plot.display import clean_up_axes, stem_plot, update_stem
+from ..plot.display import _clean_up_axes, _update_stem, stem_plot
 from ..process import signal, stats
 from ..process.steerable_pyramid_freq import (
     SCALES_TYPE as PYR_SCALES_TYPE,
@@ -1319,7 +1319,7 @@ class PortillaSimoncelli(nn.Module):
             gs = mpl.gridspec.GridSpec(n_rows, n_cols, fig)
         else:
             # want to make sure the axis we're taking over is basically invisible.
-            ax = clean_up_axes(
+            ax = _clean_up_axes(
                 ax, False, ["top", "right", "bottom", "left"], ["x", "y"]
             )
             gs = ax.get_subplotspec().subgridspec(n_rows, n_cols)
@@ -1482,6 +1482,6 @@ class PortillaSimoncelli(nn.Module):
             else:
                 vals = to_numpy(d.flatten())
 
-            sc = update_stem(ax.containers[0], vals)
+            sc = _update_stem(ax.containers[0], vals)
             stem_artists.extend([sc.markerline, sc.stemlines])
         return stem_artists

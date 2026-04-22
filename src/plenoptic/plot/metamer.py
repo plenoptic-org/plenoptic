@@ -1504,7 +1504,7 @@ def metamer_animshow(
                     (i + 1) % ylim_rescale_interval == 0
                     and metamer.target_representation.ndimension() == 3
                 ):
-                    display.rescale_ylim(rep_error_axes, rep_error)
+                    display._rescale_ylim(rep_error_axes, rep_error)
 
             if "metamer_pixel_values" in included_plots:
                 # this is the dumbest way to do this, but it's simple --
