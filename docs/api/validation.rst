@@ -15,3 +15,4 @@ The following functions are used to validate that the user-supplied inputs are c
    ~validate.validate_metric
    ~validate.validate_coarse_to_fine
    ~validate.validate_convert_tensor_dict
+   ~validate.validate_penalty
