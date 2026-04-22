@@ -2,7 +2,6 @@
 
 import pathlib
 import re
-import subprocess
 import sys
 
 # These are the files whose contents we don't want in the api docs. that's __init__.py
@@ -15,20 +14,42 @@ src_modules = [m for m in src_modules if m.name not in EXCLUDE_MODULES]
 # underscore)
 src_pattern = re.compile(r"^(?:def|class) ([A-Za-z].*)\(", flags=re.MULTILINE)
 
-# generate all the stub files
-rst_files = [str(f) for f in pathlib.Path("docs/api").glob("*rst")]
-subprocess.run(["sphinx-autogen", *rst_files])
 
 match_dict = {}
-stub_files = pathlib.Path("docs/api/generated").glob("*.rst")
-for f in stub_files:
-    name = f.stem.split(".")
-    mod = ".".join(name[:-1])
-    obj = name[-1]
-    if mod not in match_dict:
-        match_dict[mod] = [obj]
-    else:
-        match_dict[mod].append(obj)
+autosummary_files = pathlib.Path("docs/api").glob("*.rst")
+for f in autosummary_files:
+    if f.stem == "index":
+        continue
+    txt = f.read_text().splitlines()
+    current_module = ""
+    autosummary_idx = None
+    for i, line in enumerate(txt):
+        if "currentmodule" in line:
+            current_module = line.split("::")[-1].strip()
+        elif "autosummary" in line:
+            if line != ".. autosummary::":
+                raise ValueError(
+                    "Don't know how to handle autosummary with indentation!"
+                )
+            autosummary_idx = i
+        elif line:
+            # first lines after autosummary will be :toctree: and maybe :signatures:
+            if autosummary_idx is None or line.strip()[0] == ":":
+                continue
+            elif line[0] != " ":
+                autosummary_idx = None
+            else:
+                if line[:3] != "   ":
+                    raise ValueError("Unsure how to think about this indenting!")
+                line = line.strip().replace("~", "")
+                object = f"{current_module}.{line}"
+                mod = ".".join(object.split(".")[:-1])
+                object = object.split(".")[-1]
+                if mod in match_dict:
+                    match_dict[mod].append(object)
+                else:
+                    match_dict[mod] = [object]
+
 
 src_not_api = []
 for module in src_modules:
