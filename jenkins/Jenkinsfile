@@ -1,132 +1,94 @@
-pipeline {
-  agent none
-  options {
-    disableConcurrentBuilds(abortPrevious: true)
-    buildDiscarder(logRotator(numToKeepStr: '8', daysToKeepStr: '20'))
-    timeout(time: 3, unit: 'HOURS')
-  }
-  triggers {
-    cron '@weekly'
-  }
-  stages {
-    stage('parallel-jobs') {
-      parallel {
+properties([
+  disableConcurrentBuilds(abortPrevious: true),
+  buildDiscarder(logRotator(numToKeepStr: '8', daysToKeepStr: '20')),
+  pipelineTriggers([cron('@weekly')])
+])
+
+try {
+  timeout(time: 3, unit: 'HOURS') {
+    buildImage(context: 'jenkins')
+    if (env.BRANCH_NAME == 'main' && currentBuild.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause')) {
+      runPod(gpus: 2) {
         stage('weekly') {
-          when {
-            triggeredBy 'TimerTrigger'
-            branch 'main'
-          }
-          agent {
-            dockerfile {
-              dir 'jenkins'
-              args '--gpus 2'
-            }
-          }
-          environment {
-            HOME = pwd(tmp:true)
-            OMP_NUM_THREADS = 1
-          }
-          steps {
-            sh 'python3.12 -m venv --system-site-packages $HOME'
-            sh '''#!/bin/bash -ex
-            source $HOME/bin/activate
-            # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
-            pip install -U pip setuptools
-            pip install -U .[test]
-            mkdir -p uploaded_files/
-            pip freeze
-            nvidia-smi
-            python3.12 -c "import torch; print(torch.cuda.current_device())"
-            # issue with cache creation in containers: https://github.com/pytorch/pytorch/issues/140765
-            TORCHINDUCTOR_CACHE_DIR=/tmp/torchinductor RUN_REGRESSION_SYNTH=1 python3.12 -m pytest -n 8
-            '''
-          }
-          post {
-            always {
-              archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
-              dir("$HOME") {
-                deleteDir()
-              }
-            }
-          }
-        }
-        stage('commit') {
-          when {
-            not {
-              triggeredBy 'TimerTrigger'
-            }
-          }
-          agent {
-            dockerfile {
-              dir 'jenkins'
-              args '--gpus 2'
-            }
-          }
-          environment {
-            HOME = pwd(tmp:true)
-            OMP_NUM_THREADS = 1
-          }
-          steps {
-            sh 'python3.12 -m venv --system-site-packages $HOME'
-            sh '''#!/bin/bash -ex
-            source $HOME/bin/activate
-            # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
-            pip install -U pip setuptools
-            pip install .[test]
-            mkdir -p uploaded_files/
-            pip freeze
-            nvidia-smi
-            python3.12 -c "import torch; print(torch.cuda.current_device())"
-            # issue with cache creation in containers: https://github.com/pytorch/pytorch/issues/140765
-            TORCHINDUCTOR_CACHE_DIR=/tmp/torchinductor RUN_REGRESSION_SYNTH=1 python3.12 -m pytest -n 8
-            '''
-          }
-          post {
-            always {
-              archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
-              dir("$HOME") {
-                deleteDir()
-              }
-            }
-          }
-        }
-        stage('docs') {
-          when {
-            not {
-              triggeredBy 'TimerTrigger'
-            }
-          }
-          agent {
-            dockerfile {
-              dir 'jenkins'
-              args '--gpus 1'
-            }
-          }
-          environment {
-            HOME = pwd(tmp:false)
-            OMP_NUM_THREADS = 4
-            PROJECT_NAME = ""
-            GITHUB_PATH = "plenoptic-org/plenoptic"
-            GITHUB_TOKEN = credentials("plenoptic-docs-gh-pr-write")
-            BRANCH_NAME = "${env.BRANCH_NAME}"
-            ISSUE_NUM = "${env.BRANCH_NAME.replace('PR-', '')}"
-          }
-          steps {
-            sh 'python3.12 -m venv --system-site-packages $HOME'
-            sh '''#!/bin/bash -ex
-              # make sure we have the git tags, since we need that to correctly version plenoptic
-              git fetch --tags
+          withEnv([
+            "HOME=$WORKSPACE_TMP",
+            "OMP_NUM_THREADS=1"
+          ]) {
+            try {
+              sh 'python3.12 -m venv --system-site-packages $HOME'
+              sh '''#!/bin/bash -ex
               source $HOME/bin/activate
               # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
               pip install -U pip setuptools
-              pip install .[docs]
+              pip install -U .[test]
+              mkdir -p uploaded_files/
+              pip freeze
+              nvidia-smi
               python3.12 -c "import torch; print(torch.cuda.current_device())"
               # issue with cache creation in containers: https://github.com/pytorch/pytorch/issues/140765
-              TORCHINDUCTOR_CACHE_DIR=/tmp/torchinductor RUN_NB=1 NB_EXECUTION_MODE=force make -C docs html O="-j 1"
-              mv docs/_build/ $HOME/built-docs/
-           '''
-            lock('plenoptic_publish') {
-              script {
+              TORCHINDUCTOR_CACHE_DIR=/tmp/torchinductor RUN_REGRESSION_SYNTH=1 python3.12 -m pytest -n 8
+              '''
+            } finally {
+              archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
+            }
+          }
+        }
+      }
+    } else {
+      parallel commit: {
+        runPod(gpus: 2) {
+          stage('commit') {
+            withEnv([
+              "HOME=$WORKSPACE_TMP",
+              "OMP_NUM_THREADS=1"
+            ]) {
+              try {
+                sh 'python3.12 -m venv --system-site-packages $HOME'
+                sh '''#!/bin/bash -ex
+                source $HOME/bin/activate
+                # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
+                pip install -U pip setuptools
+                pip install .[test]
+                mkdir -p uploaded_files/
+                pip freeze
+                nvidia-smi
+                python3.12 -c "import torch; print(torch.cuda.current_device())"
+                # issue with cache creation in containers: https://github.com/pytorch/pytorch/issues/140765
+                TORCHINDUCTOR_CACHE_DIR=/tmp/torchinductor RUN_REGRESSION_SYNTH=1 python3.12 -m pytest -n 8
+                '''
+              } finally {
+                archiveArtifacts artifacts: "uploaded_files/*pt", fingerprint: true
+              }
+            }
+          }
+        }
+      },
+      docs: {
+        runPod(gpus: 1) {
+          stage('docs') {
+            withEnv([
+              "HOME=$WORKSPACE",
+              "OMP_NUM_THREADS=4",
+              "PROJECT_NAME=",
+              "GITHUB_PATH=plenoptic-org/plenoptic",
+              "GITHUB_TOKEN=${credentials('plenoptic-docs-gh-pr-write')}",
+              "BRANCH_NAME=${env.BRANCH_NAME}",
+              "ISSUE_NUM=${env.BRANCH_NAME.replace('PR-', '')}"
+            ]) {
+              sh 'python3.12 -m venv --system-site-packages $HOME'
+              sh '''#!/bin/bash -ex
+                # make sure we have the git tags, since we need that to correctly version plenoptic
+                git fetch --tags
+                source $HOME/bin/activate
+                # need newer version to avoid this: https://github.com/scipy/scipy/issues/16726
+                pip install -U pip setuptools
+                pip install .[docs]
+                python3.12 -c "import torch; print(torch.cuda.current_device())"
+                # issue with cache creation in containers: https://github.com/pytorch/pytorch/issues/140765
+                TORCHINDUCTOR_CACHE_DIR=/tmp/torchinductor RUN_NB=1 NB_EXECUTION_MODE=force make -C docs html O="-j 1"
+                mv docs/_build/ $HOME/built-docs/
+             '''
+             lock('plenoptic_publish') {
                 def scm = scmGit(branches: [[name: 'refs/heads/main']], userRemoteConfigs: [[credentialsId: 'github-jenkins', url: 'https://github.com/plenoptic-org/plenoptic-documentation.git']])
                 dir(path: 'docs') {
                   checkout(changelog: false, poll: false, scm: scm)
@@ -177,37 +139,11 @@ pipeline {
               }
             }
           }
-          post {
-            always {
-              dir("$HOME") {
-                deleteDir()
-              }
-            }
-          }
         }
       }
     }
   }
-  post {
-    failure {
-      emailext subject: '$PROJECT_NAME - Build #$BUILD_NUMBER - $BUILD_STATUS',
-        body: '''$PROJECT_NAME - Build #$BUILD_NUMBER - $BUILD_STATUS
-
-Check console output at $BUILD_URL to view full results.
-
-Building $BRANCH_NAME for $CAUSE
-$JOB_DESCRIPTION
-
-Changes:
-$CHANGES
-
-End of build log:
-${BUILD_LOG,maxLines=200}
-''',
-	      recipientProviders: [
-		    [$class: 'DevelopersRecipientProvider'],
-	    ],
-	      replyTo: '$DEFAULT_REPLYTO'
-    }
-  }
+}
+finally {
+  emailFailure()
 }

@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime
+FROM docker.io/pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
