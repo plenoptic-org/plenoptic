@@ -13,7 +13,7 @@ If you are unfamiliar with python environment management, we recommend [](conda)
 
 `plenoptic` is built on top of [pytorch](https://pytorch.org/), which we use for automatic differentiation. `plenoptic` is thus compatible with any valid pytorch model (see [](models-doc) for more details).
 
-`plenoptic` is also built on top of [pyrtools](https://pyrtools.readthedocs.io/en/latest/). `pyrtools` includes `numpy` implementations of the {ref}`pyramids-api` [image pyramids](https://docs.plenoptic.org/docs/branch/main/api/components.html) found in plenoptic, as well as other image-processing tools.
+`plenoptic` is also built on top of [pyrtools](https://pyrtools.readthedocs.io/en/latest/). `pyrtools` includes `numpy` implementations of the [image pyramids](pyramids-api) found in plenoptic, as well as other image-processing tools.
 
 (conda)=
 ## Installing with conda
