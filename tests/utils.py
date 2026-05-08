@@ -9,7 +9,7 @@ import pyrtools as pt
 import torch
 
 import plenoptic as po
-from plenoptic.data.fetch import fetch_data
+from plenoptic.data import fetch_data
 from test_models import TestPortillaSimoncelli
 
 

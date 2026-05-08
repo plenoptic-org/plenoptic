@@ -189,7 +189,7 @@ class TestSteerablePyramid:
             height = int(height)
         # need to use eval to get from 'False' (string) to False (bool);
         # bool('False') == True, annoyingly enough
-        pyr = po.model_components.SteerablePyramidFreq(
+        pyr = po.process.SteerablePyramidFreq(
             img.shape[-2:],
             height,
             int(order),
@@ -209,7 +209,7 @@ class TestSteerablePyramid:
             height = int(height)
         # need to use eval to get from 'False' (string) to False (bool);
         # bool('False') == True, annoyingly enough
-        pyr = po.model_components.SteerablePyramidFreq(
+        pyr = po.process.SteerablePyramidFreq(
             multichannel_img.shape[-2:],
             height,
             int(order),
@@ -245,7 +245,7 @@ class TestSteerablePyramid:
                 Warning, match="Reconstruction will not be perfect"
             )
         with expectation:
-            spc = po.model_components.SteerablePyramidFreq(
+            spc = po.process.SteerablePyramidFreq(
                 basic_stim.shape[-2:],
                 height=height,
                 order=order,
@@ -294,7 +294,7 @@ class TestSteerablePyramid:
         height = max([k for k in pyr_coeffs if isinstance(k, int)]) + 1
         # couldn't come up with a way to get this with fixtures, so we
         # instantiate it each time.
-        spyr_not_downsample = po.model_components.SteerablePyramidFreq(
+        spyr_not_downsample = po.process.SteerablePyramidFreq(
             img.shape[-2:],
             height,
             spyr.order,
@@ -498,7 +498,7 @@ class TestSteerablePyramid:
         recon = po.to_numpy(spyr.recon_pyr(pyr_coeffs))
         # should be able to reconstruct from corresponding coefficients if we haven't
         # called forward yet
-        spyr_copy = po.model_components.SteerablePyramidFreq(
+        spyr_copy = po.process.SteerablePyramidFreq(
             img.shape[-2:],
             spyr.num_scales,
             spyr.order,
@@ -624,9 +624,9 @@ class TestSteerablePyramid:
         else:
             expectation = does_not_raise()
         with expectation:
-            pyr = po.model_components.SteerablePyramidFreq(
-                img.shape[-2:], height=height
-            ).to(DEVICE)
+            pyr = po.process.SteerablePyramidFreq(img.shape[-2:], height=height).to(
+                DEVICE
+            )
             pyr(img)
 
     @pytest.mark.parametrize("order", range(-1, 17))
@@ -638,14 +638,14 @@ class TestSteerablePyramid:
         else:
             expectation = does_not_raise()
         with expectation:
-            pyr = po.model_components.SteerablePyramidFreq(
-                img.shape[-2:], order=order
-            ).to(DEVICE)
+            pyr = po.process.SteerablePyramidFreq(img.shape[-2:], order=order).to(
+                DEVICE
+            )
             pyr(img)
 
     @pytest.mark.parametrize("order", range(0, 16))
     def test_buffers(self, order):
-        pyr = po.model_components.SteerablePyramidFreq((256, 256), order=order)
+        pyr = po.process.SteerablePyramidFreq((256, 256), order=order)
         buffers = [k for k, _ in pyr.named_buffers()]
         names = ["lo0mask", "hi0mask"]
         for s in range(pyr.num_scales):
@@ -666,7 +666,7 @@ class TestSteerablePyramid:
         "ignore:Reconstruction will not be perfect with odd-sized images:UserWarning"
     )
     def test_img_shape_error(self, curie_img):
-        pyr = po.model_components.SteerablePyramidFreq((255, 255)).to(DEVICE)
+        pyr = po.process.SteerablePyramidFreq((255, 255)).to(DEVICE)
         with pytest.raises(
             ValueError, match="Input tensor height/width.*does not match"
         ):
@@ -684,7 +684,7 @@ class TestSteerablePyramid:
             shape = curie_img.shape[-2:]
         elif shape_type == "floats":
             shape = (256.0, 256.0)
-        pyr = po.model_components.SteerablePyramidFreq(shape).to(DEVICE)
+        pyr = po.process.SteerablePyramidFreq(shape).to(DEVICE)
         pyr(curie_img)
 
     @pytest.mark.parametrize(
@@ -704,7 +704,7 @@ class TestSteerablePyramid:
             shape = ("hi", "there")
             expect_str = "image_shape must be castable to ints"
         with pytest.raises(ValueError, match=expect_str):
-            po.model_components.SteerablePyramidFreq(shape)
+            po.process.SteerablePyramidFreq(shape)
 
     @pytest.mark.parametrize(
         "spyr",

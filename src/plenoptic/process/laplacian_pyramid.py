@@ -51,10 +51,10 @@ class LaplacianPyramid(nn.Module):
     Examples
     --------
     >>> import plenoptic as po
-    >>> lpyr = po.model_components.LaplacianPyramid(n_scales=4, scale_filter=True)
+    >>> lpyr = po.process.LaplacianPyramid(n_scales=4, scale_filter=True)
     """
 
-    __module__ = "plenoptic.model_components"
+    __module__ = "plenoptic.process"
 
     def __init__(self, n_scales: int = 5, scale_filter: bool = False):
         super().__init__()
@@ -91,7 +91,7 @@ class LaplacianPyramid(nn.Module):
 
           >>> import plenoptic as po
           >>> img = po.data.einstein()
-          >>> lpyr = po.model_components.LaplacianPyramid()
+          >>> lpyr = po.process.LaplacianPyramid()
           >>> po.plot.imshow(lpyr(img))
           <PyrFigure ...>
         """
@@ -133,7 +133,7 @@ class LaplacianPyramid(nn.Module):
           >>> import plenoptic as po
           >>> import torch
           >>> img = po.data.einstein()
-          >>> lpyr = po.model_components.LaplacianPyramid()
+          >>> lpyr = po.process.LaplacianPyramid()
           >>> coeffs = lpyr(img)
           >>> recon = lpyr.recon_pyr(coeffs)
           >>> torch.allclose(img, recon)

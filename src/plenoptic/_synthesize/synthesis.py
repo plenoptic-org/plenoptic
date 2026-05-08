@@ -16,7 +16,7 @@ from typing import Any, Literal
 import numpy as np
 import torch
 
-from .. import regularization
+from .. import regularize
 from ..io import _parse_save_io_attr_name, examine_saved_synthesis
 from ..tensors import _check_tensor_equality
 
@@ -314,16 +314,8 @@ class Synthesis(abc.ABC):
                     "saved object futureproof and avoid this warning.",
                     category=FutureWarning,
                 )
-            penalty_missing = init_not_save.intersection(
-                {
-                    "penalty_function",
-                    "_penalty_lambda",
-                    "_penalties",
-                    "_current_penalty",
-                }
-            )
-            if penalty_missing:
-                # in PR #383, we added penalty_function and penalty_lambda attributes,
+            if init_not_save.intersection({"penalty_function", "_penalty_lambda"}):
+                # in PR #411, we added penalty_function and penalty_lambda attributes,
                 # which we'll handle for now, but warn about.
                 # Remove allowed_range and range_penalty_lambda so there's no extra key
                 # in saved dictionary
@@ -333,11 +325,9 @@ class Synthesis(abc.ABC):
                     # Defining `penalize_range` is necessary for compatibility between
                     # old and new objects, see discussion in
                     # https://github.com/plenoptic-org/plenoptic/pull/383#discussion_r2709817411
-                    return regularization.penalize_range(
-                        img, allowed_range=allowed_range
-                    )
+                    return regularize.penalize_range(img, allowed_range=allowed_range)
 
-                tmp_dict["penalty_function"] = (
+                tmp_dict["_penalty_function"] = (
                     _get_name(penalize_range),
                     ("_image",),
                     penalize_range(tmp_dict["_image"]),
@@ -357,6 +347,23 @@ class Synthesis(abc.ABC):
                     "torch.nan for missing values.",
                     category=FutureWarning,
                 )
+            if init_not_save.intersection({"_penalties", "_current_penalty"}):
+                # in PR #425, we added the ability to track penalties over time. If
+                # objects were saved before that, we don't have that info.
+                tmp_dict["_current_penalty"] = None
+                tmp_dict["_penalties"] = [torch.nan] * len(tmp_dict["_losses"])
+                warnings.warn(
+                    "The saved object was saved after penalty_function "
+                    "existed but before penalties were tracked over time."
+                    " Save this object with the current version of plenoptic "
+                    "or see the 'Reproducibility and Compatibility' page of the "
+                    "documentation for how to make the saved object futureproof and "
+                    "avoid this warning. We cannot recover the history of the "
+                    "penalty_function output (the penalties attribute); filling with "
+                    "torch.nan for missing values.",
+                    category=FutureWarning,
+                )
+
         # there shouldn't be any extra keys in the saved dictionary (we removed
         # save_metadata above)
         save_not_init = set(tmp_dict) - set(vars(self))
@@ -609,7 +616,7 @@ class OptimizedSynthesis(Synthesis):
         self,
         penalty_function: Callable[
             [torch.Tensor], torch.Tensor
-        ] = regularization.penalize_range,
+        ] = regularize.penalize_range,
         penalty_lambda: float = 0.1,
     ):
         super().__init__()

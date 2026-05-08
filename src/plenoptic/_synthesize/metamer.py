@@ -16,9 +16,9 @@ import torch
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from .. import loss, regularization
+from .. import loss, regularize
 from ..convergence import _coarse_to_fine_enough, _loss_convergence
-from ..model_components import signal
+from ..process import signal
 from ..validate import validate_coarse_to_fine, validate_input, validate_model
 from .synthesis import OptimizedSynthesis
 
@@ -97,7 +97,7 @@ class Metamer(OptimizedSynthesis):
         image: Tensor,
         model: torch.nn.Module,
         loss_function: Callable[[Tensor, Tensor], Tensor] = loss.mse,
-        penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
+        penalty_function: Callable[[Tensor], Tensor] = regularize.penalize_range,
         penalty_lambda: float = 0.1,
     ):
         super().__init__(
@@ -1363,7 +1363,7 @@ class MetamerCTF(Metamer):
         image: Tensor,
         model: torch.nn.Module,
         loss_function: Callable[[Tensor, Tensor], Tensor] = loss.mse,
-        penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
+        penalty_function: Callable[[Tensor], Tensor] = regularize.penalize_range,
         penalty_lambda: float = 0.1,
         coarse_to_fine: Literal["together", "separate"] = "together",
     ):

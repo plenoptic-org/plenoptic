@@ -61,7 +61,7 @@ def l1_norm(x, y):
     return torch.linalg.vector_norm(x - y, ord=1)
 
 
-metrics = [po.tools.l2_norm, l1_norm]
+metrics = [po.loss.l2_norm, l1_norm]
 all_mad = {}
 
 # this gets us all four possibilities
@@ -233,14 +233,14 @@ For more details, see the [Metamer regularization section](metamer-regularizatio
 
 ```{code-cell} ipython3
 def range_penalty_custom(x):
-    return po.regularization.penalize_range(x, allowed_range=(0.0, 255.0))
+    return po.regularize.penalize_range(x, allowed_range=(0.0, 255.0))
 
 
 def l1_norm(x, y):
     return torch.linalg.vector_norm(x - y, ord=1)
 
 
-metrics = [po.tools.l2_norm, l1_norm]
+metrics = [po.loss.l2_norm, l1_norm]
 tradeoffs = {
     "l2_norm_max": 1e-4,
     "l2_norm_min": 1e-4,

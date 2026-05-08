@@ -565,7 +565,7 @@ def pyrshow(
     pyr_coeffs
         Pyramid coefficients in the standard dictionary format as returned by the
         steerable pyramid's
-        :func:`~plenoptic.model_components.SteerablePyramidFreq.forward`
+        :func:`~plenoptic.process.SteerablePyramidFreq.forward`
         method.
     vrange
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
@@ -672,7 +672,7 @@ def pyrshow(
     )
 
 
-def clean_up_axes(
+def _clean_up_axes(
     ax: mpl.axes.Axes,
     ylim: tuple[float, float] | None | Literal[False] = None,
     spines_to_remove: list[Literal["top", "right", "bottom", "left"]] = [
@@ -731,7 +731,7 @@ def clean_up_axes(
     return ax
 
 
-def update_stem(
+def _update_stem(
     stem_container: mpl.container.StemContainer, ydata: np.ndarray | torch.Tensor
 ) -> mpl.container.StemContainer:
     r"""
@@ -771,7 +771,7 @@ def update_stem(
     return stem_container
 
 
-def rescale_ylim(axes: list[mpl.axes.Axes], data: np.ndarray | torch.Tensor):
+def _rescale_ylim(axes: list[mpl.axes.Axes], data: np.ndarray | torch.Tensor):
     r"""
     Rescale y-limits nicely.
 
@@ -907,7 +907,7 @@ def stem_plot(
         # this is the default basefmt value
         basefmt = None
     ax.stem(data, basefmt=basefmt, **kwargs)
-    ax = clean_up_axes(ax, ylim, ["top", "right", "bottom"])
+    ax = _clean_up_axes(ax, ylim, ["top", "right", "bottom"])
     if title is not None:
         ax.set_title(title)
     return ax
@@ -1158,7 +1158,7 @@ def update_plot(
                     artists.append(art)
                 except AttributeError:
                     # then it's a stemplot
-                    sc = update_stem(art, d)
+                    sc = _update_stem(art, d)
                     artists.extend([sc.markerline, sc.stemlines])
             elif d.ndim == 2:
                 try:
@@ -1304,7 +1304,7 @@ def plot_representation(
         else:
             warnings.warn("data has keys, so we're ignoring title!")
         # want to make sure the axis we're taking over is basically invisible.
-        ax = clean_up_axes(ax, False, ["top", "right", "bottom", "left"], ["x", "y"])
+        ax = _clean_up_axes(ax, False, ["top", "right", "bottom", "left"], ["x", "y"])
         axes = []
         if len(list(data.values())[0].shape) == 3:
             # then this is 'vector-like'
@@ -1327,7 +1327,7 @@ def plot_representation(
             )
             for i, (k, v) in enumerate(data.items()):
                 ax = fig.add_subplot(gs[i // 4, i % 4])
-                ax = clean_up_axes(
+                ax = _clean_up_axes(
                     ax, False, ["top", "right", "bottom", "left"], ["x", "y"]
                 )
                 # only plot the specified batch
@@ -1348,7 +1348,7 @@ def plot_representation(
     if ylim is None:
         if isinstance(data, dict):
             data = torch.cat(list(data.values()), dim=2)
-        rescale_ylim(axes, data)
+        _rescale_ylim(axes, data)
     return axes
 
 

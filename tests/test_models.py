@@ -98,7 +98,7 @@ def test_validate_model(model):
 
 class TestNonLinearities:
     def test_rectangular_to_polar_dict(self, basic_stim):
-        spc = po.model_components.SteerablePyramidFreq(
+        spc = po.process.SteerablePyramidFreq(
             basic_stim.shape[-2:],
             height=5,
             order=1,
@@ -106,8 +106,8 @@ class TestNonLinearities:
             tight_frame=True,
         ).to(DEVICE)
         y = spc(basic_stim)
-        energy, state = po.model_components.rectangular_to_polar_dict(y, residuals=True)
-        y_hat = po.model_components.polar_to_rectangular_dict(energy, state)
+        energy, state = po.process.rectangular_to_polar_dict(y, residuals=True)
+        y_hat = po.process.polar_to_rectangular_dict(energy, state)
         for key in y:
             diff = y[key] - y_hat[key]
             assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-5
@@ -119,13 +119,13 @@ class TestNonLinearities:
         elif ndim == 5:
             shape = [10, 1, 1, 256, 256]
         x = torch.randn(shape, device=DEVICE)
-        norm, direction = po.model_components.local_gain_control(x)
-        x_hat = po.model_components.local_gain_release(norm, direction)
+        norm, direction = po.process.local_gain_control(x)
+        x_hat = po.process.local_gain_release(norm, direction)
         diff = x - x_hat
         assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-4
 
     def test_local_gain_control_spyr(self, basic_stim):
-        spr = po.model_components.SteerablePyramidFreq(
+        spr = po.process.SteerablePyramidFreq(
             basic_stim.shape[-2:],
             height=5,
             order=1,
@@ -133,8 +133,8 @@ class TestNonLinearities:
             tight_frame=True,
         ).to(DEVICE)
         x = spr(basic_stim)
-        norm, direction = po.model_components.local_gain_control(x[0])
-        x_hat = po.model_components.local_gain_release(norm, direction)
+        norm, direction = po.process.local_gain_control(x[0])
+        x_hat = po.process.local_gain_release(norm, direction)
         diff = x[0] - x_hat
         assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-4
 
@@ -146,7 +146,7 @@ class TestNonLinearities:
             shape = [2, 10, 1, 1, 1, 256, 256]
         x, y = torch.randn(shape, device=DEVICE)
         with pytest.raises(ValueError, match="Tensor must have 4 or 5"):
-            norm, direction = po.model_components.local_gain_release(x, y)
+            norm, direction = po.process.local_gain_release(x, y)
 
     @pytest.mark.parametrize("ndim", [3, 6])
     def test_local_gain_control_fail(self, ndim):
@@ -156,10 +156,10 @@ class TestNonLinearities:
             shape = [10, 1, 1, 1, 256, 256]
         x = torch.randn(shape, device=DEVICE)
         with pytest.raises(ValueError, match="Tensor must have 4 or 5"):
-            norm, direction = po.model_components.local_gain_control(x)
+            norm, direction = po.process.local_gain_control(x)
 
     def test_local_gain_control_dict(self, basic_stim):
-        spr = po.model_components.SteerablePyramidFreq(
+        spr = po.process.SteerablePyramidFreq(
             basic_stim.shape[-2:],
             height=5,
             order=1,
@@ -167,10 +167,8 @@ class TestNonLinearities:
             tight_frame=True,
         ).to(DEVICE)
         y = spr(basic_stim)
-        energy, state = po.model_components.local_gain_control_dict(y, residuals=True)
-        y_hat = po.model_components.local_gain_release_dict(
-            energy, state, residuals=True
-        )
+        energy, state = po.process.local_gain_control_dict(y, residuals=True)
+        y_hat = po.process.local_gain_release_dict(energy, state, residuals=True)
         for key in y:
             diff = y[key] - y_hat[key]
             assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-5
@@ -178,7 +176,7 @@ class TestNonLinearities:
 
 class TestLaplacianPyramid:
     def test_gradient_flow(self):
-        lpyr = po.model_components.LaplacianPyramid().to(DEVICE)
+        lpyr = po.process.LaplacianPyramid().to(DEVICE)
         img = torch.ones(1, 1, 100, 100).to(DEVICE).requires_grad_()
         y = lpyr.forward(img)
         assert y[0].requires_grad
@@ -188,7 +186,7 @@ class TestLaplacianPyramid:
         img = curie_img[
             :, :, 0:253, 0:234
         ]  # Original 256x256 shape is not good for testing padding
-        lpyr = po.model_components.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
+        lpyr = po.process.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
         y = lpyr.forward(img)
         img_recon = lpyr.recon_pyr(y)
         assert torch.allclose(img, img_recon)
@@ -196,7 +194,7 @@ class TestLaplacianPyramid:
     @pytest.mark.parametrize("n_scales", [3, 4, 5, 6])
     def test_match_pyrtools(self, curie_img, n_scales):
         img = curie_img[:, :, 0:253, 0:234]
-        lpyr_po = po.model_components.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
+        lpyr_po = po.process.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
         y_po = lpyr_po(img)
         lpyr_pt = pt.pyramids.LaplacianPyramid(img.squeeze().cpu(), height=n_scales)
         y_pt = [lpyr_pt.pyr_coeffs[(i, 0)] for i in range(n_scales)]
@@ -205,7 +203,7 @@ class TestLaplacianPyramid:
             x_po = x_po.squeeze().detach().cpu().numpy()
             assert np.abs(x_po - x_pt)[:-2, :-2].max() < 1e-5
             # The pyrtools implementation `pt.upConv performs`` padding after
-            # upsampling. Our implementation `po.model_components.upsample_convolve``
+            # upsampling. Our implementation `po.process.upsample_convolve``
             # performs padding before upsampling, and, depending on the parity of
             # the image, sometimes performs additional zero padding after upsampling
             # up to one row/column. This causes inconsistency on the right and
@@ -1287,11 +1285,9 @@ class TestFilters:
     def test_circular_gaussian2d_shape(self, std, kernel_size, out_channels):
         if std <= 0.0:
             with pytest.raises(ValueError, match="std must be positive"):
-                po.model_components.circular_gaussian2d((7, 7), std)
+                po.process.circular_gaussian2d((7, 7), std)
         else:
-            filt = po.model_components.circular_gaussian2d(
-                kernel_size, std, out_channels
-            )
+            filt = po.process.circular_gaussian2d(kernel_size, std, out_channels)
             if isinstance(kernel_size, int):
                 kernel_size = (kernel_size, kernel_size)
             assert filt.shape == (out_channels, 1, *kernel_size)
@@ -1301,7 +1297,7 @@ class TestFilters:
         std = torch.as_tensor([1.0, 2.0], device=DEVICE)
         out_channels = 3
         with pytest.raises(ValueError, match=r"If non-scalar, len\(std\) must equal"):
-            po.model_components.circular_gaussian2d((7, 7), std, out_channels)
+            po.process.circular_gaussian2d((7, 7), std, out_channels)
 
     @pytest.mark.parametrize(
         "std,expectation",
@@ -1330,14 +1326,12 @@ class TestFilters:
     )
     def test_circular_gaussian2d_std(self, std, expectation):
         with expectation:
-            filt = po.model_components.circular_gaussian2d(
-                (31, 31), std, out_channels=1
-            )
+            filt = po.process.circular_gaussian2d((31, 31), std, out_channels=1)
             assert filt.sum().isclose(torch.ones(1, device=DEVICE))
             assert filt.shape[-2:] == torch.Size((31, 31))
 
     def test_circular_gaussian2d_std_out_channel(self):
-        filt = po.model_components.circular_gaussian2d((31, 31), [2, 3, 4])
+        filt = po.process.circular_gaussian2d((31, 31), [2, 3, 4])
         assert filt.sum().isclose(3 * torch.ones(1, device=DEVICE))
         assert filt.shape[-2:] == torch.Size((31, 31))
 
@@ -1362,7 +1356,7 @@ class TestFilters:
     )
     def test_circular_gaussian2d_kernel_size(self, kernel_size, expectation):
         with expectation:
-            filt = po.model_components.circular_gaussian2d(kernel_size, 2)
+            filt = po.process.circular_gaussian2d(kernel_size, 2)
             assert filt.sum().isclose(torch.ones(1, device=DEVICE))
             if isinstance(kernel_size, int):
                 kernel_size = (kernel_size, kernel_size)
@@ -1399,12 +1393,12 @@ class TestFilters:
     )
     def test_circular_gaussian2d_out_channels(self, out_channels, expectation):
         with expectation:
-            po.model_components.circular_gaussian2d((31, 31), 2, out_channels)
+            po.process.circular_gaussian2d((31, 31), 2, out_channels)
 
     def test_circular_gaussian2d_multichannel_indep(self, color_img):
         # check that the following is equivalent to independently convolving each
         # channel with each filter
-        filt = po.model_components.circular_gaussian2d(31, [2, 10], 2)
+        filt = po.process.circular_gaussian2d(31, [2, 10], 2)
         img = po.data.color_wheel(as_gray=False)
         output = torch.nn.functional.conv2d(img, filt.repeat(3, 1, 1, 1), groups=3)
         test = []

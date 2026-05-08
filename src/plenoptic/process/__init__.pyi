@@ -25,6 +25,8 @@ __all__ = [
     "variance",
     "skew",
     "kurtosis",
+    "normalized_laplacian_pyramid",
+    "ssim_map",
 ]
 
 from .convolutions import (
@@ -36,6 +38,7 @@ from .convolutions import (
 )
 from .filters import circular_gaussian2d
 from .laplacian_pyramid import LaplacianPyramid
+from .metric import normalized_laplacian_pyramid, ssim_map
 from .non_linearities import (
     local_gain_control,
     local_gain_control_dict,

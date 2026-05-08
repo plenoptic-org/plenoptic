@@ -275,7 +275,7 @@ Now that we understand what eigendistortions are and how the {class}`~plenoptic.
 n = 128
 img = po.data.color_wheel().to(DEVICE)
 # center crop the image to nxn
-img = po.model_components.center_crop(img, n)
+img = po.process.center_crop(img, n)
 po.plot.imshow(img, as_rgb=True, zoom=2);
 ```
 
@@ -359,7 +359,7 @@ Remember the Fisher matrix is locally adaptive, meaning that a different image s
 img = po.data.curie().to(DEVICE)
 
 # center crop the image to nxn
-img = po.model_components.center_crop(img, n)
+img = po.process.center_crop(img, n)
 # because this is a grayscale image but ResNet expects a color image,
 # need to duplicate along the color dimension
 img3 = torch.repeat_interleave(img, 3, dim=1)

@@ -2,7 +2,7 @@
 Very simple visual models.
 
 While these may be useful as is, they are useful when combined with each other or
-non-linearities, as in :mod:`plenoptic.simulate.frontend`
+non-linearities, as in :mod:`plenoptic.models.frontend`.
 """  # numpydoc ignore=EX01
 
 from typing import Any
@@ -12,8 +12,8 @@ from torch import Tensor
 from torch import nn as nn
 from torch.nn import functional as F
 
-from ..model_components.convolutions import same_padding
-from ..model_components.filters import _validate_filter_args, circular_gaussian2d
+from ..process.convolutions import same_padding
+from ..process.filters import _validate_filter_args, circular_gaussian2d
 
 __all__ = ["Identity", "Linear", "Gaussian", "CenterSurround"]
 

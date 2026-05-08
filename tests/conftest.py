@@ -53,7 +53,7 @@ def einstein_img():
 
 @pytest.fixture(scope="package")
 def einstein_img_small(einstein_img):
-    return po.model_components.center_crop(einstein_img, 64).to(DEVICE)
+    return po.process.center_crop(einstein_img, 64).to(DEVICE)
 
 
 @pytest.fixture(scope="package")
@@ -65,7 +65,7 @@ def color_img():
 @pytest.fixture(scope="package")
 def parrot_square():
     img = po.load_images(IMG_DIR / "mixed" / "Parrot.png").to(DEVICE)
-    return po.model_components.center_crop(img, 254)
+    return po.process.center_crop(img, 254)
 
 
 @pytest.fixture(scope="package")
@@ -88,17 +88,15 @@ def get_model(name):
         # in order to get a tensor back, need to wrap steerable pyramid so that
         # we can call convert_pyr_to_tensor in the forward call. in order for
         # that to work, downsample must be False
-        class spyr(po.model_components.SteerablePyramidFreq):
+        class spyr(po.process.SteerablePyramidFreq):
             def __init__(self, *args, **kwargs):
                 kwargs.pop("downsample", None)
                 super().__init__(*args, downsample=False, **kwargs)
 
             def forward(self, *args, **kwargs):
                 coeffs = super().forward(*args, **kwargs)
-                pyr_tensor, _ = (
-                    po.model_components.SteerablePyramidFreq.convert_pyr_to_tensor(
-                        coeffs
-                    )
+                pyr_tensor, _ = po.process.SteerablePyramidFreq.convert_pyr_to_tensor(
+                    coeffs
                 )
                 return pyr_tensor
 
@@ -107,7 +105,7 @@ def get_model(name):
     elif name == "LPyr":
         # in order to get a tensor back, need to wrap laplacian pyramid so that
         # we can flatten the output. in practice, not the best way to use this
-        class lpyr(po.model_components.LaplacianPyramid):
+        class lpyr(po.process.LaplacianPyramid):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
@@ -136,8 +134,8 @@ def get_model(name):
         model.eval()
         return model
     elif name == "naive.CenterSurround.nograd":
-        model = po.simul.CenterSurround((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        model = po.models.CenterSurround((31, 31)).to(DEVICE)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "naive.Gaussian":
@@ -145,17 +143,17 @@ def get_model(name):
         model.eval()
         return model
     elif name == "naive.Gaussian.nograd":
-        model = po.simul.Gaussian((31, 31)).to(DEVICE)
+        model = po.models.Gaussian((31, 31)).to(DEVICE)
         model.eval()
-        po.tools.remove_grad(model)
+        po.remove_grad(model)
         return model
     elif name == "naive.Linear":
         model = po.models.Linear((31, 31)).to(DEVICE)
         model.eval()
         return model
     elif name == "naive.Linear.nograd":
-        model = po.simul.Linear((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        model = po.models.Linear((31, 31)).to(DEVICE)
+        po.remove_grad(model)
         model.eval()
         return model
 
@@ -174,8 +172,8 @@ def get_model(name):
         model.eval()
         return model
     elif name == "frontend.LuminanceGainControl.nograd":
-        model = po.simul.LuminanceGainControl((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        model = po.models.LuminanceGainControl((31, 31)).to(DEVICE)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "frontend.LuminanceContrastGainControl":
@@ -183,8 +181,8 @@ def get_model(name):
         model.eval()
         return model
     elif name == "frontend.LuminanceContrastGainControl.nograd":
-        model = po.simul.LuminanceContrastGainControl((31, 31)).to(DEVICE)
-        po.tools.remove_grad(model)
+        model = po.models.LuminanceContrastGainControl((31, 31)).to(DEVICE)
+        po.remove_grad(model)
         model.eval()
         return model
     elif name == "frontend.OnOff":

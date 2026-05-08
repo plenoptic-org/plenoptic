@@ -20,7 +20,7 @@ import torch
 from torch import Tensor
 from tqdm.auto import tqdm
 
-from .. import regularization
+from .. import regularize
 from ..convergence import _loss_convergence
 from ..validate import validate_input, validate_metric
 from .synthesis import OptimizedSynthesis
@@ -95,7 +95,7 @@ class MADCompetition(OptimizedSynthesis):
         reference_metric: torch.nn.Module | Callable[[Tensor, Tensor], Tensor],
         minmax: Literal["min", "max"],
         metric_tradeoff_lambda: float | None = None,
-        penalty_function: Callable[[Tensor], Tensor] = regularization.penalize_range,
+        penalty_function: Callable[[Tensor], Tensor] = regularize.penalize_range,
         penalty_lambda: float = 0.1,
     ):
         super().__init__(

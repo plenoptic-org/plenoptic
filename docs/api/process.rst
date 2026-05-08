@@ -1,22 +1,24 @@
-.. _components-api:
+.. _processing-api:
 
-Model and metric components
----------------------------
+Image-processing methods
+------------------------
 
-These classes and functions may be helpful for constructing your own models or metrics. As is, they are not compatible with any of the synthesis methods.
+These classes and functions all process images in some way, and thus may be helpful for constructing your own models or metrics. As is, they are not compatible with any of the synthesis methods.
 
 .. rubric:: Metric components
    :heading-level: 3
 
-These functions are used by the :ref:`metrics-api` above. While they are not compatible with any of our synthesis methods, they may be useful to better understand the behavior of their respective metrics.
+These functions are used by the :ref:`metrics-api`. While they are not compatible with any of our synthesis methods, they may be useful to better understand the behavior of their respective metrics.
 
-.. currentmodule:: plenoptic.metric
+.. currentmodule:: plenoptic.process
 .. autosummary::
    :signatures: none
    :toctree: generated
 
    ~ssim_map
    ~normalized_laplacian_pyramid
+
+.. _pyramids-api:
 
 .. rubric:: Image pyramids
    :heading-level: 3
@@ -25,7 +27,6 @@ Image pyramids decompose images into bands corresponding to different spatial fr
 
 See :external+pyrtools:std:doc:`index` for more information, including links to resources for learning more.
 
-.. currentmodule:: plenoptic.model_components
 .. autosummary::
    :signatures: none
    :toctree: generated

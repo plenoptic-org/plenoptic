@@ -47,7 +47,7 @@ Run it in your browser: **{binder}`ps_limitations.ipynb`**!
 The Portilla-Simoncelli model only operates on images whose height and width can be divided by 2 `n_scales` <!-- skip-lint --> times (where `n_scales` <!-- skip-lint --> is one of the initialization arguments for {class}`~plenoptic.models.PortillaSimoncelli`). This is because the model computes [cross-scale correlations](ps-cross-scale) by recursively downsampling the input image by a factor of 2, then upsampling to compare representations at adjacent scales. For this to work properly, the image dimensions must survive repeated halving and doubling without changing size. For example, if we start with an image of size `(1, 1, 255, 255)`, downsampling by a factor of 2 we will produce an image of size `(1, 1, 128, 128)`, but upsampling that back produces a size of `(1, 1, 256, 256)` --- a mismatch!
 
 To avoid this issue, use images whose height and width are divisible by 2 the requisite number of times. If your image doesn't meet this requirement, you can:
-- Crop the image (e.g., using {func}`plenoptic.model_components.center_crop`).
+- Crop the image (e.g., using {func}`plenoptic.process.center_crop`).
 - Pad the image (e.g., using {func}`torch.nn.functional.pad`).
 - Upsample the image (e.g., using {func}`torch.nn.functional.interpolate`).
 - Downsample the image (e.g., using {func}`torch.nn.functional.interpolate`).
@@ -93,7 +93,7 @@ img = po.data.einstein().to(DEVICE).to(torch.float64)
 
 # synthesis with full PortillaSimoncelli model
 model = po.models.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
-loss = po.tools.portilla_simoncelli_loss_factory(model, img)
+loss = po.loss.portilla_simoncelli_loss_factory(model, img)
 # to avoid running so many syntheses in this notebook, we load a cached version. see the
 # following admonition for how to run this yourself
 met = po.Metamer(

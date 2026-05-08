@@ -343,7 +343,7 @@ api_order = [
     "metrics.rst",
     "top_level.rst",
     "display.rst",
-    "components.rst",
+    "process.rst",
     "images.rst",
     "validation.rst",
     "optimization.rst",
@@ -420,10 +420,13 @@ def skip_torch_inherited_methods(app, obj_type, name, obj, skip, options):
                 "PR #413 for discussion."
             )
         docobj_module = getattr(docobj, "__module__", "")
-        # we skip the attributes inherited from torch.nn.Module for our models and
-        # model_components (we probably never want to show these attributes, but
-        # this is a more conservative way of doing this)
-        if docobj_module is not None and docobj_module.startswith("plenoptic.model"):
+        # we skip the attributes inherited from torch.nn.Module for our models and model
+        # components (found in the process module, we probably never want to show these
+        # attributes, but this is a more conservative way of doing this)
+        if docobj_module is not None and (
+            docobj_module.startswith("plenoptic.models")
+            or docobj_module.startswith("plenoptic.process")
+        ):
             if obj_type == "method":
                 obj_module = getattr(obj, "__module__", "")
                 if obj_module is not None and obj_module.startswith("torch.nn.modules"):

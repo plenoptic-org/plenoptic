@@ -148,7 +148,7 @@ This process takes about 4 minutes on my laptop without a GPU. How long it will 
 # use GPU
 img = img.to(DEVICE)
 model = po.models.PortillaSimoncelli(img.shape[-2:]).to(DEVICE)
-loss = po.tools.portilla_simoncelli_loss_factory(model, img)
+loss = po.loss.portilla_simoncelli_loss_factory(model, img)
 met = po.Metamer(
     img,
     model,

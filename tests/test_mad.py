@@ -24,11 +24,11 @@ def dis_ssim(*args):
 
 
 def custom_penalty(x1):
-    return po.regularization.penalize_range(x1, allowed_range=(0.2, 0.8))
+    return po.regularize.penalize_range(x1, allowed_range=(0.2, 0.8))
 
 
 def custom_penalty2(x1):
-    return po.regularization.penalize_range(x1, allowed_range=(0.3, 0.7))
+    return po.regularize.penalize_range(x1, allowed_range=(0.3, 0.7))
 
 
 class ModuleMetric(torch.nn.Module):
@@ -100,7 +100,7 @@ class TestMAD:
         target = "min"
         tradeoff = 1
         if penalty_function == "range":
-            penalty = po.regularization.penalize_range
+            penalty = po.regularize.penalize_range
         elif penalty_function == "custom":
             penalty = custom_penalty
         mad = po.MADCompetition(
@@ -436,7 +436,7 @@ class TestMAD:
     @pytest.mark.parametrize("penalty_behav", ["dtype", "shape", "name"])
     def test_load_penalty_change(self, einstein_img, penalty_behav, tmp_path):
         def base_penalty(x):
-            return po.regularization.penalize_range(x)
+            return po.regularize.penalize_range(x)
 
         mad = po.MADCompetition(
             einstein_img,
@@ -905,7 +905,7 @@ class TestMAD:
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
     def test_mad_loss_penalty_length(self, einstein_img, optim):
-        po.tools.set_seed(0)
+        po.set_seed(0)
         mad = po.MADCompetition(
             einstein_img, po.metric.mse, dis_ssim, "min", metric_tradeoff_lambda=1
         )
@@ -1111,7 +1111,7 @@ class TestMAD:
     def test_penalty_effect(self, einstein_img, penalty_function):
         """Higher penalty_lambda should yield smaller penalty values."""
         if penalty_function == "range":
-            penalty = po.regularization.penalize_range
+            penalty = po.regularize.penalize_range
         elif penalty_function == "custom":
             penalty = custom_penalty
         penalty_lambdas = [0.0, 0.5]
@@ -1141,7 +1141,7 @@ class TestMAD:
     def test_closure(self, seed, metric, minmax):
         # closure and objective_function separately compute the same thing, so test that
         # they're identical.
-        po.tools.set_seed(seed)
+        po.set_seed(seed)
         shape = (1, 1, 100, 100)
         img = torch.rand(shape, device=DEVICE)
         # if metric is not the po.metric.mse function above, initialize it here,
@@ -1149,7 +1149,7 @@ class TestMAD:
         if not inspect.isfunction(metric):
             metric = metric()
         for _ in range(5):
-            mad = po.synth.MADCompetition(
+            mad = po.MADCompetition(
                 img, metric, po.loss.l2_norm, minmax, metric_tradeoff_lambda=1
             )
             mad.setup(torch.rand(shape, device=DEVICE))

@@ -99,7 +99,7 @@ For two full images $\mathbf{X}, \mathbf{Y}$, an SSIM map is obtained by computi
 &= \frac{1}{N} \sum_{i=1}^N \frac{\left( 2 \mu_{X,i} \mu_{Y,i} + C_1 \right) \left( 2\sigma_{XY,i} + C_2 \right)} {\left( {\mu_{X,i}}^2 + {\mu_{Y,i}}^2 + C_1 \right) \left( {\sigma_{X,i}}^2 + {\sigma_{Y,i}}^2 + C_2 \right)}
 \end{align*}
 
-where $N$ is the number of pixels of the image. The SSIM index is also bounded between -1 and 1.  In `plenoptic`, the SSIM map is computed by the function {func}`~plenoptic.metric.ssim_map`, and the SSIM index itself is computed by the function {func}`~plenoptic.metric.ssim`. For more information, see the original paper:
+where $N$ is the number of pixels of the image. The SSIM index is also bounded between -1 and 1.  In `plenoptic`, the SSIM map is computed by the function {func}`~plenoptic.process.ssim_map`, and the SSIM index itself is computed by the function {func}`~plenoptic.metric.ssim`. For more information, see the original paper:
 
 [Wang, Z., Bovik, A. C., Sheikh, H. R., & Simoncelli, E. P. (2004). Image quality assessment: from error visibility to structural similarity. _IEEE transactions on image processing_, 13(4), 600-612.](https://www.cns.nyu.edu/pub/lcv/wang03-reprint.pdf)
 
@@ -174,7 +174,7 @@ While the scalar SSIM index is a concise summary, the SSIM map offers richer inf
 def get_demo_images():
     img = po.data.parrot(as_gray=True)
     img_jpeg = add_jpeg_artifact(img, quality=6)
-    ssim_map_small = po.metric.ssim_map(img, img_jpeg)
+    ssim_map_small = po.process.ssim_map(img, img_jpeg)
     ssim_map = torch.ones_like(img)
     ssim_map[:, :, 5:-5, 5:-5] = ssim_map_small
     abs_map = 1 - torch.abs(img - img_jpeg)
@@ -221,7 +221,7 @@ po.plot.imshow(img_distorted, vrange="auto", title=titles, col_wrap=3);
 
 ## NLPD (normalized Laplacian pyramid distance)
 
-Similar to MS-SSIM, the NLPD is also based on a multiscale representation of the images. Also similar to MS-SSIM, the idea of NLPD is also to separate out the effects of luminance and contrast difference. Unlike MS-SSIM, the NLPD directly performs luminance subtraction and contrast normalization on each scale, and then computes simple square difference. The NLPD uses the Laplacian pyramid for luminance subtraction. Given a Gaussian pyramid $\mathbf{X}_1, \cdots, \mathbf{X}_M$, for $k=1, \cdots, M - 1$, we upsample and blur $\mathbf{X}_{k+1}$ to produce $\mathbf{\hat{X}}_k$, which is a blurry version of $\mathbf{X}_k$, and let $\mathbf{X}'_k = \mathbf{X}_k - \mathbf{\hat{X}}_k$. Define $\mathbf{X}'_M = \mathbf{X}_M$, and we get the Laplacian pyramid $\mathbf{X}'_1, \cdots, \mathbf{X}'_M$. In `plenoptic`, the Laplacian pyramid is implemented by {class}`~plenoptic.model_components.LaplacianPyramid`.
+Similar to MS-SSIM, the NLPD is also based on a multiscale representation of the images. Also similar to MS-SSIM, the idea of NLPD is also to separate out the effects of luminance and contrast difference. Unlike MS-SSIM, the NLPD directly performs luminance subtraction and contrast normalization on each scale, and then computes simple square difference. The NLPD uses the Laplacian pyramid for luminance subtraction. Given a Gaussian pyramid $\mathbf{X}_1, \cdots, \mathbf{X}_M$, for $k=1, \cdots, M - 1$, we upsample and blur $\mathbf{X}_{k+1}$ to produce $\mathbf{\hat{X}}_k$, which is a blurry version of $\mathbf{X}_k$, and let $\mathbf{X}'_k = \mathbf{X}_k - \mathbf{\hat{X}}_k$. Define $\mathbf{X}'_M = \mathbf{X}_M$, and we get the Laplacian pyramid $\mathbf{X}'_1, \cdots, \mathbf{X}'_M$. In `plenoptic`, the Laplacian pyramid is implemented by {class}`~plenoptic.process.LaplacianPyramid`.
 
 The contrast normalization is achieved by dividing by a local estimation of amplitude:
 

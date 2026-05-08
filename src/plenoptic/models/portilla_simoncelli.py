@@ -24,18 +24,17 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import torch.fft
 import torch.nn as nn
 from torch import Tensor
 
-from ..model_components import signal, stats
-from ..model_components.steerable_pyramid_freq import (
+from ..plot.display import _clean_up_axes, _update_stem, stem_plot
+from ..process import signal, stats
+from ..process.steerable_pyramid_freq import (
     SCALES_TYPE as PYR_SCALES_TYPE,
 )
-from ..model_components.steerable_pyramid_freq import (
+from ..process.steerable_pyramid_freq import (
     SteerablePyramidFreq,
 )
-from ..plot.display import clean_up_axes, stem_plot, update_stem
 from ..tensors import to_numpy
 
 SCALES_TYPE = Literal["pixel_statistics"] | PYR_SCALES_TYPE
@@ -60,7 +59,7 @@ class PortillaSimoncelli(nn.Module):
     members of the same family of textures.
 
     The PS stats are computed based on the
-    :class:`~plenoptic.model_components.SteerablePyramidFreq`
+    :class:`~plenoptic.process.SteerablePyramidFreq`
     (Simoncelli and Freeman, 1995, [3]_). They consist of the local auto-correlations,
     cross-scale (within-orientation) correlations, and cross-orientation (within-scale)
     correlations of both the pyramid coefficients and the local energy (as computed by
@@ -867,7 +866,7 @@ class PortillaSimoncelli(nn.Module):
             value (in that order).
         """  # numpydoc ignore=ES01,EX01
         mean = torch.mean(image, dim=(-2, -1), keepdim=True)
-        # we use torch.var instead of plenoptic.model_components.variance, because our
+        # we use torch.var instead of plenoptic.process.variance, because our
         # variance is the uncorrected (or sample) variance and we want the
         # corrected one here.
         var = torch.var(image, dim=(-2, -1))
@@ -1320,7 +1319,7 @@ class PortillaSimoncelli(nn.Module):
             gs = mpl.gridspec.GridSpec(n_rows, n_cols, fig)
         else:
             # want to make sure the axis we're taking over is basically invisible.
-            ax = clean_up_axes(
+            ax = _clean_up_axes(
                 ax, False, ["top", "right", "bottom", "left"], ["x", "y"]
             )
             gs = ax.get_subplotspec().subgridspec(n_rows, n_cols)
@@ -1483,6 +1482,6 @@ class PortillaSimoncelli(nn.Module):
             else:
                 vals = to_numpy(d.flatten())
 
-            sc = update_stem(ax.containers[0], vals)
+            sc = _update_stem(ax.containers[0], vals)
             stem_artists.extend([sc.markerline, sc.stemlines])
         return stem_artists

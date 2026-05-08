@@ -15,11 +15,11 @@ def custom_loss(x1, x2):
 
 
 def custom_penalty(x1):
-    return po.regularization.penalize_range(x1, allowed_range=(0.2, 0.8))
+    return po.regularize.penalize_range(x1, allowed_range=(0.2, 0.8))
 
 
 def custom_penalty2(x1):
-    return po.regularization.penalize_range(x1, allowed_range=(0.3, 0.7))
+    return po.regularize.penalize_range(x1, allowed_range=(0.3, 0.7))
 
 
 class TestMetamers:
@@ -50,7 +50,7 @@ class TestMetamers:
         elif loss_func == "custom":
             loss = custom_loss
         if penalty_function == "range":
-            penalty = po.regularization.penalize_range
+            penalty = po.regularize.penalize_range
         elif penalty_function == "custom":
             penalty = custom_penalty
         met = po.Metamer(
@@ -717,7 +717,7 @@ class TestMetamers:
     )
     @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
     def test_metamer_loss_penalty_length(self, einstein_img, model, optim):
-        po.tools.set_seed(0)
+        po.set_seed(0)
         if hasattr(model, "scales"):
             met = po.MetamerCTF(einstein_img, model)
         else:
@@ -1139,9 +1139,9 @@ class TestMetamers:
         met = po.Metamer(einstein_img, model)
         met.save(tmp_path / "test_metamer_load_loss_change.pt")
         loaded = torch.load(tmp_path / "test_metamer_load_loss_change.pt")
-        loss_func = list(loaded["loss_function"])
+        loss_func = list(loaded["_loss_function"])
         loss_func[1] = ("_image", "_metamer")
-        loaded["loss_function"] = tuple(loss_func)
+        loaded["_loss_function"] = tuple(loss_func)
         torch.save(loaded, tmp_path / "test_metamer_load_loss_change.pt")
         met_copy = po.Metamer(einstein_img, model)
         with pytest.warns(
@@ -1150,7 +1150,7 @@ class TestMetamers:
             met_copy.load(tmp_path / "test_metamer_load_loss_change.pt")
 
     @pytest.mark.parametrize("model", ["naive.Identity"], indirect=True)
-    @pytest.mark.parametrize("check_attr", ["_model", "loss_function"])
+    @pytest.mark.parametrize("check_attr", ["_model", "_loss_function"])
     def test_load_check_change(self, model, check_attr, einstein_img, tmp_path):
         # this is an error triggered in the situation that the futurewarning in
         # test_load_loss_change_warning is a specific version of: the saved and
@@ -1159,7 +1159,7 @@ class TestMetamers:
         met.save(tmp_path / "test_metamer_load_loss_change.pt")
         loaded = torch.load(tmp_path / "test_metamer_load_loss_change.pt")
         attr = list(loaded[check_attr])
-        if check_attr == "loss_function":
+        if check_attr == "_loss_function":
             attr[1] = ("something_else", "bad")
         elif check_attr == "_model":
             attr[1] = "something_else"
@@ -1218,7 +1218,7 @@ class TestMetamers:
         """Stronger penalty_lambda should lead to lower value of penalty,
         if regularization is working properly."""
         if penalty_function == "range":
-            penalty = po.regularization.penalize_range
+            penalty = po.regularize.penalize_range
         elif penalty_function == "custom":
             penalty = custom_penalty
         penalty_lambdas = [0.0, 0.5]
@@ -1247,11 +1247,11 @@ class TestMetamers:
     def test_closure(self, seed, model, optim):
         # closure and objective_function separately compute the same thing, so test that
         # they're identical.
-        po.tools.set_seed(seed)
+        po.set_seed(seed)
         shape = (1, 1, 100, 100)
         img = torch.rand(shape, device=DEVICE)
         for _ in range(5):
-            met = po.synth.Metamer(img, model)
+            met = po.Metamer(img, model)
             met.setup(torch.rand(shape, device=DEVICE), optimizer=optim)
             loss = met.objective_function()
             assert loss == met._closure()
@@ -1261,11 +1261,11 @@ class TestMetamers:
     def test_closure_ctf(self, seed, model):
         # closure and objective_function separately compute the same thing, so test that
         # they're identical.
-        po.tools.set_seed(seed)
+        po.set_seed(seed)
         shape = (1, 1, 256, 256)
         img = torch.rand(shape, device=DEVICE)
         for _ in range(3):
-            met = po.synth.Metamer(img, model)
+            met = po.Metamer(img, model)
             met.setup(torch.rand(shape, device=DEVICE))
             loss = met.objective_function()
             assert loss == met._closure()
@@ -1273,11 +1273,11 @@ class TestMetamers:
     def test_penalties_old_compatability(self, einstein_img_double):
         # test behavior when loading metamer saved before _penalties added: should be
         # able to load (with warning) and call get_progress
-        model = po.simul.Gaussian(30).eval()
-        po.tools.remove_grad(model)
+        model = po.models.Gaussian(30).eval()
+        po.remove_grad(model)
         model = model.to(DEVICE).to(einstein_img_double.dtype)
-        met = po.synth.Metamer(einstein_img_double, model)
-        txt1 = "The saved object was saved before penalty_function"
+        met = po.Metamer(einstein_img_double, model)
+        txt1 = "The saved object was saved after penalty_function"
         txt2 = "You will need to call setup"
         old_met = po.data.fetch_data("example_metamer_gaussian-old.pt")
         with (

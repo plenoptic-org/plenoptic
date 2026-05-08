@@ -224,22 +224,19 @@ is added to the loss during optimization, and it can be used to control certain
 properties of the synthesized metamer.
 
 For example, the default {attr}`~plenoptic.Metamer.penalty_function` uses the
-{func}`~plenoptic.regularization.penalize_range` function to penalize pixel
+{func}`~plenoptic.regularize.penalize_range` function to penalize pixel
 values that fall outside the range [0, 1], helping to keep the synthesized
 metamer within this range. The user can pass custom penalty functions that
 control other properties of the synthesized metamer. For example, we can
 constrain the image pixels to fall inside a different range, by using the
-argument `allowed_range` in the {func}`~plenoptic.regularization.penalize_range`
+argument `allowed_range` in the {func}`~plenoptic.regularize.penalize_range`
 function to define a new range penalization. Below we show how to constrain the
 pixel range to be between 0.2 and 0.8.
 
 ```{code-cell} ipython3
-from plenoptic import regularization
-
-
 # Create custom_penalty function, that penalizes pixels outside of [0.2, 0.8] range
 def custom_penalty(image):
-    penalty = regularization.penalize_range(image, allowed_range=(0.2, 0.8))
+    penalty = po.regularize.penalize_range(image, allowed_range=(0.2, 0.8))
     return penalty
 
 

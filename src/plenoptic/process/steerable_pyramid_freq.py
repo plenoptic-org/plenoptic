@@ -152,10 +152,10 @@ class SteerablePyramidFreq(nn.Module):
     Examples
     --------
     >>> import plenoptic as po
-    >>> spyr = po.model_components.SteerablePyramidFreq((256, 256))
+    >>> spyr = po.process.SteerablePyramidFreq((256, 256))
     """
 
-    __module__ = "plenoptic.model_components"
+    __module__ = "plenoptic.process"
 
     def __init__(
         self,
@@ -429,7 +429,7 @@ class SteerablePyramidFreq(nn.Module):
 
           >>> import plenoptic as po
           >>> img = po.data.einstein()
-          >>> spyr = po.model_components.SteerablePyramidFreq(img.shape[-2:])
+          >>> spyr = po.process.SteerablePyramidFreq(img.shape[-2:])
           >>> po.plot.pyrshow(spyr(img))
           <PyrFigure ...>
         """
@@ -604,9 +604,7 @@ class SteerablePyramidFreq(nn.Module):
 
           >>> import plenoptic as po
           >>> img = po.data.einstein()
-          >>> spyr = po.model_components.SteerablePyramidFreq(
-          ...     img.shape[-2:], downsample=False
-          ... )
+          >>> spyr = po.process.SteerablePyramidFreq(img.shape[-2:], downsample=False)
           >>> coeffs = spyr(img)
           >>> coeffs_tensor, _ = spyr.convert_pyr_to_tensor(coeffs)
           >>> coeffs_tensor.shape
@@ -708,7 +706,7 @@ class SteerablePyramidFreq(nn.Module):
         --------
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> spyr = po.model_components.SteerablePyramidFreq(
+        >>> spyr = po.process.SteerablePyramidFreq(
         ...     img.shape[-2:], downsample=False, is_complex=True
         ... )
         >>> coeffs = spyr(img)
@@ -929,7 +927,7 @@ class SteerablePyramidFreq(nn.Module):
           >>> import plenoptic as po
           >>> import torch
           >>> img = po.data.einstein()
-          >>> spyr = po.model_components.SteerablePyramidFreq(img.shape[-2:])
+          >>> spyr = po.process.SteerablePyramidFreq(img.shape[-2:])
           >>> coeffs = spyr(img)
           >>> recon = spyr.recon_pyr(coeffs)
           >>> torch.allclose(recon, img, rtol=1e-8, atol=1e-5)
@@ -1123,9 +1121,7 @@ class SteerablePyramidFreq(nn.Module):
             >>> import plenoptic as po
             >>> import torch
             >>> img = po.data.einstein()
-            >>> spyr = po.model_components.SteerablePyramidFreq(
-            ...     img.shape[-2:], height=3
-            ... )
+            >>> spyr = po.process.SteerablePyramidFreq(img.shape[-2:], height=3)
             >>> coeffs = spyr(img)
             >>> resteered_coeffs, resteering_weights = spyr.steer_coeffs(
             ...     coeffs, torch.linspace(0, 2 * torch.pi, 64)

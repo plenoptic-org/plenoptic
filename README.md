@@ -21,7 +21,8 @@
 See our [documentation site](https://docs.plenoptic.org) for more details,
 including how to get started!
 
-> [!WARNING] Breaking API Changes!
+> [!WARNING]
+> Breaking API Changes!
 >
 > Plenoptic 2.0 introduces breaking changes to the API and will not work with code written to work with earlier versions! See the [documentation](https://docs.plenoptic.org/docs/branch/main/reference/migration_guide.html) for details, including a script to update your code.
 
@@ -48,7 +49,7 @@ for more details).
 `plenoptic` is also built on top of
 [pyrtools](https://pyrtools.readthedocs.io/en/latest/). `pyrtools` includes
 `numpy` implementations of the [image
-pyramids](https://docs.plenoptic.org/docs/branch/main/api/components.html) found
+pyramids](https://docs.plenoptic.org/docs/branch/main/api/process.html) found
 in plenoptic, as well as other image-processing tools.
 
 See the [installation

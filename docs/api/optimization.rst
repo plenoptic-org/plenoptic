@@ -34,7 +34,7 @@ The following functions return a function that can be used as a ``loss_function`
 
 The following functions operate as penalties.
 
-.. currentmodule:: plenoptic.regularization
+.. currentmodule:: plenoptic.regularize
 .. autosummary::
    :signatures: none
    :toctree: generated
