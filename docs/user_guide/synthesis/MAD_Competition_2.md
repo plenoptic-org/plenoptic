@@ -204,5 +204,5 @@ So MSE considers the rightmost image in the top row and the images in the second
 From the following plot, we can see that we generally manage to hold the fixed metric constant (orange lines in the right plot, blue lines in the left) while changing the target metric.
 
 ```{code-cell} ipython3
-po.plot.mad_loss_all(mad, mad_mse_min, mad_ssim_max, mad_mse_max, "SDSIM")
+po.plot.mad_loss_all(mad, mad_mse_min, mad_ssim_max, mad_mse_max, "SDSIM");
 ```
