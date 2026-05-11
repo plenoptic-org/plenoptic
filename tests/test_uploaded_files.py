@@ -48,6 +48,18 @@ def compare_metamers(met, met_up, rtol=1e-5, atol=1e-7):
     )
 
 
+def compare_mad(mad, mad_up, rtol=1e-5, atol=1e-7):
+    _check_tensor_equality(
+        mad.mad_image,
+        mad_up.mad_image,
+        "Test",
+        "OSF",
+        rtol,
+        atol,
+        "mad_image has different {error_type}! Update the OSF version.",
+    )
+
+
 class PortillaSimoncelliRemove(po.models.PortillaSimoncelli):
     r"""Model for measuring a subset of texture statistics reported by
     PortillaSimoncelli
@@ -363,6 +375,38 @@ class TestDoctest:
         met.optimizer.load_state_dict(init_state_dict)
         met.to("cpu")
         met.save("uploaded_files/example_metamerCTF_ps.pt")
+
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_example_mad(self):
+        po.set_seed(0)
+        os.makedirs("uploaded_files", exist_ok=True)
+        torch.save(
+            torch.random.get_rng_state(),
+            "uploaded_files/torch_rng_state_mad.pt",
+        )
+        print(np.random.get_state())
+        img = po.data.curie().to(torch.float64).to(DEVICE)
+
+        def ds_ssim(x, y):
+            return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
+
+        mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
+        # needed to initialize optimizer for following, see issue #404
+        mad.setup(0.04)
+        init_state_dict = mad.optimizer.state_dict()
+        mad.synthesize(400)
+        mad.save("uploaded_files/example_mad-cuda.pt")
+        mad_up = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
+        mad_up.load(
+            po.data.fetch_data("example_mad-cuda.pt"),
+            tensor_equality_atol=1e-7,
+            map_location=DEVICE,
+        )
+        compare_mad(mad, mad_up)
+        # needed to allow us to move device completely, see issue #404
+        mad.optimizer.load_state_dict(init_state_dict)
+        mad.to("cpu")
+        mad.save("uploaded_files/example_mad.pt")
 
 
 @pytest.mark.order(0)

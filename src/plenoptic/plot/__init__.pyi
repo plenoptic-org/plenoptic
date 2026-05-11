@@ -21,6 +21,7 @@ __all__ = [
     "metamer_pixel_values",
     "metamer_synthesis_status",
     "metamer_animshow",
+    "synthesis_loss",
 ]
 
 from .display import (
@@ -53,3 +54,4 @@ from .metamer import (
     metamer_representation_error,
     metamer_synthesis_status,
 )
+from .synthesis import synthesis_loss

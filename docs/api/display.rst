@@ -8,6 +8,13 @@ Display
 
 These functions all are intended to help visualize the status and outputs of `synthesis objects <synthesis-api>`_.
 
+.. currentmodule:: plenoptic.plot
+.. autosummary::
+   :signatures: none
+   :toctree: generated
+
+   ~synthesis_loss
+
 .. rubric:: :class:`~plenoptic.Metamer` / :class:`~plenoptic.MetamerCTF`
    :heading-level: 4
 

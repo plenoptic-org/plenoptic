@@ -964,6 +964,30 @@ class TestMADDisplay:
                 img = img.clip(0, 1)
             assert np.equal(axes_img, img).all(), "wrong saved mad_image plotted!"
 
+    @pytest.mark.parametrize("iteration", [None, 2, -2])
+    @pytest.mark.parametrize("plot_penalties", [True, False])
+    @pytest.mark.parametrize("axes", [None, "axis", "list", "list-fail"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    def test_synthesis_plot(self, synthesized_mad, iteration, plot_penalties, axes):
+        expectation = does_not_raise()
+        if isinstance(axes, str):
+            if axes == "list":
+                n_axes = 3 if plot_penalties else 2
+            elif axes == "list-fail":
+                n_axes = 2 if plot_penalties else 3
+                expectation = pytest.raises(
+                    ValueError, match="axes is a list of the wrong length"
+                )
+            elif axes == "axis":
+                n_axes = 1
+            fig, axes = plt.subplots(1, n_axes)
+        with expectation:
+            po.plot.synthesis_loss(synthesized_mad, iteration, plot_penalties, axes)
+        plt.close()
+
 
 class TestMetamerDisplay:
     @pytest.fixture(scope="class", params=["rgb", "grayscale"])
@@ -1218,3 +1242,25 @@ class TestMetamerDisplay:
             if img.shape[-1] == 3:
                 img = img.clip(0, 1)
             assert np.equal(axes_img, img).all(), "wrong saved metamer plotted!"
+
+    @pytest.mark.parametrize("iteration", [None, 2, -2])
+    @pytest.mark.parametrize("plot_penalties", [True, False])
+    @pytest.mark.parametrize("axes", [None, "axis", "list"])
+    def test_synthesis_plot(
+        self, synthesized_met_nostore, iteration, plot_penalties, axes
+    ):
+        expectation = does_not_raise()
+        if isinstance(axes, str):
+            if axes == "list":
+                n_axes = 2
+                expectation = pytest.raises(
+                    ValueError, match="if synthesis_object is a Metamer"
+                )
+            elif axes == "axis":
+                n_axes = 1
+            fig, axes = plt.subplots(1, n_axes)
+        with expectation:
+            po.plot.synthesis_loss(
+                synthesized_met_nostore, iteration, plot_penalties, axes
+            )
+        plt.close()
