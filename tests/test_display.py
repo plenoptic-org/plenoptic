@@ -971,7 +971,7 @@ class TestMADDisplay:
     @pytest.mark.filterwarnings(
         "ignore:SSIM was designed for grayscale images:UserWarning"
     )
-    def test_synthesis_plot(self, synthesized_mad, iteration, plot_penalties, axes):
+    def test_synthesis_loss(self, synthesized_mad, iteration, plot_penalties, axes):
         expectation = does_not_raise()
         if isinstance(axes, str):
             if axes == "list":
@@ -1246,7 +1246,7 @@ class TestMetamerDisplay:
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("plot_penalties", [True, False])
     @pytest.mark.parametrize("axes", [None, "axis", "list"])
-    def test_synthesis_plot(
+    def test_synthesis_loss(
         self, synthesized_met_nostore, iteration, plot_penalties, axes
     ):
         expectation = does_not_raise()
