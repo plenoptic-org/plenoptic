@@ -9,7 +9,7 @@ import pytest
 import torch
 
 import plenoptic as po
-from conftest import DEVICE, IMG_DIR
+from conftest import DEVICE, IMG_DIR, ColorModel
 
 # use the html backend, so we don't need to have ffmpeg
 mpl.rcParams["animation.writer"] = "html"
@@ -1002,6 +1002,17 @@ class TestMADDisplay:
             po.plot.synthesis_loss(synthesized_mad, iteration, plot_penalties, axes)
         plt.close()
 
+    @pytest.mark.parametrize("iteration", [None, 2, -2])
+    @pytest.mark.parametrize("axes", [None, "axis"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    def test_synthesis_histogram(self, synthesized_mad, iteration, axes):
+        if axes == "axis":
+            fig, axes = plt.subplots(1, 1)
+        po.plot.synthesis_histogram(synthesized_mad, iteration=iteration, axes=axes)
+
 
 class TestMetamerDisplay:
     @pytest.fixture(scope="class", params=["rgb", "grayscale"])
@@ -1279,52 +1290,76 @@ class TestMetamerDisplay:
             )
         plt.close()
 
+    @pytest.mark.parametrize("iteration", [None, 2, -2])
+    @pytest.mark.parametrize("axes", [None, "axis"])
+    def test_synthesis_histogram(self, synthesized_met, iteration, axes):
+        if axes == "axis":
+            fig, axes = plt.subplots(1, 1)
+        po.plot.synthesis_histogram(synthesized_met, iteration=iteration, axes=axes)
+
 
 class TestEigendistortionDisplay:
-    SMALL_DIM = 20
-
-    @pytest.mark.parametrize(
-        "model", ["frontend.OnOff.nograd", "ColorModel"], indirect=True
+    @pytest.fixture(
+        scope="class",
+        params=[
+            "OnOff-power-2",
+            "OnOff-randomized_svd-2",
+            "Color-power-2",
+            "Color-randomized_svd-2",
+            "OnOff-power-3",
+            "OnOff-randomized_svd-3",
+            "Color-power-3",
+            "Color-randomized_svd-3",
+        ],
     )
-    @pytest.mark.parametrize("method", ["power", "randomized_svd"])
-    @pytest.mark.parametrize("k", [2, 3])
+    def synthesized_eig(self, request, einstein_img, color_img):
+        model, method, k = request.param.split("-")
+        if model == "OnOff":
+            model = po.models.OnOff((31, 31), pretrained=True, cache_filt=True).to(
+                DEVICE
+            )
+        elif model == "Color":
+            model = ColorModel().to(DEVICE)
+        po.remove_grad(model)
+        model.eval()
+        img = einstein_img if model.__class__ == po.models.OnOff else color_img
+        img = img[..., :20, :20]
+        eigendist = po.Eigendistortion(img, model)
+        eigendist.synthesize(k=int(k), method=method, max_iter=10)
+        return eigendist
+
     @pytest.mark.filterwarnings(
         "ignore:Randomized SVD complete!:UserWarning",
     )
-    def test_display(self, model, einstein_img, color_img, method, k):
-        img = einstein_img if model.__class__ == po.models.OnOff else color_img
-        as_rgb = img.shape[1] == 3
+    def test_display(self, synthesized_eig):
+        as_rgb = synthesized_eig.image.shape[1] == 3
+        po.plot.eigendistortion_imshow(synthesized_eig, eigenindex=0, as_rgb=as_rgb)
+        po.plot.eigendistortion_imshow(synthesized_eig, eigenindex=1, as_rgb=as_rgb)
 
-        img = img[..., : self.SMALL_DIM, : self.SMALL_DIM]
-        eigendist = po.Eigendistortion(img, model)
-        eigendist.synthesize(k=k, method=method, max_iter=10)
-        po.plot.eigendistortion_imshow(eigendist, eigenindex=0, as_rgb=as_rgb)
-        po.plot.eigendistortion_imshow(eigendist, eigenindex=1, as_rgb=as_rgb)
-
-        if method == "power":
-            po.plot.eigendistortion_imshow(eigendist, eigenindex=-1, as_rgb=as_rgb)
-            po.plot.eigendistortion_imshow(eigendist, eigenindex=-2, as_rgb=as_rgb)
-        elif method == "randomized_svd":  # svd only has top k not bottom k eigendists
+        # power method has top and bottom k eigendists
+        if not (synthesized_eig.eigenindex < 3).all():
+            po.plot.eigendistortion_imshow(
+                synthesized_eig, eigenindex=-1, as_rgb=as_rgb
+            )
+            po.plot.eigendistortion_imshow(
+                synthesized_eig, eigenindex=-2, as_rgb=as_rgb
+            )
+        # randomized svd only has top k not bottom k eigendists
+        else:
             with pytest.raises(ValueError, match="eigenindex must be the index"):
-                po.plot.eigendistortion_imshow(eigendist, eigenindex=-1)
+                po.plot.eigendistortion_imshow(synthesized_eig, eigenindex=-1)
         plt.close("all")
 
     @pytest.mark.parametrize(
-        "model", ["frontend.OnOff.nograd", "ColorModel"], indirect=True
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
     )
     @pytest.mark.parametrize("alpha", [1, [1], [1, 10], [1, 10, 10]])
     @pytest.mark.parametrize("eigenindex", [0, [0, -1], [0, -1, 5]])
     @pytest.mark.filterwarnings(
         "ignore:Adding 0.5 to distortion:UserWarning",
     )
-    def test_display_all(self, model, einstein_img, color_img, alpha, eigenindex):
-        # in this case, we're working with grayscale images
-        img = einstein_img if model.__class__ == po.models.OnOff else color_img
-        as_rgb = img.shape[1] == 3
-
-        img = img[..., : self.SMALL_DIM, : self.SMALL_DIM]
-        eigendist = po.Eigendistortion(img, model)
-        eigendist.synthesize(k=2, method="power", max_iter=10)
+    def test_display_all(self, synthesized_eig, alpha, eigenindex):
+        as_rgb = synthesized_eig.image.shape[1] == 3
         expectation = does_not_raise()
         if isinstance(eigenindex, list):
             if 5 in eigenindex:
@@ -1338,6 +1373,23 @@ class TestEigendistortionDisplay:
             expectation = pytest.raises(ValueError, match="If alpha is a list")
         with expectation:
             po.plot.eigendistortion_imshow_all(
-                eigendist, eigenindex=eigenindex, alpha=alpha, as_rgb=as_rgb
+                synthesized_eig, eigenindex=eigenindex, alpha=alpha, as_rgb=as_rgb
             )
+        plt.close("all")
+
+    @pytest.mark.parametrize("iteration", [None, 2, -2])
+    @pytest.mark.parametrize("axes", [None, "axis"])
+    @pytest.mark.filterwarnings(
+        "ignore:Randomized SVD complete!:UserWarning",
+    )
+    def test_synthesis_histogram(self, synthesized_eig, iteration, axes):
+        expectation = does_not_raise()
+        if iteration is not None:
+            expectation = pytest.raises(
+                ValueError, match="When synthesis_object is an Eigendistortion"
+            )
+        if axes == "axis":
+            fig, axes = plt.subplots(1, 1)
+        with expectation:
+            po.plot.synthesis_histogram(synthesized_eig, iteration=iteration, axes=axes)
         plt.close("all")

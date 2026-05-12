@@ -1359,9 +1359,9 @@ def histogram(
     channel_idx: int | None = None,
     ylim: tuple[float, float] | Literal[False] = False,
     xlim: tuple[float, float] | Literal[False, "range"] = "range",
-    xlabel: str | Literal[False] = "Pixel values",
+    xlabel: str | Literal[False] = "Values",
     ax: mpl.axes.Axes | None = None,
-    title: str = "Histogram of pixel values",
+    title: str = "Histogram of tensor values",
     alpha: float = 0.4,
     **kwargs: Any,
 ) -> mpl.axes.Axes:
@@ -1412,8 +1412,6 @@ def histogram(
     ------
     ValueError
         If ``labels`` and ``data`` are both lists but have different lengths
-    ValueError
-        If ``labels`` and ``data`` are both lists but have different lengths
 
     See Also
     --------
@@ -1428,8 +1426,8 @@ def histogram(
       >>> import plenoptic as po
       >>> import torch
       >>> img = po.data.einstein()
-      >>> po.plot.histogram(met)
-      <Axes: ... 'Histogram of pixel values'...>
+      >>> po.plot.histogram(img)
+      <Axes: ... 'Histogram of tensor values'...>
 
     Plot on an existing axis:
 
@@ -1438,7 +1436,7 @@ def histogram(
 
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
       >>> po.plot.histogram(img, ax=axes[1])
-      <Axes: ... 'Histogram of pixel values'...>
+      <Axes: ... 'Histogram of tensor values'...>
     """
 
     def _freedman_diaconis_bins(a: np.ndarray) -> int:

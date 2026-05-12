@@ -1,7 +1,7 @@
 .. _display-api:
 
-Display
--------
+Plotting functions
+------------------
 
 .. rubric:: Synthesis objects
    :heading-level: 3
@@ -14,6 +14,7 @@ These functions all are intended to help visualize the status and outputs of `sy
    :toctree: generated
 
    ~synthesis_loss
+   ~synthesis_histogram
 
 .. rubric:: :class:`~plenoptic.Metamer` / :class:`~plenoptic.MetamerCTF`
    :heading-level: 4

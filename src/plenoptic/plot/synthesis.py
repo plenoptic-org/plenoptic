@@ -287,7 +287,7 @@ def synthesis_histogram(
     **kwargs: Any,
 ) -> mpl.axes.Axes:
     """
-    Plot histogram of values of synthesized and original tensors.
+    Plot histogram of values of synthesis objects.
 
     .. versionadded:: 2.0.0
        Added in version 2.0.0, combines previously separate loss plotting functions for
@@ -303,8 +303,8 @@ def synthesis_histogram(
       synthesized tensor against the target / reference image. ``iteration`` can be
       specified.
 
-    - :class:`~plenoptic.Eigendistortion`: create separate histograms for all
-      eigendistortions. ``iteration`` must be ``None``.
+    - :class:`~plenoptic.Eigendistortion`: create histograms for eigendistortions.
+      ``iteration`` must be ``None``.
 
     Parameters
     ----------
@@ -368,12 +368,14 @@ def synthesis_histogram(
     synthesis_status
         Create a figure combining this with other axis-level plots to summarize
         synthesis status at a given iteration.
-    animshow
+    synthesis_animshow
         Create a video animating this and other axis-level plots changing over
         the course of synthesis.
 
     Examples
     --------
+    Plot histogram for :class:`~plenoptic.Metamer` object:
+
     .. plot::
       :context: reset
 
@@ -385,8 +387,8 @@ def synthesis_histogram(
       >>> met = po.Metamer(img, model)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
-      >>> po.plot.metamer_pixel_values(met)
-      <Axes: ... 'Histogram of pixel values'...>
+      >>> po.plot.synthesis_histogram(met)
+      <Axes: ... 'Histogram of tensor values'...>
 
     Plot pixel values from a specified iteration (requires setting ``store_progress``
     when :meth:`~plenoptic.Metamer.synthesize` was called):
@@ -394,8 +396,8 @@ def synthesis_histogram(
     .. plot::
       :context: close-figs
 
-      >>> po.plot.metamer_pixel_values(met, iteration=10)
-      <Axes: ... 'Histogram of pixel values'...>
+      >>> po.plot.synthesis_histogram(met, iteration=10)
+      <Axes: ... 'Histogram of tensor values'...>
 
     Plot on an existing axis:
 
@@ -404,7 +406,41 @@ def synthesis_histogram(
 
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
       >>> po.plot.metamer_pixel_values(met, ax=axes[1])
-      <Axes: ... 'Histogram of pixel values'...>
+      <Axes: ... 'Histogram of tensor values'...>
+
+    Plot histogram for :class:`~plenoptic.MADCompetition` object:
+
+    .. plot::
+      :context: close-figs
+
+      >>> img = po.data.curie().to(torch.float64)
+      >>> def ds_ssim(x, y):
+      ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
+      >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
+      >>> mad.load(po.data.fetch_data("example_mad.pt"))
+      >>> po.plot.synthesis_histogram(mad)
+      <Axes: ... 'Histogram of tensor values'...>
+
+    Plot histogram for :class:`~plenoptic.Eigendistortion` object. Notice how
+    here we plot just the values from the synthesized eigendistortions, not the base
+    image.
+
+    .. plot::
+      :context: close-figs
+
+      >>> img = po.data.einstein().to(torch.float64)
+      >>> lg = po.models.LuminanceGainControl(
+      ...     (31, 31), pad_mode="circular", pretrained=True, cache_filt=True
+      ... ).eval()
+      >>> lg = lg.to(torch.float64)
+      >>> po.remove_grad(lg)
+      >>> eig = po.Eigendistortion(img, lg)
+      >>> eig.load(
+      ...     po.data.fetch_data("example_eigendistortion.pt"),
+      ...     map_location="cpu",
+      ... )
+      >>> po.plot.synthesis_histogram(eig)
+      <Axes: ... 'Histogram of tensor values'...>
     """
     if isinstance(synthesis_object, Eigendistortion):
         name = "eigendistortion"
