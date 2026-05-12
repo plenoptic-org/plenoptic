@@ -1377,6 +1377,13 @@ class TestEigendistortionDisplay:
             )
         plt.close("all")
 
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    def test_synthesis_plot(self, synthesized_eig):
+        with pytest.raises(TypeError, match="synthesis_object must be a"):
+            po.plot.synthesis_plot(synthesized_eig)
+
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
     @pytest.mark.filterwarnings(

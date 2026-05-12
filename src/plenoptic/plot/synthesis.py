@@ -95,6 +95,9 @@ def synthesis_loss(
     ValueError
         If ``synthesis_object`` is a :class:`~plenoptic.MADCompetition` and ``ax`` is a
         list of the wrong length.
+    TypeError
+        If ``synthesis_object`` is not :class:`~plenoptic.MADCompetition` or
+        :class:`~plenoptic.Metamer`
 
     See Also
     --------
@@ -214,6 +217,11 @@ def synthesis_loss(
       >>> plt.plot(mad.losses)
       [<matplotlib.lines.Line2D ...>]
     """
+    if not isinstance(synthesis_object, (Metamer, MADCompetition)):
+        raise TypeError(
+            "synthesis_object must be a MADCompetition or Metamer object but got"
+            f" {type(synthesis_object)}"
+        )
     # this warning is not relevant for this plotting function
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="loss iteration and iteration for")
