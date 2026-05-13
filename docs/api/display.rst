@@ -14,6 +14,7 @@ These functions all are intended to help visualize the status and outputs of `sy
    :toctree: generated
 
    ~synthesis_loss
+   ~synthesis_imshow
    ~synthesis_histogram
 
 .. rubric:: :class:`~plenoptic.Metamer` / :class:`~plenoptic.MetamerCTF`

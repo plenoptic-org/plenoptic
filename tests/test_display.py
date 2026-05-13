@@ -1021,7 +1021,78 @@ class TestMADDisplay:
     def test_synthesis_histogram(self, synthesized_mad, iteration, axes):
         if axes == "axis":
             fig, axes = plt.subplots(1, 1)
-        po.plot.synthesis_histogram(synthesized_mad, iteration=iteration, axes=axes)
+        po.plot.synthesis_histogram(synthesized_mad, iteration=iteration, ax=axes)
+
+    @pytest.mark.parametrize("iteration", [None, 2, -2])
+    @pytest.mark.parametrize("axes", [None, "axis"])
+    @pytest.mark.parametrize("alpha", [1, 5])
+    @pytest.mark.parametrize("batch_idx", [None, 0])
+    @pytest.mark.parametrize("process_image", [None, "clip", "multiply"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    def test_synthesis_imshow(
+        self, synthesized_mad, batch_idx, alpha, process_image, iteration, axes
+    ):
+        expectation = does_not_raise()
+        if alpha != 5:
+            expectation = pytest.raises(
+                ValueError, match="If synthesis_object is type.*, alpha cannot be set"
+            )
+        if axes == "axis":
+            fig, axes = plt.subplots(1, 1)
+        if batch_idx is None:
+            expectation = pytest.raises(ValueError, match="batch_idx must be")
+        else:
+            data_batch_idx = batch_idx
+        if synthesized_mad.image.shape[1] == 3:
+            # then this will create an RGB image, and the image array we retrieve from
+            # matplotlib will have the dimensions in a different order. also,
+            # matplotlib automatically clips all RGB images to 0, 1
+            def rearrange_dims(x):
+                return torch.movedim(x, 0, 2).clip(0, 1)
+        else:
+
+            def rearrange_dims(x):
+                return x
+
+        if process_image == "clip":
+
+            def process_image(x):
+                return x.clip(0, 1)
+
+            def data_process_image(x):
+                return rearrange_dims(process_image(x))
+        elif process_image == "multiply":
+
+            def process_image(x):
+                return 5 * x
+
+            def data_process_image(x):
+                return rearrange_dims(process_image(x))
+        else:
+            data_process_image = rearrange_dims
+        with expectation:
+            ax = po.plot.synthesis_imshow(
+                synthesized_mad,
+                batch_idx=batch_idx,
+                alpha=alpha,
+                iteration=iteration,
+                ax=axes,
+                process_image=process_image,
+            )
+            if iteration is None:
+                expected_image = synthesized_mad.mad_image
+            else:
+                expected_image = synthesized_mad.saved_mad_image[iteration]
+            expected_image = po.to_numpy(
+                data_process_image(expected_image[data_batch_idx]).squeeze()
+            )
+            plotted_image = ax.images[0].get_array().data
+            if not np.array_equal(expected_image, plotted_image):
+                raise ValueError("plotted image wrong!")
+            plt.close("all")
 
 
 class TestMetamerDisplay:
@@ -1305,7 +1376,75 @@ class TestMetamerDisplay:
     def test_synthesis_histogram(self, synthesized_met, iteration, axes):
         if axes == "axis":
             fig, axes = plt.subplots(1, 1)
-        po.plot.synthesis_histogram(synthesized_met, iteration=iteration, axes=axes)
+        po.plot.synthesis_histogram(synthesized_met, iteration=iteration, ax=axes)
+        plt.close()
+
+    @pytest.mark.parametrize("iteration", [None, 2, -2])
+    @pytest.mark.parametrize("axes", [None, "axis"])
+    @pytest.mark.parametrize("alpha", [1, 5])
+    @pytest.mark.parametrize("batch_idx", [None, 0])
+    @pytest.mark.parametrize("process_image", [None, "clip", "multiply"])
+    def test_synthesis_imshow(
+        self, synthesized_met, batch_idx, alpha, process_image, iteration, axes
+    ):
+        expectation = does_not_raise()
+        if alpha != 5:
+            expectation = pytest.raises(
+                ValueError, match="If synthesis_object is type.*, alpha cannot be set"
+            )
+        if axes == "axis":
+            fig, axes = plt.subplots(1, 1)
+        if batch_idx is None:
+            expectation = pytest.raises(ValueError, match="batch_idx must be")
+        else:
+            data_batch_idx = batch_idx
+        if synthesized_met.image.shape[1] == 3:
+            # then this will create an RGB image, and the image array we retrieve from
+            # matplotlib will have the dimensions in a different order. also,
+            # matplotlib automatically clips all RGB images to 0, 1
+            def rearrange_dims(x):
+                return torch.movedim(x, 0, 2).clip(0, 1)
+        else:
+
+            def rearrange_dims(x):
+                return x
+
+        if process_image == "clip":
+
+            def process_image(x):
+                return x.clip(0, 1)
+
+            def data_process_image(x):
+                return rearrange_dims(process_image(x))
+        elif process_image == "multiply":
+
+            def process_image(x):
+                return 5 * x
+
+            def data_process_image(x):
+                return rearrange_dims(process_image(x))
+        else:
+            data_process_image = rearrange_dims
+        with expectation:
+            ax = po.plot.synthesis_imshow(
+                synthesized_met,
+                batch_idx=batch_idx,
+                alpha=alpha,
+                iteration=iteration,
+                ax=axes,
+                process_image=process_image,
+            )
+            if iteration is None:
+                expected_image = synthesized_met.metamer
+            else:
+                expected_image = synthesized_met.saved_metamer[iteration]
+                expected_image = po.to_numpy(
+                    data_process_image(expected_image[data_batch_idx]).squeeze()
+                )
+                plotted_image = ax.images[0].get_array().data
+            if not np.array_equal(expected_image, plotted_image):
+                raise ValueError("plotted image wrong!")
+            plt.close("all")
 
 
 class TestEigendistortionDisplay:
@@ -1330,12 +1469,12 @@ class TestEigendistortionDisplay:
             )
         elif model == "Color":
             model = ColorModel().to(DEVICE)
-        po.remove_grad(model)
-        model.eval()
-        img = einstein_img if model.__class__ == po.models.OnOff else color_img
-        img = img[..., :20, :20]
-        eigendist = po.Eigendistortion(img, model)
-        eigendist.synthesize(k=int(k), method=method, max_iter=10)
+            po.remove_grad(model)
+            model.eval()
+            img = einstein_img if model.__class__ == po.models.OnOff else color_img
+            img = img[..., :20, :20]
+            eigendist = po.Eigendistortion(img, model)
+            eigendist.synthesize(k=int(k), method=method, max_iter=10)
         return eigendist
 
     @pytest.mark.filterwarnings(
@@ -1354,11 +1493,11 @@ class TestEigendistortionDisplay:
             po.plot.eigendistortion_imshow(
                 synthesized_eig, eigenindex=-2, as_rgb=as_rgb
             )
-        # randomized svd only has top k not bottom k eigendists
+            # randomized svd only has top k not bottom k eigendists
         else:
             with pytest.raises(ValueError, match="eigenindex must be the index"):
                 po.plot.eigendistortion_imshow(synthesized_eig, eigenindex=-1)
-        plt.close("all")
+                plt.close("all")
 
     @pytest.mark.parametrize(
         "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
@@ -1376,7 +1515,7 @@ class TestEigendistortionDisplay:
                 expectation = pytest.raises(
                     ValueError, match="eigenindex must be the index"
                 )
-            # this will get raised first
+                # this will get raised first
             if isinstance(alpha, list) and len(alpha) != len(eigenindex):
                 expectation = pytest.raises(ValueError, match="If alpha is a list")
         elif isinstance(alpha, list) and len(alpha) != 1:
@@ -1385,7 +1524,7 @@ class TestEigendistortionDisplay:
             po.plot.eigendistortion_imshow_all(
                 synthesized_eig, eigenindex=eigenindex, alpha=alpha, as_rgb=as_rgb
             )
-        plt.close("all")
+            plt.close("all")
 
     @pytest.mark.parametrize(
         "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
@@ -1394,12 +1533,13 @@ class TestEigendistortionDisplay:
         with pytest.raises(TypeError, match="synthesis_object must be a"):
             po.plot.synthesis_plot(synthesized_eig)
 
-    @pytest.mark.parametrize("iteration", [None, 2, -2])
+    @pytest.mark.parametrize("iteration", [None, 2])
+    @pytest.mark.parametrize("batch_idx", [None, 0, -1, "last"])
     @pytest.mark.parametrize("axes", [None, "axis"])
     @pytest.mark.filterwarnings(
         "ignore:Randomized SVD complete!:UserWarning",
     )
-    def test_synthesis_histogram(self, synthesized_eig, iteration, axes):
+    def test_synthesis_histogram(self, synthesized_eig, batch_idx, iteration, axes):
         expectation = does_not_raise()
         if iteration is not None:
             expectation = pytest.raises(
@@ -1407,6 +1547,90 @@ class TestEigendistortionDisplay:
             )
         if axes == "axis":
             fig, axes = plt.subplots(1, 1)
+        if batch_idx == "last":
+            batch_idx = synthesized_eig.eigenindex[-1]
         with expectation:
-            po.plot.synthesis_histogram(synthesized_eig, iteration=iteration, axes=axes)
-        plt.close("all")
+            po.plot.synthesis_histogram(
+                synthesized_eig, batch_idx=batch_idx, iteration=iteration, ax=axes
+            )
+            plt.close("all")
+
+    @pytest.mark.parametrize(
+        "synthesized_eig",
+        [
+            "OnOff-power-2",
+            "Color-power-2",
+        ],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("iteration", [None, 2])
+    @pytest.mark.parametrize("axes", [None, "axis"])
+    @pytest.mark.parametrize("alpha", [1, 5])
+    @pytest.mark.parametrize("batch_idx", [None, 0, -1, "last"])
+    @pytest.mark.parametrize("process_image", [None, "clip", "multiply"])
+    @pytest.mark.filterwarnings(
+        "ignore:Randomized SVD complete!:UserWarning",
+    )
+    def test_synthesis_imshow(
+        self, synthesized_eig, batch_idx, alpha, process_image, iteration, axes
+    ):
+        expectation = does_not_raise()
+        if iteration is not None:
+            expectation = pytest.raises(
+                ValueError, match="When synthesis_object is an Eigendistortion"
+            )
+        if axes == "axis":
+            fig, axes = plt.subplots(1, 1)
+        if batch_idx == "last":
+            batch_idx = synthesized_eig.eigenindex[-1]
+            data_batch_idx = -1
+        elif batch_idx is None:
+            expectation = pytest.raises(ValueError, match="batch_idx must be")
+        else:
+            data_batch_idx = batch_idx
+        if synthesized_eig.image.shape[1] == 3:
+            # then this will create an RGB image, and the image array we retrieve from
+            # matplotlib will have the dimensions in a different order. also,
+            # matplotlib automatically clips all RGB images to 0, 1
+            def rearrange_dims(x):
+                return torch.movedim(x, 0, 2).clip(0, 1)
+        else:
+
+            def rearrange_dims(x):
+                return x
+
+        if process_image == "clip":
+
+            def process_image(x):
+                return x.clip(0, 1)
+
+            def data_process_image(x):
+                return rearrange_dims(process_image(x))
+        elif process_image == "multiply":
+
+            def process_image(x):
+                return 5 * x
+
+            def data_process_image(x):
+                return rearrange_dims(process_image(x))
+        else:
+            data_process_image = rearrange_dims
+        with expectation:
+            ax = po.plot.synthesis_imshow(
+                synthesized_eig,
+                batch_idx=batch_idx,
+                alpha=alpha,
+                iteration=iteration,
+                ax=axes,
+                process_image=process_image,
+            )
+            expected_image = (
+                synthesized_eig.image + alpha * synthesized_eig.eigendistortions
+            )
+            expected_image = po.to_numpy(
+                data_process_image(expected_image[data_batch_idx]).squeeze()
+            )
+            plotted_image = ax.images[0].get_array().data
+            if not np.array_equal(expected_image, plotted_image):
+                raise ValueError("plotted image wrong!")
+            plt.close("all")

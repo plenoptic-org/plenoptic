@@ -23,6 +23,7 @@ __all__ = [
     "metamer_animshow",
     "synthesis_loss",
     "synthesis_histogram",
+    "synthesis_imshow",
 ]
 
 from .display import (
@@ -55,4 +56,4 @@ from .metamer import (
     metamer_representation_error,
     metamer_synthesis_status,
 )
-from .synthesis import synthesis_histogram, synthesis_loss
+from .synthesis import synthesis_histogram, synthesis_imshow, synthesis_loss

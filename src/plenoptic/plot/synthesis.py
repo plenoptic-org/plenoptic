@@ -1,10 +1,12 @@
 """Plots for understanding synthesis objects."""  # numpydoc ignore=EX01
 
 import warnings
+from collections.abc import Callable
 from typing import Any, Literal
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import torch
 
 from .._synthesize import Eigendistortion, MADCompetition, Metamer
 from . import display
@@ -283,6 +285,198 @@ def synthesis_loss(
     return axes_dict
 
 
+def _get_synthesis_image(
+    synthesis_object: Metamer | MADCompetition | Eigendistortion,
+    batch_idx: int | None = None,
+    iteration: int | None = None,
+    return_ref_image: bool = False,
+) -> tuple[list[torch.Tensor], list[int]]:
+    """
+    Grab images from synthesis objects to plot.
+
+    This function:
+
+    - Grabs the synthesized image tensor.
+
+    - Grabs the correct iteration, if possible, raising an error if ``iteration`` is set
+      for an Eigendistortion or when ``store_progress=False``.
+
+    - If ``batch_idx is None``, unpack all batches into list of 4d tensors. If not, and
+      ``synthesis_object`` is an Eigendistortion, convert from eigenindex values to
+      actual indices (see :func:`plenoptic.Eigendistortion._indexer`).
+
+    - If ``return_ref_image``, return the reference image as well.
+
+    Parameters
+    ----------
+    synthesis_object
+        Synthesis object with the images we want to plot.
+    batch_idx
+        Which index to take from the batch dimension. Note that for
+        :class:`~plenoptic.Eigendistortion`, this is the
+        :attr:`~plenoptic.Eigendistortion.eigenindex`. If ``None``, we grab all
+        batches.
+    iteration
+        Which iteration to display, for :class:`~plenoptic.Metamer` and
+        :class:`~plenoptic.MADCompetition` objects. If ``None``, we show the most recent
+        one. Negative values are also allowed. If ``iteration!=None`` and
+        ``synthesis_object.store_progress>1`` (that is, the synthesized image was not
+        cached on every iteration), then we use the cached image from the nearest
+        iteration. For :class:`~plenoptic.Eigendistortion`, this must be ``None``.
+    return_ref_image
+        Whether to include the reference image (``synthesis_object.image``).
+
+    Returns
+    -------
+    images
+        The corresponding images. Either a single 4d image tensor or a list of such
+        tensors.
+    batch_idx
+        Corresponding ``batch_idx``. If input ``batch_idx`` was ``None``, these are the
+        explicit indices. If ``synthesis_object`` was a
+        :class:`~plenoptic.Eigendistortion`, these have been remapped so they're now
+        indices.
+
+    Raises
+    ------
+    IndexError
+        If ``iteration`` takes an illegal value.
+    ValueError
+        If ``iteration`` is not ``None`` and ``synthesis_object`` is an
+        :class:`~plenoptic.Eigendistortion` object.
+
+    Warns
+    -----
+    UserWarning
+        If the iteration used for cached image is not the same as the argument
+        ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``synthesis_object.store_progress=2``).
+    """
+    if isinstance(synthesis_object, Eigendistortion):
+        if iteration is not None:
+            raise ValueError(
+                "When synthesis_object is an Eigendistortion, iteration must be None!"
+            )
+        image = synthesis_object.eigendistortions
+        if batch_idx is not None:
+            batch_idx = synthesis_object._indexer(batch_idx)
+    else:
+        progress = synthesis_object.get_progress(iteration)
+        if isinstance(synthesis_object, Metamer):
+            name = "metamer"
+        elif isinstance(synthesis_object, MADCompetition):
+            name = "mad_image"
+        try:
+            image = progress[f"saved_{name}"]
+        except KeyError:
+            if iteration is not None:
+                raise IndexError(
+                    "When synthesis_object.store_progress=False, iteration must be"
+                    " None!"
+                )
+            image = eval(f"synthesis_object.{name}")
+            # losses will always have one extra value, the current loss.
+    if batch_idx is None:
+        image = [im.unsqueeze(0) for im in image]
+    if return_ref_image:
+        if isinstance(image, list):
+            image.append(synthesis_object.image)
+        else:
+            image = [image, synthesis_object.image]
+    return image, batch_idx
+
+
+def _get_synthesis_title(
+    synthesis_object: Metamer | MADCompetition | Eigendistortion,
+    batch_idx: int | None = None,
+    iteration: int | None = None,
+    return_ref_image: bool = False,
+) -> list[str]:
+    """
+    Grab titles for synthesis images to plot.
+
+    This should be run before :func:`_get_synthesis_image`, as its input ``batch_idx``
+    should be the unremapped one -- we want it to match the user input.
+
+    Parameters
+    ----------
+    synthesis_object
+        Synthesis object with the images we want to plot.
+    batch_idx
+        Which index to take from the batch dimension. Note that for
+        :class:`~plenoptic.Eigendistortion`, this is the
+        :attr:`~plenoptic.Eigendistortion.eigenindex`. If ``None``, we grab all
+        batches.
+    iteration
+        Which iteration to display, for :class:`~plenoptic.Metamer` and
+        :class:`~plenoptic.MADCompetition` objects. If ``None``, we show the most recent
+        one. Negative values are also allowed. If ``iteration!=None`` and
+        ``synthesis_object.store_progress>1`` (that is, the synthesized image was not
+        cached on every iteration), then we use the cached image from the nearest
+        iteration. For :class:`~plenoptic.Eigendistortion`, this must be ``None``.
+    return_ref_image
+        Whether to include the reference image (``synthesis_object.image``).
+
+    Returns
+    -------
+    titles
+        Corresponding titles. These include the ``batch_idx`` and, if relevant
+        ``iteration`` in them.
+
+    Raises
+    ------
+    IndexError
+        If ``iteration`` takes an illegal value.
+    ValueError
+        If ``iteration`` is not ``None`` and ``synthesis_object`` is an
+        :class:`~plenoptic.Eigendistortion` object.
+
+    Warns
+    -----
+    UserWarning
+        If the iteration used for cached image is not the same as the argument
+        ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``synthesis_object.store_progress=2``).
+    """
+    if isinstance(synthesis_object, Eigendistortion):
+        if iteration is not None:
+            raise ValueError(
+                "When synthesis_object is an Eigendistortion, iteration must be None!"
+            )
+        title_names = ["Eigendistortion[{batch_idx}]", "Reference"]
+        if batch_idx is None:
+            batch_idx = synthesis_object.eigenindex
+    else:
+        progress = synthesis_object.get_progress(iteration)
+        if isinstance(synthesis_object, Metamer):
+            title_names = ["Metamer[{batch_idx}] [iteration={iter}]", "Target"]
+            max_batch = synthesis_object.metamer.shape[0]
+        elif isinstance(synthesis_object, MADCompetition):
+            title_names = ["MAD[{batch_idx}] [iteration={iter}]", "Reference"]
+            max_batch = synthesis_object.mad_image.shape[0]
+        try:
+            iteration = progress["store_progress_iteration"]
+        except KeyError:
+            if iteration is not None:
+                raise IndexError(
+                    "When synthesis_object.store_progress=False, iteration must be"
+                    " None!"
+                )
+            # losses will always have one extra value, the current loss.
+            iteration = len(synthesis_object.losses) - 1
+        if batch_idx is None:
+            batch_idx = range(max_batch)
+    try:
+        titles = [title_names[0].format(batch_idx=i, iter=iteration) for i in batch_idx]
+    except TypeError:
+        # we're here because we can't iterate over batch_idx (can't just check
+        # attributes because 0d tensors have both __iter__ and __len__)
+        titles = [title_names[0].format(batch_idx=batch_idx, iter=iteration)]
+    if return_ref_image:
+        titles += [f"{title_names[1]} image"]
+    return titles
+
+
 def synthesis_histogram(
     synthesis_object: Metamer | MADCompetition | Eigendistortion,
     batch_idx: int | None = None,
@@ -317,7 +511,7 @@ def synthesis_histogram(
     Parameters
     ----------
     synthesis_object
-        Synthesis object with the images whose values we want to compare.
+        Synthesis object with the images whose values we want to plot.
     batch_idx
         Which index to take from the batch dimension. Note that for
         :class:`~plenoptic.Eigendistortion`, this is the
@@ -333,7 +527,7 @@ def synthesis_histogram(
         one. Negative values are also allowed. If ``iteration!=None`` and
         ``synthesis_object.store_progress>1`` (that is, the synthesized image was not
         cached on every iteration), then we use the cached image from the nearest
-        iteration.
+        iteration. For :class:`~plenoptic.Eigendistortion`, this must be ``None``.
     ylim
         If tuple, the ylimit to set for this axis. If ``False``, we leave
         it untouched.
@@ -450,50 +644,16 @@ def synthesis_histogram(
       >>> po.plot.synthesis_histogram(eig)
       <Axes: ... 'Histogram of tensor values'...>
     """
-    if isinstance(synthesis_object, Eigendistortion):
-        name = "eigendistortion"
-        if iteration is not None:
-            raise ValueError(
-                "When synthesis_object is an Eigendistortion, iteration must be None!"
-            )
-        image = synthesis_object.eigendistortions
-        if batch_idx is None:
-            image = [im for im in image]
-            titles = [f"Eigendistortion[{i}]" for i in synthesis_object.eigenindex]
-        else:
-            titles = [f"Eigendistortion[{batch_idx}]"]
-    else:
-        progress = synthesis_object.get_progress(iteration)
-        if isinstance(synthesis_object, Metamer):
-            name = "metamer"
-            title_names = ["Metamer", "Target"]
-        elif isinstance(synthesis_object, MADCompetition):
-            name = "mad_image"
-            title_names = ["MAD", "Reference"]
-        try:
-            image = progress[f"saved_{name}"]
-            iter = progress["store_progress_iteration"]
-        except KeyError:
-            if iteration is not None:
-                raise IndexError(
-                    "When synthesis_object.store_progress=False, iteration must be"
-                    " None!"
-                )
-            image = eval(f"synthesis_object.{name}")
-            # losses will always have one extra value, the current loss.
-            iter = len(synthesis_object.losses) - 1
-        if batch_idx is None:
-            titles = [
-                f"{title_names[0]}[{i}] [iteration={iter}]"
-                for i in range(image.shape[0])
-            ]
-            image = [im for im in image] + [synthesis_object.image]
-        else:
-            titles = [f"{title_names[0]}[{batch_idx}] [iteration={iter}]"]
-            image = [image, synthesis_object.image]
-        titles += [f"{title_names[1]} image"]
+    # For eigendistortion, we don't plot histogram against the reference image
+    return_ref_image = not isinstance(synthesis_object, Eigendistortion)
+    titles = _get_synthesis_title(
+        synthesis_object, batch_idx, iteration, return_ref_image
+    )
+    images, batch_idx = _get_synthesis_image(
+        synthesis_object, batch_idx, iteration, return_ref_image
+    )
     return display.histogram(
-        image,
+        images,
         titles,
         batch_idx,
         channel_idx,
@@ -503,3 +663,246 @@ def synthesis_histogram(
         alpha=alpha,
         **kwargs,
     )
+
+
+def synthesis_imshow(
+    synthesis_object: Metamer | MADCompetition | Eigendistortion,
+    batch_idx: int = 0,
+    channel_idx: int | None = None,
+    alpha: float = 5.0,
+    process_image: Callable[[torch.Tensor], torch.Tensor] | None = None,
+    zoom: float | None = None,
+    iteration: int | None = None,
+    ax: mpl.axes.Axes | None = None,
+    title: str | None = None,
+    **kwargs: Any,
+) -> mpl.axes.Axes:
+    """
+    Display image of synthesis object.
+
+    We use :func:`~plenoptic.plot.imshow` to display the synthesized image and
+    attempt to automatically find the most reasonable zoom value. You can override this
+    value using the zoom arg, but remember that :func:`~plenoptic.plot.imshow`
+    is opinionated about the size of the resulting image and will throw an Exception if
+    the axis created is not big enough for the selected zoom.
+
+    The behavior of this function is slightly different depending on the type of
+    ``synthesis_object``:
+
+    - :class:`~plenoptic.Metamer` and :class:`~plenoptic.MADCompetition`: process and
+      display the synthesized image. ``iteration`` can be specified, ``alpha`` must be
+      unchanged.
+
+    - :class:`~plenoptic.Eigendistortion`: process and display ``image + (alpha *
+      eigendistortion)``. ``iteration`` must be ``None``, ``alpha`` can be set.
+
+    Parameters
+    ----------
+    synthesis_object
+        Synthesis object with the images we wish to display.
+    batch_idx
+        Which index to take from the batch dimension. Note that for
+        :class:`~plenoptic.Eigendistortion`, this is the
+        :attr:`~plenoptic.Eigendistortion.eigenindex`.
+    channel_idx
+        Which index to take from the channel dimension. If ``None``, we assume
+        image is RGB(A) and show all channels.
+    alpha
+        Amount by which to scale eigendistortion for
+        ``image + (alpha * eigendistortion)`` for display. If ``synthesis_object``
+        is not :class:`~plenoptic.Eigendistortion`, must not be set.
+    process_image
+        A function to process the plotted image. E.g., multiplying by the stdev ImageNet
+        then adding the mean of ImageNet to undo image preprocessing or clamping between
+        0 and 1.
+    zoom
+        How much to zoom in / enlarge the synthesized image, the ratio of display pixels
+        to image pixels. If ``None``, we attempt to find the best value ourselves.
+    iteration
+        Which iteration to display, for :class:`~plenoptic.Metamer` and
+        :class:`~plenoptic.MADCompetition` objects. If ``None``, we show the most recent
+        one. Negative values are also allowed. If ``iteration!=None`` and
+        ``synthesis_object.store_progress>1`` (that is, the synthesized image was not
+        cached on every iteration), then we use the cached image from the nearest
+        iteration.
+    ax
+        Pre-existing axes for plot. If ``None``, we call :func:`matplotlib.pyplot.gca`.
+    title
+        Title to add to axis. If ``None``, we pick appropriate title based on the type
+        of ``synthesis_object``.
+    **kwargs
+        Passed to :func:`~plenoptic.plot.imshow`.
+
+    Returns
+    -------
+    ax :
+        The matplotlib axes containing the plot.
+
+    Raises
+    ------
+    ValueError
+        If ``batch_idx`` is not an int.
+    IndexError
+        If ``iteration`` takes an illegal value.
+
+    Warns
+    -----
+    UserWarning
+        If the iteration used for ``saved_mad_image`` is not the same as the argument
+        ``iteration`` (because e.g., you set ``iteration=3`` but
+        ``mad.store_progress=2``).
+
+    See Also
+    --------
+    :func:`~plenoptic.plot.imshow`
+        Function used by this one to visualize the metamer image.
+    synthesis_status
+        Create a figure combining this with other axis-level plots to summarize
+        synthesis status at a given iteration.
+    synthesis_animshow
+        Create a video animating this and other axis-level plots changing over
+        the course of synthesis.
+
+    Examples
+    --------
+    Plot for :class:`~plenoptic.Metamer` object. If a matplotlib figure exists, this
+    function will use it (using :func:`matplotlib.pyplot.gca`):
+
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> import matplotlib.pyplot as plt
+      >>> import torch
+      >>> plt.figure()
+      <Figure size ...>
+      >>> img = po.data.einstein()
+      >>> model = po.models.Gaussian(30).eval()
+      >>> po.remove_grad(model)
+      >>> met = po.Metamer(img, model)
+      >>> met.to(torch.float64)
+      >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
+      >>> po.plot.synthesis_imshow(met)
+      <Axes: title=...Metamer[0] [iteration=107]...>
+
+    If no matplotlib figure exists, this function will create a new one:
+
+    .. plot::
+      :context: close-figs
+
+      >>> # close all open figures to ensure none exist
+      >>> plt.close("all")
+      >>> po.plot.synthesis_imshow(met)
+      <Axes: title=...Metamer[0] [iteration=107]...>
+
+    Display metamer from a specified iteration (requires setting ``store_progress``
+    when :meth:`~plenoptic.Metamer.synthesize` was called):
+
+    .. plot::
+      :context: close-figs
+
+      >>> po.plot.synthesis_imshow(met, iteration=10)
+      <Axes: title=...Metamer[0] [iteration=10]...>
+
+    Explicitly define the axis to use:
+
+    .. plot::
+      :context: close-figs
+
+      >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+      >>> po.plot.synthesis_imshow(met, ax=axes[1])
+      <Axes: title=...Metamer[0] [iteration=107]...>
+
+    When plotting on an existing axis, if ``zoom=None``, this function will determine
+    the best zoom level for the axis size.
+
+    .. plot::
+      :context: close-figs
+
+      >>> fig, axes = plt.subplots(1, 1, figsize=(8, 8))
+      >>> po.plot.synthesis_imshow(met, ax=axes)
+      <Axes: title=...Metamer[0] [iteration=107]...dims: [256, 256] * 2.0'}>
+
+    Plot for :class:`~plenoptic.MADCompetition` object:
+
+    .. plot::
+      :context: close-figs
+
+      >>> img = po.data.curie().to(torch.float64)
+      >>> def ds_ssim(x, y):
+      ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
+      >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
+      >>> mad.load(po.data.fetch_data("example_mad.pt"))
+      >>> po.plot.synthesis_imshow(mad)
+      <Axes: title=...MAD[0] [iteration=400]...>
+
+    Plot for :class:`~plenoptic.Eigendistortion` object. note here that we plot
+    the distortion multiplied by some alpha and added to the target image.
+
+    .. plot::
+      :context: close-figs
+
+      >>> img = po.data.einstein().to(torch.float64)
+      >>> lg = po.models.LuminanceGainControl(
+      ...     (31, 31), pad_mode="circular", pretrained=True, cache_filt=True
+      ... ).eval()
+      >>> lg = lg.to(torch.float64)
+      >>> po.remove_grad(lg)
+      >>> eig = po.Eigendistortion(img, lg)
+      >>> eig.load(
+      ...     po.data.fetch_data("example_eigendistortion.pt"),
+      ...     map_location="cpu",
+      ... )
+      >>> po.plot.synthesis_imshow(eig)
+      <Axes: title=...5.0 * Eigendistortion[0]...range: [-1.4e-01, 1.0e+00]...>
+
+    Use the ``process_image`` argument to apply a preprocessing function to the
+    image before plotting it:
+
+    .. plot::
+      :context: close-figs
+
+      >>> po.plot.synthesis_imshow(eig, process_image=lambda x: x.clip(0, 1))
+      <Axes: title=...5.0 * Eigendistortion[0]...range: [0.0e+00, 1.0e+00]...>
+    """
+    try:
+        batch_idx = int(batch_idx)
+    except (TypeError, ValueError):
+        raise ValueError("batch_idx must be a single integer!")
+
+    if title is None:
+        title = _get_synthesis_title(synthesis_object, batch_idx, iteration)
+        if isinstance(synthesis_object, Eigendistortion):
+            title = [f"{alpha} * {t}" for t in title]
+    image, batch_idx = _get_synthesis_image(synthesis_object, batch_idx, iteration)
+    if isinstance(synthesis_object, Eigendistortion):
+        image = synthesis_object.image + alpha * image
+    else:
+        # if alpha is not default value
+        if alpha != 5:
+            raise ValueError(
+                f"If synthesis_object is type {type(synthesis_object)}, alpha cannot be"
+                " set"
+            )
+
+    if process_image is not None:
+        image = process_image(image)
+
+    # we're only plotting one image here, so if the user wants multiple
+    # channels, they must be RGB
+    as_rgb = bool(channel_idx is None and image.shape[1] > 1)
+    if ax is None:
+        ax = plt.gca()
+    display.imshow(
+        image,
+        ax=ax,
+        title=title,
+        zoom=zoom,
+        batch_idx=batch_idx,
+        channel_idx=channel_idx,
+        as_rgb=as_rgb,
+        **kwargs,
+    )
+    ax.xaxis.set_visible(False)
+    ax.yaxis.set_visible(False)
+    return ax
