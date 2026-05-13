@@ -8,7 +8,7 @@ try {
   timeout(time: 3, unit: 'HOURS') {
     buildImage(context: 'jenkins')
     if (env.BRANCH_NAME == 'main' && currentBuild.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause')) {
-      runPod(gpus: 2) {
+      runPod(gpus: 2, gpuType: 'v100') {
         stage('weekly') {
           withEnv([
             "HOME=$WORKSPACE_TMP",
@@ -36,7 +36,7 @@ try {
       }
     } else {
       parallel commit: {
-        runPod(gpus: 2) {
+        runPod(gpus: 2, gpuType: 'v100') {
           stage('commit') {
             withEnv([
               "HOME=$WORKSPACE_TMP",
