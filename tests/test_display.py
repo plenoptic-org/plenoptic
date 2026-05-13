@@ -503,6 +503,16 @@ class TestDisplay:
     def test_display_test_signals(self, basic_stim):
         po.plot.imshow(basic_stim)
 
+    def test_imshow_batch_idx_fail(self, einstein_img):
+        with pytest.raises(IndexError, match="batch_idx=1 is out of bounds"):
+            fig = po.plot.imshow(einstein_img, batch_idx=1)
+            plt.close(fig)
+
+    def test_imshow_channel_idx_fail(self, einstein_img):
+        with pytest.raises(IndexError, match="channel_idx=1 is out of bounds"):
+            fig = po.plot.imshow(einstein_img, channel_idx=1)
+            plt.close(fig)
+
     @pytest.mark.parametrize("as_rgb", [True, False])
     @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
     @pytest.mark.parametrize("batch_idx", [None, 0, [0, 1]])

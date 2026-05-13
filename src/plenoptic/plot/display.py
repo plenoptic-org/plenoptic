@@ -204,7 +204,9 @@ def imshow(
     Raises
     ------
     TypeError
-        If ``batch_idx`` or ``channel_idx`` takes an illegal value.
+        If ``batch_idx`` or ``channel_idx`` are not an int or ``None``.
+    IndexError
+        If ``batch_idx`` or ``channel_idx`` are out of bounds.
     ValueError
         If ``zoom`` takes an illegal value.
     ValueError
@@ -241,12 +243,18 @@ def imshow(
     heights, widths = [], []
     for im in image:
         im = to_numpy(im)
-        if im.shape[0] > 1 and batch_idx is not None:
+        orig_shape = im.shape
+        if batch_idx is not None:
             try:
                 # this preserves the number of dimensions
                 im = im[batch_idx : batch_idx + 1]
             except TypeError:
                 raise TypeError(f"batch_idx must be an int or None but got {batch_idx}")
+            if im.shape[0] == 0:
+                raise IndexError(
+                    f"{batch_idx=} is out of bounds for dimension 0 with size "
+                    f"{orig_shape[0]}"
+                )
         if channel_idx is not None:
             try:
                 # this preserves the number of dimensions
@@ -254,6 +262,11 @@ def imshow(
             except TypeError:
                 raise TypeError(
                     f"channel_idx must be an int or None but got {channel_idx}"
+                )
+            if im.shape[1] == 0:
+                raise IndexError(
+                    f"{channel_idx=} is out of bounds for dimension 1 with size "
+                    f"{orig_shape[1]}"
                 )
         # allow RGB and RGBA
         if as_rgb:
