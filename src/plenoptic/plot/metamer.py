@@ -367,7 +367,7 @@ def metamer_representation_error(
     **kwargs: Any,
 ) -> list[mpl.axes.Axes]:
     r"""
-    Plot distance ratio showing how close we are to convergence.
+    Plot representation error showing how close we are to convergence.
 
     We plot ``_representation_error(metamer, iteration)``. For more details, see
     :func:`plenoptic.plot.plot_representation`.
