@@ -836,7 +836,7 @@ def synthesis_imshow(
       >>> po.plot.synthesis_imshow(mad)
       <Axes: title=...MAD[0] [iteration=400]...>
 
-    Plot for :class:`~plenoptic.Eigendistortion` object. note here that we plot
+    Plot for :class:`~plenoptic.Eigendistortion` object. Note here that we plot
     the distortion multiplied by some alpha and added to the target image.
 
     .. plot::
