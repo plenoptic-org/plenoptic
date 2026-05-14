@@ -1,3 +1,4 @@
+import inspect
 from contextlib import nullcontext as does_not_raise
 
 import einops
@@ -1634,3 +1635,11 @@ class TestEigendistortionDisplay:
             if not np.array_equal(expected_image, plotted_image):
                 raise ValueError("plotted image wrong!")
             plt.close("all")
+
+    def test_synthesis_imshow_default(self):
+        # in synthesis_imshow, we do not allow alpha to be changed if synthesis_object
+        # is not eigendistortion. that check hardcodes the value to check against as 5,
+        # so this test checks that it's correct.
+        signature = inspect.signature(po.plot.synthesis_imshow)
+        if signature.parameters["alpha"] != 5.0:
+            raise ValueError("synthesis_imshow alpha arg default changed! update check")
