@@ -159,6 +159,7 @@ html_theme_options = {
             "name": "PyPI",
             "url": "https://pypi.org/project/plenoptic",
             "icon": "fa-custom fa-pypi",
+            "type": "fontawesome",
         },
     ],
     "logo": {
@@ -189,7 +190,7 @@ html_theme_options = {
 # Path for static files (custom stylesheets or JavaScript)
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
-html_js_files = ["custom-icon.js"]
+html_js_files = [("custom-icon.js", {"defer": "defer"})]
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
