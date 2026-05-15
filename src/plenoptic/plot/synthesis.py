@@ -1140,7 +1140,7 @@ def synthesis_status(
     iteration: int | None = None,
     included_plots: list[str] | None = None,
     fig: mpl.figure.Figure | None = None,
-    axes_idx: dict[str, int] = {},
+    axes_idx: dict[str, int | list[int]] = {},
     figsize: tuple[float, float] | None = None,
     width_ratios: dict[str, float] = {},
     **kwargs: Any,
@@ -1178,7 +1178,7 @@ def synthesis_status(
         Which index to take from the batch dimension.
     channel_idx
         Which index to take from the channel dimension. If ``None``, we use all
-        channels (assumed use-case is RGB(A) image).
+        channels.
     iteration
         Which iteration to display, for :class:`~plenoptic.Metamer` and
         :class:`~plenoptic.MADCompetition` objects. If ``None``, we show the most recent
@@ -1191,17 +1191,17 @@ def synthesis_status(
         list of strings whose values are names of plotting functions that can accept
         ``synthesis_object``, see above for list.
     fig
-        If ``None``, we create a new figure. otherwise we assume this is
-        an empty figure that has the appropriate size and number of
-        subplots.
+        If ``None``, we create a new figure. Otherwise we assume this is
+        a figure that has the appropriate size and number of subplots.
     axes_idx
         Dictionary specifying which axes contains which type of plot, allows
         for more fine-grained control of the resulting figure.
         Keys must be strings matching the names of the included plots, see above
-        for possible values, plus ``"misc"``. If you tell this function to
-        create a plot that doesn't have a corresponding key, we find the lowest
-        int that is not already in the dict, so if you have axes that you want
-        unchanged, place their idx in ``'misc'``.
+        for possible values, or ``"misc"``. All axes in ``"misc"`` will be ignored
+        by this function. If you tell this function to create a plot that doesn't
+        have a corresponding key, we find the lowest int that is not already in
+        the dict, so if you have axes that you want unchanged, place their idx
+        in ``'misc'``.
     figsize
         The size of the figure to create. It may take a little bit of
         playing around to find a reasonable value. If ``None``, we attempt to
@@ -1227,11 +1227,12 @@ def synthesis_status(
     ------
     ValueError
         If the ``iteration is not None`` and the given ``synthesis_object`` object is
-        :class:`~plenoptic.Eigendistortion` or was run with ``store_progress=False``.
+        :class:`~plenoptic.Eigendistortion` or synthesis was run with
+        ``store_progress=False``.
     ValueError
         If any of ``width_ratios``, ``included_plots``, or ``axes_idx`` reference an
         plot that is incompatible with ``synthesis_object``. See list at top of
-        docstring for compatible plots.
+        docstring for compatible plots for each class.
 
     Warns
     -----
@@ -1312,7 +1313,7 @@ def synthesis_status(
     .. plot::
       :context: close-figs
 
-      >>> width_ratios = {"synthesis_loss": 2}
+      >>> width_ratios = {"metamer_representation_error": 3}
       >>> po.plot.synthesis_status(met, width_ratios=width_ratios)
       <Figure size ...>
 
@@ -1340,13 +1341,10 @@ def synthesis_status(
 
     Note that if you pass a figure, it must already have axes created:
 
-    .. plot::
-      :context: close-figs
-
-      >>> fig = plt.figure()
-      >>> po.plot.synthesis_status(met, fig=fig)
-      Traceback (most recent call last):
-      IndexError: list index out of range
+    >>> fig = plt.figure()
+    >>> po.plot.synthesis_status(met, fig=fig)
+    Traceback (most recent call last):
+    IndexError: list index out of range
 
     Specify additional keyword arguments to one of the underlying plots:
 
