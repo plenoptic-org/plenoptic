@@ -759,9 +759,9 @@ def synthesis_imshow(
     Warns
     -----
     UserWarning
-        If the iteration used for ``saved_mad_image`` is not the same as the argument
+        If the iteration used for cached image is not the same as the argument
         ``iteration`` (because e.g., you set ``iteration=3`` but
-        ``mad.store_progress=2``).
+        ``synthesis_object.store_progress=2``).
 
     See Also
     --------
@@ -1226,15 +1226,19 @@ def synthesis_status(
     Raises
     ------
     ValueError
-        If the ``iteration is not None`` and the given ``metamer`` object was run
-        with ``store_progress=False``.
+        If the ``iteration is not None`` and the given ``synthesis_object`` object is
+        :class:`~plenoptic.Eigendistortion` or was run with ``store_progress=False``.
+    ValueError
+        If any of ``width_ratios``, ``included_plots``, or ``axes_idx`` reference an
+        plot that is incompatible with ``synthesis_object``. See list at top of
+        docstring for compatible plots.
 
     Warns
     -----
     UserWarning
-        If the iteration used for ``saved_metamer`` is not the same as the argument
+        If the iteration used for cached image is not the same as the argument
         ``iteration`` (because e.g., you set ``iteration=3`` but
-        ``metamer.store_progress=2``).
+        ``synthesis_object.store_progress=2``).
 
     See Also
     --------
