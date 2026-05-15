@@ -1173,7 +1173,7 @@ def synthesis_status(
     Parameters
     ----------
     synthesis_object
-        Synthesis object with the images we wish to display.
+        Synthesis object with status to plot.
     batch_idx
         Which index to take from the batch dimension.
     channel_idx
@@ -1400,34 +1400,6 @@ def synthesis_status(
     fig, axes_dict = _setup_synthesis_fig(
         included_plots, synthesis_object, fig, axes_idx, figsize, width_ratios
     )
-
-    def check_iterables(i: int, vals: list | tuple) -> bool:
-        """
-        Determine whether i is in vals.
-
-        Works with an iterable of iterables and iterable of non-iterables.
-
-        Parameters
-        ----------
-        i
-            The value we're looking for.
-        vals
-            The iterable it might be in.
-
-        Returns
-        -------
-        contained
-            Whether i is in vals.
-        """  # numpydoc ignore=EX01
-        for j in vals:
-            try:
-                # then it's an iterable
-                if i in j:
-                    return True
-            except TypeError:
-                # then it's not an iterable
-                if i == j:
-                    return True
 
     if "synthesis_imshow" in included_plots:
         synthesis_imshow(
