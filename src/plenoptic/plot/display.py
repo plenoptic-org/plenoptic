@@ -340,13 +340,6 @@ def animshow(
     ``zoom<1``, an integer number of input elements will be averaged into a single
     pixel.
 
-    This functions returns a matplotlib FuncAnimation object. See our
-    documentation (e.g., :ref:`quickstart-nb`) for examples on how to view it in
-    a Jupyter notebook. In order to save, use ``anim.save(filename)``. In either
-    case, this can take a while and you'll need the appropriate writer installed
-    and on your path, e.g., ffmpeg, imagemagick, etc). See
-    :doc:`matplotlib documentation <matplotlib:api/animation_api>` for more details.
-
     Parameters
     ----------
     video
@@ -471,6 +464,12 @@ def animshow(
 
     Notes
     -----
+    - This functions returns a matplotlib FuncAnimation object. See below for how
+      to view to view it in a Jupyter notebook. See Examples section for how to save to
+      disk. In either case, this can take a while and you'll need the appropriate writer
+      installed and on your path, e.g., ffmpeg, imagemagick, etc). See :doc:`matplotlib
+      documentation <matplotlib:api/animation_api>` for more details.
+
     - Unless specified, we use the ffmpeg backend, which requires that you have
       ffmpeg installed and on your path (https://ffmpeg.org/download.html). To
       use a different, use the matplotlib rcParams:
@@ -478,6 +477,17 @@ def animshow(
       documentation
       <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_
       for more details.
+
+    - To view in a Jupyter notebook, we recommend adding the following to the first cell
+      of your notebook (requires ffmpeg):
+
+      .. code:: python
+
+          import matplotlib.pyplot as plt
+          plt.rcParams["animation.html"] = "html5"
+          # use single-threaded ffmpeg for animation writer
+          plt.rcParams["animation.writer"] = "ffmpeg"
+          plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 
     - This interpolation avoidance is only guaranteed for the saved image; it should
       generally hold in notebooks as well, but will fail if, e.g., you plot an image
