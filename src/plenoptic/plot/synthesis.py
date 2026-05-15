@@ -1255,6 +1255,8 @@ def synthesis_status(
 
     Examples
     --------
+    Plot for a :class:`~plenoptic.Metamer` object:
+
     .. plot::
       :context: reset
 
@@ -1266,13 +1268,12 @@ def synthesis_status(
       >>> met = po.Metamer(img, model)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
-      >>> po.plot.metamer_synthesis_status(met)
-      (<Figure size ...>, {'metamer_imshow': 0, ...})
+      >>> po.plot.synthesis_status(met)
+      <Figure size ...>
 
     If model has its own ``plot_representation`` method, this function will use it
     for plotting the representation error (see
-    :func:`~plenoptic.models.PortillaSimoncelli.plot_representation`
-    ):
+    :func:`~plenoptic.models.PortillaSimoncelli.plot_representation`):
 
     .. plot::
       :context: close-figs
@@ -1282,36 +1283,102 @@ def synthesis_status(
       >>> met = po.MetamerCTF(img, model, po.loss.l2_norm)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
-      >>> po.plot.metamer_synthesis_status(met)
-      (<Figure size ...>, {'metamer_imshow': 0, ...})
+      >>> po.plot.synthesis_status(met)
+      <Figure size ...>
+
+    Plot a different iteration of synthesis:
+
+    .. plot::
+      :context: close-figs
+
+      >>> po.plot.synthesis_status(met, iteration=10)
+      <Figure size ...>
 
     Change the included plots:
 
     .. plot::
       :context: close-figs
 
-      >>> included_plots = ["metamer_loss", "metamer_pixel_values"]
-      >>> po.plot.metamer_synthesis_status(met, included_plots=included_plots)
-      (<Figure size ...>, {'metamer_loss': 0, ...})
+      >>> included_plots = ["synthesis_loss", "synthesis_histogram"]
+      >>> po.plot.synthesis_status(met, included_plots=included_plots)
+      <Figure size ...>
 
     Adjust width of included plots:
 
     .. plot::
       :context: close-figs
 
-      >>> width_ratios = {"metamer_representation_error": 3}
-      >>> po.plot.metamer_synthesis_status(met, width_ratios=width_ratios)
-      (<Figure size ...>, {'metamer_imshow': 0, ...})
+      >>> width_ratios = {"synthesis_loss": 2}
+      >>> po.plot.synthesis_status(met, width_ratios=width_ratios)
+      <Figure size ...>
 
-    Plot on existing figure, ignoring some axes and rearranging others:
+    Change the arrangement of the plots, creating some empty axes:
 
     .. plot::
       :context: close-figs
 
-      >>> fig, axes = plt.subplots(1, 5, figsize=(16, 4))
-      >>> axes_idx = {"misc": [0, 3], "metamer_loss": 4}
-      >>> po.plot.metamer_synthesis_status(met, fig=fig, axes_idx=axes_idx)
-      (<Figure size ...>, {'misc': [0, 3], ...})
+      >>> axes_idx = {"misc": [0, 3], "synthesis_loss": 4}
+      >>> po.plot.synthesis_status(met, axes_idx=axes_idx)
+      <Figure size ...>
+
+    Plot on an existing figure, with already existing plots:
+
+    .. plot::
+      :context: close-figs
+
+      >>> fig, axes = plt.subplots(1, 4, figsize=(16, 4))
+      >>> axes[0].plot(torch.rand(100))
+      [<matplotlib.lines.Line2D ...>]
+      >>> # specify misc: 0 so we don't plot on top of this axis.
+      >>> axes_idx = {"misc": 0}
+      >>> po.plot.synthesis_status(met, fig=fig, axes_idx=axes_idx)
+      <Figure size ...>
+
+    Specify additional keyword arguments to one of the underlying plots:
+
+    .. plot::
+      :context: close-figs
+
+      >>> po.plot.synthesis_status(
+      ...     met,
+      ...     synthesis_loss_kwargs={"plot_penalties": True},
+      ...     synthesis_imshow_kwargs={"zoom": 0.5},
+      ... )
+      <Figure size ...>
+
+    Plot for :class:`~plenoptic.MADCompetition` object. Note the plots
+    are different:
+
+    .. plot::
+      :context: close-figs
+
+      >>> img = po.data.curie().to(torch.float64)
+      >>> def ds_ssim(x, y):
+      ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
+      >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
+      >>> mad.load(po.data.fetch_data("example_mad.pt"))
+      >>> po.plot.synthesis_status(mad)
+      <Figure size ...>
+
+    Plot for :class:`~plenoptic.Eigendistortion` object. Note the plots
+    are different:
+
+    .. plot::
+      :context: close-figs
+
+      >>> img = po.data.einstein().to(torch.float64)
+      >>> lg = po.models.LuminanceGainControl(
+      ...     (31, 31), pad_mode="circular", pretrained=True, cache_filt=True
+      ... ).eval()
+      >>> lg = lg.to(torch.float64)
+      >>> po.remove_grad(lg)
+      >>> eig = po.Eigendistortion(img, lg)
+      >>> eig.load(
+      ...     po.data.fetch_data("example_eigendistortion.pt"),
+      ...     map_location="cpu",
+      ... )
+      >>> po.plot.synthesis_status(eig)
+      <Figure size ...>
     """
     if included_plots is None:
         included_plots = _get_default_included_plots(synthesis_object)
