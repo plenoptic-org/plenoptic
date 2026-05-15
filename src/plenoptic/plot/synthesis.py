@@ -1338,6 +1338,16 @@ def synthesis_status(
       >>> po.plot.synthesis_status(met, fig=fig, axes_idx=axes_idx)
       <Figure size ...>
 
+    Note that if you pass a figure, it must already have axes created:
+
+    .. plot::
+      :context: close-figs
+
+      >>> fig = plt.figure()
+      >>> po.plot.synthesis_status(met, fig=fig)
+      Traceback (most recent call last):
+      IndexError: list index out of range
+
     Specify additional keyword arguments to one of the underlying plots:
 
     .. plot::
