@@ -19,6 +19,13 @@ mpl.rcParams["animation.writer"] = "html"
 mpl.use("agg")
 
 
+# following https://github.com/scverse/scanpy/issues/1662
+@pytest.fixture(autouse=True)
+def close_figures_on_teardown():
+    yield
+    plt.close("all")
+
+
 class TestDisplay:
     def test_update_plot_line(self):
         x = np.linspace(0, 100)
@@ -33,7 +40,6 @@ class TestDisplay:
         _, ax_y = ax.lines[0].get_data()
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update line correctly!")
-        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
     def test_update_plot_line_multi_axes(self, how):
@@ -58,7 +64,6 @@ class TestDisplay:
 
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update line correctly!")
-        plt.close(fig)
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -74,11 +79,9 @@ class TestDisplay:
         else:
             ax = None
         with expectation:
-            axes = po.plot.plot_representation(
+            po.plot.plot_representation(
                 data=model(einstein_img), ax=ax, figsize=figsize
             )
-            fig = axes[0].figure
-        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     def test_update_plot_line_multi_channel(self, how):
@@ -111,7 +114,6 @@ class TestDisplay:
                 y_check = {0: y2[0], 1: y1[1]}[i]
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update line correctly!")
-        plt.close(fig)
 
     def test_update_plot_stem(self):
         x = np.linspace(0, 100)
@@ -126,7 +128,6 @@ class TestDisplay:
         ax_y = ax.containers[0].markerline.get_ydata()
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update stems correctly!")
-        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
     def test_update_plot_stem_multi_axes(self, how):
@@ -151,7 +152,6 @@ class TestDisplay:
 
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update stem correctly!")
-        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     def test_update_plot_stem_multi_channel(self, how):
@@ -184,7 +184,6 @@ class TestDisplay:
                 y_check = {0: y2[0], 1: y1[1]}[i]
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update stem correctly!")
-        plt.close(fig)
 
     def test_update_plot_image(self):
         y1 = np.random.rand(1, 1, 100, 100)
@@ -196,7 +195,6 @@ class TestDisplay:
         ax_y = ax.images[0].get_array().data
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update image correctly!")
-        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
     def test_update_plot_image_multi_axes(self, how):
@@ -219,7 +217,6 @@ class TestDisplay:
 
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update image correctly!")
-        plt.close(fig)
 
     def test_update_plot_scatter(self):
         x1 = np.random.rand(100)
@@ -236,7 +233,6 @@ class TestDisplay:
         ax_data = ax.collections[0].get_offsets()
         if not np.allclose(ax_data, po.to_numpy(data)):
             raise Exception("Didn't update points of the scatter plot correctly!")
-        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
     def test_update_plot_scatter_multi_axes(self, how):
@@ -274,7 +270,6 @@ class TestDisplay:
 
             if not np.allclose(ax_data, po.to_numpy(data_check)):
                 raise Exception("Didn't update points of the scatter plot correctly!")
-        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     def test_update_plot_scatter_multi_channel(self, how):
@@ -368,7 +363,6 @@ class TestDisplay:
                 _, ax_data = ax.lines[0].get_data()
             if not np.allclose(ax_data, po.to_numpy(data[i])):
                 raise Exception("Didn't update points of the scatter plot correctly!")
-        plt.close(fig)
 
     @pytest.mark.parametrize("as_rgb", [True, False])
     @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
@@ -455,7 +449,10 @@ class TestDisplay:
                 f"Created {len(fig.axes)} axes, but expected {n_axes}!"
                 " Probably plotting color as grayscale or vice versa"
             )
-            plt.close(fig)
+
+    def test_imshow_shape_fail(self, einstein_img):
+        with pytest.raises(ValueError, match="imshow only accepts images"):
+            po.plot.imshow(einstein_img.squeeze())
 
     @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
     @pytest.mark.parametrize("batch_idx", [None, 0, [0, 1]])
@@ -499,20 +496,17 @@ class TestDisplay:
             axes = [ax for ax in fig.axes if ax.images]
             if len(axes) != n_axes:
                 raise Exception(f"Created {len(fig.axes)} axes, but expected {n_axes}!")
-            plt.close(fig)
 
     def test_display_test_signals(self, basic_stim):
         po.plot.imshow(basic_stim)
 
     def test_imshow_batch_idx_fail(self, einstein_img):
         with pytest.raises(IndexError, match="batch_idx=1 is out of bounds"):
-            fig = po.plot.imshow(einstein_img, batch_idx=1)
-            plt.close(fig)
+            po.plot.imshow(einstein_img, batch_idx=1)
 
     def test_imshow_channel_idx_fail(self, einstein_img):
         with pytest.raises(IndexError, match="channel_idx=1 is out of bounds"):
-            fig = po.plot.imshow(einstein_img, channel_idx=1)
-            plt.close(fig)
+            po.plot.imshow(einstein_img, channel_idx=1)
 
     @pytest.mark.parametrize("as_rgb", [True, False])
     @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
@@ -591,7 +585,10 @@ class TestDisplay:
                 f"Created {len(fig.axes)} axes, but expected {n_axes}!"
                 " Probably plotting color as grayscale or vice versa"
             )
-            plt.close(fig)
+
+    def test_animshow_shape_fail(self, einstein_img):
+        with pytest.raises(ValueError, match="animshow only accepts videos"):
+            po.plot.animshow(einstein_img)
 
     def test_update_plot_shape_fail(self, einstein_img):
         # update_plot expects 3 or 4d data -- this checks that update_plot
@@ -599,28 +596,6 @@ class TestDisplay:
         fig = po.plot.imshow(einstein_img)
         with pytest.raises(ValueError, match="3 or 4 dimensional"):
             po.plot.update_plot(fig.axes[0], einstein_img.squeeze())
-
-    def test_synthesis_plot_shape_fail(self, einstein_img):
-        # Synthesis plot_synthesis_status and animshow expect 3 or 4d data --
-        # this checks that plot_synthesis_status() and animshow() both fail with
-        # 2d data and raise the proper exception
-        class TestModel(po.models.LinearNonlinear):
-            def __init__(self):
-                super().__init__((7, 7))
-
-            def forward(self, *args, **kwargs):
-                return super().forward(*args, **kwargs)
-
-        model = TestModel().to(DEVICE)
-        model.eval()
-        po.remove_grad(model)
-        met = po.Metamer(einstein_img, model)
-        met.synthesize(max_iter=3, store_progress=True)
-        met._metamer = met.metamer.squeeze()
-        with pytest.raises(ValueError, match="3 or 4d"):
-            po.plot.metamer_synthesis_status(met)
-        with pytest.raises(ValueError, match="3 or 4d"):
-            po.plot.metamer_animshow(met)
 
     @pytest.mark.parametrize("zoom", [None, 0.5, 1, 3, 0, -1, 1.5, 1.1])
     @pytest.mark.parametrize("func", ["imshow", "animshow"])
@@ -650,7 +625,6 @@ class TestDisplay:
                     f"Zoom didn't work as expected, expected {zoom} but"
                     f" got {zoom_title}!"
                 )
-            plt.close(fig)
 
     def test_histogram_label_fail(self, einstein_img, curie_img):
         with pytest.raises(ValueError, match="labels must have the same length"):
@@ -673,63 +647,52 @@ def template_test_synthesis_all_plot(
     synth_image,
     loss,
     representation_error,
-    pixel_values,
+    histogram,
     fig_creation,
 ):
     # template function to test whether we can plot all possible combinations
     # of plots. test_custom_fig tests whether these animate correctly. Any
     # synthesis object that has had synthesis() called should work with this
-    if sum([synth_image, loss, representation_error, pixel_values]) == 0:
+    if sum([synth_image, loss, representation_error, histogram]) == 0:
         # then there's nothing to plot here
         return
     included_plots = []
     plot_kwargs = {}
-    # need to figure out which plotting function to call
+    from plenoptic.plot import synthesis
+
     if isinstance(synthesis_object, po.Metamer):
-        from plenoptic.plot import metamer
-
-        setup_func = metamer._setup_synthesis_fig
-        plot_func = po.plot.metamer_synthesis_status
         as_rgb = synthesis_object.image.shape[1] > 1
-        plot_kwargs["metamer_representation_error_as_rgb"] = as_rgb
-        str_rep = "metamer"
-    elif isinstance(synthesis_object, po.MADCompetition):
-        from plenoptic.plot import mad_competition
-
-        setup_func = mad_competition._setup_synthesis_fig
-        plot_func = po.plot.mad_synthesis_status
-        str_rep = "mad"
+        plot_kwargs["metamer_representation_error"] = {"as_rgb": as_rgb}
     if synth_image:
-        included_plots.append(f"{str_rep}_imshow")
+        included_plots.append("synthesis_imshow")
     if loss:
-        included_plots.append(f"{str_rep}_loss")
+        included_plots.append("synthesis_loss")
     if representation_error:
-        included_plots.append(f"{str_rep}_representation_error")
-    if pixel_values:
-        included_plots.append(f"{str_rep}_pixel_values")
+        included_plots.append("metamer_representation_error")
+    if histogram:
+        included_plots.append("synthesis_histogram")
     width_ratios = {}
     if fig_creation.startswith("auto"):
         fig = None
-        axes_idx = {}
         if fig_creation.endswith("ratios"):
             if loss:
-                width_ratios[f"{str_rep}_loss"] = 2
+                width_ratios["synthesis_loss"] = 2
             elif synth_image:
-                width_ratios[f"{str_rep}_imshow"] = 2
-    elif fig_creation.startswith("pass"):
-        fig, axes, axes_idx = setup_func(None, {}, None, included_plots=included_plots)
-        if fig_creation.endswith("without"):
-            axes_idx = {}
-    fig, _ = plot_func(
+                width_ratios["synthesis_imshow"] = 2
+    elif fig_creation == "pass-with":
+        fig, _ = synthesis._setup_synthesis_fig(
+            included_plots, synthesis_object, None, {}, None
+        )
+    elif fig_creation == "pass-without":
+        fig, axes = plt.subplots(1, 4)
+    fig = po.plot.synthesis_status(
         synthesis_object,
         iteration=iteration,
         included_plots=included_plots,
         fig=fig,
-        axes_idx=axes_idx,
         **plot_kwargs,
         width_ratios=width_ratios,
     )
-    plt.close(fig)
 
 
 def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp_path):
@@ -738,48 +701,45 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
     # locations for the plots. Any synthesis object that has had synthesis()
     # called should work with this
     plot_kwargs = {}
-    included_plots = []
+    included_plots = ["synthesis_imshow", "synthesis_histogram"]
     # need to figure out which plotting function to call
+    axes_idx = {"synthesis_imshow": 0}
     if isinstance(synthesis_object, po.Metamer):
-        plot_func = po.plot.metamer_synthesis_status
-        animate_func = po.plot.metamer_animshow
         as_rgb = synthesis_object.image.shape[1] > 1
-        plot_kwargs["metamer_representation_error_as_rgb"] = as_rgb
-        str_rep = "metamer"
-        included_plots.append("metamer_representation_error")
-        axes_idx = {"metamer_imshow": 0, "metamer_representation_error": 8}
+        plot_kwargs["metamer_representation_error"] = {"as_rgb": as_rgb}
+        included_plots.extend(["metamer_representation_error", "synthesis_loss"])
+        axes_idx["metamer_representation_error"] = 8
     elif isinstance(synthesis_object, po.MADCompetition):
-        plot_func = po.plot.mad_synthesis_status
-        animate_func = po.plot.mad_animshow
-        str_rep = "mad"
-        axes_idx = {"mad_imshow": 0}
-    included_plots.extend([f"{str_rep}_loss", f"{str_rep}_pixel_values"])
-    if fig_creation.endswith("extra"):
-        included_plots.append(f"{str_rep}_imshow")
+        included_plots.append("synthesis_loss")
     fig, axes = plt.subplots(3, 3, figsize=(35, 17))
     if "-" in fig_creation:
         axes_idx["misc"] = [1, 4]
     if fig_creation.split("-")[-1] not in ["without"]:
-        axes_idx.update({f"{str_rep}_loss": 6, f"{str_rep}_pixel_values": 7})
-    if func == "plot" or fig_creation.endswith("preplot"):
-        fig, axes_idx = plot_func(
+        if "synthesis_loss" in included_plots:
+            axes_idx["synthesis_loss"] = 6
+        if "synthesis_histogram" in included_plots:
+            axes_idx["synthesis_histogram"] = 7
+    if func == "plot":
+        fig = po.plot.synthesis_status(
             synthesis_object,
             included_plots=included_plots,
             fig=fig,
             axes_idx=axes_idx,
             **plot_kwargs,
         )
+    elif fig_creation.endswith("preplot"):
+        po.plot.imshow(torch.rand_like(synthesis_object.image), ax=axes.flatten()[1])
+        po.plot.imshow(torch.rand_like(synthesis_object.image), ax=axes.flatten()[4])
     if func == "animate":
         # animate closes the matplotlib figure itself, so don't need to do it here
         path = tmp_path / "test_anim.html"
-        animate_func(
+        po.plot.synthesis_animshow(
             synthesis_object,
             fig=fig,
             axes_idx=axes_idx,
             included_plots=included_plots,
             **plot_kwargs,
         ).save(path)
-    plt.close(fig)
 
 
 class TestMADDisplay:
@@ -842,7 +802,7 @@ class TestMADDisplay:
     @pytest.mark.parametrize("iteration", [None, 1, -1])
     @pytest.mark.parametrize("mad_imshow", [True, False])
     @pytest.mark.parametrize("loss", [True, False])
-    @pytest.mark.parametrize("pixel_values", [True, False])
+    @pytest.mark.parametrize("histogram", [True, False])
     @pytest.mark.parametrize(
         "fig_creation", ["auto", "auto-ratios", "pass-with", "pass-without"]
     )
@@ -856,7 +816,7 @@ class TestMADDisplay:
         iteration,
         mad_imshow,
         loss,
-        pixel_values,
+        histogram,
         fig_creation,
     ):
         # tests whether we can plot all possible combinations of plots.
@@ -867,7 +827,7 @@ class TestMADDisplay:
             mad_imshow,
             loss,
             False,
-            pixel_values,
+            histogram,
             fig_creation,
         )
 
@@ -923,13 +883,14 @@ class TestMADDisplay:
             func = po.plot.mad_loss_all
         elif func == "image":
             func = po.plot.mad_imshow_all
-        fig = func(*all_mad)
-        plt.close(fig)
+        func(*all_mad)
 
     @pytest.mark.parametrize("func", ["plot", "animate"])
     # metamer_representation_error is an allowed value for metamer, but not MAD.
     # the second is just a typo
-    @pytest.mark.parametrize("val", ["metamer_representation_error", "plot_mad_imshow"])
+    @pytest.mark.parametrize(
+        "val", ["metamer_representation_error", "plot_synthesis_imshow"]
+    )
     @pytest.mark.parametrize("variable", ["included_plots", "width_ratios", "axes_idx"])
     @pytest.mark.filterwarnings(
         "ignore:SSIM was designed for grayscale images:UserWarning"
@@ -937,19 +898,18 @@ class TestMADDisplay:
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_allowed_plots_exception(self, synthesized_mad, func, val, variable):
         if func == "plot":
-            func = po.plot.mad_synthesis_status
+            func = po.plot.synthesis_status
         elif func == "animate":
-            func = po.plot.mad_animshow
+            func = po.plot.synthesis_animshow
         kwargs = {}
         if variable == "included_plots":
-            kwargs["included_plots"] = [val, "mad_loss"]
+            kwargs["included_plots"] = [val, "synthesis_loss"]
         elif variable == "width_ratios":
-            kwargs["width_ratios"] = {val: 1, "mad_loss": 1}
+            kwargs["width_ratios"] = {val: 1, "synthesis_loss": 1}
         elif variable == "axes_idx":
-            kwargs["axes_idx"] = {val: 0, "mad_loss": 1}
+            kwargs["axes_idx"] = {val: 0, "synthesis_loss": 1}
         with pytest.raises(ValueError, match=f"{variable} contained value"):
             func(synthesized_mad, **kwargs)
-        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 0, -1, -10, 10, 2, 3, 4])
     @pytest.mark.parametrize("batch_idx", [0, 1])
@@ -960,9 +920,9 @@ class TestMADDisplay:
     @pytest.mark.filterwarnings("ignore:loss iteration and iteration for:UserWarning")
     def test_iteration(self, synthesized_mad_store_progress, iteration, batch_idx):
         included_plots = [
-            "mad_imshow",
-            "mad_loss",
-            "mad_pixel_values",
+            "synthesis_imshow",
+            "synthesis_loss",
+            "synthesis_histogram",
         ]
         max_iter = len(synthesized_mad_store_progress.losses) - 1
         if iteration in [-10, 10]:
@@ -974,14 +934,13 @@ class TestMADDisplay:
             elif max_iter == 4:
                 mad_iter = {None: 2, 0: 0, -1: 2, 2: 1, 3: 2, 4: 2}[iteration]
         with expectation:
-            fig, _ = po.plot.mad_synthesis_status(
+            fig = po.plot.synthesis_status(
                 synthesized_mad_store_progress,
                 iteration=iteration,
                 batch_idx=batch_idx,
                 included_plots=included_plots,
             )
             axes_img = fig.axes[0].images[0].get_array().data
-            plt.close(fig)
             img = synthesized_mad_store_progress.saved_mad_image[mad_iter, batch_idx]
             img = einops.rearrange(po.to_numpy(img), "c h w -> h w c").squeeze()
             # rgb images are clipped while plotting
@@ -1011,7 +970,6 @@ class TestMADDisplay:
             fig, axes = plt.subplots(1, n_axes)
         with expectation:
             po.plot.synthesis_loss(synthesized_mad, iteration, plot_penalties, axes)
-        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
@@ -1093,7 +1051,6 @@ class TestMADDisplay:
             plotted_image = ax.images[0].get_array().data
             if not np.array_equal(expected_image, plotted_image):
                 raise ValueError("plotted image wrong!")
-            plt.close("all")
 
 
 class TestMetamerDisplay:
@@ -1193,7 +1150,7 @@ class TestMetamerDisplay:
     @pytest.mark.parametrize("metamer_imshow", [True, False])
     @pytest.mark.parametrize("loss", [True, False])
     @pytest.mark.parametrize("representation_error", [True, False])
-    @pytest.mark.parametrize("pixel_values", [True, False])
+    @pytest.mark.parametrize("histogram", [True, False])
     @pytest.mark.parametrize(
         "fig_creation", ["auto", "auto-ratios", "pass-with", "pass-without"]
     )
@@ -1204,7 +1161,7 @@ class TestMetamerDisplay:
         metamer_imshow,
         loss,
         representation_error,
-        pixel_values,
+        histogram,
         fig_creation,
     ):
         # tests whether we can plot all possible combinations of plots.
@@ -1215,7 +1172,7 @@ class TestMetamerDisplay:
             metamer_imshow,
             loss,
             representation_error,
-            pixel_values,
+            histogram,
             fig_creation,
         )
 
@@ -1230,9 +1187,6 @@ class TestMetamerDisplay:
             "custom-preplot",
         ],
     )
-    @pytest.mark.filterwarnings(
-        "ignore:Looks like representation is image-like, haven't:UserWarning"
-    )
     def test_custom_fig(self, synthesized_met, func, fig_creation, tmp_path):
         # tests whether we can create our own figure and pass it to Metamer's
         # plotting and animating functions, specifying some or all of the
@@ -1246,7 +1200,7 @@ class TestMetamerDisplay:
     @pytest.mark.parametrize("metamer_imshow", [True, False])
     @pytest.mark.parametrize("loss", [True, False])
     @pytest.mark.parametrize("representation_error", [True, False])
-    @pytest.mark.parametrize("pixel_values", [True, False])
+    @pytest.mark.parametrize("histogram", [True, False])
     @pytest.mark.parametrize(
         "fig_creation", ["auto", "auto-ratios", "pass-with", "pass-without"]
     )
@@ -1256,7 +1210,7 @@ class TestMetamerDisplay:
         metamer_imshow,
         loss,
         representation_error,
-        pixel_values,
+        histogram,
         fig_creation,
     ):
         # tests whether we can plot all possible combinations of plots.
@@ -1267,7 +1221,7 @@ class TestMetamerDisplay:
             synth_image=metamer_imshow,
             loss=loss,
             representation_error=representation_error,
-            pixel_values=pixel_values,
+            histogram=histogram,
             fig_creation=fig_creation,
         )
 
@@ -1282,9 +1236,6 @@ class TestMetamerDisplay:
             "custom-preplot",
         ],
     )
-    @pytest.mark.filterwarnings(
-        "ignore:Looks like representation is image-like, haven't:UserWarning"
-    )
     def test_custom_fig_nostore(
         self, synthesized_met_nostore, func, fig_creation, tmp_path
     ):
@@ -1296,34 +1247,33 @@ class TestMetamerDisplay:
         )
 
     @pytest.mark.parametrize("func", ["plot", "animate"])
-    # mad_imshow is an allowed value for MAD but not metamer. the second is just a typo
-    @pytest.mark.parametrize("val", ["mad_imshow", "plot_metamer"])
+    # this not allowed value is just a typo
+    @pytest.mark.parametrize("val", ["plot_metamer"])
     @pytest.mark.parametrize("variable", ["included_plots", "width_ratios", "axes_idx"])
     def test_allowed_plots_exception(self, synthesized_met, func, val, variable):
         if func == "plot":
-            func = po.plot.metamer_synthesis_status
+            func = po.plot.synthesis_status
         elif func == "animate":
-            func = po.plot.metamer_animshow
+            func = po.plot.synthesis_animshow
         kwargs = {}
         if variable == "included_plots":
-            kwargs["included_plots"] = [val, "metamer_loss"]
+            kwargs["included_plots"] = [val, "synthesis_loss"]
         elif variable == "width_ratios":
-            kwargs["width_ratios"] = {val: 1, "metamer_loss": 1}
+            kwargs["width_ratios"] = {val: 1, "synthesis_loss": 1}
         elif variable == "axes_idx":
-            kwargs["axes_idx"] = {val: 0, "metamer_loss": 1}
+            kwargs["axes_idx"] = {val: 0, "synthesis_loss": 1}
         with pytest.raises(ValueError, match=f"{variable} contained value"):
             func(synthesized_met, **kwargs)
-        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 0, -1, -10, 10, 2, 3, 4])
     @pytest.mark.parametrize("batch_idx", [0, 1])
     @pytest.mark.filterwarnings("ignore:loss iteration and iteration for:UserWarning")
     def test_iteration(self, synthesized_met_store_progress, iteration, batch_idx):
         included_plots = [
-            "metamer_imshow",
-            "metamer_loss",
+            "synthesis_imshow",
+            "synthesis_loss",
             "metamer_representation_error",
-            "metamer_pixel_values",
+            "synthesis_histogram",
         ]
         max_iter = len(synthesized_met_store_progress.losses) - 1
         if iteration in [-10, 10]:
@@ -1335,14 +1285,13 @@ class TestMetamerDisplay:
             elif max_iter == 4:
                 met_iter = {None: 2, 0: 0, -1: 2, 2: 1, 3: 2, 4: 2}[iteration]
         with expectation:
-            fig, _ = po.plot.metamer_synthesis_status(
+            fig = po.plot.synthesis_status(
                 synthesized_met_store_progress,
                 iteration=iteration,
                 batch_idx=batch_idx,
                 included_plots=included_plots,
             )
             axes_img = fig.axes[0].images[0].get_array().data
-            plt.close(fig)
             img = synthesized_met_store_progress.saved_metamer[met_iter, batch_idx]
             img = einops.rearrange(po.to_numpy(img), "c h w -> h w c").squeeze()
             # rgb images are clipped while plotting
@@ -1370,7 +1319,6 @@ class TestMetamerDisplay:
             po.plot.synthesis_loss(
                 synthesized_met_nostore, iteration, plot_penalties, axes
             )
-        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
@@ -1378,7 +1326,6 @@ class TestMetamerDisplay:
         if axes == "axis":
             fig, axes = plt.subplots(1, 1)
         po.plot.synthesis_histogram(synthesized_met, iteration=iteration, ax=axes)
-        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
@@ -1439,13 +1386,12 @@ class TestMetamerDisplay:
                 expected_image = synthesized_met.metamer
             else:
                 expected_image = synthesized_met.saved_metamer[iteration]
-                expected_image = po.to_numpy(
-                    data_process_image(expected_image[data_batch_idx]).squeeze()
-                )
-                plotted_image = ax.images[0].get_array().data
+            expected_image = po.to_numpy(
+                data_process_image(expected_image[data_batch_idx]).squeeze()
+            )
+            plotted_image = ax.images[0].get_array().data
             if not np.array_equal(expected_image, plotted_image):
                 raise ValueError("plotted image wrong!")
-            plt.close("all")
 
     def test_synthesis_animshow_default(self):
         # in synthesis_animshow, we raise a warning if user tries to set rescale ylim
@@ -1453,7 +1399,7 @@ class TestMetamerDisplay:
         # hardcodes the value to against as "rescale", so this test checks that it's
         # correct.
         signature = inspect.signature(po.plot.synthesis_animshow)
-        if signature.parameters["ylim"] != "rescale":
+        if signature.parameters["ylim"].default != "rescale":
             raise ValueError(
                 "synthesis_animshow ylim arg default changed! update check"
             )
@@ -1481,12 +1427,12 @@ class TestEigendistortionDisplay:
             )
         elif model == "Color":
             model = ColorModel().to(DEVICE)
-            po.remove_grad(model)
-            model.eval()
-            img = einstein_img if model.__class__ == po.models.OnOff else color_img
-            img = img[..., :20, :20]
-            eigendist = po.Eigendistortion(img, model)
-            eigendist.synthesize(k=int(k), method=method, max_iter=10)
+        po.remove_grad(model)
+        model.eval()
+        img = einstein_img if model.__class__ == po.models.OnOff else color_img
+        img = img[..., :20, :20]
+        eigendist = po.Eigendistortion(img, model)
+        eigendist.synthesize(k=int(k), method=method, max_iter=10)
         return eigendist
 
     @pytest.mark.filterwarnings(
@@ -1509,7 +1455,6 @@ class TestEigendistortionDisplay:
         else:
             with pytest.raises(ValueError, match="eigenindex must be the index"):
                 po.plot.eigendistortion_imshow(synthesized_eig, eigenindex=-1)
-                plt.close("all")
 
     @pytest.mark.parametrize(
         "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
@@ -1536,15 +1481,15 @@ class TestEigendistortionDisplay:
             po.plot.eigendistortion_imshow_all(
                 synthesized_eig, eigenindex=eigenindex, alpha=alpha, as_rgb=as_rgb
             )
-            plt.close("all")
 
     @pytest.mark.parametrize(
-        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+        "synthesized_eig",
+        [
+            "OnOff-power-2",
+            "Color-power-2",
+        ],
+        indirect=True,
     )
-    def test_synthesis_plot(self, synthesized_eig):
-        with pytest.raises(TypeError, match="synthesis_object must be a"):
-            po.plot.synthesis_plot(synthesized_eig)
-
     @pytest.mark.parametrize("iteration", [None, 2])
     @pytest.mark.parametrize("batch_idx", [None, 0, -1, "last"])
     @pytest.mark.parametrize("axes", [None, "axis"])
@@ -1565,7 +1510,6 @@ class TestEigendistortionDisplay:
             po.plot.synthesis_histogram(
                 synthesized_eig, batch_idx=batch_idx, iteration=iteration, ax=axes
             )
-            plt.close("all")
 
     @pytest.mark.parametrize(
         "synthesized_eig",
@@ -1645,12 +1589,66 @@ class TestEigendistortionDisplay:
             plotted_image = ax.images[0].get_array().data
             if not np.array_equal(expected_image, plotted_image):
                 raise ValueError("plotted image wrong!")
-            plt.close("all")
 
     def test_synthesis_imshow_default(self):
         # in synthesis_imshow, we do not allow alpha to be changed if synthesis_object
         # is not eigendistortion. that check hardcodes the value to check against as 5,
         # so this test checks that it's correct.
         signature = inspect.signature(po.plot.synthesis_imshow)
-        if signature.parameters["alpha"] != 5.0:
+        if signature.parameters["alpha"].default != 5.0:
             raise ValueError("synthesis_imshow alpha arg default changed! update check")
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    def test_synthesis_animshow(self, synthesized_eig):
+        with pytest.raises(TypeError, match="synthesis_object must be a"):
+            po.plot.synthesis_animshow(synthesized_eig)
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    @pytest.mark.parametrize("imshow", [True, False])
+    @pytest.mark.parametrize("histogram", [True, False])
+    @pytest.mark.parametrize(
+        "fig_creation", ["auto", "auto-ratios", "pass-with", "pass-without"]
+    )
+    def test_all_plot(
+        self,
+        synthesized_eig,
+        imshow,
+        histogram,
+        fig_creation,
+    ):
+        # tests whether we can plot all possible combinations of plots.
+        # test_custom_fig tests whether these animate correctly.
+        template_test_synthesis_all_plot(
+            synthesized_eig,
+            None,
+            imshow,
+            False,
+            False,
+            histogram,
+            fig_creation,
+        )
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    @pytest.mark.parametrize(
+        "fig_creation",
+        [
+            "custom",
+            "custom-misc",
+            "custom-without",
+            "custom-extra",
+            "custom-preplot",
+        ],
+    )
+    def test_custom_fig(self, synthesized_eig, fig_creation, tmp_path):
+        # tests whether we can create our own figure and pass it to Eigendistortion's
+        # plotting and animating functions, specifying some or all of the locations for
+        # the plots
+        template_test_synthesis_custom_fig(
+            synthesized_eig, "plot", fig_creation, tmp_path
+        )

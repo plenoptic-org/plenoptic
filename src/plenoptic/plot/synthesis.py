@@ -18,6 +18,7 @@ from .metamer import _representation_error, metamer_representation_error
 __all__ = [
     "synthesis_loss",
     "synthesis_imshow",
+    "synthesis_animshow",
     "synthesis_histogram",
     "synthesis_status",
 ]
@@ -920,6 +921,30 @@ def synthesis_imshow(
     return ax
 
 
+def _check_plot_consistency(
+    included_plots: list[str],
+    width_ratios: dict[str, float],
+    axes_idx: dict[str, int],
+):
+    """
+    Raise ValueError if width_ratios or axes_idx reference plots not in included_plots.
+
+    Because I'm unsure how to behave then.
+    """  # noqa: DOC501
+    # numpydoc ignore=PR01
+    if extra_plots := set(width_ratios) - set(included_plots):
+        raise ValueError(
+            "width_ratios contains keys referencing plots not included in "
+            f"included_plots! {extra_plots}"
+        )
+    extra_plots = set(axes_idx) - set(included_plots)
+    if extra_plots and extra_plots != {"misc"}:
+        raise ValueError(
+            "axes_idx contains keys referencing plots not included in included_plots!"
+            f" {extra_plots}"
+        )
+
+
 def _check_included_plots(
     to_check: list[str] | dict[str, float],
     to_check_name: str,
@@ -1214,6 +1239,7 @@ def _synthesis_status(
     _check_included_plots(included_plots, "included_plots", synthesis_object)
     _check_included_plots(width_ratios, "width_ratios", synthesis_object)
     _check_included_plots(axes_idx, "axes_idx", synthesis_object)
+    _check_plot_consistency(included_plots, width_ratios, axes_idx)
     fig, axes_dict = _setup_synthesis_fig(
         included_plots, synthesis_object, fig, axes_idx, figsize, width_ratios
     )
