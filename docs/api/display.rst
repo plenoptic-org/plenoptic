@@ -17,6 +17,7 @@ These functions all are intended to help visualize the status and outputs of `sy
    ~synthesis_imshow
    ~synthesis_histogram
    ~synthesis_status
+   ~synthesis_animshow
 
 .. rubric:: :class:`~plenoptic.Metamer` / :class:`~plenoptic.MetamerCTF`
    :heading-level: 4
