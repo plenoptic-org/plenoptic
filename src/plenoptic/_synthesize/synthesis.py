@@ -54,7 +54,7 @@ def _get_name(x: object) -> str:
     return name
 
 
-class Synthesis(abc.ABC):
+class _Synthesis(abc.ABC):
     r"""
     Abstract super-class for synthesis objects.
 
@@ -593,7 +593,7 @@ class Synthesis(abc.ABC):
                     setattr(self, k, move(attr, k))
 
 
-class OptimizedSynthesis(Synthesis):
+class _OptimizedSynthesis(_Synthesis):
     r"""
     Abstract super-class for synthesis objects that use optimization.
 

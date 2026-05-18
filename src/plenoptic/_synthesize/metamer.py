@@ -20,7 +20,7 @@ from .. import loss, regularize
 from ..convergence import _coarse_to_fine_enough, _loss_convergence
 from ..process import signal
 from ..validate import validate_coarse_to_fine, validate_input, validate_model
-from .synthesis import OptimizedSynthesis
+from .synthesis import _OptimizedSynthesis
 
 __all__ = [
     "Metamer",
@@ -32,7 +32,7 @@ def __dir__() -> list[str]:
     return __all__
 
 
-class Metamer(OptimizedSynthesis):
+class Metamer(_OptimizedSynthesis):
     r"""
     Synthesize metamers for image-computable differentiable models.
 
