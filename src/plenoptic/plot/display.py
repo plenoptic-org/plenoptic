@@ -203,6 +203,8 @@ def imshow(
 
     Raises
     ------
+    ValueError
+        If ``images`` is not a 4d tensor or list of 4d tensors.
     TypeError
         If ``batch_idx`` or ``channel_idx`` are not an int or ``None``.
     IndexError
@@ -239,6 +241,8 @@ def imshow(
     """
     if not isinstance(image, list):
         image = [image]
+    if any([im.ndim != 4 for im in image]):
+        raise ValueError("imshow only accepts images as 4d tensors!")
     images_to_plot = []
     heights, widths = [], []
     for im in image:
@@ -443,6 +447,8 @@ def animshow(
 
     Raises
     ------
+    ValueError
+        If ``videos`` is not a 5d tensor or list of 4d tensors.
     TypeError
         If ``batch_idx`` or ``channel_idx`` takes an illegal value.
     ValueError
@@ -496,6 +502,8 @@ def animshow(
     """
     if not isinstance(video, list):
         video = [video]
+    if any([vid.ndim != 5 for vid in video]):
+        raise ValueError("animshow only accepts videos as 5d tensors!")
     videos_to_show = []
     heights, widths = [], []
     for vid in video:
