@@ -51,7 +51,7 @@ REGISTRY = {
     "example_metamer_gaussian-cuda.pt": "edd80e63bd776b679f714acee62fefa9885a257c66e2699423887aeab7c03794",  # noqa: E501
     "example_metamerCTF_ps.pt": "6005e4fcf8f36443af1ebc9338319e201876f0640b62ceba062f3a2a33a93f28",  # noqa: E501
     "example_metamerCTF_ps-cuda.pt": "2f454a29e46cade7ced9268e15878712cc23827d9e5b849e0367e08ee49b79df",  # noqa: E501
-    "example_mad.pt": "9ccf396a7b9544cecf3a18e6c7569f650e1b4f7ed6f2e3fe4b7f2a1657980e1d",  # noqa: E501
+    "example_mad.pt": "c6fb95f89b4e20fe9a135de6b074c2f7f64a052fbe83a9ea7f450797a51091d7",  # noqa: E501
     "example_mad-cuda.pt": "0a4ac2e34456be1f5cb1221ec81a25915e4dcbfff36bbaaebfc4b501b982f6ce",  # noqa: E501
 }
 
@@ -92,7 +92,7 @@ REGISTRY_URLS = {
     "example_metamer_gaussian-cuda.pt": OSF_TEMPLATE.format("jzhe7/?revision=3"),
     "example_metamerCTF_ps.pt": OSF_TEMPLATE.format("4zr37/?revision=9"),
     "example_metamerCTF_ps-cuda.pt": OSF_TEMPLATE.format("627sp/?revision=4"),
-    "example_mad.pt": OSF_TEMPLATE.format("ersfy/?revision=1"),
+    "example_mad.pt": OSF_TEMPLATE.format("ersfy/?revision=2"),
     "example_mad-cuda.pt": OSF_TEMPLATE.format("qjdbc/?revision=1"),
 }
 

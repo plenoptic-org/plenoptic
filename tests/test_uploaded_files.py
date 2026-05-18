@@ -394,7 +394,7 @@ class TestDoctest:
         # needed to initialize optimizer for following, see issue #404
         mad.setup(0.04)
         init_state_dict = mad.optimizer.state_dict()
-        mad.synthesize(400)
+        mad.synthesize(400, store_progress=30)
         mad.save("uploaded_files/example_mad-cuda.pt")
         mad_up = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
         mad_up.load(
