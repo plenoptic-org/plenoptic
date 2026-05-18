@@ -1,4 +1,4 @@
-.. _display-api:
+.. _plot-api:
 
 Plotting functions
 ------------------
@@ -72,5 +72,5 @@ The following functions can be used to visualize :class:`torch.Tensor` objects d
    ~pyrshow
    ~plot_representation
    ~stem_plot
-   ~update_plot
    ~histogram
+   ~update_plot

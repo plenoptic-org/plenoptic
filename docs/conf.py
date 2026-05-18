@@ -342,7 +342,7 @@ api_order = [
     "models.rst",
     "metrics.rst",
     "top_level.rst",
-    "display.rst",
+    "plot.rst",
     "process.rst",
     "images.rst",
     "validation.rst",
