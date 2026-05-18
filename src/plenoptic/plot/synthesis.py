@@ -1,5 +1,6 @@
 """Plots for understanding synthesis objects."""  # numpydoc ignore=EX01
 
+import re
 import warnings
 from collections.abc import Callable
 from typing import Any, Literal
@@ -12,7 +13,7 @@ import torch
 from .. import tensors
 from .._synthesize import Eigendistortion, MADCompetition, Metamer
 from . import display
-from .metamer import metamer_representation_error
+from .metamer import _representation_error, metamer_representation_error
 
 __all__ = [
     "synthesis_loss",
@@ -1133,6 +1134,131 @@ def _get_default_included_plots(
         return ["synthesis_imshow", "synthesis_histogram"]
 
 
+def _synthesis_status(
+    synthesis_object: Metamer | MADCompetition | Eigendistortion,
+    batch_idx: int = 0,
+    channel_idx: int | None = None,
+    iteration: int | None = None,
+    included_plots: list[str] | None = None,
+    fig: mpl.figure.Figure | None = None,
+    axes_idx: dict[str, int | list[int]] = {},
+    figsize: tuple[float, float] | None = None,
+    width_ratios: dict[str, float] = {},
+    **kwargs: Any,
+) -> tuple[mpl.figure.Figure, dict[str, mpl.axes.Axes | list[mpl.axes.Axes]]]:
+    r"""
+    Help create synthesis status figure, returning extra info.
+
+    This helper figure is used by :func:`synthesis_status` and :func:`synthesis_animate`
+    and returns additional shared information they need.
+
+    See :func:`synthesis_status` for more complete docstring.
+
+    Parameters
+    ----------
+    synthesis_object
+        Synthesis object with status to plot.
+    batch_idx
+        Which index to take from the batch dimension.
+    channel_idx
+        Which index to take from the channel dimension. If ``None``, we use all
+        channels.
+    iteration
+        Which iteration to display, for :class:`~plenoptic.Metamer` and
+        :class:`~plenoptic.MADCompetition` objects. If ``None``, we show the most recent
+        one. Negative values are also allowed. If ``iteration!=None`` and
+        ``synthesis_object.store_progress>1`` (that is, the synthesized image was not
+        cached on every iteration), then we use the cached image from the nearest
+        iteration.
+    included_plots
+        Which plots to include. See above for behavior if ``None``, otherwise must be a
+        list of strings whose values are names of plotting functions that can accept
+        ``synthesis_object``, see above for list.
+    fig
+        If ``None``, we create a new figure. Otherwise we assume this is
+        a figure that has the appropriate size and number of subplots.
+    axes_idx
+        Dictionary specifying which axes contains which type of plot, allows
+        for more fine-grained control of the resulting figure.
+        Keys must be strings matching the names of the included plots, see above
+        for possible values, or ``"misc"``. All axes in ``"misc"`` will be ignored
+        by this function. If you tell this function to create a plot that doesn't
+        have a corresponding key, we find the lowest int that is not already in
+        the dict, so if you have axes that you want unchanged, place their idx
+        in ``'misc'``.
+    figsize
+        The size of the figure to create. It may take a little bit of
+        playing around to find a reasonable value. If ``None``, we attempt to
+        make our best guess, aiming to have each axis be of size ``(5, 5)``.
+    width_ratios
+        If ``width_ratios`` is an empty dictionary, plot widths will depend on
+        ``synthesis_object`` class: for :class:`~plenoptic.MADCompetition`,
+        :func:`synthesis_loss` will have double the width of the rest; for other
+        classes, all will be the same width.  To change that, specify their relative
+        widths; keys should be strings (possible values same as ``included_plots``)
+        and values should be floats specifying their relative width.
+    **kwargs
+        Additional keyword arguments to pass to plotting functions. Keys must be the
+        of the form ``{plot_func}_kwargs``, where ``{plot_func}`` name of the
+        plotting function. See Examples for examples.
+
+    Returns
+    -------
+    fig
+        The figure containing this plot.
+    axes_dict
+        Dictionary mapping between plot types and axis objects.
+    """
+    if included_plots is None:
+        included_plots = _get_default_included_plots(synthesis_object)
+    _check_included_plots(included_plots, "included_plots", synthesis_object)
+    _check_included_plots(width_ratios, "width_ratios", synthesis_object)
+    _check_included_plots(axes_idx, "axes_idx", synthesis_object)
+    fig, axes_dict = _setup_synthesis_fig(
+        included_plots, synthesis_object, fig, axes_idx, figsize, width_ratios
+    )
+
+    if "synthesis_imshow" in included_plots:
+        synthesis_imshow(
+            synthesis_object,
+            batch_idx=batch_idx,
+            channel_idx=channel_idx,
+            iteration=iteration,
+            ax=axes_dict["synthesis_imshow"],
+            **kwargs.get("synthesis_imshow_kwargs", {}),
+        )
+    if "synthesis_loss" in included_plots:
+        loss_axes = synthesis_loss(
+            synthesis_object,
+            iteration=iteration,
+            axes=axes_dict["synthesis_loss"],
+            **kwargs.get("synthesis_loss_kwargs", {}),
+        )
+        # synthesis_loss may create new axes, so make sure it's up-to-date here
+        axes_dict["synthesis_loss"] = list(loss_axes.values())
+    if "metamer_representation_error" in included_plots:
+        rep_axes = metamer_representation_error(
+            synthesis_object,
+            batch_idx=batch_idx,
+            iteration=iteration,
+            ax=axes_dict["metamer_representation_error"],
+            **kwargs.get("metamer_representation_error_kwargs", {}),
+        )
+        # metamer_representation_error may create new axes, so make sure it's
+        # up-to-date here
+        axes_dict["metamer_representation_error"] = rep_axes
+    if "synthesis_histogram" in included_plots:
+        synthesis_histogram(
+            synthesis_object,
+            batch_idx=batch_idx,
+            channel_idx=channel_idx,
+            iteration=iteration,
+            ax=axes_dict["synthesis_histogram"],
+            **kwargs.get("synthesis_histogram_kwargs", {}),
+        )
+    return fig, axes_dict
+
+
 def synthesis_status(
     synthesis_object: Metamer | MADCompetition | Eigendistortion,
     batch_idx: int = 0,
@@ -1392,55 +1518,557 @@ def synthesis_status(
       >>> po.plot.synthesis_status(eig)
       <Figure size ...>
     """
-    if included_plots is None:
-        included_plots = _get_default_included_plots(synthesis_object)
-    _check_included_plots(included_plots, "included_plots", synthesis_object)
-    _check_included_plots(width_ratios, "width_ratios", synthesis_object)
-    _check_included_plots(axes_idx, "axes_idx", synthesis_object)
-    fig, axes_dict = _setup_synthesis_fig(
-        included_plots, synthesis_object, fig, axes_idx, figsize, width_ratios
+    fig, _ = _synthesis_status(
+        synthesis_object,
+        batch_idx,
+        channel_idx,
+        iteration,
+        included_plots,
+        fig,
+        axes_idx,
+        figsize,
+        width_ratios,
+        **kwargs,
     )
-
-    if "synthesis_imshow" in included_plots:
-        synthesis_imshow(
-            synthesis_object,
-            batch_idx=batch_idx,
-            channel_idx=channel_idx,
-            iteration=iteration,
-            ax=axes_dict["synthesis_imshow"],
-            **kwargs.get("synthesis_imshow_kwargs", {}),
-        )
-    if "synthesis_loss" in included_plots:
-        loss_axes = synthesis_loss(
-            synthesis_object,
-            iteration=iteration,
-            axes=axes_dict["synthesis_loss"],
-            **kwargs.get("synthesis_loss_kwargs", {}),
-        )
-        # synthesis_loss may create new axes, so make sure it's up-to-date here
-        axes_dict["synthesis_loss"] = list(loss_axes.values())
-    if "metamer_representation_error" in included_plots:
-        rep_axes = metamer_representation_error(
-            synthesis_object,
-            batch_idx=batch_idx,
-            iteration=iteration,
-            ax=axes_dict["metamer_representation_error"],
-            **kwargs.get("metamer_representation_error_kwargs", {}),
-        )
-        # metamer_representation_error may create new axes, so make sure it's
-        # up-to-date here
-        axes_dict["metamer_representation_error"] = rep_axes
-    if "synthesis_histogram" in included_plots:
-        synthesis_histogram(
-            synthesis_object,
-            batch_idx=batch_idx,
-            channel_idx=channel_idx,
-            iteration=iteration,
-            ax=axes_dict["synthesis_histogram"],
-            **kwargs.get("synthesis_histogram_kwargs", {}),
-        )
     return fig
 
 
-# - have animshow raise error if fig not empty (check fig.get_axes() and ax.has_data())
-#     - will have to remove the preplot tests (or just check they fail)
+def _get_ylim_rescale(
+    metamer: Metamer,
+    ylim: str | None | tuple[float, float] | Literal[False] = "rescale",
+) -> tuple[None | tuple[float, float] | Literal[False], int]:
+    """
+    Prepare ylim, ylim_rescale_interval for :func:`synthesis_animshow`.
+
+    This only works with a :class:`~plenoptic.Metamer` object, and is intended to be
+    used with the :func:`~plenoptic.plot.metamer_representation_error` plot. It thus
+    checks ``metamer.target_representation``.
+
+    Parameters
+    ----------
+    metamer
+        Metamer object we'll be animating.
+    ylim
+        User-provided ylim value for the ``metamer_representation_error`` plot. Ignored
+        if model output is not 3d:
+
+        * If a tuple, then this is the ylim of all plots
+
+        * If ``None``, then all plots have the same limits, all
+          symmetric about 0 with a limit of
+          ``np.abs(representation_error).max()`` (for the initial
+          representation_error).
+
+        * If ``False``, don't modify limits.
+
+        * If a string, must be ``"rescale"`` or of the form ``"rescaleN"``,
+          where N can be any integer. If ``"rescaleN"``, we rescale the
+          limits every N frames (we rescale as if ``ylim=None``). If
+          ``"rescale"``, then we do this 10 times over the course of the
+          animation.
+
+    Returns
+    -------
+    ylim
+        Initial ylim value.
+    ylim_rescale_interval
+        How often to update the ylim, in frames.
+
+    Raises
+    ------
+    ValueError
+        If ``synthesis_object`` is a :class:`~plenoptic.Metamer` object whose
+        :attr:`~plenoptic.Metamer.target_representation` is 4d and ``ylim`` has been
+        set -- we do not know how to best rescale color ranges.
+    """
+    if metamer.target_representation.ndimension() == 4:
+        # we have to do this here so that we set the
+        # ylim_rescale_interval such that we never rescale ylim
+        # (rescaling ylim messes up an image axis)
+        if isinstance(ylim, str) and ylim != "rescale" and ylim.startswith("rescale"):
+            raise ValueError(
+                "Looks like representation is image-like, haven't fully"
+                " thought out how to best handle rescaling color ranges yet!"
+            )
+        ylim = False
+    try:
+        if ylim.startswith("rescale"):
+            try:
+                ylim_rescale_interval = int(ylim.replace("rescale", ""))
+            except ValueError:
+                # then there's nothing we can convert to an int there
+                ylim_rescale_interval = int((metamer.saved_metamer.shape[0] - 1) // 10)
+                if ylim_rescale_interval == 0:
+                    ylim_rescale_interval = int(metamer.saved_metamer.shape[0] - 1)
+            ylim = None
+        else:
+            raise ValueError(f"Don't know how to handle ylim {ylim}!")
+    except AttributeError:
+        # this way we'll never rescale
+        ylim_rescale_interval = len(metamer.saved_metamer) + 1
+    return ylim, ylim_rescale_interval
+
+
+def synthesis_animshow(
+    synthesis_object: Metamer | MADCompetition,
+    framerate: int = 10,
+    batch_idx: int = 0,
+    channel_idx: int | None = None,
+    included_plots: list[str] | None = None,
+    ylim: str | None | tuple[float, float] | Literal[False] = "rescale",
+    fig: mpl.figure.Figure | None = None,
+    axes_idx: dict[str, int] = {},
+    figsize: tuple[float, float] | None = None,
+    width_ratios: dict[str, float] = {},
+    **kwargs: Any,
+) -> mpl.animation.FuncAnimation:
+    r"""
+    Animate synthesis progress.
+
+    .. versionadded:: 2.0
+       Combines previously separate loss plotting functions for
+       :class:`~plenoptic.Metamer` and :class:`~plenoptic.MADCompetition`.
+
+    This animates the figure produced by :func:`synthesis_status` over time, for each
+    stored iteration. It begins by calling that function to initialize the first frame
+    of the movie.
+
+    This function's behavior when ``included_plots is None``, and allowed values for
+    that variable, depends upon the type of ``synthesis_object``:
+
+    - :class:`~plenoptic.Metamer`: :func:`synthesis_imshow`,
+      :func:`synthesis_loss`, :func:`~plenoptic.plot.metamer_representation_error`.
+      Additional allowed values: :func:`synthesis_histogram`.
+
+    - :class:`~plenoptic.MADCompetition`: :func:`synthesis_imshow`,
+      :func:`synthesis_loss`. Additional allowed values: :func:`synthesis_histogram`.
+
+    Parameters
+    ----------
+    synthesis_object
+        Synthesis object with the images we wish to display.
+    framerate
+        How many frames a second to display.
+    batch_idx
+        Which index to take from the batch dimension.
+    channel_idx
+        Which index to take from the channel dimension. If ``None``, we use all
+        channels (assumed use-case is RGB(A) image).
+    included_plots
+        Which plots to include. See above for behavior if ``None``, otherwise must be a
+        list of strings whose values are names of plotting functions that can accept
+        ``synthesis_object``, see above for list.
+    ylim
+        The y-limits of the ``metamer_representation_error`` plot. Ignored if model
+        output is not 3d:
+
+        * If a tuple, then this is the ylim of all plots
+
+        * If ``None``, then all plots have the same limits, all
+          symmetric about 0 with a limit of
+          ``np.abs(representation_error).max()`` (for the initial
+          representation_error).
+
+        * If ``False``, don't modify limits.
+
+        * If a string, must be ``"rescale"`` or of the form ``"rescaleN"``,
+          where N can be any integer. If ``"rescaleN"``, we rescale the
+          limits every N frames (we rescale as if ``ylim=None``). If
+          ``"rescale"``, then we do this 10 times over the course of the
+          animation.
+
+    fig
+        If ``None``, we create a new figure. Otherwise we assume this is
+        a figure that has the appropriate size and number of subplots.
+    axes_idx
+        Dictionary specifying which axes contains which type of plot, allows
+        for more fine-grained control of the resulting figure.
+        Keys must be strings matching the names of the included plots, see above
+        for possible values, or ``"misc"``. All axes in ``"misc"`` will be ignored
+        by this function. If you tell this function to create a plot that doesn't
+        have a corresponding key, we find the lowest int that is not already in
+        the dict, so if you have axes that you want unchanged, place their idx
+        in ``'misc'``.
+    figsize
+        The size of the figure to create. It may take a little bit of
+        playing around to find a reasonable value. If ``None``, we attempt to
+        make our best guess, aiming to have each axis be of size ``(5, 5)``.
+    width_ratios
+        If ``width_ratios`` is an empty dictionary, plot widths will depend on
+        ``synthesis_object`` class: for :class:`~plenoptic.MADCompetition`,
+        :func:`synthesis_loss` will have double the width of the rest; for other
+        classes, all will be the same width.  To change that, specify their relative
+        widths; keys should be strings (possible values same as ``included_plots``)
+        and values should be floats specifying their relative width.
+    **kwargs
+        Additional keyword arguments to pass to plotting functions. Keys must be the
+        of the form ``{plot_func}_kwargs``, where ``{plot_func}`` name of the
+        plotting function. See Examples for examples.
+
+    Returns
+    -------
+    anim
+        The animation object. In order to view, must convert to HTML or save.
+
+    Raises
+    ------
+    ValueError
+        If synthesis for this ``synthesis_object`` was run with
+        ``store_progress=False``.
+    ValueError
+        If we do not know how to interpret the value of ``ylim``.
+    ValueError
+        If ``synthesis_object`` is a :class:`~plenoptic.Metamer` object whose
+        :attr:`~plenoptic.Metamer.target_representation` is 4d and ``ylim`` has been
+        set -- we do not know how to best rescale color ranges.
+    ValueError
+        If any of ``width_ratios``, ``included_plots``, or ``axes_idx`` reference an
+        plot that is incompatible with ``synthesis_object``. See list at top of
+        docstring for compatible plots for each class.
+    TypeError
+        If ``synthesis_object`` is not :class:`~plenoptic.MADCompetition` or
+        :class:`~plenoptic.Metamer`
+
+    See Also
+    --------
+    :func:`~plenoptic.plot.update_plot`
+        Function used by this one to update ``synthesis_imshow`` and
+        ``metamer_representation_error`` plots.
+    synthesis_imshow
+        One of this function's axis-level component functions: display synthesized
+        image at a given synthesis iteration.
+    synthesis_loss
+        One of this function's axis-level component functions: plot synthesis loss
+        over iterations.
+    metamer_representation_error
+        One of this function's axis-level component functions: plot error in model
+        representation at a given synthesis iteration.
+    synthesis_histogram
+        One of this function's axis-level component functions: plot histogram of
+        values from synthesized object.
+    synthesis_status
+        Create a figure that shows a frame from this movie: the synthesis status at
+        a given iteration.
+
+    Notes
+    -----
+    - This functions returns a matplotlib FuncAnimation object. See below for how
+      to view to view it in a Jupyter notebook. See Examples section for how to save to
+      disk. In either case, this can take a while and you'll need the appropriate writer
+      installed and on your path, e.g., ffmpeg, imagemagick, etc). See :doc:`matplotlib
+      documentation <matplotlib:api/animation_api>` for more details.
+
+    - Unless specified, we use the ffmpeg backend, which requires that you have
+      ffmpeg installed and on your path (https://ffmpeg.org/download.html). To use
+      a different, use the matplotlib rcParams:
+      ``matplotlib.rcParams['animation.writer'] = writer``, see `matplotlib
+      documentation
+      <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_ for
+      more details.
+
+    - To view in a Jupyter notebook, we recommend adding the following to the first cell
+      of your notebook (requires ffmpeg):
+
+      .. code:: python
+
+          import matplotlib.pyplot as plt
+          plt.rcParams["animation.html"] = "html5"
+          # use single-threaded ffmpeg for animation writer
+          plt.rcParams["animation.writer"] = "ffmpeg"
+          plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
+
+    Examples
+    --------
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
+      >>> model = po.models.Gaussian(30).eval()
+      >>> po.remove_grad(model)
+      >>> met = po.Metamer(img, model)
+      >>> met.to(torch.float64)
+      >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
+      >>> ani = po.plot.synthesis_animshow(met)
+      >>> # Save the video (here we're saving it as a .gif)
+      >>> ani.save("animate-example-1.gif")
+
+    .. image:: animate-example-1.gif
+
+    This function can only be used if
+    :meth:`~plenoptic.Metamer.synthesize` was called with
+    ``store_progress``.
+
+    >>> import plenoptic as po
+    >>> img = po.data.einstein()
+    >>> model = po.models.Gaussian(30).eval()
+    >>> po.remove_grad(model)
+    >>> met = po.Metamer(img, model)
+    >>> met.to(torch.float64)
+    >>> met.synthesize(5)
+    >>> ani = po.plot.synthesis_animshow(met)
+    Traceback (most recent call last):
+    ValueError: synthesize() was run with store_progress=False...
+
+    If model has its own ``plot_representation`` method, this function will use it
+    for plotting the representation error (see
+    :func:`~plenoptic.models.PortillaSimoncelli.plot_representation`
+    ):
+
+    .. plot::
+      :context: close-figs
+
+      >>> img = po.data.reptile_skin()
+      >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
+      >>> met = po.MetamerCTF(img, model, po.loss.l2_norm)
+      >>> met.to(torch.float64)
+      >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
+      >>> ani = po.plot.synthesis_animshow(met)
+      >>> # Save the video (here we're saving it as a .gif)
+      >>> ani.save("animate-example-2.gif")
+
+    .. image:: animate-example-2.gif
+
+    Change the included plots:
+
+    .. plot::
+      :context: close-figs
+
+      >>> included_plots = ["synthesis_loss", "synthesis_histogram"]
+      >>> ani = po.plot.synthesis_animshow(met, included_plots=included_plots)
+      >>> # Save the video (here we're saving it as a .gif)
+      >>> ani.save("animate-example-3.gif")
+
+    .. image:: animate-example-3.gif
+
+    Adjust width of included plots:
+
+    .. plot::
+      :context: close-figs
+
+      >>> width_ratios = {"metamer_representation_error": 3}
+      >>> ani = po.plot.synthesis_animshow(met, width_ratios=width_ratios)
+      >>> # Save the video (here we're saving it as a .gif)
+      >>> ani.save("animate-example-4.gif")
+
+    .. image:: animate-example-4.gif
+
+    Change the arrangement of the plots, creating some empty axes:
+
+    .. plot::
+      :context: close-figs
+
+      >>> axes_idx = {"misc": [0, 3], "synthesis_loss": 4}
+      >>> ani = po.plot.synthesis_animshow(met, axes_idx=axes_idx)
+      >>> # Save the video (here we're saving it as a .gif)
+      >>> ani.save("animate-example-5.gif")
+
+    .. image:: animate-example-5.gif
+
+    Plot on an existing figure, with already existing plots:
+
+    .. plot::
+      :context: close-figs
+
+      >>> fig, axes = plt.subplots(1, 4, figsize=(16, 4))
+      >>> axes[0].plot(torch.rand(100))
+      [<matplotlib.lines.Line2D ...>]
+      >>> # specify misc: 0 so we don't plot on top of this axis.
+      >>> axes_idx = {"misc": 0}
+      >>> ani = po.plot.synthesis_animshow(met, fig=fig, axes_idx=axes_idx)
+      >>> # Save the video (here we're saving it as a .gif)
+      >>> ani.save("animate-example-6.gif")
+
+    .. image:: animate-example-6.gif
+
+    Specify additional keyword arguments to one of the underlying plots:
+
+    .. plot::
+      :context: close-figs
+
+      >>> ani = po.plot.synthesis_animshow(
+      ...     met,
+      ...     synthesis_loss_kwargs={"plot_penalties": True},
+      ...     synthesis_imshow_kwargs={"zoom": 0.5},
+      ... )
+      >>> # Save the video (here we're saving it as a .gif)
+      >>> ani.save("animate-example-7.gif")
+
+    .. image:: animate-example-7.gif
+
+    Plot for :class:`~plenoptic.MADCompetition` object. Note the plots
+    are different:
+
+    .. plot::
+      :context: close-figs
+
+      >>> img = po.data.curie().to(torch.float64)
+      >>> def ds_ssim(x, y):
+      ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
+      >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
+      >>> mad.load(po.data.fetch_data("example_mad.pt"))
+      >>> ani = po.plot.synthesis_animshow(mad)
+      >>> # Save the video (here we're saving it as a .gif)
+      >>> ani.save("animate-example-8.gif")
+
+    .. image:: animate-example-8.gif
+    """
+    if not isinstance(synthesis_object, (Metamer, MADCompetition)):
+        raise TypeError(
+            "synthesis_object must be a MADCompetition or Metamer object but got"
+            f" {type(synthesis_object)}"
+        )
+    if not synthesis_object.store_progress:
+        raise ValueError(
+            "synthesize() was run with store_progress=False, cannot animate!"
+        )
+    # ylim only relevant for metamer_representation_error plot
+    if isinstance(synthesis_object, Metamer):
+        ylim, ylim_rescale_interval = _get_ylim_rescale(synthesis_object, ylim)
+        # we run synthesis_status to initialize the figure
+        rep_error_kwargs = kwargs.pop("metamer_representation_error_kwargs", {})
+        rep_error_kwargs["ylim"] = ylim
+        kwargs["metamer_representation_error_kwargs"] = rep_error_kwargs
+    fig, axes_dict = _synthesis_status(
+        synthesis_object,
+        batch_idx,
+        channel_idx,
+        0,
+        included_plots,
+        fig,
+        axes_idx,
+        figsize,
+        width_ratios,
+        **kwargs,
+    )
+
+    # grab the artist for the loss plot (we don't need to do this for the
+    # metamer or representation plot, because we use the update_plot
+    # function for that)
+    if "synthesis_loss" in axes_dict:
+        scat = [ax.collections[0] for ax in axes_dict["synthesis_loss"]]
+    if "synthesis_imshow" in axes_dict:
+        ax = axes_dict["synthesis_imshow"]
+        # replace the bit of the title that specifies the range,
+        # since we don't make any promises about that. we have to do
+        # this here because we need the figure to have been created
+        ax.set_title(re.sub(r"\n range: .* \n", "\n\n", ax.get_title()))
+    if (
+        "metamer_representation_error" in axes_dict
+        and synthesis_object.target_representation.ndimension() == 4
+    ):
+        # replace the bit of the title that specifies the range,
+        # since we don't make any promises about that. we have to do
+        # this here because we need the figure to have been created
+        for ax in axes_dict["metamer_representation_error"]:
+            ax.set_title(re.sub(r"\n range: .* \n", "\n\n", ax.get_title()))
+
+    if isinstance(synthesis_object, Metamer):
+        saved_synth = synthesis_object.saved_metamer
+        losses = [synthesis_object.losses]
+    elif isinstance(synthesis_object, MADCompetition):
+        saved_synth = synthesis_object.saved_mad_image
+        losses = [
+            synthesis_object.reference_metric_loss,
+            synthesis_object.optimized_metric_loss,
+        ]
+
+    def movie_plot(i: int) -> list[mpl.artist.Artist]:
+        """
+        Matplotlib function for animation.
+
+        Update plots for frame ``i``.
+
+        Parameters
+        ----------
+        i
+            The frame to plot.
+
+        Returns
+        -------
+        artists
+            The updated matplotlib artists.
+        """  # numpydoc ignore=EX01
+        artists = []
+        if "synthesis_imshow" in axes_dict:
+            artists.extend(
+                display.update_plot(
+                    axes_dict["synthesis_imshow"],
+                    data=saved_synth[i],
+                    batch_idx=batch_idx,
+                )
+            )
+        if "metamer_representation_error" in axes_dict:
+            # this warning is not relevant for animate
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", message="loss iteration and iteration for"
+                )
+                rep_error = _representation_error(
+                    synthesis_object,
+                    iteration=min(
+                        i * synthesis_object.store_progress,
+                        len(synthesis_object.losses) - 1,
+                    ),
+                )
+
+            # we pass rep_error_axes to update, and we've grabbed
+            # the right things above
+            artists.extend(
+                display.update_plot(
+                    axes_dict["metamer_representation_error"],
+                    batch_idx=batch_idx,
+                    model=synthesis_object.model,
+                    data=rep_error,
+                )
+            )
+            if (
+                (i + 1) % ylim_rescale_interval == 0
+                and synthesis_object.target_representation.ndimension() == 3
+            ):
+                display._rescale_ylim(
+                    axes_dict["metamer_representation_error"], rep_error
+                )
+
+        if "synthesis_histogram" in axes_dict:
+            # this is the dumbest way to do this, but it's simple --
+            # clearing the axes can cause problems if the user has, for
+            # example, changed the tick locator or formatter. not sure how
+            # to handle this best right now
+            axes_dict["synthesis_histogram"].clear()
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", message="loss iteration and iteration for"
+                )
+                synthesis_histogram(
+                    synthesis_object,
+                    batch_idx=batch_idx,
+                    channel_idx=channel_idx,
+                    iteration=min(
+                        i * synthesis_object.store_progress,
+                        len(synthesis_object.losses) - 1,
+                    ),
+                    ax=axes_dict["synthesis_histogram"],
+                )
+        if "synthesis_loss" in axes_dict:
+            # loss always contains values from every iteration, but everything
+            # else will be subsampled.
+            x_val = synthesis_object._convert_iteration(i, False)
+            for sc_artist, loss in zip(scat, losses):
+                sc_artist.set_offsets((x_val, loss[x_val]))
+                artists.append(sc_artist)
+        # as long as blitting is True, need to return a sequence of artists
+        return artists
+
+    # don't need an init_func, since we handle initialization ourselves
+    anim = mpl.animation.FuncAnimation(
+        fig,
+        movie_plot,
+        frames=len(saved_synth),
+        blit=True,
+        interval=1000.0 / framerate,
+        repeat=False,
+    )
+    plt.close(fig)
+    return anim
