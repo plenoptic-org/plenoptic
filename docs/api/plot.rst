@@ -6,33 +6,36 @@ Plotting functions
 .. rubric:: Synthesis objects
    :heading-level: 3
 
-These functions all are intended to help visualize the status and outputs of `synthesis objects <synthesis-api>`_.
+These functions all are intended to help visualize the status and outputs of `synthesis objects <synthesis-api>`_. The following accept all synthesis classes:
 
 .. currentmodule:: plenoptic.plot
+.. autosummary::
+   :signatures: none
+   :toctree: generated
+
+   ~synthesis_imshow
+   ~synthesis_histogram
+   ~synthesis_status
+
+The following accept :class:`~plenoptic.Metamer` / :class:`~plenoptic.MetamerCTF` and :class:`~plenoptic.MADCompetition` objects:
+
 .. autosummary::
    :signatures: none
    :toctree: generated
 
    ~synthesis_loss
-   ~synthesis_imshow
-   ~synthesis_histogram
-   ~synthesis_status
    ~synthesis_animshow
+
+The following accept only objects of a single class.
 
 .. rubric:: :class:`~plenoptic.Metamer` / :class:`~plenoptic.MetamerCTF`
    :heading-level: 4
 
-.. currentmodule:: plenoptic.plot
 .. autosummary::
    :signatures: none
    :toctree: generated
 
-   ~metamer_loss
-   ~metamer_imshow
-   ~metamer_pixel_values
    ~metamer_representation_error
-   ~metamer_synthesis_status
-   ~metamer_animshow
 
 .. rubric:: :class:`~plenoptic.MADCompetition`
    :heading-level: 4
@@ -40,13 +43,8 @@ These functions all are intended to help visualize the status and outputs of `sy
    :signatures: none
    :toctree: generated
 
-   ~mad_imshow
    ~mad_imshow_all
-   ~mad_loss
    ~mad_loss_all
-   ~mad_pixel_values
-   ~mad_synthesis_status
-   ~mad_animshow
 
 .. rubric:: :class:`~plenoptic.Eigendistortion`
    :heading-level: 4
@@ -54,7 +52,6 @@ These functions all are intended to help visualize the status and outputs of `sy
    :signatures: none
    :toctree: generated
 
-   ~eigendistortion_imshow
    ~eigendistortion_imshow_all
 
 .. rubric:: Tensors
