@@ -484,6 +484,16 @@ with deprecated_table.open("w", newline="") as f:
     csv_writer = csv.writer(f)
     csv_writer.writerows(table)
 
+new_table = migration_table.with_stem("new_table")
+table = []
+
+for k in _api_change.NEW:
+    table.append([f"`{k}`"])
+
+with new_table.open("w", newline="") as f:
+    csv_writer = csv.writer(f)
+    csv_writer.writerows(table)
+
 
 # connect our custom method to the sphinx events callback API:
 # https://www.sphinx-doc.org/en/master/extdev/event_callbacks.html
