@@ -19,13 +19,6 @@ mpl.rcParams["animation.writer"] = "html"
 mpl.use("agg")
 
 
-# following https://github.com/scverse/scanpy/issues/1662
-@pytest.fixture(autouse=True)
-def close_figures_on_teardown():
-    yield
-    plt.close("all")
-
-
 class TestDisplay:
     def test_update_plot_line(self):
         x = np.linspace(0, 100)
@@ -40,6 +33,7 @@ class TestDisplay:
         _, ax_y = ax.lines[0].get_data()
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update line correctly!")
+        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
     def test_update_plot_line_multi_axes(self, how):
@@ -64,6 +58,7 @@ class TestDisplay:
 
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update line correctly!")
+        plt.close(fig)
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -79,9 +74,11 @@ class TestDisplay:
         else:
             ax = None
         with expectation:
-            po.plot.plot_representation(
+            axes = po.plot.plot_representation(
                 data=model(einstein_img), ax=ax, figsize=figsize
             )
+            fig = axes[0].figure
+        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     def test_update_plot_line_multi_channel(self, how):
@@ -114,6 +111,7 @@ class TestDisplay:
                 y_check = {0: y2[0], 1: y1[1]}[i]
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update line correctly!")
+        plt.close(fig)
 
     def test_update_plot_stem(self):
         x = np.linspace(0, 100)
@@ -128,6 +126,7 @@ class TestDisplay:
         ax_y = ax.containers[0].markerline.get_ydata()
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update stems correctly!")
+        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
     def test_update_plot_stem_multi_axes(self, how):
@@ -152,6 +151,7 @@ class TestDisplay:
 
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update stem correctly!")
+        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     def test_update_plot_stem_multi_channel(self, how):
@@ -184,6 +184,7 @@ class TestDisplay:
                 y_check = {0: y2[0], 1: y1[1]}[i]
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update stem correctly!")
+        plt.close(fig)
 
     def test_update_plot_image(self):
         y1 = np.random.rand(1, 1, 100, 100)
@@ -195,6 +196,7 @@ class TestDisplay:
         ax_y = ax.images[0].get_array().data
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update image correctly!")
+        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
     def test_update_plot_image_multi_axes(self, how):
@@ -217,6 +219,7 @@ class TestDisplay:
 
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update image correctly!")
+        plt.close(fig)
 
     def test_update_plot_scatter(self):
         x1 = np.random.rand(100)
@@ -233,6 +236,7 @@ class TestDisplay:
         ax_data = ax.collections[0].get_offsets()
         if not np.allclose(ax_data, po.to_numpy(data)):
             raise Exception("Didn't update points of the scatter plot correctly!")
+        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
     def test_update_plot_scatter_multi_axes(self, how):
@@ -270,6 +274,7 @@ class TestDisplay:
 
             if not np.allclose(ax_data, po.to_numpy(data_check)):
                 raise Exception("Didn't update points of the scatter plot correctly!")
+        plt.close(fig)
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     def test_update_plot_scatter_multi_channel(self, how):
@@ -363,6 +368,7 @@ class TestDisplay:
                 _, ax_data = ax.lines[0].get_data()
             if not np.allclose(ax_data, po.to_numpy(data[i])):
                 raise Exception("Didn't update points of the scatter plot correctly!")
+        plt.close(fig)
 
     @pytest.mark.parametrize("as_rgb", [True, False])
     @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
@@ -449,6 +455,7 @@ class TestDisplay:
                 f"Created {len(fig.axes)} axes, but expected {n_axes}!"
                 " Probably plotting color as grayscale or vice versa"
             )
+            plt.close(fig)
 
     def test_imshow_shape_fail(self, einstein_img):
         with pytest.raises(ValueError, match="imshow only accepts images"):
@@ -496,17 +503,20 @@ class TestDisplay:
             axes = [ax for ax in fig.axes if ax.images]
             if len(axes) != n_axes:
                 raise Exception(f"Created {len(fig.axes)} axes, but expected {n_axes}!")
+            plt.close(fig)
 
     def test_display_test_signals(self, basic_stim):
         po.plot.imshow(basic_stim)
 
     def test_imshow_batch_idx_fail(self, einstein_img):
         with pytest.raises(IndexError, match="batch_idx=1 is out of bounds"):
-            po.plot.imshow(einstein_img, batch_idx=1)
+            fig = po.plot.imshow(einstein_img, batch_idx=1)
+            plt.close(fig)
 
     def test_imshow_channel_idx_fail(self, einstein_img):
         with pytest.raises(IndexError, match="channel_idx=1 is out of bounds"):
-            po.plot.imshow(einstein_img, channel_idx=1)
+            fig = po.plot.imshow(einstein_img, channel_idx=1)
+            plt.close(fig)
 
     @pytest.mark.parametrize("as_rgb", [True, False])
     @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
@@ -585,6 +595,7 @@ class TestDisplay:
                 f"Created {len(fig.axes)} axes, but expected {n_axes}!"
                 " Probably plotting color as grayscale or vice versa"
             )
+            plt.close(fig)
 
     def test_animshow_shape_fail(self, einstein_img):
         with pytest.raises(ValueError, match="animshow only accepts videos"):
@@ -625,6 +636,7 @@ class TestDisplay:
                     f"Zoom didn't work as expected, expected {zoom} but"
                     f" got {zoom_title}!"
                 )
+            plt.close(fig)
 
     def test_histogram_label_fail(self, einstein_img, curie_img):
         with pytest.raises(ValueError, match="labels must have the same length"):
@@ -693,6 +705,7 @@ def template_test_synthesis_all_plot(
         **plot_kwargs,
         width_ratios=width_ratios,
     )
+    plt.close(fig)
 
 
 def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp_path):
@@ -740,6 +753,7 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
             included_plots=included_plots,
             **plot_kwargs,
         ).save(path)
+    plt.close(fig)
 
 
 class TestMADDisplay:
@@ -883,7 +897,8 @@ class TestMADDisplay:
             func = po.plot.mad_loss_all
         elif func == "image":
             func = po.plot.mad_imshow_all
-        func(*all_mad)
+        fig = func(*all_mad)
+        plt.close(fig)
 
     @pytest.mark.parametrize("func", ["plot", "animate"])
     # metamer_representation_error is an allowed value for metamer, but not MAD.
@@ -910,6 +925,7 @@ class TestMADDisplay:
             kwargs["axes_idx"] = {val: 0, "synthesis_loss": 1}
         with pytest.raises(ValueError, match=f"{variable} contained value"):
             func(synthesized_mad, **kwargs)
+        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 0, -1, -10, 10, 2, 3, 4])
     @pytest.mark.parametrize("batch_idx", [0, 1])
@@ -941,6 +957,7 @@ class TestMADDisplay:
                 included_plots=included_plots,
             )
             axes_img = fig.axes[0].images[0].get_array().data
+            plt.close(fig)
             img = synthesized_mad_store_progress.saved_mad_image[mad_iter, batch_idx]
             img = einops.rearrange(po.to_numpy(img), "c h w -> h w c").squeeze()
             # rgb images are clipped while plotting
@@ -970,6 +987,7 @@ class TestMADDisplay:
             fig, axes = plt.subplots(1, n_axes)
         with expectation:
             po.plot.synthesis_loss(synthesized_mad, iteration, plot_penalties, axes)
+        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
@@ -1051,6 +1069,7 @@ class TestMADDisplay:
             plotted_image = ax.images[0].get_array().data
             if not np.array_equal(expected_image, plotted_image):
                 raise ValueError("plotted image wrong!")
+            plt.close("all")
 
 
 class TestMetamerDisplay:
@@ -1264,6 +1283,7 @@ class TestMetamerDisplay:
             kwargs["axes_idx"] = {val: 0, "synthesis_loss": 1}
         with pytest.raises(ValueError, match=f"{variable} contained value"):
             func(synthesized_met, **kwargs)
+        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 0, -1, -10, 10, 2, 3, 4])
     @pytest.mark.parametrize("batch_idx", [0, 1])
@@ -1292,6 +1312,7 @@ class TestMetamerDisplay:
                 included_plots=included_plots,
             )
             axes_img = fig.axes[0].images[0].get_array().data
+            plt.close(fig)
             img = synthesized_met_store_progress.saved_metamer[met_iter, batch_idx]
             img = einops.rearrange(po.to_numpy(img), "c h w -> h w c").squeeze()
             # rgb images are clipped while plotting
@@ -1319,6 +1340,7 @@ class TestMetamerDisplay:
             po.plot.synthesis_loss(
                 synthesized_met_nostore, iteration, plot_penalties, axes
             )
+        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
@@ -1326,6 +1348,7 @@ class TestMetamerDisplay:
         if axes == "axis":
             fig, axes = plt.subplots(1, 1)
         po.plot.synthesis_histogram(synthesized_met, iteration=iteration, ax=axes)
+        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
@@ -1392,6 +1415,7 @@ class TestMetamerDisplay:
             plotted_image = ax.images[0].get_array().data
             if not np.array_equal(expected_image, plotted_image):
                 raise ValueError("plotted image wrong!")
+            plt.close("all")
 
     def test_synthesis_animshow_default(self):
         # in synthesis_animshow, we raise a warning if user tries to set rescale ylim
@@ -1450,6 +1474,7 @@ class TestEigendistortionDisplay:
         else:
             with pytest.raises(ValueError, match="eigenindex must be the index"):
                 po.plot.synthesis_imshow(synthesized_eig, batch_idx=-1)
+                plt.close("all")
 
     @pytest.mark.parametrize(
         "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
@@ -1476,6 +1501,7 @@ class TestEigendistortionDisplay:
             po.plot.eigendistortion_imshow_all(
                 synthesized_eig, eigenindex=eigenindex, alpha=alpha, as_rgb=as_rgb
             )
+            plt.close("all")
 
     @pytest.mark.parametrize(
         "synthesized_eig",
@@ -1505,6 +1531,7 @@ class TestEigendistortionDisplay:
             po.plot.synthesis_histogram(
                 synthesized_eig, batch_idx=batch_idx, iteration=iteration, ax=axes
             )
+            plt.close("all")
 
     @pytest.mark.parametrize(
         "synthesized_eig",
@@ -1584,6 +1611,7 @@ class TestEigendistortionDisplay:
             plotted_image = ax.images[0].get_array().data
             if not np.array_equal(expected_image, plotted_image):
                 raise ValueError("plotted image wrong!")
+            plt.close("all")
 
     def test_synthesis_imshow_default(self):
         # in synthesis_imshow, we do not allow alpha to be changed if synthesis_object
