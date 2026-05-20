@@ -32,7 +32,7 @@ def synthesis_loss(
     synthesis_object: Metamer | MADCompetition,
     iteration: int | None = None,
     plot_penalties: bool = False,
-    axes: list[mpl.axes.Axes] | mpl.axes.Axes | None = None,
+    ax: list[mpl.axes.Axes] | mpl.axes.Axes | None = None,
     **kwargs: Any,
 ) -> dict[str, mpl.axes.Axes]:
     """
@@ -79,7 +79,7 @@ def synthesis_loss(
     plot_penalties
         Whether to plot the output of the penalty function as well. See above
         for behavior.
-    axes
+    ax
         Pre-existing axes for plot. If ``None``, we call
         :func:`matplotlib.pyplot.gca()`. If ``synthesis_object`` is
         :class:`~plenoptic.MADCompetition`, then if ``ax`` is a single axis, we split it
@@ -92,7 +92,7 @@ def synthesis_loss(
 
     Returns
     -------
-    axes
+    axes_dict
         A dictionary whose keys are strings describing the created plots and whose
         values are the corresponding matplotlib axes. See above for details.
 
@@ -159,7 +159,7 @@ def synthesis_loss(
       :context: close-figs
 
       >>> fig, axes = plt.subplots(1, 2)
-      >>> po.plot.synthesis_loss(met, axes=axes[1], plot_penalties=True)
+      >>> po.plot.synthesis_loss(met, ax=axes[1], plot_penalties=True)
       {'loss': <Axes: ... ylabel='Loss'>}
 
     Note that we are not plotting the output of
@@ -209,10 +209,10 @@ def synthesis_loss(
       :context: close-figs
 
       >>> fig, axes = plt.subplots(1, 2)
-      >>> po.plot.synthesis_loss(mad, axes=axes[1])
+      >>> po.plot.synthesis_loss(mad, ax=axes[1])
       {'reference_metric_loss': <Axes: ...>, 'optimized_metric_loss': <Axes: ...>}
       >>> fig, axes = plt.subplots(1, 2)
-      >>> po.plot.synthesis_loss(mad, axes=axes)
+      >>> po.plot.synthesis_loss(mad, ax=axes)
       {'reference_metric_loss': <Axes: ...>, 'optimized_metric_loss': <Axes: ...>}
 
     Note that, as with :class:`~plenoptic.Metamer`, we are not plotting the output of
@@ -237,41 +237,41 @@ def synthesis_loss(
         warnings.filterwarnings("ignore", message="loss iteration and iteration for")
         progress = synthesis_object.get_progress(iteration)
 
-    if axes is None:
-        axes = plt.gca()
+    if ax is None:
+        ax = plt.gca()
 
     if isinstance(synthesis_object, Metamer):
-        if hasattr(axes, "__iter__"):
-            raise ValueError("if synthesis_object is a Metamer, axes cannot be a list!")
+        if hasattr(ax, "__iter__"):
+            raise ValueError("if synthesis_object is a Metamer, ax cannot be a list!")
         met_loss = (
             synthesis_object.losses
             - synthesis_object.penalty_lambda * synthesis_object.penalties
         )
-        axes.plot(met_loss, label="metamer loss", **kwargs)
-        axes.scatter(
+        ax.plot(met_loss, label="metamer loss", **kwargs)
+        ax.scatter(
             progress["iteration"],
             progress["losses"]
             - synthesis_object.penalty_lambda * progress["penalties"],
             c="r",
         )
-        axes.set(xlabel="Synthesis iteration", ylabel="Loss", yscale="log")
+        ax.set(xlabel="Synthesis iteration", ylabel="Loss", yscale="log")
         if plot_penalties:
-            axes.plot(synthesis_object.penalties, label="penalty", **kwargs)
-            axes.legend()
-        axes_dict = {"loss": axes}
+            ax.plot(synthesis_object.penalties, label="penalty", **kwargs)
+            ax.legend()
+        axes_dict = {"loss": ax}
     elif isinstance(synthesis_object, MADCompetition):
         right_length = 3 if plot_penalties else 2
-        if not hasattr(axes, "__iter__"):
-            axes = display._clean_up_axes(
-                axes, False, ["top", "right", "bottom", "left"], ["x", "y"]
+        if not hasattr(ax, "__iter__"):
+            ax = display._clean_up_axes(
+                ax, False, ["top", "right", "bottom", "left"], ["x", "y"]
             )
-            gs = axes.get_subplotspec().subgridspec(1, right_length)
-            fig = axes.figure
-            axes = [fig.add_subplot(gs[0, i]) for i in range(right_length)]
+            gs = ax.get_subplotspec().subgridspec(1, right_length)
+            fig = ax.figure
+            ax = [fig.add_subplot(gs[0, i]) for i in range(right_length)]
         else:
-            if len(axes) != right_length:
+            if len(ax) != right_length:
                 raise ValueError(
-                    f"axes is a list of the wrong length! Must contain {right_length}"
+                    f"ax is a list of the wrong length! Must contain {right_length}"
                     " axes."
                 )
         losses = [
@@ -283,13 +283,13 @@ def synthesis_loss(
         if plot_penalties:
             losses.append(synthesis_object.penalties)
             names.append("penalties")
-        for ax, loss, name in zip(axes, losses, names):
-            ax.plot(loss, **kwargs)
-            ax.scatter(progress["iteration"], progress[name], c="r")
-            ax.set(
+        for ax_, loss, name in zip(ax, losses, names):
+            ax_.plot(loss, **kwargs)
+            ax_.scatter(progress["iteration"], progress[name], c="r")
+            ax_.set(
                 xlabel="Synthesis iteration", ylabel=name.capitalize().replace("_", " ")
             )
-            axes_dict[name] = ax
+            axes_dict[name] = ax_
     return axes_dict
 
 
@@ -1260,7 +1260,7 @@ def _synthesis_status(
         loss_axes = synthesis_loss(
             synthesis_object,
             iteration=iteration,
-            axes=axes_dict["synthesis_loss"],
+            ax=axes_dict["synthesis_loss"],
             **kwargs.get("synthesis_loss_kwargs", {}),
         )
         # synthesis_loss may create new axes, so make sure it's up-to-date here
