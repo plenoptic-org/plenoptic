@@ -96,12 +96,6 @@ def test_validate_model(model):
     po.validate.validate_model(model, device=DEVICE, image_shape=(1, 1, 256, 256))
 
 
-@pytest.fixture
-def close_figures_on_teardown():
-    yield
-    plt.close("all")
-
-
 class TestNonLinearities:
     def test_rectangular_to_polar_dict(self, basic_stim):
         spc = po.process.SteerablePyramidFreq(
@@ -255,8 +249,9 @@ class TestFrontEnd:
             )
 
     @pytest.mark.parametrize("model", all_models, indirect=True)
-    def test_frontend_display_filters(self, model, close_figures_on_teardown):
-        model.display_filters()
+    def test_frontend_display_filters(self, model):
+        fig = model.display_filters()
+        plt.close(fig)
 
     @pytest.mark.parametrize("mdl", all_models)
     def test_kernel_size(self, mdl, einstein_img):
@@ -994,7 +989,6 @@ class TestPortillaSimoncelli:
         n_orientations,
         spatial_corr_width,
         einstein_img,
-        close_figures_on_teardown,
     ):
         model = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
@@ -1006,12 +1000,11 @@ class TestPortillaSimoncelli:
             model(einstein_img.repeat((*batch_channel, 1, 1))),
             title="Representation",
         )
+        plt.close(fig)
 
     @pytest.mark.parametrize("figsize", [None, (5, 5), (5.0, 5.0), (10, 5)])
     @pytest.mark.parametrize("ax", [False, True])
-    def test_plot_representation_figsize(
-        self, figsize, ax, einstein_img, close_figures_on_teardown
-    ):
+    def test_plot_representation_figsize(self, figsize, ax, einstein_img):
         expectation = does_not_raise()
         if ax:
             fig, ax = plt.subplots(1, 1)
@@ -1029,8 +1022,9 @@ class TestPortillaSimoncelli:
                 figsize=figsize,
                 ax=ax,
             )
+        plt.close(fig)
 
-    def test_update_plot(self, einstein_img, close_figures_on_teardown):
+    def test_update_plot(self, einstein_img):
         model = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
         ).to(DEVICE)
@@ -1041,6 +1035,7 @@ class TestPortillaSimoncelli:
         updated_y = artists[0].get_ydata()
         if np.equal(orig_y, updated_y).all():
             raise ValueError("Update plot didn't run successfully!")
+        plt.close(fig)
 
     @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
