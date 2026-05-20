@@ -367,7 +367,12 @@ def _get_synthesis_image(
             )
         image = synthesis_object.eigendistortions
         if batch_idx is not None:
-            batch_idx = synthesis_object._indexer(batch_idx)
+            try:
+                batch_idx = [synthesis_object._indexer(i) for i in batch_idx]
+            except TypeError:
+                # we're here because we can't iterate over batch_idx (can't just check
+                # attributes because 0d tensors have both __iter__ and __len__)
+                batch_idx = synthesis_object._indexer(batch_idx)
     else:
         progress = synthesis_object.get_progress(iteration)
         if isinstance(synthesis_object, Metamer):
@@ -383,7 +388,6 @@ def _get_synthesis_image(
                     " None!"
                 )
             image = eval(f"synthesis_object.{name}")
-            # losses will always have one extra value, the current loss.
     if batch_idx is None:
         image = [im.unsqueeze(0) for im in image]
     if return_ref_image:

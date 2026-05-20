@@ -1499,7 +1499,6 @@ class TestEigendistortionDisplay:
         "ignore:Adding 0.5 to distortion:UserWarning",
     )
     def test_display_all(self, synthesized_eig, distortion_scale, eigenindex):
-        as_rgb = synthesized_eig.image.shape[1] == 3
         expectation = does_not_raise()
         if isinstance(eigenindex, list):
             if 5 in eigenindex:
@@ -1522,7 +1521,6 @@ class TestEigendistortionDisplay:
                 synthesized_eig,
                 eigenindex=eigenindex,
                 distortion_scale=distortion_scale,
-                as_rgb=as_rgb,
             )
             plt.close("all")
 
