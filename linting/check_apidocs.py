@@ -6,7 +6,7 @@ import sys
 
 # These are the files whose contents we don't want in the api docs. that's __init__.py
 # and those whose contents are meant for internal use
-EXCLUDE_MODULES = ["__init__.py"]
+EXCLUDE_MODULES = ["__init__.py", "conftest.py"]
 
 src_modules = pathlib.Path("src/plenoptic").glob("**/*.py")
 src_modules = [m for m in src_modules if m.name not in EXCLUDE_MODULES]
