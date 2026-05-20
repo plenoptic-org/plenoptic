@@ -114,7 +114,7 @@ jobs:
         # 1. ignore warnings in doctests, since otherwise pytest fails.
         # 2. for some reason, much quicker when run in sequence (-n 0) rather
         #    than parallel.
-        pytest -n 0 --doctest-modules src/ -W "ignore"
+        pytest -n 0 --doctest-continue-on-failure --doctest-modules src/ -W "ignore"
   check_sphinx_references:
     runs-on: ubuntu-latest
     name: Check sphinx references
