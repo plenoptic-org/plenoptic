@@ -59,9 +59,9 @@ def mad_imshow_all(
         ``optimized_metric`` function from ``mad_metric2_min``.
     zoom
         Ratio of display pixels to image pixels. See
-        :func:`~plenoptic.plot.imshow` for details.
+        :func:`~plenoptic.plot.synthesis_imshow` for details.
     **kwargs
-        Passed to :func:`~plenoptic.plot.imshow`.
+        Passed to :func:`~plenoptic.plot.synthesis_imshow`.
 
     Returns
     -------
