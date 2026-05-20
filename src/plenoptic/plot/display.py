@@ -221,12 +221,8 @@ def imshow(
 
     See Also
     --------
-    :func:`~plenoptic.plot.metamer_imshow`
-        Show the image synthesized by a :class:`~plenoptic.Metamer` object.
-    :func:`~plenoptic.plot.mad_imshow`
-        Show the image synthesized by a :class:`~plenoptic.MADCompetition` object.
-    :func:`~plenoptic.plot.eigendistortion_imshow`
-        Show the image synthesized by a :class:`~plenoptic.Eigendistortion` object.
+    :func:`~plenoptic.plot.synthesis_imshow`
+        Show the image synthesized by a synthesis object.
     animshow
         Animate a video.
     pyrshow
@@ -463,10 +459,9 @@ def animshow(
     --------
     imshow
         Display an image.
-    :func:`~plenoptic.plot.metamer_animshow`
-        Animate synthesis process for a :class:`~plenoptic.Metamer` object.
-    :func:`~plenoptic.plot.mad_animshow`
-        Animate synthesis process for a :class:`~plenoptic.MADCompetition` object.
+    :func:`~plenoptic.plot.synthesis_animshow`
+        Animate synthesis process for a :class:`~plenoptic.Metamer` or a
+        :class:`~plenoptic.MADCompetition` object.
 
     Notes
     -----
@@ -900,10 +895,10 @@ def stem_plot(
     break up the plot, as we see below.
 
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> import numpy as np
-      >>> import matplotlib.pyplot as plt
       >>> # if ylim=None, as in this example, the minimum y-valuewill get
       >>> # set to 0, so we want to make sure our values are all positive
       >>> y = np.abs(np.random.randn(55))
@@ -919,11 +914,9 @@ def stem_plot(
     In this case, this function will just clean up the plot a little bit.
 
     .. plot::
+      :context: close-figs
 
-      >>> import plenoptic as po
-      >>> import numpy as np
-      >>> import matplotlib.pyplot as plt
-      >>> # if ylim=None, as in this example, the minimum y-valuewill get
+      >>> # if ylim=None, as in this example, the minimum y-value will get
       >>> # set to 0, so we want to make sure our values are all positive
       >>> y = np.abs(np.random.randn(55))
       >>> po.plot.stem_plot(y)

@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -175,14 +175,12 @@ po.plot.imshow(
 );
 ```
 
-We can also use plenoptic's {func}`~plenoptic.plot.metamer_synthesis_status` method to see how things are going. The image on the left shows the metamer at this moment in synthesis, while the center plot shows the loss over time, with the red dot pointing out the current loss, and the rightmost plot shows the representation error (i.e., the {func}`~plenoptic.models.PortillaSimoncelli.plot_representation` figure from above, but for `model(target image) - model(synthesized image)`).
+We can also use plenoptic's {func}`~plenoptic.plot.synthesis_status` method to see how things are going. The image on the left shows the metamer at this moment in synthesis, while the center plot shows the loss over time, with the red dot pointing out the current loss, and the rightmost plot shows the representation error (i.e., the {func}`~plenoptic.models.PortillaSimoncelli.plot_representation` figure from above, but for `model(target image) - model(synthesized image)`).
 
 We can see the synthesized texture on the leftmost plot. The overall synthesis error decreases over the synthesis iterations (subplot 2).  The remaining plots show us the error broken out by the different texture statistics; see [](ps-model-stats) to better understand them.
 
 ```{code-cell} ipython3
-po.plot.metamer_synthesis_status(
-    met, width_ratios={"metamer_representation_error": 3.1}
-)
+po.plot.synthesis_status(met, width_ratios={"metamer_representation_error": 3.1})
 ```
 
 ## Further reading

@@ -615,7 +615,7 @@ def synthesis_histogram(
       :context: close-figs
 
       >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-      >>> po.plot.metamer_pixel_values(met, ax=axes[1])
+      >>> po.plot.synthesis_histogram(met, ax=axes[1])
       <Axes: ... 'Histogram of tensor values'...>
 
     Plot histogram for :class:`~plenoptic.MADCompetition` object:
@@ -727,7 +727,7 @@ def synthesis_imshow(
     process_image
         A function to process the plotted image. E.g., multiplying by the stdev ImageNet
         then adding the mean of ImageNet to undo image preprocessing or clamping between
-        0 and 1.
+        0 and 1. If ``None``, then no processing is performed.
     zoom
         How much to zoom in / enlarge the synthesized image, the ratio of display pixels
         to image pixels. If ``None``, we attempt to find the best value ourselves.
@@ -778,8 +778,7 @@ def synthesis_imshow(
 
     Examples
     --------
-    Plot for :class:`~plenoptic.Metamer` object. If a matplotlib figure exists, this
-    function will use it (using :func:`matplotlib.pyplot.gca`):
+    Plot for :class:`~plenoptic.Metamer` object:
 
     .. plot::
       :context: reset
@@ -787,8 +786,6 @@ def synthesis_imshow(
       >>> import plenoptic as po
       >>> import matplotlib.pyplot as plt
       >>> import torch
-      >>> plt.figure()
-      <Figure size ...>
       >>> img = po.data.einstein()
       >>> model = po.models.Gaussian(30).eval()
       >>> po.remove_grad(model)
@@ -798,13 +795,13 @@ def synthesis_imshow(
       >>> po.plot.synthesis_imshow(met)
       <Axes: title=...Metamer[0] [iteration=107]...>
 
-    If no matplotlib figure exists, this function will create a new one:
+    If a matplotlib figure exists, this function will use it (using
+    :func:`matplotlib.pyplot.gca`):
 
     .. plot::
       :context: close-figs
 
-      >>> # close all open figures to ensure none exist
-      >>> plt.close("all")
+      >>> fig, axes = plt.subplots(1, 2)
       >>> po.plot.synthesis_imshow(met)
       <Axes: title=...Metamer[0] [iteration=107]...>
 

@@ -4,7 +4,6 @@ import warnings
 from collections.abc import Callable
 from typing import Any
 
-import matplotlib.pyplot
 import torch
 from matplotlib.figure import Figure
 from torch import Tensor
@@ -13,7 +12,6 @@ from .._synthesize import Eigendistortion
 from .display import imshow
 
 __all__ = [
-    "eigendistortion_imshow",
     "eigendistortion_imshow_all",
 ]
 
@@ -22,81 +20,10 @@ def __dir__() -> list[str]:
     return __all__
 
 
-def eigendistortion_imshow(
-    eigendistortion: Eigendistortion,
-    eigenindex: int = 0,
-    alpha: float = 5.0,
-    process_image: Callable[[Tensor], Tensor] = lambda x: x,
-    ax: matplotlib.axes.Axes | None = None,
-    plot_complex: str = "rectangular",
-    **kwargs: Any,
-) -> Figure:
-    r"""
-    Display specified eigendistortion added to the image.
-
-    If image or eigendistortions have 3 channels, then it is assumed to be a color
-    image and it is converted to grayscale. This is merely for display convenience
-    and may change in the future.
-
-    Parameters
-    ----------
-    eigendistortion
-        Eigendistortion object whose synthesized eigendistortion we want to display.
-    eigenindex
-        Index of eigendistortion to plot. E.g. If there are 10 eigenvectors, 0 will
-        index the first one, and -1 or 9 will index the last one.
-    alpha
-        Amount by which to scale eigendistortion for
-        ``image + (alpha * eigendistortion)`` for display.
-    process_image
-        A function to process the image+alpha*distortion before clamping between 0,1.
-        E.g. multiplying by the stdev ImageNet then adding the mean of ImageNet to undo
-        image preprocessing.
-    ax
-        Axis handle on which to plot.
-    plot_complex
-        Parameter for :func:`~plenoptic.plot.imshow` determining how to handle
-        complex values. See that method's docstring for details.
-    **kwargs
-        Additional arguments for :func:`~plenoptic.plot.imshow`.
-
-    Returns
-    -------
-    fig
-        Figure containing the displayed images.
-
-    Raises
-    ------
-    ValueError
-        If ``eigenindex`` doesn't correspond to one of the synthesized eigendistortions.
-
-    See Also
-    --------
-    :func:`~plenoptic.plot.imshow`
-        Function used by this one to visualize the metamer image.
-    eigendistortion_imshow_all
-        Display base image and multiple eigendistortions, alone and added to image.
-    """
-    # reshape so channel dim is last
-    im_shape = eigendistortion._image_shape
-    image = eigendistortion.image.detach().view(1, *im_shape).cpu()
-    dist = (
-        eigendistortion.eigendistortions[eigendistortion._indexer(eigenindex)]
-        .unsqueeze(0)
-        .cpu()
-    )
-
-    img_processed = process_image(image + alpha * dist)
-    to_plot = torch.clamp(img_processed, 0, 1)
-    title = f"{alpha} * Eigendistortion[{eigenindex}]"
-    fig = imshow(to_plot, ax=ax, plot_complex=plot_complex, title=title, **kwargs)
-
-    return fig
-
-
 def eigendistortion_imshow_all(
     eigendistortion: Eigendistortion,
     eigenindex: int | list[int] = [0, -1],
+    channel_idx: int | None = None,
     alpha: float | list[float] = 5.0,
     process_image: Callable[[Tensor], Tensor] | None = None,
     plot_complex: str = "rectangular",
@@ -118,17 +45,20 @@ def eigendistortion_imshow_all(
         Eigendistortion object whose synthesized eigendistortion we want to display.
     eigenindex
         Index of eigendistortion to plot. E.g. If there are 10 eigenvectors, 0 will
-        index the first one, and -1 or 9 will index the last one.
+        index the first one, and -1 or 9 will index the last one. Note that this is
+        the same as the ``batch_idx`` (i.e., the index in the first dimension).
+    channel_idx
+        Which index to take from the channel dimension. If ``None``, we assume
+        image is RGB(A) and show all channels.
     alpha
         Amount by which to scale eigendistortion for ``image + (alpha *
         eigendistortion)`` for display. If a list, must be the same length as
         ``eigenindex`` and will multiply each distortion by the corresponding
         ``alpha`` value.
     process_image
-        A function to process all images before display. E.g. multiplying by the
-        stdev ImageNet then adding the mean of ImageNet to undo image
-        preprocessing. If ``None`` and ``as_rgb is True``, will add 0.5 to the
-        distortion(s) (to avoid matplotlib clipping), else if ``None`` do nothing.
+        A function to process the plotted image. E.g., multiplying by the stdev ImageNet
+        then adding the mean of ImageNet to undo image preprocessing or clamping between
+        0 and 1. If ``None``, then no processing is performed.
     plot_complex
         Parameter for :func:`~plenoptic.plot.imshow` determining how to handle
         complex values. See that method's docstring for details.
@@ -152,7 +82,7 @@ def eigendistortion_imshow_all(
     Raises
     ------
     ValueError
-        If ``len(alpha) != len(eigenindex)``.
+        If ``alpha`` is not a single value and ``len(alpha) != len(eigenindex)``.
     ValueError
         If a value of ``eigenindex`` doesn't correspond to one of the
         synthesized eigendistortions.
@@ -165,7 +95,7 @@ def eigendistortion_imshow_all(
 
     See Also
     --------
-    eigendistortion_imshow
+    :func:`~plenoptic.plot.synthesis_imshow`
         Display single eigendistortion added to image.
 
     Examples

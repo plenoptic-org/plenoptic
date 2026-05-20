@@ -1430,7 +1430,7 @@ class TestEigendistortionDisplay:
         po.remove_grad(model)
         model.eval()
         img = einstein_img if model.__class__ == po.models.OnOff else color_img
-        img = img[..., :20, :20]
+        img = po.process.center_crop(img, 20)
         eigendist = po.Eigendistortion(img, model)
         eigendist.synthesize(k=int(k), method=method, max_iter=10)
         return eigendist
@@ -1439,22 +1439,17 @@ class TestEigendistortionDisplay:
         "ignore:Randomized SVD complete!:UserWarning",
     )
     def test_display(self, synthesized_eig):
-        as_rgb = synthesized_eig.image.shape[1] == 3
-        po.plot.eigendistortion_imshow(synthesized_eig, eigenindex=0, as_rgb=as_rgb)
-        po.plot.eigendistortion_imshow(synthesized_eig, eigenindex=1, as_rgb=as_rgb)
+        po.plot.synthesis_imshow(synthesized_eig, batch_idx=0)
+        po.plot.synthesis_imshow(synthesized_eig, batch_idx=1)
 
         # power method has top and bottom k eigendists
         if not (synthesized_eig.eigenindex < 3).all():
-            po.plot.eigendistortion_imshow(
-                synthesized_eig, eigenindex=-1, as_rgb=as_rgb
-            )
-            po.plot.eigendistortion_imshow(
-                synthesized_eig, eigenindex=-2, as_rgb=as_rgb
-            )
+            po.plot.synthesis_imshow(synthesized_eig, batch_idx=-1)
+            po.plot.synthesis_imshow(synthesized_eig, batch_idx=-2)
             # randomized svd only has top k not bottom k eigendists
         else:
             with pytest.raises(ValueError, match="eigenindex must be the index"):
-                po.plot.eigendistortion_imshow(synthesized_eig, eigenindex=-1)
+                po.plot.synthesis_imshow(synthesized_eig, batch_idx=-1)
 
     @pytest.mark.parametrize(
         "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True

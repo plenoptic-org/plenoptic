@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.18.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -129,7 +129,7 @@ matched_im = metamer.synthesize(store_progress=True, max_iter=150)
 We can then examine the loss over time. There's a convenience function for this, but you could also call `plt.semilogy(metamer.losses)` to create it yourself.
 
 ```{code-cell} ipython3
-po.plot.metamer_loss(metamer)
+po.plot.synthesis_loss(metamer)
 ```
 
 The loss decreases steadily and has reached a very low value. In fact, based on our convergence criterion (one of the optional arguments), it looks as though we've converged (we could change this argument to continue synthesis).
@@ -159,8 +159,8 @@ It may seem strange that the synthesized image looks like it has high-frequency 
 We can also view a movie of our progress so far.
 
 ```{code-cell} ipython3
-po.plot.metamer_animshow(
-    metamer, included_plots=["metamer_imshow", "metamer_loss"], figsize=(12, 5)
+po.plot.synthesis_animshow(
+    metamer, included_plots=["synthesis_imshow", "synthesis_loss"], figsize=(12, 5)
 )
 ```
 
@@ -187,7 +187,7 @@ synth_image = metamer.synthesize(max_iter=500, stop_criterion=1e-6)
 Let's double-check that our synthesis looks like it's reached a good solution by checking the loss curve:
 
 ```{code-cell} ipython3
-po.plot.metamer_loss(metamer)
+po.plot.synthesis_loss(metamer)
 ```
 
 Good, now let's examine our synthesized metamer and the model output, as before:
