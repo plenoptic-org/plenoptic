@@ -121,13 +121,13 @@ eigendist_f.synthesize(k=3, method="power", max_iter=2000)
 
 ### Front-end model: eigendistortion display
 
-Once synthesized, we can plot the distortion on the image using {func}`~plenoptic.plot.eigendistortion_imshow_all`. Feel free to adjust the constant `alpha` that scales the amount of each distortion on the image.
+Once synthesized, we can plot the distortion on the image using {func}`~plenoptic.plot.eigendistortion_imshow_all`. Feel free to adjust the constant `distortion_scale` that scales the amount of each distortion on the image.
 
 ```{code-cell} ipython3
 po.plot.eigendistortion_imshow_all(
     eigendist_f,
     [0, -1],
-    alpha=3,
+    distortion_scale=3,
     suptitle="OnOff",
 );
 ```
@@ -208,7 +208,7 @@ def unnormalize(x):
 po.plot.eigendistortion_imshow_all(
     eigendist_v,
     [0, -1],
-    alpha=[15, 100],
+    distortion_scale=[15, 100],
     suptitle="VGG16",
     as_rgb=True,
     process_image=unnormalize,

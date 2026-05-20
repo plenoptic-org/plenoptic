@@ -24,7 +24,7 @@ def eigendistortion_imshow_all(
     eigendistortion: Eigendistortion,
     eigenindex: int | list[int] = [0, -1],
     channel_idx: int | None = None,
-    alpha: float | list[float] = 5.0,
+    distortion_scale: float | list[float] = 5.0,
     process_image: Callable[[Tensor], Tensor] | None = None,
     plot_complex: str = "rectangular",
     as_rgb: bool = False,
@@ -50,11 +50,11 @@ def eigendistortion_imshow_all(
     channel_idx
         Which index to take from the channel dimension. If ``None``, we assume
         image is RGB(A) and show all channels.
-    alpha
-        Amount by which to scale eigendistortion for ``image + (alpha *
+    distortion_scale
+        Amount by which to scale eigendistortion for ``image + (distortion_scale *
         eigendistortion)`` for display. If a list, must be the same length as
         ``eigenindex`` and will multiply each distortion by the corresponding
-        ``alpha`` value.
+        ``distortion_scale`` value.
     process_image
         A function to process the plotted image. E.g., multiplying by the stdev ImageNet
         then adding the mean of ImageNet to undo image preprocessing or clamping between
@@ -82,7 +82,8 @@ def eigendistortion_imshow_all(
     Raises
     ------
     ValueError
-        If ``alpha`` is not a single value and ``len(alpha) != len(eigenindex)``.
+        If ``distortion_scale`` is not a single value and
+        ``len(distortion_scale) != len(eigenindex)``.
     ValueError
         If a value of ``eigenindex`` doesn't correspond to one of the
         synthesized eigendistortions.
@@ -125,12 +126,12 @@ def eigendistortion_imshow_all(
     image = eigendistortion.image.detach().view(1, *im_shape).cpu()
     if not hasattr(eigenindex, "__iter__"):
         eigenindex = [eigenindex]
-    if not hasattr(alpha, "__iter__"):
-        alpha = [alpha] * len(eigenindex)
-    if len(alpha) != len(eigenindex):
+    if not hasattr(distortion_scale, "__iter__"):
+        distortion_scale = [distortion_scale] * len(eigenindex)
+    if len(distortion_scale) != len(eigenindex):
         raise ValueError(
-            "If alpha is a list, it must have the same number of values as eigenindex! "
-            f"{len(alpha)=} vs. {len(eigenindex)=}"
+            "If distortion_scale is a list, it must have the same number of values "
+            f"as eigenindex! {len(distortion_scale)=} vs. {len(eigenindex)=}"
         )
     distortions = [torch.ones_like(image)]
     distortion_titles = [""]
@@ -159,7 +160,7 @@ def eigendistortion_imshow_all(
 
     img_processed = [process_image(image)]
 
-    for a, idx in zip(alpha, eigenindex):
+    for a, idx in zip(distortion_scale, eigenindex):
         dist = (
             eigendistortion.eigendistortions[eigendistortion._indexer(idx)]
             .unsqueeze(0)

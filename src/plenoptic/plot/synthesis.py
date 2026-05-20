@@ -677,7 +677,7 @@ def synthesis_imshow(
     synthesis_object: Metamer | MADCompetition | Eigendistortion,
     batch_idx: int = 0,
     channel_idx: int | None = None,
-    alpha: float = 5.0,
+    distortion_scale: float = 5.0,
     process_image: Callable[[torch.Tensor], torch.Tensor] | None = None,
     zoom: float | None = None,
     iteration: int | None = None,
@@ -703,11 +703,12 @@ def synthesis_imshow(
     ``synthesis_object``:
 
     - :class:`~plenoptic.Metamer` and :class:`~plenoptic.MADCompetition`: process and
-      display the synthesized image. ``iteration`` can be specified, ``alpha`` must be
-      unchanged.
+      display the synthesized image. ``iteration`` can be specified,
+      ``distortion_scale`` must be unchanged.
 
-    - :class:`~plenoptic.Eigendistortion`: process and display ``image + (alpha *
-      eigendistortion)``. ``iteration`` must be ``None``, ``alpha`` can be set.
+    - :class:`~plenoptic.Eigendistortion`: process and display
+      ``image + (distortion_scale * eigendistortion)``. ``iteration`` must be ``None``,
+      ``distortion_scale`` can be set.
 
     Parameters
     ----------
@@ -718,12 +719,13 @@ def synthesis_imshow(
         :class:`~plenoptic.Eigendistortion`, this is the
         :attr:`~plenoptic.Eigendistortion.eigenindex`.
     channel_idx
-        Which index to take from the channel dimension. If ``None``, we assume
-        image is RGB(A) and show all channels.
-    alpha
+        Which index to take from the channel dimension. If ``None``, plot all channels;
+        if image has more than 1 channel, will attempt to plot as RGB(A) image.
+    distortion_scale
         Amount by which to scale eigendistortion for
-        ``image + (alpha * eigendistortion)`` for display. If ``synthesis_object``
-        is not :class:`~plenoptic.Eigendistortion`, must not be set.
+        ``image + (distortion_scale * eigendistortion)`` for display. If
+        ``synthesis_object`` is not :class:`~plenoptic.Eigendistortion`, must not be
+        set.
     process_image
         A function to process the plotted image. E.g., multiplying by the stdev ImageNet
         then adding the mean of ImageNet to undo image preprocessing or clamping between
@@ -847,7 +849,7 @@ def synthesis_imshow(
       <Axes: title=...MAD[0] [iteration=400]...>
 
     Plot for :class:`~plenoptic.Eigendistortion` object. Note here that we plot
-    the distortion multiplied by some alpha and added to the target image.
+    the distortion multiplied by ``distortion_scale`` and added to the target image.
 
     .. plot::
       :context: close-figs
@@ -883,16 +885,16 @@ def synthesis_imshow(
     if title is None:
         title = _get_synthesis_title(synthesis_object, batch_idx, iteration)
         if isinstance(synthesis_object, Eigendistortion):
-            title = [f"{alpha} * {t}" for t in title]
+            title = [f"{distortion_scale} * {t}" for t in title]
     image, batch_idx = _get_synthesis_image(synthesis_object, batch_idx, iteration)
     if isinstance(synthesis_object, Eigendistortion):
-        image = synthesis_object.image + alpha * image
+        image = synthesis_object.image + distortion_scale * image
     else:
-        # if alpha is not default value
-        if alpha != 5:
+        # if distortion_scale is not default value
+        if distortion_scale != 5:
             raise ValueError(
-                f"If synthesis_object is type {type(synthesis_object)}, alpha cannot be"
-                " set"
+                f"If synthesis_object is type {type(synthesis_object)}, "
+                "distortion_scale cannot be set"
             )
 
     if process_image is not None:
@@ -1183,8 +1185,8 @@ def _synthesis_status(
     batch_idx
         Which index to take from the batch dimension.
     channel_idx
-        Which index to take from the channel dimension. If ``None``, we use all
-        channels.
+        Which index to take from the channel dimension. If ``None``, plot all channels;
+        if image has more than 1 channel, will attempt to plot as RGB(A) image.
     iteration
         Which iteration to display, for :class:`~plenoptic.Metamer` and
         :class:`~plenoptic.MADCompetition` objects. If ``None``, we show the most recent
@@ -1326,8 +1328,7 @@ def synthesis_status(
     batch_idx
         Which index to take from the batch dimension.
     channel_idx
-        Which index to take from the channel dimension. If ``None``, we use all
-        channels.
+        Which index to take from the channel dimension. If ``None``, plot all channels.
     iteration
         Which iteration to display, for :class:`~plenoptic.Metamer` and
         :class:`~plenoptic.MADCompetition` objects. If ``None``, we show the most recent
@@ -1675,8 +1676,7 @@ def synthesis_animshow(
     batch_idx
         Which index to take from the batch dimension.
     channel_idx
-        Which index to take from the channel dimension. If ``None``, we use all
-        channels (assumed use-case is RGB(A) image).
+        Which index to take from the channel dimension. If ``None``, plot all channels.
     included_plots
         Which plots to include. See above for behavior if ``None``, otherwise must be a
         list of strings whose values are names of plotting functions that can accept

@@ -1002,7 +1002,7 @@ class TestMADDisplay:
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
-    @pytest.mark.parametrize("alpha", [1, 5])
+    @pytest.mark.parametrize("distortion_scale", [1, 5])
     @pytest.mark.parametrize("batch_idx", [None, 0])
     @pytest.mark.parametrize("process_image", [None, "clip", "multiply"])
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
@@ -1010,12 +1010,19 @@ class TestMADDisplay:
         "ignore:SSIM was designed for grayscale images:UserWarning"
     )
     def test_synthesis_imshow(
-        self, synthesized_mad, batch_idx, alpha, process_image, iteration, axes
+        self,
+        synthesized_mad,
+        batch_idx,
+        distortion_scale,
+        process_image,
+        iteration,
+        axes,
     ):
         expectation = does_not_raise()
-        if alpha != 5:
+        if distortion_scale != 5:
             expectation = pytest.raises(
-                ValueError, match="If synthesis_object is type.*, alpha cannot be set"
+                ValueError,
+                match="If synthesis_object is type.*, distortion_scale cannot be set",
             )
         if axes == "axis":
             fig, axes = plt.subplots(1, 1)
@@ -1054,7 +1061,7 @@ class TestMADDisplay:
             ax = po.plot.synthesis_imshow(
                 synthesized_mad,
                 batch_idx=batch_idx,
-                alpha=alpha,
+                distortion_scale=distortion_scale,
                 iteration=iteration,
                 ax=axes,
                 process_image=process_image,
@@ -1352,16 +1359,23 @@ class TestMetamerDisplay:
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
-    @pytest.mark.parametrize("alpha", [1, 5])
+    @pytest.mark.parametrize("distortion_scale", [1, 5])
     @pytest.mark.parametrize("batch_idx", [None, 0])
     @pytest.mark.parametrize("process_image", [None, "clip", "multiply"])
     def test_synthesis_imshow(
-        self, synthesized_met, batch_idx, alpha, process_image, iteration, axes
+        self,
+        synthesized_met,
+        batch_idx,
+        distortion_scale,
+        process_image,
+        iteration,
+        axes,
     ):
         expectation = does_not_raise()
-        if alpha != 5:
+        if distortion_scale != 5:
             expectation = pytest.raises(
-                ValueError, match="If synthesis_object is type.*, alpha cannot be set"
+                ValueError,
+                match="If synthesis_object is type.*, distortion_scale cannot be set",
             )
         if axes == "axis":
             fig, axes = plt.subplots(1, 1)
@@ -1400,7 +1414,7 @@ class TestMetamerDisplay:
             ax = po.plot.synthesis_imshow(
                 synthesized_met,
                 batch_idx=batch_idx,
-                alpha=alpha,
+                distortion_scale=distortion_scale,
                 iteration=iteration,
                 ax=axes,
                 process_image=process_image,
@@ -1479,12 +1493,12 @@ class TestEigendistortionDisplay:
     @pytest.mark.parametrize(
         "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
     )
-    @pytest.mark.parametrize("alpha", [1, [1], [1, 10], [1, 10, 10]])
+    @pytest.mark.parametrize("distortion_scale", [1, [1], [1, 10], [1, 10, 10]])
     @pytest.mark.parametrize("eigenindex", [0, [0, -1], [0, -1, 5]])
     @pytest.mark.filterwarnings(
         "ignore:Adding 0.5 to distortion:UserWarning",
     )
-    def test_display_all(self, synthesized_eig, alpha, eigenindex):
+    def test_display_all(self, synthesized_eig, distortion_scale, eigenindex):
         as_rgb = synthesized_eig.image.shape[1] == 3
         expectation = does_not_raise()
         if isinstance(eigenindex, list):
@@ -1493,13 +1507,22 @@ class TestEigendistortionDisplay:
                     ValueError, match="eigenindex must be the index"
                 )
                 # this will get raised first
-            if isinstance(alpha, list) and len(alpha) != len(eigenindex):
-                expectation = pytest.raises(ValueError, match="If alpha is a list")
-        elif isinstance(alpha, list) and len(alpha) != 1:
-            expectation = pytest.raises(ValueError, match="If alpha is a list")
+            if isinstance(distortion_scale, list) and len(distortion_scale) != len(
+                eigenindex
+            ):
+                expectation = pytest.raises(
+                    ValueError, match="If distortion_scale is a list"
+                )
+        elif isinstance(distortion_scale, list) and len(distortion_scale) != 1:
+            expectation = pytest.raises(
+                ValueError, match="If distortion_scale is a list"
+            )
         with expectation:
             po.plot.eigendistortion_imshow_all(
-                synthesized_eig, eigenindex=eigenindex, alpha=alpha, as_rgb=as_rgb
+                synthesized_eig,
+                eigenindex=eigenindex,
+                distortion_scale=distortion_scale,
+                as_rgb=as_rgb,
             )
             plt.close("all")
 
@@ -1543,14 +1566,20 @@ class TestEigendistortionDisplay:
     )
     @pytest.mark.parametrize("iteration", [None, 2])
     @pytest.mark.parametrize("axes", [None, "axis"])
-    @pytest.mark.parametrize("alpha", [1, 5])
+    @pytest.mark.parametrize("distortion_scale", [1, 5])
     @pytest.mark.parametrize("batch_idx", [None, 0, -1, "last"])
     @pytest.mark.parametrize("process_image", [None, "clip", "multiply"])
     @pytest.mark.filterwarnings(
         "ignore:Randomized SVD complete!:UserWarning",
     )
     def test_synthesis_imshow(
-        self, synthesized_eig, batch_idx, alpha, process_image, iteration, axes
+        self,
+        synthesized_eig,
+        batch_idx,
+        distortion_scale,
+        process_image,
+        iteration,
+        axes,
     ):
         expectation = does_not_raise()
         if iteration is not None:
@@ -1597,13 +1626,14 @@ class TestEigendistortionDisplay:
             ax = po.plot.synthesis_imshow(
                 synthesized_eig,
                 batch_idx=batch_idx,
-                alpha=alpha,
+                distortion_scale=distortion_scale,
                 iteration=iteration,
                 ax=axes,
                 process_image=process_image,
             )
             expected_image = (
-                synthesized_eig.image + alpha * synthesized_eig.eigendistortions
+                synthesized_eig.image
+                + distortion_scale * synthesized_eig.eigendistortions
             )
             expected_image = po.to_numpy(
                 data_process_image(expected_image[data_batch_idx]).squeeze()
@@ -1614,12 +1644,14 @@ class TestEigendistortionDisplay:
             plt.close("all")
 
     def test_synthesis_imshow_default(self):
-        # in synthesis_imshow, we do not allow alpha to be changed if synthesis_object
-        # is not eigendistortion. that check hardcodes the value to check against as 5,
-        # so this test checks that it's correct.
+        # in synthesis_imshow, we do not allow distortion_scale to be changed if
+        # synthesis_object is not eigendistortion. that check hardcodes the value to
+        # check against as 5, so this test checks that it's correct.
         signature = inspect.signature(po.plot.synthesis_imshow)
-        if signature.parameters["alpha"].default != 5.0:
-            raise ValueError("synthesis_imshow alpha arg default changed! update check")
+        if signature.parameters["distortion_scale"].default != 5.0:
+            raise ValueError(
+                "synthesis_imshow distortion_scale arg default changed! update check"
+            )
 
     @pytest.mark.parametrize(
         "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True

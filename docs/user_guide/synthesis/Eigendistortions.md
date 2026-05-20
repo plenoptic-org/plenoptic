@@ -327,7 +327,7 @@ Let's display the eigendistortions.
 
 ```
 
-`plenoptic` includes a {func}`~plenoptic.plot.eigendistortion_imshow_all` function to visualize multiple eigendistortiosn together. Here, we show the original image on the bottom left, with the synthesized maximal eigendistortion in the top middle, and some constant $\alpha$ times the eigendistortion added to the image in the bottom middle. The rightmost column has a similar layout, but displays the minimal eigendistortion. Let's display the eigendistortions for the maxpool layer (pretty early in the model):
+`plenoptic` includes a {func}`~plenoptic.plot.eigendistortion_imshow_all` function to visualize multiple eigendistortiosn together. Here, we show the original image on the bottom left, with the synthesized maximal eigendistortion in the top middle, and some constant `distortion_scale` times the eigendistortion added to the image in the bottom middle. The rightmost column has a similar layout, but displays the minimal eigendistortion. Let's display the eigendistortions for the maxpool layer (pretty early in the model):
 
 ```{code-cell} ipython3
 po.plot.eigendistortion_imshow_all(
