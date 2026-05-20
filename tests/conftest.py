@@ -59,7 +59,12 @@ def einstein_img_small(einstein_img):
 @pytest.fixture(scope="package")
 def color_img():
     img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", as_gray=False).to(DEVICE)
-    return img[..., :256, :256]
+    return po.process.center_crop(img, 256)
+
+
+@pytest.fixture(scope="package")
+def color_img_double(color_img):
+    return color_img.to(torch.float64)
 
 
 @pytest.fixture(scope="package")

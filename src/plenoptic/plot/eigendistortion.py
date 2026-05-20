@@ -103,6 +103,7 @@ def eigendistortion_imshow_all(
     Examples
     --------
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> import torch
@@ -122,9 +123,121 @@ def eigendistortion_imshow_all(
       >>> po.plot.eigendistortion_imshow_all(eig)
       <PyrFigure size ...>
 
-    See the Eigendistortion `tutorial <eigendistortion-nb>`_ and `demo
-    <demo-eigendistortions>`_ notebooks for more examples, including behavior with color
-    images and ``process_image`` argument.
+    You can process the images before plotting by using the ``process_image``
+    argument. Here, we clip the images to lie between 0 and 1:
+
+    .. plot::
+      :context: close-figs
+
+      >>> clip = lambda x: x.clip(0, 1)
+      >>> po.plot.eigendistortion_imshow_all(eig, process_image=clip)
+      <PyrFigure size ...>
+
+    Note that we only apply ``process_image`` to the images on the bottom row (the base
+    image and that image plus the scaled distortions), not the top row (eigendistortions
+    alone). If you wish to also apply some processing to the top row, use the
+    ``process_distortions`` argument (see below for more examples).
+
+    When the base image and distortions are RGB(A) images, if ``process_distortions`` is
+    not specified, we will add 0.5 to the top row (the distortions alone). This is
+    because matplotlib clips RGB(A) images to lie between 0 and 1. Since most
+    eigendistortions are centered around 0, this would result in a unrepresentative
+    visualization.
+
+    .. plot::
+      :context: close-figs
+
+      >>> class ColorModel(torch.nn.Module):
+      ...     "Simple model that takes color image as input and outputs 2d conv."
+      ...
+      ...     def __init__(self):
+      ...         super().__init__()
+      ...         self.conv = torch.nn.Conv2d(3, 4, 3, 1)
+      ...
+      ...     def forward(self, x):
+      ...         return self.conv(x)
+      >>> img = po.data.color_wheel().to(torch.float64)
+      >>> img = po.process.center_crop(img, 20)
+      >>> # Set seed for random initialization of model filters
+      >>> po.set_seed(0)
+      >>> model = ColorModel().to(torch.float64)
+      >>> po.remove_grad(model)
+      >>> model.eval()
+      ColorModel(...)
+      >>> eig_rgb = po.Eigendistortion(img, model)
+      >>> eig_rgb.load(
+      ...     po.data.fetch_data("example_eigendistortion_color.pt"),
+      ...     map_location="cpu",
+      ... )
+      >>> po.plot.eigendistortion_imshow_all(eig_rgb, zoom=10)
+      <PyrFigure size ...>
+
+    Note that the titles in the figure above specify that 0.5 has been added to the
+    distortions.
+
+    Another common use case for ``process_image`` is in a situation like the following.
+    Here, we are visualizing eigendistortions generated for VGG16, trained on ImageNet.
+    As is common when using ImageNet, the images were z-scored during training. We
+    should thus similarly normalize our base image when generating eigendistortions.
+    However, when visualizing our distortions, we should un-normalize them, to transform
+    them back into regular pixel space. ``process_image`` allows us to do just that.
+    (See the :ref:`demo-eigendistortions` notebook for more details about this result.)
+
+    .. plot::
+      :context: close-figs
+
+      >>> from torchvision import models
+      >>> from torchvision.models import feature_extraction
+      >>> class TorchVision(torch.nn.Module):
+      ...     def __init__(self, model, return_node: str):
+      ...         super().__init__()
+      ...         self.extractor = feature_extraction.create_feature_extractor(
+      ...             model, return_nodes=[return_node]
+      ...         )
+      ...         self.model = model
+      ...         self.return_node = return_node
+      ...
+      ...     def forward(self, x):
+      ...         return self.extractor(x)[self.return_node]
+      >>> def normalize(img_tensor):
+      ...     "Standardize the image for vgg16."
+      ...     return (img_tensor - img_tensor.mean()) / img_tensor.std()
+      >>> img = po.process.center_crop(po.data.parrot(False).to(torch.float64), 254)
+      >>> orig_mean = img.mean().detach()
+      >>> orig_std = img.std().detach()
+      >>> img = normalize(img)
+      >>> vgg = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1, progress=False)
+      >>> vgg = TorchVision(vgg, "features.11").to(torch.float64)
+      >>> po.remove_grad(vgg)
+      >>> vgg.eval()
+      TorchVision(...)
+      >>> eig_vgg = po.Eigendistortion(img, vgg)
+      >>> eig_vgg.load(
+      ...     po.data.fetch_data("berardino_vgg16.pt"),
+      ...     map_location="cpu",
+      ... )
+      >>> def unnormalize(x):
+      ...     return x * orig_std + orig_mean
+      >>> po.plot.eigendistortion_imshow_all(eig_vgg, process_image=unnormalize)
+      <PyrFigure size ...>
+
+    In the above figure, as mentioned above, ``process_image`` is only applied to the
+    bottom row of images, whereas the bottom row has just had 0.5 added to it. We can
+    similarly apply this un-normalization to the bottom row:
+
+    .. plot::
+      :context: close-figs
+
+      >>> po.plot.eigendistortion_imshow_all(
+      ...     eig_vgg, process_image=unnormalize, process_distortion=unnormalize
+      ... )
+      <PyrFigure size ...>
+
+    Note that we are now *only* applying ``unnormalize`` (not adding 0.5 and applying
+    ``unnormalize``). If we wished, we could compose them ourselves (though in this
+    specific case, that doesn't make much sense):
+
+    >>> process_distortion = lambda x: unnormalize(x + 0.5)
     """
     if not hasattr(eigenindex, "__iter__"):
         eigenindex = [eigenindex]

@@ -283,6 +283,17 @@ class PortillaSimoncelliMagMeans(po.models.PortillaSimoncelli):
         return data
 
 
+class ColorModel(torch.nn.Module):
+    """Simple model that takes color image as input and outputs 2d conv."""
+
+    def __init__(self):
+        super().__init__()
+        self.conv = torch.nn.Conv2d(3, 4, 3, 1)
+
+    def forward(self, x):
+        return self.conv(x)
+
+
 @pytest.mark.order(1)
 @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only do this on cuda")
 class TestDoctest:
@@ -306,6 +317,29 @@ class TestDoctest:
         eig_up = po.Eigendistortion(einstein_img_double, lg)
         eig_up.load(
             po.data.fetch_data("example_eigendistortion.pt"),
+            tensor_equality_atol=1e-7,
+            map_location=DEVICE,
+        )
+        compare_eigendistortions(eig, eig_up)
+
+    def test_eigendistortion_color(self, color_img_double):
+        po.set_seed(0)
+        model = ColorModel()
+        os.makedirs("uploaded_files", exist_ok=True)
+        torch.save(
+            torch.random.get_rng_state(),
+            "uploaded_files/torch_rng_state_eigendistortion.pt",
+        )
+        print(np.random.get_state())
+        po.remove_grad(model)
+        model.eval()
+        img = po.process.center_crop(color_img_double, 20)
+        eig = po.Eigendistortion(img, model)
+        eig.synthesize(max_iter=500)
+        eig.save("uploaded_files/example_eigendistortion_color.pt")
+        eig_up = po.Eigendistortion(img, model)
+        eig_up.load(
+            po.data.fetch_data("example_eigendistortion_color.pt"),
             tensor_equality_atol=1e-7,
             map_location=DEVICE,
         )
