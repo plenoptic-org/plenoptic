@@ -503,13 +503,11 @@ class TestDisplay:
 
     def test_imshow_batch_idx_fail(self, einstein_img):
         with pytest.raises(IndexError, match="batch_idx=1 is out of bounds"):
-            fig = po.plot.imshow(einstein_img, batch_idx=1)
-            plt.close(fig)
+            po.plot.imshow(einstein_img, batch_idx=1)
 
     def test_imshow_channel_idx_fail(self, einstein_img):
         with pytest.raises(IndexError, match="channel_idx=1 is out of bounds"):
-            fig = po.plot.imshow(einstein_img, channel_idx=1)
-            plt.close(fig)
+            po.plot.imshow(einstein_img, channel_idx=1)
 
     @pytest.mark.parametrize("as_rgb", [True, False])
     @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
@@ -973,7 +971,6 @@ class TestMADDisplay:
             fig, axes = plt.subplots(1, n_axes)
         with expectation:
             po.plot.synthesis_loss(synthesized_mad, iteration, plot_penalties, axes)
-        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
@@ -1062,7 +1059,6 @@ class TestMADDisplay:
             plotted_image = ax.images[0].get_array().data
             if not np.array_equal(expected_image, plotted_image):
                 raise ValueError("plotted image wrong!")
-            plt.close("all")
 
 
 class TestMetamerDisplay:
@@ -1331,7 +1327,6 @@ class TestMetamerDisplay:
             po.plot.synthesis_loss(
                 synthesized_met_nostore, iteration, plot_penalties, axes
             )
-        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
@@ -1339,7 +1334,6 @@ class TestMetamerDisplay:
         if axes == "axis":
             fig, axes = plt.subplots(1, 1)
         po.plot.synthesis_histogram(synthesized_met, iteration=iteration, ax=axes)
-        plt.close()
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
@@ -1413,7 +1407,6 @@ class TestMetamerDisplay:
             plotted_image = ax.images[0].get_array().data
             if not np.array_equal(expected_image, plotted_image):
                 raise ValueError("plotted image wrong!")
-            plt.close("all")
 
     def test_synthesis_animshow_default(self):
         # in synthesis_animshow, we raise a warning if user tries to set rescale ylim
@@ -1472,7 +1465,6 @@ class TestEigendistortionDisplay:
         else:
             with pytest.raises(ValueError, match="eigenindex must be the index"):
                 po.plot.synthesis_imshow(synthesized_eig, batch_idx=-1)
-                plt.close("all")
 
     @pytest.mark.parametrize(
         "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
@@ -1506,7 +1498,6 @@ class TestEigendistortionDisplay:
                 eigenindex=eigenindex,
                 distortion_scale=distortion_scale,
             )
-            plt.close("all")
 
     @pytest.mark.parametrize(
         "synthesized_eig",
@@ -1536,7 +1527,6 @@ class TestEigendistortionDisplay:
             po.plot.synthesis_histogram(
                 synthesized_eig, batch_idx=batch_idx, iteration=iteration, ax=axes
             )
-            plt.close("all")
 
     @pytest.mark.parametrize(
         "synthesized_eig",
@@ -1623,7 +1613,6 @@ class TestEigendistortionDisplay:
             plotted_image = ax.images[0].get_array().data
             if not np.array_equal(expected_image, plotted_image):
                 raise ValueError("plotted image wrong!")
-            plt.close("all")
 
     def test_synthesis_imshow_default(self):
         # in synthesis_imshow, we do not allow distortion_scale to be changed if
