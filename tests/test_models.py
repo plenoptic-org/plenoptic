@@ -102,6 +102,7 @@ def close_figures_on_teardown():
     yield
     plt.close("all")
 
+
 class TestNonLinearities:
     def test_rectangular_to_polar_dict(self, basic_stim):
         spc = po.process.SteerablePyramidFreq(
@@ -256,7 +257,7 @@ class TestFrontEnd:
 
     @pytest.mark.parametrize("model", all_models, indirect=True)
     def test_frontend_display_filters(self, model, close_figures_on_teardown):
-        fig = model.display_filters()
+        model.display_filters()
 
     @pytest.mark.parametrize("mdl", all_models)
     def test_kernel_size(self, mdl, einstein_img):
@@ -1009,7 +1010,9 @@ class TestPortillaSimoncelli:
 
     @pytest.mark.parametrize("figsize", [None, (5, 5), (5.0, 5.0), (10, 5)])
     @pytest.mark.parametrize("ax", [False, True])
-    def test_plot_representation_figsize(self, figsize, ax, einstein_img, close_figures_on_teardown):
+    def test_plot_representation_figsize(
+        self, figsize, ax, einstein_img, close_figures_on_teardown
+    ):
         expectation = does_not_raise()
         if ax:
             fig, ax = plt.subplots(1, 1)

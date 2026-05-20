@@ -81,7 +81,7 @@ class TestDisplay:
             axes = po.plot.plot_representation(
                 data=model(einstein_img), ax=ax, figsize=figsize
             )
-            fig = axes[0].figure
+            axes[0].figure
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     def test_update_plot_line_multi_channel(self, how):
@@ -887,7 +887,7 @@ class TestMADDisplay:
             func = po.plot.mad_loss_all
         elif func == "image":
             func = po.plot.mad_imshow_all
-        fig = func(*all_mad)
+        func(*all_mad)
 
     @pytest.mark.parametrize("func", ["plot", "animate"])
     # metamer_representation_error is an allowed value for metamer, but not MAD.
