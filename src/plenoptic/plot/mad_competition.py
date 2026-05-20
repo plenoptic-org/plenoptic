@@ -206,8 +206,8 @@ def mad_loss_all(
 
     Examples
     --------
-    See the `MAD Competition <mad-nb>`_ `tutorial notebooks <mad-concept>`_ in the User
-    Guide of documentation for examples.
+    See the :ref:`MAD Competition <mad-nb>` :ref:`tutorial notebooks <mad-concept>`
+    in the User Guide of documentation for examples.
     """
     if not torch.allclose(mad_metric1_min.image, mad_metric2_min.image):
         raise ValueError("All four instances of MADCompetition must have same image!")

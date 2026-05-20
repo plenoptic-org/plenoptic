@@ -880,6 +880,9 @@ def synthesis_imshow(
 
       >>> po.plot.synthesis_imshow(eig, process_image=lambda x: x.clip(0, 1))
       <Axes: title=...5.0 * Eigendistortion[0]...range: [0.0e+00, 1.0e+00]...>
+
+    See :func:`~plenoptic.plot.eigendistortion_imshow_all` for how to set
+    ``process_image`` to undo ImageNet normalization.
     """
     try:
         batch_idx = int(batch_idx)

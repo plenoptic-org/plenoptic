@@ -22,7 +22,7 @@ All plotting functions in plenoptic are now present within the `plot` module. Th
 
 Additionally, many of the synthesis object plotting functions have been consolidated. For example, `plenoptic.synthesize.metamer.plot_loss` and `plenoptic.synthesize.mad_competition.plot_loss`, which would accept a {class}`~plenoptic.Metamer` or {class}`~plenoptic.MADCompetition` object and plot the synthesis loss, have been consolidated into a single function: {func}`plenoptic.plot.synthesis_loss`, which accepts both object types.
 
-The argument names and acceptable values of these consolidated functions have changed slightly to reflect this consolidation. Consult their docstrings for details. (These updates cannot be handled automatically by the following [](migration-script) and so need to be changed manually.)
+The argument names and acceptable argument values of these consolidated functions have changed slightly to reflect this consolidation. Consult their docstrings for details. (These updates cannot be handled automatically by the following [](migration-script) and so need to be changed manually.)
 
 (migration-script)=
 ## Migration script
