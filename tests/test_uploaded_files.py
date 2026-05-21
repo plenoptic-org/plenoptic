@@ -325,7 +325,7 @@ class TestDoctest:
     def test_eigendistortion_color(self):
         po.set_seed(0)
         img = po.data.color_wheel().to(torch.float64)
-        img = po.process.center_crop(img, 20)
+        img = po.process.center_crop(img, 20).to(DEVICE)
         model = ColorModel()
         model.to(img.dtype).to(DEVICE)
         os.makedirs("uploaded_files", exist_ok=True)
