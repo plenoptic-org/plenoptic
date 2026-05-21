@@ -51,8 +51,8 @@ REGISTRY = {
     "example_metamer_gaussian-cuda.pt": "edd80e63bd776b679f714acee62fefa9885a257c66e2699423887aeab7c03794",  # noqa: E501
     "example_metamerCTF_ps.pt": "6005e4fcf8f36443af1ebc9338319e201876f0640b62ceba062f3a2a33a93f28",  # noqa: E501
     "example_metamerCTF_ps-cuda.pt": "2f454a29e46cade7ced9268e15878712cc23827d9e5b849e0367e08ee49b79df",  # noqa: E501
-    "example_mad.pt": "a26eaea27bae2981cdfe0349f19c996ff8f9e750a756878cf2028cf7eac148c6",  # noqa: E501
-    "example_mad-cuda.pt": "07365a217b8a34b834599946b75e84c2106b9600798d5aee563d81530c50504f",  # noqa: E501
+    "example_mad.pt": "583c60eab6cfb5c5b031af4960db41cc0db767492871182be06da224cd133767",  # noqa: E501
+    "example_mad-cuda.pt": "fd7e1372397bb57cc31a13ca4886ee73ffd405df64e0bb7d291977ba1b460b77",  # noqa: E501
     "example_eigendistortion_color.pt": "fd2f594832d4511433b6f7938c3c00ec02c15fd000bbd3d0964da967b4742cc8",  # noqa: E501
 }
 
@@ -93,9 +93,9 @@ REGISTRY_URLS = {
     "example_metamer_gaussian-cuda.pt": OSF_TEMPLATE.format("jzhe7/?revision=3"),
     "example_metamerCTF_ps.pt": OSF_TEMPLATE.format("4zr37/?revision=9"),
     "example_metamerCTF_ps-cuda.pt": OSF_TEMPLATE.format("627sp/?revision=4"),
-    "example_mad.pt": OSF_TEMPLATE.format("ersfy/?revision=3"),
-    "example_mad-cuda.pt": OSF_TEMPLATE.format("qjdbc/?revision=2"),
     "example_eigendistortion_color.pt": OSF_TEMPLATE.format("jc63h/?revision=2"),
+    "example_mad.pt": OSF_TEMPLATE.format("ersfy/?revision=4"),
+    "example_mad-cuda.pt": OSF_TEMPLATE.format("qjdbc/?revision=3"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch_data`
