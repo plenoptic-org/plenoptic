@@ -177,6 +177,11 @@ suppress-none-returning = true
 "!src/**.py" = ["D", "DOC", "ANN"]
 # this file has very long lines
 "src/plenoptic/_api_change.py" = ["E501"]
+# ignore the "useless semicolon" rule because it interferes with our separate
+# linting/check_tutorial_semicolons.py check, which ensures that we conclude
+# plotting functions with semicolons (and don't use them for animations). we may
+# thus have some useless semicolons floating around, but so it goes.
+"*.ipynb" = ["E703"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
