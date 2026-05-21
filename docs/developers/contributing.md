@@ -789,6 +789,8 @@ Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/
 
     This only affects sphinx. pytest ignores the plot directive and so either structure will pass.
 
+- pytest allows for the use of [fixtures](https://docs.pytest.org/en/stable/how-to/fixtures.html) in doctests. In order to be used, they must be included in the `src/plenoptic/conftest.py` file (**not** the `tests/conftest.py` file). Among other things, any downloads from `torchvision` / `torch.hub` should happen in those fixtures (since they are difficult to properly write doctests for, see note there for details). This does mean that the first time you run doctests on your local machine, it will take a while to download those files; they are cached and won't be downloaded again, so this is only a one-time cost.
+
 (build-the-documentation)=
 ### Build the documentation
 

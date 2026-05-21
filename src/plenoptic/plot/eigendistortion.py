@@ -206,7 +206,7 @@ def eigendistortion_imshow_all(
       >>> orig_mean = img.mean().detach()
       >>> orig_std = img.std().detach()
       >>> img = normalize(img)
-      >>> vgg = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1, progress=False)
+      >>> vgg = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1)
       >>> vgg = TorchVision(vgg, "features.11").to(torch.float64)
       >>> po.remove_grad(vgg)
       >>> vgg.eval()
