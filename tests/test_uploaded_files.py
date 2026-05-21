@@ -322,10 +322,12 @@ class TestDoctest:
         )
         compare_eigendistortions(eig, eig_up)
 
-    def test_eigendistortion_color(self, color_img_double):
+    def test_eigendistortion_color(self):
         po.set_seed(0)
+        img = po.data.color_wheel().to(torch.float64)
+        img = po.process.center_crop(img, 20)
         model = ColorModel()
-        model.to(color_img_double.dtype).to(DEVICE)
+        model.to(img.dtype).to(DEVICE)
         os.makedirs("uploaded_files", exist_ok=True)
         torch.save(
             torch.random.get_rng_state(),
@@ -334,7 +336,6 @@ class TestDoctest:
         print(np.random.get_state())
         po.remove_grad(model)
         model.eval()
-        img = po.process.center_crop(color_img_double, 20)
         eig = po.Eigendistortion(img, model)
         eig.synthesize(max_iter=500)
         eig.save("uploaded_files/example_eigendistortion_color.pt")

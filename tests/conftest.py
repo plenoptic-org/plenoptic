@@ -63,11 +63,6 @@ def color_img():
 
 
 @pytest.fixture(scope="package")
-def color_img_double(color_img):
-    return color_img.to(torch.float64)
-
-
-@pytest.fixture(scope="package")
 def parrot_square():
     img = po.load_images(IMG_DIR / "mixed" / "Parrot.png").to(DEVICE)
     return po.process.center_crop(img, 254)
