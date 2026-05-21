@@ -38,6 +38,7 @@ def lint(session):
     )
     session.run("python", "linting/check_apidocs.py")
     session.run("python", "linting/check_mpl_inline.py", "docs/")
+    session.run("python", "linting/check_tutorial_semicolons.py", "docs/")
 
 
 @nox.session(name="tests", python=["3.10", "3.11", "3.12", "3.13", "3.14"])
