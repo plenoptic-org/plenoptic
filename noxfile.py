@@ -27,15 +27,17 @@ def lint(session):
     session.run("numpydoc", "lint", "src")
     session.run("python", "linting/check_docstrings.py", "src")
     session.run("python", "linting/check_sphinx_directives.py", "src")
-    session.run("python", "linting/check_tutorials.py", "docs/tutorials/")
+    session.run("python", "linting/check_tutorials.py", "docs/")
     session.run("python", "linting/check_markdown.py", "docs/")
-    session.run("python", "linting/ruff_notebooks.py", "docs/tutorials/")
+    session.run("python", "linting/ruff_notebooks.py", "docs/")
     session.run(
         "python",
         "linting/check_regression_tests.py",
         "tests/test_uploaded_files.py",
-        "docs/tutorials/",
+        "docs/",
     )
+    session.run("python", "linting/check_apidocs.py")
+    session.run("python", "linting/check_mpl_inline.py", "docs/")
 
 
 @nox.session(name="tests", python=["3.10", "3.11", "3.12", "3.13", "3.14"])
@@ -47,4 +49,6 @@ def tests(session):
 @nox.session(name="doctests", python=["3.10", "3.11", "3.12", "3.13", "3.14"])
 def doctests(session):
     session.install(".[dev]")
-    session.run("pytest --doctest-modules --doctest-continue-on-failure src/")
+    session.run(
+        "pytest --doctest-modules --doctest-continue-on-failure -W ignore -n 0 src/"
+    )
