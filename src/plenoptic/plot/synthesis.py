@@ -193,7 +193,7 @@ def synthesis_loss(
     .. plot::
       :context: close-figs
 
-      >>> img = po.data.curie().to(torch.float64)
+      >>> img = po.data.einstein().to(torch.float64)
       >>> def ds_ssim(x, y):
       ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
       >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
@@ -627,7 +627,7 @@ def synthesis_histogram(
     .. plot::
       :context: close-figs
 
-      >>> img = po.data.curie().to(torch.float64)
+      >>> img = po.data.einstein().to(torch.float64)
       >>> def ds_ssim(x, y):
       ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
       >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
@@ -844,7 +844,7 @@ def synthesis_imshow(
     .. plot::
       :context: close-figs
 
-      >>> img = po.data.curie().to(torch.float64)
+      >>> img = po.data.einstein().to(torch.float64)
       >>> def ds_ssim(x, y):
       ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
       >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
@@ -1521,7 +1521,7 @@ def synthesis_status(
     .. plot::
       :context: close-figs
 
-      >>> img = po.data.curie().to(torch.float64)
+      >>> img = po.data.einstein().to(torch.float64)
       >>> def ds_ssim(x, y):
       ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
       >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
@@ -1933,7 +1933,7 @@ def synthesis_animshow(
     .. plot::
       :context: close-figs
 
-      >>> img = po.data.curie().to(torch.float64)
+      >>> img = po.data.einstein().to(torch.float64)
       >>> def ds_ssim(x, y):
       ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
       >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
