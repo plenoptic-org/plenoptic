@@ -1311,7 +1311,7 @@ class TestMetamers:
         met.setup(optimizer=optim)
         met.synthesize(10, store_progress=True)
         met_loss = met.losses - met.penalty_lambda * met.penalties
-        saved_rep = torch.func.vmap(model.forward)(met.saved_metamer)
+        saved_rep = torch.func.vmap(model.forward)(met.saved_metamer.to(DEVICE))
         model_loss = torch.func.vmap(met.loss_function, (0, None))(
             saved_rep, met.target_representation
         )

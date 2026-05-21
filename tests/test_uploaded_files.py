@@ -325,6 +325,7 @@ class TestDoctest:
     def test_eigendistortion_color(self, color_img_double):
         po.set_seed(0)
         model = ColorModel()
+        model.to(color_img_double.dtype)
         os.makedirs("uploaded_files", exist_ok=True)
         torch.save(
             torch.random.get_rng_state(),
