@@ -420,7 +420,7 @@ class TestDoctest:
             "uploaded_files/torch_rng_state_mad.pt",
         )
         print(np.random.get_state())
-        img = po.data.curie().to(torch.float64).to(DEVICE)
+        img = po.data.einstein().to(torch.float64).to(DEVICE)
 
         def ds_ssim(x, y):
             return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
@@ -429,7 +429,7 @@ class TestDoctest:
         # needed to initialize optimizer for following, see issue #404
         mad.setup(0.04)
         init_state_dict = mad.optimizer.state_dict()
-        mad.synthesize(400, store_progress=30)
+        mad.synthesize(200, store_progress=15)
         mad.save("uploaded_files/example_mad-cuda.pt")
         mad_up = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
         mad_up.load(
