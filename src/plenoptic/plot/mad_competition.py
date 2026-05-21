@@ -222,14 +222,14 @@ def mad_loss_all(
     fig, axes = plt.subplots(1, 2, figsize=figsize)
     synthesis_loss(
         mad_metric1_min,
-        axes=axes,
+        ax=axes,
         label=f"Minimize {metric1_name}",
         **metric1_kwargs,
         **min_kwargs,
     )
     synthesis_loss(
         mad_metric1_max,
-        axes=axes,
+        ax=axes,
         label=f"Maximize {metric1_name}",
         **metric1_kwargs,
         **max_kwargs,
@@ -238,14 +238,14 @@ def mad_loss_all(
     # the opposite as they are in the instances above.
     synthesis_loss(
         mad_metric2_min,
-        axes=axes[::-1],
+        ax=axes[::-1],
         label=f"Minimize {metric2_name}",
         **metric2_kwargs,
         **min_kwargs,
     )
     synthesis_loss(
         mad_metric2_max,
-        axes=axes[::-1],
+        ax=axes[::-1],
         label=f"Maximize {metric2_name}",
         **metric2_kwargs,
         **max_kwargs,

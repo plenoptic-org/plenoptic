@@ -964,7 +964,7 @@ class TestMADDisplay:
             elif axes == "list-fail":
                 n_axes = 2 if plot_penalties else 3
                 expectation = pytest.raises(
-                    ValueError, match="axes is a list of the wrong length"
+                    ValueError, match="ax is a list of the wrong length"
                 )
             elif axes == "axis":
                 n_axes = 1

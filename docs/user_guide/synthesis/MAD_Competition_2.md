@@ -188,7 +188,7 @@ While above we displayed the synthesized image and the loss together, these are 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(1, 2, figsize=(15, 5), gridspec_kw={"width_ratios": [1, 2]})
 po.plot.synthesis_imshow(mad, ax=axes[0], zoom=0.5)
-po.plot.synthesis_loss(mad, axes=axes[1], iteration=-100)
+po.plot.synthesis_loss(mad, ax=axes[1], iteration=-100)
 ```
 
 We also provide helper functions to plot a full set of MAD images together, either displaying all their synthesized images or their losses (note that we're calling our metric `SDSIM` because it's now the structural *dis*-similarity):
