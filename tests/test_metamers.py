@@ -1315,4 +1315,4 @@ class TestMetamers:
         model_loss = torch.func.vmap(met.loss_function, (0, None))(
             saved_rep, met.target_representation
         )
-        torch.testing.assert_close(met_loss, model_loss)
+        torch.testing.assert_close(met_loss.to(DEVICE), model_loss)
