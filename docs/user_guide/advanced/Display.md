@@ -280,7 +280,7 @@ met.synthesize(
 ```
 
 ```{code-cell} ipython3
-fig, _ = po.plot.synthesis_status(met)
+fig = po.plot.synthesis_status(met)
 ```
 
 And again, we can animate this over time:
