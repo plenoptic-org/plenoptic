@@ -47,7 +47,7 @@ for p in paths:
         # we ignore comments and markdown
         if line.startswith("#"):
             continue
-        if "po.plot" in line:
+        if "po.plot" in line and "=" not in line.split("po.plot")[0]:
             # reset parens counts
             open_parens = 0
             close_parens = 0
