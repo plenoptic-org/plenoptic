@@ -850,7 +850,7 @@ def synthesis_imshow(
       >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
       >>> mad.load(po.data.fetch_data("example_mad.pt"))
       >>> po.plot.synthesis_imshow(mad)
-      <Axes: title=...MAD[0] [iteration=400]...>
+      <Axes: title=...MAD[0] [iteration=200]...>
 
     Plot for :class:`~plenoptic.Eigendistortion` object. Note here that we plot
     the distortion multiplied by ``distortion_scale`` and added to the target image.
