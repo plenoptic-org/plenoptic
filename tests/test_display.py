@@ -1627,6 +1627,13 @@ class TestEigendistortionDisplay:
     @pytest.mark.parametrize(
         "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
     )
+    def test_synthesis_loss(self, synthesized_eig):
+        with pytest.raises(TypeError, match="synthesis_object must be a"):
+            po.plot.synthesis_loss(synthesized_eig)
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
     def test_synthesis_animshow(self, synthesized_eig):
         with pytest.raises(TypeError, match="synthesis_object must be a"):
             po.plot.synthesis_animshow(synthesized_eig)
@@ -1678,3 +1685,21 @@ class TestEigendistortionDisplay:
         template_test_synthesis_custom_fig(
             synthesized_eig, "plot", fig_creation, tmp_path
         )
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    # first is allowed for other synthesis objects, but not eigendistortions, second is
+    # just a typo
+    @pytest.mark.parametrize("val", ["synthesis_loss", "plot_synthesis_imshow"])
+    @pytest.mark.parametrize("variable", ["included_plots", "width_ratios", "axes_idx"])
+    def test_allowed_plots_exception(self, synthesized_eig, val, variable):
+        kwargs = {}
+        if variable == "included_plots":
+            kwargs["included_plots"] = [val, "synthesis_histogram"]
+        elif variable == "width_ratios":
+            kwargs["width_ratios"] = {val: 1, "synthesis_histogram": 1}
+        elif variable == "axes_idx":
+            kwargs["axes_idx"] = {val: 0, "synthesis_histogram": 1}
+        with pytest.raises(ValueError, match=f"{variable} contained value"):
+            po.plot.synthesis_status(synthesized_eig, **kwargs)
