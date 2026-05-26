@@ -781,6 +781,12 @@ def synthesis_imshow(
     synthesis_animshow
         Create a video animating this and other axis-level plots changing over
         the course of synthesis.
+    :func:`~plenoptic.plot.mad_imshow_all`
+        Display all MAD Competition images from a complete set of four
+        :class:`MADCompetition` instances.
+    :func:`~plenoptic.plot.eigendistortion_imshow_all`
+        Display base image, eigendistortions alone, and eigendistortions added to image
+        together in a single figure.
 
     Examples
     --------
@@ -1313,7 +1319,8 @@ def synthesis_status(
 
     We create several subplots to analyze this. The plots to include are
     specified by including their name in the ``included_plots`` list. All plots
-    can be created separately using the method with the same name.
+    can be created separately using the method with the individual plot name (see See
+    Also section below).
 
     This function's behavior when ``included_plots is None``, and allowed values for
     that variable, depends upon the type of ``synthesis_object``:
