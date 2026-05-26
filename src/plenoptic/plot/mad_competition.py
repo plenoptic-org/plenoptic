@@ -84,8 +84,8 @@ def mad_imshow_all(
 
     Examples
     --------
-    See the `MAD Competition <mad-nb>`_ `tutorial notebooks <mad-concept>`_ in the User
-    Guide of documentation for examples.
+    See the :ref:`MAD Competition <mad-nb>` :ref:`tutorial notebooks <mad-concept>`
+    in the User Guide of documentation for examples.
     """
     # this is a bit of a hack right now, because they don't all have same
     # initial image
