@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import json
 import os
 import pathlib
 import subprocess
@@ -16,88 +17,62 @@ for p in sys.argv[1:]:
         p = []
     paths.extend(p)
 
-
 os.makedirs("nb_tmp", exist_ok=True)
-anim_errors = {}
-plot_errors = {}
+updated_any_file = False
 for p in paths:
     with open(p) as f:
         md = f.read()
     if not md.startswith("---\njupytext"):
         # then this isn't a markdown notebook
         continue
-    script_path = f"nb_tmp{os.sep}{p.stem}.py"
+    nb_path = f"nb_tmp{os.sep}{p.stem}.ipynb"
     subprocess.run(
-        ["jupytext", p, "-o", script_path, "--from", "myst"], capture_output=True
+        ["jupytext", p, "-o", nb_path, "--from", "myst"], capture_output=True
     )
-    with open(script_path) as f:
-        txt = f.readlines()
-    open_parens = 0
-    close_parens = 0
-    plot_func = False
-    anim_func = False
-    # the conversion to .py from .md adds `# %% [markdown]` lines at the beginning of
-    # every markdown block, so we keep track of them here to offset them in the error
-    # message. start with 2, because the conversion adds "jupyter:" and "default_lexer:"
-    # lines
-    script_offset = 2
-    for i, line in enumerate(txt):
-        # remove ending whitespace
-        line = line.strip()
-        # we ignore comments and markdown
-        if line.startswith("#"):
+    with open(nb_path) as f:
+        nb_txt = json.load(f)
+    updated_file = False
+    for i, cell in enumerate(nb_txt["cells"]):
+        # only look at code cells
+        if cell["cell_type"] != "code":
             continue
-        if "po.plot" in line and "=" not in line.split("po.plot")[0]:
-            # reset parens counts
-            open_parens = 0
-            close_parens = 0
-            if "animshow" in line:
-                anim_func = True
-            else:
-                plot_func = True
-            func_line = line
-        open_parens += line.count("(")
-        close_parens += line.count(")")
-        if close_parens > open_parens:
-            raise ValueError("Something weird with my parens counting")
-        elif open_parens == close_parens and (anim_func or plot_func):
-            # then we've closed the function call
-            if anim_func:
-                if line.endswith(";"):
-                    # the +1 is because the enumerate iteration starts at 0, but lines
-                    # start at 1
-                    if p not in anim_errors:
-                        anim_errors[p] = [(func_line, i - script_offset + 1)]
-                    else:
-                        anim_errors[p].append((func_line, i - script_offset + 1))
-                anim_func = False
-            if plot_func:
-                if not line.endswith(";"):
-                    # the +1 is because the enumerate iteration starts at 0, but lines
-                    # start at 1
-                    if p not in plot_errors:
-                        plot_errors[p] = [(func_line, i - script_offset + 1)]
-                    else:
-                        plot_errors[p].append((func_line, i - script_offset + 1))
-                plot_func = False
+        # we are looking for the last python expression in each cell. because we run
+        # ruff format on our notebooks, we can assume they're properly indented.
+        #
+        # First, grab the non-empty lines
+        src = [line for line in cell["source"] if line.strip()]
+        # then, grab those lines that don't start with white space
+        src = [line for line in src if line.strip()[0] == line[0]]
+        # then remove any lines that are just closing parentheses
+        src = [line for line in src if not line.startswith(")")]
+        # if there's nothing left here, then skip
+        if not src:
+            continue
+        # then grab the beginning of the last expression
+        last_expr = cell["source"].index(src[-1])
+        # and then the whole thing
+        last_expr = cell["source"][last_expr:]
+        last_expr = " ".join([line.strip() for line in last_expr])
+        # then we've found one of our plotting functions
+        if "po.plot" in last_expr and "=" not in last_expr.split("po.plot")[0]:
+            # remove the semicolon from animshow functions
+            if "animshow" in last_expr and last_expr.endswith(";"):
+                cell["source"][-1] = cell["source"][-1][:-1]
+                updated_file = True
+                updated_any_file = True
+            # add semicolon from plotting functions
+            elif "animshow" not in last_expr and not last_expr.endswith(";"):
+                cell["source"][-1] += ";"
+                updated_file = True
+                updated_any_file = True
+    if updated_file:
+        print(f"Updating {p}")
+        with open(nb_path, "w") as f:
+            json.dump(nb_txt, f)
+        subprocess.run(
+            ["jupytext", nb_path, "-o", p, "--to", "myst"], capture_output=True
+        )
 
 
-if anim_errors:
-    print("animate functions found ending in semicolon -- remove them:\n")
-    for f, errors in anim_errors.items():
-        print(f)
-        for line, idx in errors:
-            print(f"\tline ~{idx}: {line}")
-        print()
-
-if plot_errors:
-    print("plot functions found not ending in semicolon -- add one:\n")
-    for f, errors in plot_errors.items():
-        print(f)
-        for line, idx in errors:
-            print(f"\tline ~{idx}: {line}")
-        print()
-
-
-if anim_errors or plot_errors:
+if updated_any_file:
     sys.exit(1)
