@@ -97,6 +97,7 @@ repos:
       types_or: ["markdown"]
       files: ^docs/
       entry: linting/fix_tutorial_semicolons.py
+      additional_dependencies: ["jupytext"]
 
 - repo: https://github.com/codespell-project/codespell
   # Configuration for codespell is in pyproject.toml
