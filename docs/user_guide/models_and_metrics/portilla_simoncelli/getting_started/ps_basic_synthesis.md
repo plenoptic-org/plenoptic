@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: plenoptic
   language: python
@@ -182,7 +182,7 @@ We can see the synthesized texture on the leftmost plot. The overall synthesis e
 ```{code-cell} ipython3
 po.plot.metamer_synthesis_status(
     met, width_ratios={"metamer_representation_error": 3.1}
-)
+);
 ```
 
 ## Further reading
