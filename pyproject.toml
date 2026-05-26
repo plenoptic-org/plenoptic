@@ -29,7 +29,8 @@ dependencies = [
     "scikit-image>=0.15.0",
     "einops>=0.3.0",
     "importlib-resources>=6.0",
-    "pooch>=1.2.0",
+    # for updated tarfile behavior, https://github.com/plenoptic-org/plenoptic/issues/336
+    "pooch>=1.9.0",
     "lazy_loader",
 ]
 
@@ -103,10 +104,6 @@ doctest_optionflags = "NORMALIZE_WHITESPACE NUMBER ELLIPSIS"
 # last matching option is performed."
 filterwarnings = [
     "error",
-    # pooch issue with python>=3.12, fixed in
-    # https://github.com/fatiando/pooch/pull/458 but not in release as of April
-    # 2025.
-    "ignore:Python 3.14 will, by default, filter extracted tar archives:DeprecationWarning",
     # seems to be necessary to solve https://github.com/pytest-dev/pytest-cov/issues/693
     "ignore:Failed to generate report:",
 ]
