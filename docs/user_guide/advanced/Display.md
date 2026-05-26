@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.18.1
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -134,7 +134,7 @@ rep = model(img)
 As long as your model returns a 3d or 4d vector (first two dimensions corresponding to `batch` and `channel`), then our plotting code should work automatically. If it returns a 3d representation, we plot a stem plot; if it's 4d, an image.
 
 ```{code-cell} ipython3
-po.plot.plot_representation(data=rep, figsize=(11, 5))
+po.plot.plot_representation(data=rep, figsize=(11, 5));
 ```
 
 This also gets used in the plotting code built into our synthesis methods.

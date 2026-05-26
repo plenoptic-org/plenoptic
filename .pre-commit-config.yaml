@@ -57,6 +57,7 @@ repos:
       name: Check for issues with markdown tutorial notebooks
       types_or: ["markdown"]
       entry: python linting/check_tutorials.py
+      files: ^docs/
     - id: check-docs-markdown
       language: python
       # only run on docs/ folder
@@ -77,7 +78,7 @@ repos:
       name: Ensure regression tests and notebook are matched
       types_or: ["markdown"]
       entry: python linting/check_regression_tests.py tests/test_uploaded_files.py
-      files: ^docs/tutorials
+      files: ^docs/
     - id: check-api-docs
       language: system
       name: Ensure all public functions / classes are included in API docs
@@ -90,6 +91,13 @@ repos:
       types_or: ["markdown"]
       files: ^docs/
       entry: linting/check_mpl_inline.py
+    - id: check-semicolons
+      language: python
+      name: Fix semicolons after plotting functions
+      types_or: ["markdown"]
+      files: ^docs/
+      entry: linting/fix_tutorial_semicolons.py
+      additional_dependencies: ["jupytext"]
 
 - repo: https://github.com/codespell-project/codespell
   # Configuration for codespell is in pyproject.toml

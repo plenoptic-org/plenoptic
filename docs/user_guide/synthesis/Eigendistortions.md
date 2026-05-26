@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.19.1
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: plenoptic
   language: python
@@ -332,7 +332,7 @@ Let's display the eigendistortions.
 ```{code-cell} ipython3
 po.plot.eigendistortion_imshow_all(
     ed_resneta, [0, -1], as_rgb=True, suptitle="ResNet18 Maxpool Layer", zoom=2
-)
+);
 ```
 
 And the eigendistortions for layer 2 (about halfway through the model):
@@ -376,7 +376,7 @@ Unlike our [previous example](fisher-locally-adaptive), eigendistortions for eit
 ```{code-cell} ipython3
 po.plot.eigendistortion_imshow_all(
     ed_resneta, [0, -1], as_rgb=True, suptitle="ResNet18 Maxpool Layer", zoom=2
-)
+);
 ```
 
 And the eigendistortions for layer 2 (about halfway through the model):
