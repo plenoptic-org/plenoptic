@@ -93,10 +93,10 @@ repos:
       entry: linting/check_mpl_inline.py
     - id: check-semicolons
       language: python
-      name: Check for semicolons after plotting functions
+      name: Fix semicolons after plotting functions
       types_or: ["markdown"]
       files: ^docs/
-      entry: linting/check_tutorial_semicolons.py
+      entry: linting/fix_tutorial_semicolons.py
 
 - repo: https://github.com/codespell-project/codespell
   # Configuration for codespell is in pyproject.toml
