@@ -71,7 +71,6 @@ try {
               "OMP_NUM_THREADS=4",
               "PROJECT_NAME=",
               "GITHUB_PATH=plenoptic-org/plenoptic",
-              "GITHUB_TOKEN=${credentials('plenoptic-docs-gh-pr-write')}",
               "BRANCH_NAME=${env.BRANCH_NAME}",
               "ISSUE_NUM=${env.BRANCH_NAME.replace('PR-', '')}"
             ]) {
@@ -110,6 +109,7 @@ try {
                 GIT_COMMITTER_EMAIL="jenkins@flatironinstitute.org" GIT_COMMITTER_NAME="Flatiron Jenkins" git commit --author='Flatiron Jenkins <jenkins@flatironinstitute.org>' --allow-empty -m "Generated documentation for \$DOCS_DIR" -m '${env.BUILD_TAG}'
               """
                   gitPush(gitScm: scm, targetBranch: 'main', targetRepo: 'origin')
+                  withCredentials([string(credentialsId: 'plenoptic-docs-gh-pr-write', variable: 'GITHUB_TOKEN')]) {
                   // this being single quotes is VERY IMPORTANT. otherwise the
                   // GITHUB_TOKEN value would be exposed, see
                   // https://www.jenkins.io/doc/book/pipeline/jenkinsfile/#interpolation-of-sensitive-environment-variables
@@ -135,6 +135,7 @@ try {
                    fi
                 fi
               '''
+                }
                 }
               }
             }
