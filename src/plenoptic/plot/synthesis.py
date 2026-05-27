@@ -1181,7 +1181,7 @@ def _synthesis_status(
     axes_idx: dict[str, int | list[int]] = {},
     figsize: tuple[float, float] | None = None,
     width_ratios: dict[str, float] = {},
-    **kwargs: Any,
+    **kwargs: dict[str, Any],
 ) -> tuple[mpl.figure.Figure, dict[str, mpl.axes.Axes | list[mpl.axes.Axes]]]:
     r"""
     Help create synthesis status figure, returning extra info.
@@ -1237,7 +1237,8 @@ def _synthesis_status(
     **kwargs
         Additional keyword arguments to pass to plotting functions. Keys must be the
         of the form ``{plot_func}_kwargs``, where ``{plot_func}`` name of the
-        plotting function. See Examples for examples.
+        plotting function. See Examples for examples. Will raise a ValueError if
+        there are additional kwargs.
 
     Returns
     -------
@@ -1245,6 +1246,11 @@ def _synthesis_status(
         The figure containing this plot.
     axes_dict
         Dictionary mapping between plot types and axis objects.
+
+    Raises
+    ------
+    ValueError
+        If ``kwargs`` contains additional keys.
     """
     if included_plots is None:
         included_plots = _get_default_included_plots(synthesis_object)
@@ -1263,14 +1269,14 @@ def _synthesis_status(
             channel_idx=channel_idx,
             iteration=iteration,
             ax=axes_dict["synthesis_imshow"],
-            **kwargs.get("synthesis_imshow_kwargs", {}),
+            **kwargs.pop("synthesis_imshow_kwargs", {}),
         )
     if "synthesis_loss" in included_plots:
         loss_axes = synthesis_loss(
             synthesis_object,
             iteration=iteration,
             ax=axes_dict["synthesis_loss"],
-            **kwargs.get("synthesis_loss_kwargs", {}),
+            **kwargs.pop("synthesis_loss_kwargs", {}),
         )
         # synthesis_loss may create new axes, so make sure it's up-to-date here
         axes_dict["synthesis_loss"] = list(loss_axes.values())
@@ -1280,7 +1286,7 @@ def _synthesis_status(
             batch_idx=batch_idx,
             iteration=iteration,
             ax=axes_dict["metamer_representation_error"],
-            **kwargs.get("metamer_representation_error_kwargs", {}),
+            **kwargs.pop("metamer_representation_error_kwargs", {}),
         )
         # metamer_representation_error may create new axes, so make sure it's
         # up-to-date here
@@ -1292,7 +1298,12 @@ def _synthesis_status(
             channel_idx=channel_idx,
             iteration=iteration,
             ax=axes_dict["synthesis_histogram"],
-            **kwargs.get("synthesis_histogram_kwargs", {}),
+            **kwargs.pop("synthesis_histogram_kwargs", {}),
+        )
+    if kwargs:
+        raise ValueError(
+            f"kwargs has additional keys {list(kwargs.keys())}, don't know"
+            " what to do with them! Did you forget to include a plot?"
         )
     return fig, axes_dict
 
@@ -1307,7 +1318,7 @@ def synthesis_status(
     axes_idx: dict[str, int | list[int]] = {},
     figsize: tuple[float, float] | None = None,
     width_ratios: dict[str, float] = {},
-    **kwargs: Any,
+    **kwargs: dict[str, Any],
 ) -> mpl.figure.Figure:
     r"""
     Make a plot showing synthesis status.
@@ -1380,7 +1391,8 @@ def synthesis_status(
     **kwargs
         Additional keyword arguments to pass to plotting functions. Keys must be the
         of the form ``{plot_func}_kwargs``, where ``{plot_func}`` name of the
-        plotting function. See Examples for examples.
+        plotting function. See Examples for examples. Will raise a ValueError if
+        there are additional kwargs.
 
     Returns
     -------
@@ -1397,6 +1409,8 @@ def synthesis_status(
         If any of ``width_ratios``, ``included_plots``, or ``axes_idx`` reference an
         plot that is incompatible with ``synthesis_object``. See list at top of
         docstring for compatible plots for each class.
+    ValueError
+        If ``kwargs`` contains additional keys.
 
     Warns
     -----
@@ -1658,7 +1672,7 @@ def synthesis_animshow(
     axes_idx: dict[str, int] = {},
     figsize: tuple[float, float] | None = None,
     width_ratios: dict[str, float] = {},
-    **kwargs: Any,
+    **kwargs: dict[str, Any],
 ) -> mpl.animation.FuncAnimation:
     r"""
     Animate synthesis progress.
@@ -1740,7 +1754,8 @@ def synthesis_animshow(
     **kwargs
         Additional keyword arguments to pass to plotting functions. Keys must be the
         of the form ``{plot_func}_kwargs``, where ``{plot_func}`` name of the
-        plotting function. See Examples for examples.
+        plotting function. See Examples for examples. Will raise a ValueError if
+        there are additional kwargs.
 
     Returns
     -------
@@ -1754,6 +1769,8 @@ def synthesis_animshow(
         ``store_progress=False``.
     ValueError
         If we do not know how to interpret the value of ``ylim``.
+    ValueError
+        If ``kwargs`` contains additional keys.
     ValueError
         If ``synthesis_object`` is a :class:`~plenoptic.Metamer` object whose
         :attr:`~plenoptic.Metamer.target_representation` is 4d and ``ylim`` has been

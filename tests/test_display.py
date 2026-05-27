@@ -903,13 +903,17 @@ class TestMADDisplay:
         elif func == "animate":
             func = po.plot.synthesis_animshow
         kwargs = {}
+        expectation_str = f"{variable} contained value"
         if variable == "included_plots":
             kwargs["included_plots"] = [val, "synthesis_loss"]
         elif variable == "width_ratios":
             kwargs["width_ratios"] = {val: 1, "synthesis_loss": 1}
         elif variable == "axes_idx":
             kwargs["axes_idx"] = {val: 0, "synthesis_loss": 1}
-        with pytest.raises(ValueError, match=f"{variable} contained value"):
+        elif variable == "kwargs":
+            kwargs[f"{val}_kwargs"] = {"xlim": False}
+            expectation_str = "kwargs has additional keys"
+        with pytest.raises(ValueError, match=expectation_str):
             func(synthesized_mad, **kwargs)
 
     @pytest.mark.parametrize("iteration", [None, 0, -1, -10, 10, 2, 3, 4])
@@ -1257,20 +1261,26 @@ class TestMetamerDisplay:
     @pytest.mark.parametrize("func", ["plot", "animate"])
     # this not allowed value is just a typo
     @pytest.mark.parametrize("val", ["plot_metamer"])
-    @pytest.mark.parametrize("variable", ["included_plots", "width_ratios", "axes_idx"])
+    @pytest.mark.parametrize(
+        "variable", ["included_plots", "width_ratios", "axes_idx", "kwargs"]
+    )
     def test_allowed_plots_exception(self, synthesized_met, func, val, variable):
         if func == "plot":
             func = po.plot.synthesis_status
         elif func == "animate":
             func = po.plot.synthesis_animshow
         kwargs = {}
+        expectation_str = f"{variable} contained value"
         if variable == "included_plots":
             kwargs["included_plots"] = [val, "synthesis_loss"]
         elif variable == "width_ratios":
             kwargs["width_ratios"] = {val: 1, "synthesis_loss": 1}
         elif variable == "axes_idx":
             kwargs["axes_idx"] = {val: 0, "synthesis_loss": 1}
-        with pytest.raises(ValueError, match=f"{variable} contained value"):
+        elif variable == "kwargs":
+            kwargs[f"{val}_kwargs"] = {"xlim": False}
+            expectation_str = "kwargs has additional keys"
+        with pytest.raises(ValueError, match=expectation_str):
             func(synthesized_met, **kwargs)
 
     @pytest.mark.parametrize("iteration", [None, 0, -1, -10, 10, 2, 3, 4])
@@ -1692,14 +1702,20 @@ class TestEigendistortionDisplay:
     # first is allowed for other synthesis objects, but not eigendistortions, second is
     # just a typo
     @pytest.mark.parametrize("val", ["synthesis_loss", "plot_synthesis_imshow"])
-    @pytest.mark.parametrize("variable", ["included_plots", "width_ratios", "axes_idx"])
+    @pytest.mark.parametrize(
+        "variable", ["included_plots", "width_ratios", "axes_idx", "kwargs"]
+    )
     def test_allowed_plots_exception(self, synthesized_eig, val, variable):
         kwargs = {}
+        expectation_str = f"{variable} contained value"
         if variable == "included_plots":
             kwargs["included_plots"] = [val, "synthesis_histogram"]
         elif variable == "width_ratios":
             kwargs["width_ratios"] = {val: 1, "synthesis_histogram": 1}
         elif variable == "axes_idx":
             kwargs["axes_idx"] = {val: 0, "synthesis_histogram": 1}
-        with pytest.raises(ValueError, match=f"{variable} contained value"):
+        elif variable == "kwargs":
+            kwargs[f"{val}_kwargs"] = {"xlim": False}
+            expectation_str = "kwargs has additional keys"
+        with pytest.raises(ValueError, match=expectation_str):
             po.plot.synthesis_status(synthesized_eig, **kwargs)
