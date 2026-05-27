@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.19.1
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: plenoptic
   language: python
@@ -188,7 +188,7 @@ While above we displayed the synthesized image and the loss together, these are 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(1, 2, figsize=(15, 5), gridspec_kw={"width_ratios": [1, 2]})
 po.plot.synthesis_imshow(mad, ax=axes[0], zoom=0.5)
-po.plot.synthesis_loss(mad, ax=axes[1], iteration=-100)
+po.plot.synthesis_loss(mad, ax=axes[1], iteration=-100);
 ```
 
 We also provide helper functions to plot a full set of MAD images together, either displaying all their synthesized images or their losses (note that we're calling our metric `SDSIM` because it's now the structural *dis*-similarity):

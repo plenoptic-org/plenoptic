@@ -180,7 +180,7 @@ We can also use plenoptic's {func}`~plenoptic.plot.synthesis_status` method to s
 We can see the synthesized texture on the leftmost plot. The overall synthesis error decreases over the synthesis iterations (subplot 2).  The remaining plots show us the error broken out by the different texture statistics; see [](ps-model-stats) to better understand them.
 
 ```{code-cell} ipython3
-po.plot.synthesis_status(met, width_ratios={"metamer_representation_error": 3.1})
+po.plot.synthesis_status(met, width_ratios={"metamer_representation_error": 3.1});
 ```
 
 ## Further reading

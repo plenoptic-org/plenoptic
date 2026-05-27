@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.3
+    jupytext_version: 1.17.1
 kernelspec:
   display_name: plenoptic
   language: python
@@ -95,7 +95,7 @@ print(model(img))
 In order to visualize this, we can use the helper function {func}`~plenoptic.plot.plot_representation` (see [Display notebook](display-nb) for more details here). In this case, the representation looks like two images, and so we plot it as such:
 
 ```{code-cell} ipython3
-po.plot.plot_representation(data=model(img), figsize=(11, 5))
+po.plot.plot_representation(data=model(img), figsize=(11, 5));
 ```
 
 At the simplest, to use {class}`~plenoptic.Metamer`, simply initialize it with the target image and the model, then call {func}`~plenoptic.Metamer.synthesize`. By setting `store_progress=True`, we update a variety of attributes (all of which start with `saved_`) on each iteration so we can later examine, for example, the synthesized image over time.
@@ -109,7 +109,7 @@ We then call the {func}`~plenoptic.plot.synthesis_status` function to see how th
 
 ```{code-cell} ipython3
 # model response error plot has two subplots, so we increase its relative width
-po.plot.synthesis_status(met, width_ratios={"metamer_representation_error": 2})
+po.plot.synthesis_status(met, width_ratios={"metamer_representation_error": 2});
 ```
 
 {func}`~plenoptic.plot.synthesis_status` is a helper function to show all of this at once, but the individual components can be created separately:
@@ -118,7 +118,7 @@ po.plot.synthesis_status(met, width_ratios={"metamer_representation_error": 2})
 fig, axes = plt.subplots(1, 3, figsize=(25, 5), gridspec_kw={"width_ratios": [1, 1, 2]})
 po.plot.synthesis_imshow(met, ax=axes[0])
 po.plot.synthesis_loss(met, ax=axes[1])
-po.plot.metamer_representation_error(met, ax=axes[2])
+po.plot.metamer_representation_error(met, ax=axes[2]);
 ```
 
 The loss is decreasing, but clearly there's much more to go. So let's continue.
@@ -136,7 +136,7 @@ Let's examine the status again. But instead of looking at the latest iteration, 
 ```{code-cell} ipython3
 po.plot.synthesis_status(
     met, iteration=-10, width_ratios={"metamer_representation_error": 2}
-)
+);
 ```
 
 Since we have the ability to select which iteration to plot (as long as we've been storing the information), we can create an animation showing the synthesis over time. This {class}`~matplotlib.animation.FuncAnimation` object can either be viewed in the notebook (note that this requires the matplotlib configuration options in the first cell of this notebook) or saved as some video format (e.g., `anim.save('test.mp4'`).
@@ -248,7 +248,7 @@ met = po.Metamer(
 )
 met.synthesize(store_progress=True, max_iter=50)
 
-po.plot.synthesis_histogram(met)
+po.plot.synthesis_histogram(met);
 ```
 
 We see that the metamer pixel histogram ranges from 0.2 to 0.8, while
@@ -259,7 +259,6 @@ The output of this penalty function is stored at each iteration in the
 {attr}`~plenoptic.Metamer.losses` attribute:
 
 ```{code-cell} ipython3
-
 print(met.penalties)
 print(met.losses)
 ```
