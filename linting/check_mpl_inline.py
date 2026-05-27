@@ -3,9 +3,20 @@
 import pathlib
 import sys
 
-error_files = []
+paths = []
 for p in sys.argv[1:]:
-    txt = pathlib.Path(p).read_text()
+    p = pathlib.Path(p)
+    if p.is_dir():
+        p = list(p.glob("**/*.md"))
+    elif p.suffix == ".md":
+        p = [p]
+    else:
+        p = []
+    paths.extend(p)
+
+error_files = []
+for p in paths:
+    txt = p.read_text()
     if "%matplotlib inline" in txt:
         error_files.append(p)
 
