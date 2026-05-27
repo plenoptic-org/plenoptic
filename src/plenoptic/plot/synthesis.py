@@ -1649,7 +1649,7 @@ def _get_rescale_ylim(
             # this way we'll never rescale
             rescale_ylim_interval = len(metamer.saved_metamer) + 1
         else:
-            raise ValueError(f"Don't know how to handle ylim {rescale_ylim=}!")
+            raise ValueError(f"Don't know how to handle {rescale_ylim=}!")
     return rescale_ylim_interval
 
 
@@ -1958,9 +1958,7 @@ def synthesis_animate(
             f" {type(synthesis_object)}"
         )
     if not synthesis_object.store_progress:
-        raise ValueError(
-            "synthesize() was run with store_progress=False, cannot animate!"
-        )
+        raise ValueError("When synthesis_object.store_progress=False, cannot animate!")
     # rescale_ylim only relevant for metamer_representation_error plot
     if isinstance(synthesis_object, Metamer):
         rescale_ylim_interval = _get_rescale_ylim(synthesis_object, rescale_ylim)
