@@ -661,15 +661,14 @@ def template_test_synthesis_all_plot(
     plot_kwargs = {}
     from plenoptic.plot import synthesis
 
-    if isinstance(synthesis_object, po.Metamer):
-        as_rgb = synthesis_object.image.shape[1] > 1
-        plot_kwargs["metamer_representation_error"] = {"as_rgb": as_rgb}
     if synth_image:
         included_plots.append("synthesis_imshow")
     if loss:
         included_plots.append("synthesis_loss")
     if representation_error:
         included_plots.append("metamer_representation_error")
+        as_rgb = synthesis_object.image.shape[1] > 1
+        plot_kwargs["metamer_representation_error_kwargs"] = {"as_rgb": as_rgb}
     if histogram:
         included_plots.append("synthesis_histogram")
     width_ratios = {}
@@ -707,7 +706,7 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
     axes_idx = {"synthesis_imshow": 0}
     if isinstance(synthesis_object, po.Metamer):
         as_rgb = synthesis_object.image.shape[1] > 1
-        plot_kwargs["metamer_representation_error"] = {"as_rgb": as_rgb}
+        plot_kwargs["metamer_representation_error_kwargs"] = {"as_rgb": as_rgb}
         included_plots.extend(["metamer_representation_error", "synthesis_loss"])
         axes_idx["metamer_representation_error"] = 8
     elif isinstance(synthesis_object, po.MADCompetition):
