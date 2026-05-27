@@ -1847,7 +1847,7 @@ def synthesis_animate(
     >>> met.synthesize(5)
     >>> ani = po.plot.synthesis_animate(met)
     Traceback (most recent call last):
-    ValueError: synthesize() was run with store_progress=False...
+    ValueError: When synthesis_object.store_progress=False, cannot animate!
 
     If model has its own ``plot_representation`` method, this function will use it
     for plotting the representation error (see
