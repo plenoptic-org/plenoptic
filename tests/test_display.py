@@ -712,7 +712,9 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
     elif isinstance(synthesis_object, po.MADCompetition):
         included_plots.append("synthesis_loss")
     fig, axes = plt.subplots(3, 3, figsize=(35, 17))
-    if "-" in fig_creation:
+    if fig_creation == "custom-misc":
+        axes_idx["misc"] = 1
+    elif "-" in fig_creation:
         axes_idx["misc"] = [1, 4]
     if fig_creation.split("-")[-1] not in ["without"]:
         if "synthesis_loss" in included_plots:
@@ -1063,6 +1065,22 @@ class TestMADDisplay:
             if not np.array_equal(expected_image, plotted_image):
                 raise ValueError("plotted image wrong!")
 
+    @pytest.mark.parametrize("func", ["animate", "plot"])
+    @pytest.mark.parametrize("variable", ["width_ratios", "axes_idx"])
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    def test_plot_consistency(self, synthesized_mad, func, variable):
+        if func == "plot":
+            func = po.plot.synthesis_status
+        elif func == "animate":
+            func = po.plot.synthesis_animate
+        kwargs = {variable: {"synthesis_histogram": 1}}
+        if variable == "axes_idx":
+            kwargs[variable]["misc"] = 2
+        with pytest.raises(ValueError, match=f"{variable} contains keys"):
+            func(synthesized_mad, included_plots=["synthesis_imshow"], **kwargs)
+
 
 class TestMetamerDisplay:
     @pytest.fixture(scope="class", params=["rgb", "grayscale"])
@@ -1117,6 +1135,35 @@ class TestMetamerDisplay:
 
             def forward(self, *args, **kwargs):
                 return super().forward(*args, **kwargs)[0][:, :, 0]
+
+        model = SPyr(img.shape[-2:], height=1, order=1).to(DEVICE)
+        met = po.Metamer(img, model)
+        met.synthesize(max_iter=2, store_progress=True)
+        return met
+
+    @pytest.fixture(scope="class", params=["rgb", "grayscale"])
+    def synthesized_met_3d(self, request):
+        img = request.param
+        # make the images really small so nothing takes as long
+        if img == "rgb":
+            img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
+            img = img[..., :16, :16]
+        else:
+            img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
+            img = img[..., :16, :16]
+
+        #  height=1 and order=0 to limit the time this takes, and then we
+        #  only return one of the tensors so that everything is easy for
+        #  plotting code to figure out (if we downsampled and were on an
+        #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
+        #  we'd have the residuals and one filter output for each channel,
+        #  and our code doesn't know how to handle that)
+        class SPyr(po.process.SteerablePyramidFreq):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+            def forward(self, *args, **kwargs):
+                return super().forward(*args, **kwargs)[0][:, :, 0].flatten(-2, -1)
 
         model = SPyr(img.shape[-2:], height=1, order=1).to(DEVICE)
         met = po.Metamer(img, model)
@@ -1316,6 +1363,14 @@ class TestMetamerDisplay:
                 img = img.clip(0, 1)
             assert np.equal(axes_img, img).all(), "wrong saved metamer plotted!"
 
+    def test_iteration_fail(self, synthesized_met_nostore):
+        with pytest.raises(IndexError, match="When synthesis_object.store_progress"):
+            po.plot.synthesis_imshow(synthesized_met_nostore, iteration=2)
+
+    def test_animate_fail(self, synthesized_met_nostore):
+        with pytest.raises(ValueError, match="When synthesis_object.store_progress"):
+            po.plot.synthesis_animate(synthesized_met_nostore)
+
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("plot_penalties", [True, False])
     @pytest.mark.parametrize("axes", [None, "axis", "list"])
@@ -1427,6 +1482,47 @@ class TestMetamerDisplay:
             raise ValueError(
                 "synthesis_animate rescale_ylim arg default changed! update check"
             )
+
+    @pytest.mark.parametrize(
+        "rescale_ylim", [False, "rescale", "rescale10", (0, 1), "something_weird"]
+    )
+    def test_rescale_ylim_4d(self, synthesized_met, rescale_ylim):
+        # these are the allowed values: rescale (default) and False (what we do:
+        # nothing)
+        if rescale_ylim in [False, "rescale"]:
+            expectation = does_not_raise()
+        else:
+            expectation = pytest.raises(
+                ValueError, match="Looks like representation is image-like"
+            )
+        with expectation:
+            po.plot.synthesis_animate(synthesized_met, rescale_ylim=rescale_ylim)
+
+    @pytest.mark.parametrize(
+        "rescale_ylim", [False, "rescale", "rescale1", (0, 1), "something_weird"]
+    )
+    def test_rescale_ylim_3d(self, synthesized_met_3d, rescale_ylim):
+        if rescale_ylim in [False, "rescale", "rescale1"]:
+            expectation = does_not_raise()
+        else:
+            expectation = pytest.raises(
+                ValueError, match="Don't know how to handle rescale_ylim="
+            )
+        with expectation:
+            po.plot.synthesis_animate(synthesized_met_3d, rescale_ylim=rescale_ylim)
+
+    @pytest.mark.parametrize("func", ["animate", "plot"])
+    @pytest.mark.parametrize("variable", ["width_ratios", "axes_idx"])
+    def test_plot_consistency(self, synthesized_met, func, variable):
+        if func == "plot":
+            func = po.plot.synthesis_status
+        elif func == "animate":
+            func = po.plot.synthesis_animate
+        kwargs = {variable: {"synthesis_histogram": 1}}
+        if variable == "axes_idx":
+            kwargs[variable]["misc"] = 2
+        with pytest.raises(ValueError, match=f"{variable} contains keys"):
+            func(synthesized_met, included_plots=["synthesis_imshow"], **kwargs)
 
 
 class TestEigendistortionDisplay:
@@ -1718,3 +1814,16 @@ class TestEigendistortionDisplay:
             expectation_str = "kwargs has additional keys"
         with pytest.raises(ValueError, match=expectation_str):
             po.plot.synthesis_status(synthesized_eig, **kwargs)
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    @pytest.mark.parametrize("variable", ["width_ratios", "axes_idx"])
+    def test_plot_consistency(self, synthesized_eig, variable):
+        kwargs = {variable: {"synthesis_histogram": 1}}
+        if variable == "axes_idx":
+            kwargs[variable]["misc"] = 2
+        with pytest.raises(ValueError, match=f"{variable} contains keys"):
+            po.plot.synthesis_status(
+                synthesized_eig, included_plots=["synthesis_imshow"], **kwargs
+            )
