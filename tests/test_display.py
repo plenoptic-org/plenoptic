@@ -1419,13 +1419,15 @@ class TestMetamerDisplay:
                 raise ValueError("plotted image wrong!")
 
     def test_synthesis_animate_default(self):
-        # in synthesis_animate, we raise a warning if user tries to set rescale ylim
+        # in synthesis_animate, we raise a warning if user tries to set rescale_ylim
         # for a metamer_representation_error plot that uses image data. that check
         # hardcodes the value to against as "rescale", so this test checks that it's
         # correct.
         signature = inspect.signature(po.plot.synthesis_animate)
-        if signature.parameters["ylim"].default != "rescale":
-            raise ValueError("synthesis_animate ylim arg default changed! update check")
+        if signature.parameters["rescale_ylim"].default != "rescale":
+            raise ValueError(
+                "synthesis_animate rescale_ylim arg default changed! update check"
+            )
 
 
 class TestEigendistortionDisplay:

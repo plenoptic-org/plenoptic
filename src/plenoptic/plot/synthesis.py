@@ -1585,12 +1585,12 @@ def synthesis_status(
     return fig
 
 
-def _get_ylim_rescale(
+def _get_rescale_ylim(
     metamer: Metamer,
-    ylim: str | None | tuple[float, float] | Literal[False] = "rescale",
-) -> tuple[None | tuple[float, float] | Literal[False], int]:
+    rescale_ylim: str | Literal[False] = "rescale",
+) -> int:
     """
-    Prepare ylim, ylim_rescale_interval for :func:`synthesis_animate`.
+    Prepare rescale_ylim_interval for :func:`synthesis_animate`.
 
     This only works with a :class:`~plenoptic.Metamer` object, and is intended to be
     used with the :func:`~plenoptic.plot.metamer_representation_error` plot. It thus
@@ -1600,65 +1600,57 @@ def _get_ylim_rescale(
     ----------
     metamer
         Metamer object we'll be animating.
-    ylim
-        User-provided ylim value for the ``metamer_representation_error`` plot. Ignored
-        if model output is not 3d:
+    rescale_ylim
+        How to rescale y-limits of plots over time. Currently only applies to
+        :func:`~plenoptic.plot.metamer_representation_error` plot. Must be one of:
 
-        * If a tuple, then this is the ylim of all plots
+        - ``False``: never rescale y-limits.
 
-        * If ``None``, then all plots have the same limits, all
-          symmetric about 0 with a limit of
-          ``np.abs(representation_error).max()`` (for the initial
-          representation_error).
-
-        * If ``False``, don't modify limits.
-
-        * If a string, must be ``"rescale"`` or of the form ``"rescaleN"``,
-          where N can be any integer. If ``"rescaleN"``, we rescale the
-          limits every N frames (we rescale as if ``ylim=None``). If
-          ``"rescale"``, then we do this 10 times over the course of the
+        - the string ``"rescale"``: rescale y-limits 10 times over the course of the
           animation.
+
+        - a string of the form ``"rescaleN"``: rescale y-limits every N frames.
 
     Returns
     -------
-    ylim
-        Initial ylim value.
-    ylim_rescale_interval
+    rescale_ylim_interval
         How often to update the ylim, in frames.
 
     Raises
     ------
     ValueError
         If ``synthesis_object`` is a :class:`~plenoptic.Metamer` object whose
-        :attr:`~plenoptic.Metamer.target_representation` is 4d and ``ylim`` has been
-        set -- we do not know how to best rescale color ranges.
+        :attr:`~plenoptic.Metamer.target_representation` is 4d and ``rescale_ylim`` has
+        been set -- we do not know how to best rescale color ranges.
     """
-    if metamer.target_representation.ndimension() == 4:
-        # we have to do this here so that we set the
-        # ylim_rescale_interval such that we never rescale ylim
-        # (rescaling ylim messes up an image axis)
-        if isinstance(ylim, str) and ylim != "rescale" and ylim.startswith("rescale"):
-            raise ValueError(
-                "Looks like representation is image-like, haven't fully"
-                " thought out how to best handle rescaling color ranges yet!"
-            )
-        ylim = False
+    # then they've changed rescale_ylim to an illegal value
+    if metamer.target_representation.ndimension() == 4 and rescale_ylim not in [
+        "rescale",
+        False,
+    ]:
+        raise ValueError(
+            "Looks like representation is image-like, haven't fully"
+            " thought out how to best handle rescaling color ranges yet!"
+        )
     try:
-        if ylim.startswith("rescale"):
+        if rescale_ylim.startswith("rescale"):
             try:
-                ylim_rescale_interval = int(ylim.replace("rescale", ""))
+                rescale_ylim_interval = int(rescale_ylim.replace("rescale", ""))
             except ValueError:
                 # then there's nothing we can convert to an int there
-                ylim_rescale_interval = int((metamer.saved_metamer.shape[0] - 1) // 10)
-                if ylim_rescale_interval == 0:
-                    ylim_rescale_interval = int(metamer.saved_metamer.shape[0] - 1)
-            ylim = None
+                rescale_ylim_interval = int((metamer.saved_metamer.shape[0] - 1) // 10)
+                if rescale_ylim_interval == 0:
+                    rescale_ylim_interval = int(metamer.saved_metamer.shape[0] - 1)
         else:
-            raise ValueError(f"Don't know how to handle ylim {ylim}!")
+            raise ValueError(f"Don't know how to handle {rescale_ylim=}!")
     except AttributeError:
-        # this way we'll never rescale
-        ylim_rescale_interval = len(metamer.saved_metamer) + 1
-    return ylim, ylim_rescale_interval
+        # check if rescale_ylim is exactly False, not False-y
+        if rescale_ylim is False:
+            # this way we'll never rescale
+            rescale_ylim_interval = len(metamer.saved_metamer) + 1
+        else:
+            raise ValueError(f"Don't know how to handle ylim {rescale_ylim=}!")
+    return rescale_ylim_interval
 
 
 def synthesis_animate(
@@ -1667,11 +1659,11 @@ def synthesis_animate(
     batch_idx: int = 0,
     channel_idx: int | None = None,
     included_plots: list[str] | None = None,
-    ylim: str | None | tuple[float, float] | Literal[False] = "rescale",
     fig: mpl.figure.Figure | None = None,
     axes_idx: dict[str, int] = {},
     figsize: tuple[float, float] | None = None,
     width_ratios: dict[str, float] = {},
+    rescale_ylim: str | Literal[False] = "rescale",
     **kwargs: dict[str, Any],
 ) -> mpl.animation.FuncAnimation:
     r"""
@@ -1709,25 +1701,6 @@ def synthesis_animate(
         Which plots to include. See above for behavior if ``None``, otherwise must be a
         list of strings whose values are names of plotting functions that can accept
         ``synthesis_object``, see above for list.
-    ylim
-        The y-limits of the ``metamer_representation_error`` plot. Ignored if model
-        output is not 3d:
-
-        * If a tuple, then this is the ylim of all plots
-
-        * If ``None``, then all plots have the same limits, all
-          symmetric about 0 with a limit of
-          ``np.abs(representation_error).max()`` (for the initial
-          representation_error).
-
-        * If ``False``, don't modify limits.
-
-        * If a string, must be ``"rescale"`` or of the form ``"rescaleN"``,
-          where N can be any integer. If ``"rescaleN"``, we rescale the
-          limits every N frames (we rescale as if ``ylim=None``). If
-          ``"rescale"``, then we do this 10 times over the course of the
-          animation.
-
     fig
         If ``None``, we create a new figure. Otherwise we assume this is
         a figure that has the appropriate size and number of subplots.
@@ -1751,6 +1724,17 @@ def synthesis_animate(
         classes, all will be the same width.  To change that, specify their relative
         widths; keys should be strings (possible values same as ``included_plots``)
         and values should be floats specifying their relative width.
+    rescale_ylim
+        How to rescale y-limits of plots over time. Currently only applies to
+        :func:`~plenoptic.plot.metamer_representation_error` plot. Must be one of:
+
+        - ``False``: never rescale y-limits.
+
+        - the string ``"rescale"``: rescale y-limits 10 times over the course of the
+          animation.
+
+        - a string of the form ``"rescaleN"``: rescale y-limits every N frames.
+
     **kwargs
         Additional keyword arguments to pass to plotting functions. Keys must be the
         of the form ``{plot_func}_kwargs``, where ``{plot_func}`` name of the
@@ -1768,13 +1752,13 @@ def synthesis_animate(
         If synthesis for this ``synthesis_object`` was run with
         ``store_progress=False``.
     ValueError
-        If we do not know how to interpret the value of ``ylim``.
+        If ``rescale_ylim`` takes an illegal value.
     ValueError
         If ``kwargs`` contains additional keys.
     ValueError
         If ``synthesis_object`` is a :class:`~plenoptic.Metamer` object whose
-        :attr:`~plenoptic.Metamer.target_representation` is 4d and ``ylim`` has been
-        set -- we do not know how to best rescale color ranges.
+        :attr:`~plenoptic.Metamer.target_representation` is 4d and ``rescale_ylim`` has
+        been set -- we do not know how to best rescale color ranges.
     ValueError
         If any of ``width_ratios``, ``included_plots``, or ``axes_idx`` reference an
         plot that is incompatible with ``synthesis_object``. See list at top of
@@ -1977,13 +1961,9 @@ def synthesis_animate(
         raise ValueError(
             "synthesize() was run with store_progress=False, cannot animate!"
         )
-    # ylim only relevant for metamer_representation_error plot
+    # rescale_ylim only relevant for metamer_representation_error plot
     if isinstance(synthesis_object, Metamer):
-        ylim, ylim_rescale_interval = _get_ylim_rescale(synthesis_object, ylim)
-        # we run synthesis_status to initialize the figure
-        rep_error_kwargs = kwargs.pop("metamer_representation_error_kwargs", {})
-        rep_error_kwargs["ylim"] = ylim
-        kwargs["metamer_representation_error_kwargs"] = rep_error_kwargs
+        rescale_ylim_interval = _get_rescale_ylim(synthesis_object, rescale_ylim)
     fig, axes_dict = _synthesis_status(
         synthesis_object,
         batch_idx,
@@ -2078,7 +2058,7 @@ def synthesis_animate(
                 )
             )
             if (
-                (i + 1) % ylim_rescale_interval == 0
+                (i + 1) % rescale_ylim_interval == 0
                 and synthesis_object.target_representation.ndimension() == 3
             ):
                 display._rescale_ylim(
