@@ -18,7 +18,7 @@ from .metamer import _representation_error, metamer_representation_error
 __all__ = [
     "synthesis_loss",
     "synthesis_imshow",
-    "synthesis_animshow",
+    "synthesis_animate",
     "synthesis_histogram",
     "synthesis_status",
 ]
@@ -114,7 +114,7 @@ def synthesis_loss(
     synthesis_status
         Create a figure combining this with other axis-level plots to summarize
         synthesis status at a given iteration.
-    synthesis_animshow
+    synthesis_animate
         Create a video animating this and other axis-level plots changing over
         the course of synthesis.
 
@@ -582,7 +582,7 @@ def synthesis_histogram(
     synthesis_status
         Create a figure combining this with other axis-level plots to summarize
         synthesis status at a given iteration.
-    synthesis_animshow
+    synthesis_animate
         Create a video animating this and other axis-level plots changing over
         the course of synthesis.
 
@@ -778,7 +778,7 @@ def synthesis_imshow(
     synthesis_status
         Create a figure combining this with other axis-level plots to summarize
         synthesis status at a given iteration.
-    synthesis_animshow
+    synthesis_animate
         Create a video animating this and other axis-level plots changing over
         the course of synthesis.
     :func:`~plenoptic.plot.mad_imshow_all`
@@ -965,7 +965,7 @@ def _check_included_plots(
     """
     Check whether the user wanted us to create plots that we can't.
 
-    Helper function for :func:`synthesis_status` and :func:`synthesis_animshow`.
+    Helper function for :func:`synthesis_status` and :func:`synthesis_animate`.
 
     Raises a ``ValueError`` if ``to_check`` contains any values that are not allowed.
 
@@ -1433,7 +1433,7 @@ def synthesis_status(
     synthesis_histogram
         One of this function's axis-level component functions: plot histogram of
         values from synthesized object.
-    synthesis_animshow
+    synthesis_animate
         Create a video that animates this figure over synthesis iteration.
 
     Examples
@@ -1590,7 +1590,7 @@ def _get_ylim_rescale(
     ylim: str | None | tuple[float, float] | Literal[False] = "rescale",
 ) -> tuple[None | tuple[float, float] | Literal[False], int]:
     """
-    Prepare ylim, ylim_rescale_interval for :func:`synthesis_animshow`.
+    Prepare ylim, ylim_rescale_interval for :func:`synthesis_animate`.
 
     This only works with a :class:`~plenoptic.Metamer` object, and is intended to be
     used with the :func:`~plenoptic.plot.metamer_representation_error` plot. It thus
@@ -1661,7 +1661,7 @@ def _get_ylim_rescale(
     return ylim, ylim_rescale_interval
 
 
-def synthesis_animshow(
+def synthesis_animate(
     synthesis_object: Metamer | MADCompetition,
     framerate: int = 10,
     batch_idx: int = 0,
@@ -1844,7 +1844,7 @@ def synthesis_animshow(
       >>> met = po.Metamer(img, model)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
-      >>> ani = po.plot.synthesis_animshow(met)
+      >>> ani = po.plot.synthesis_animate(met)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-1.gif")
 
@@ -1861,7 +1861,7 @@ def synthesis_animshow(
     >>> met = po.Metamer(img, model)
     >>> met.to(torch.float64)
     >>> met.synthesize(5)
-    >>> ani = po.plot.synthesis_animshow(met)
+    >>> ani = po.plot.synthesis_animate(met)
     Traceback (most recent call last):
     ValueError: synthesize() was run with store_progress=False...
 
@@ -1878,7 +1878,7 @@ def synthesis_animshow(
       >>> met = po.MetamerCTF(img, model, po.loss.l2_norm)
       >>> met.to(torch.float64)
       >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
-      >>> ani = po.plot.synthesis_animshow(met)
+      >>> ani = po.plot.synthesis_animate(met)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-2.gif")
 
@@ -1890,7 +1890,7 @@ def synthesis_animshow(
       :context: close-figs
 
       >>> included_plots = ["synthesis_loss", "synthesis_histogram"]
-      >>> ani = po.plot.synthesis_animshow(met, included_plots=included_plots)
+      >>> ani = po.plot.synthesis_animate(met, included_plots=included_plots)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-3.gif")
 
@@ -1902,7 +1902,7 @@ def synthesis_animshow(
       :context: close-figs
 
       >>> width_ratios = {"metamer_representation_error": 3}
-      >>> ani = po.plot.synthesis_animshow(met, width_ratios=width_ratios)
+      >>> ani = po.plot.synthesis_animate(met, width_ratios=width_ratios)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-4.gif")
 
@@ -1914,7 +1914,7 @@ def synthesis_animshow(
       :context: close-figs
 
       >>> axes_idx = {"misc": [0, 3], "synthesis_loss": 4}
-      >>> ani = po.plot.synthesis_animshow(met, axes_idx=axes_idx)
+      >>> ani = po.plot.synthesis_animate(met, axes_idx=axes_idx)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-5.gif")
 
@@ -1930,7 +1930,7 @@ def synthesis_animshow(
       [<matplotlib.lines.Line2D ...>]
       >>> # specify misc: 0 so we don't plot on top of this axis.
       >>> axes_idx = {"misc": 0}
-      >>> ani = po.plot.synthesis_animshow(met, fig=fig, axes_idx=axes_idx)
+      >>> ani = po.plot.synthesis_animate(met, fig=fig, axes_idx=axes_idx)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-6.gif")
 
@@ -1941,7 +1941,7 @@ def synthesis_animshow(
     .. plot::
       :context: close-figs
 
-      >>> ani = po.plot.synthesis_animshow(
+      >>> ani = po.plot.synthesis_animate(
       ...     met,
       ...     synthesis_loss_kwargs={"plot_penalties": True},
       ...     synthesis_imshow_kwargs={"zoom": 0.5},
@@ -1962,7 +1962,7 @@ def synthesis_animshow(
       ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
       >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
       >>> mad.load(po.data.fetch_data("example_mad.pt"))
-      >>> ani = po.plot.synthesis_animshow(mad)
+      >>> ani = po.plot.synthesis_animate(mad)
       >>> # Save the video (here we're saving it as a .gif)
       >>> ani.save("animate-example-8.gif")
 

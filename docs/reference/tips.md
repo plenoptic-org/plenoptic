@@ -29,7 +29,7 @@ See [Issue #365](https://github.com/plenoptic-org/plenoptic/issues/365) for an e
 
 In that investigation, we found that the {class}`~torch.optim.LBFGS` optimizer performs very well, finding good solutions in a relatively short amount of time. We have not had the opportunity to investigate this optimizer in other problems, but we recommend giving it a try.
 
-Additionally, it may be helpful to visualize the progression of synthesis, using the {func}`~plenoptic.plot.synthesis_status` and {func}`~plenoptic.plot.synthesis_animshow` helper functions .
+Additionally, it may be helpful to visualize the progression of synthesis, using the {func}`~plenoptic.plot.synthesis_status` and {func}`~plenoptic.plot.synthesis_animate` helper functions .
 
 (tips-model-tweak)=
 ### Tweaking the model

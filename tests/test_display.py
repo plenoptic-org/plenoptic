@@ -734,7 +734,7 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
     if func == "animate":
         # animate closes the matplotlib figure itself, so don't need to do it here
         path = tmp_path / "test_anim.html"
-        po.plot.synthesis_animshow(
+        po.plot.synthesis_animate(
             synthesis_object,
             fig=fig,
             axes_idx=axes_idx,
@@ -901,7 +901,7 @@ class TestMADDisplay:
         if func == "plot":
             func = po.plot.synthesis_status
         elif func == "animate":
-            func = po.plot.synthesis_animshow
+            func = po.plot.synthesis_animate
         kwargs = {}
         expectation_str = f"{variable} contained value"
         if variable == "included_plots":
@@ -1268,7 +1268,7 @@ class TestMetamerDisplay:
         if func == "plot":
             func = po.plot.synthesis_status
         elif func == "animate":
-            func = po.plot.synthesis_animshow
+            func = po.plot.synthesis_animate
         kwargs = {}
         expectation_str = f"{variable} contained value"
         if variable == "included_plots":
@@ -1418,16 +1418,14 @@ class TestMetamerDisplay:
             if not np.array_equal(expected_image, plotted_image):
                 raise ValueError("plotted image wrong!")
 
-    def test_synthesis_animshow_default(self):
-        # in synthesis_animshow, we raise a warning if user tries to set rescale ylim
+    def test_synthesis_animate_default(self):
+        # in synthesis_animate, we raise a warning if user tries to set rescale ylim
         # for a metamer_representation_error plot that uses image data. that check
         # hardcodes the value to against as "rescale", so this test checks that it's
         # correct.
-        signature = inspect.signature(po.plot.synthesis_animshow)
+        signature = inspect.signature(po.plot.synthesis_animate)
         if signature.parameters["ylim"].default != "rescale":
-            raise ValueError(
-                "synthesis_animshow ylim arg default changed! update check"
-            )
+            raise ValueError("synthesis_animate ylim arg default changed! update check")
 
 
 class TestEigendistortionDisplay:
@@ -1644,9 +1642,9 @@ class TestEigendistortionDisplay:
     @pytest.mark.parametrize(
         "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
     )
-    def test_synthesis_animshow(self, synthesized_eig):
+    def test_synthesis_animate(self, synthesized_eig):
         with pytest.raises(TypeError, match="synthesis_object must be a"):
-            po.plot.synthesis_animshow(synthesized_eig)
+            po.plot.synthesis_animate(synthesized_eig)
 
     @pytest.mark.parametrize(
         "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True

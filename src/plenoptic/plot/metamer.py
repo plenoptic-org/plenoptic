@@ -153,7 +153,7 @@ def metamer_representation_error(
     :func:`~plenoptic.plot.synthesis_status`
         Create a figure combining this with other axis-level plots to summarize
         synthesis status at a given iteration.
-    :func:`~plenoptic.plot.synthesis_animshow`
+    :func:`~plenoptic.plot.synthesis_animate`
         Create a video animating this and other axis-level plots changing over
         the course of synthesis.
 

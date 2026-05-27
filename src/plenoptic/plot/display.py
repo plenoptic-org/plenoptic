@@ -459,7 +459,7 @@ def animshow(
     --------
     imshow
         Display an image.
-    :func:`~plenoptic.plot.synthesis_animshow`
+    :func:`~plenoptic.plot.synthesis_animate`
         Animate synthesis process for a :class:`~plenoptic.Metamer` or a
         :class:`~plenoptic.MADCompetition` object.
 

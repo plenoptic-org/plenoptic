@@ -24,7 +24,7 @@ The following accept :class:`~plenoptic.Metamer` / :class:`~plenoptic.MetamerCTF
    :toctree: generated
 
    ~synthesis_loss
-   ~synthesis_animshow
+   ~synthesis_animate
 
 The following accept only objects of a single class.
 

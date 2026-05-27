@@ -224,7 +224,7 @@ fig = po.plot.synthesis_status(
 )
 ```
 
-We similarly have an {func}`~plenoptic.plot.synthesis_animshow` function, which animates the above plots over time, and everything that I said above also holds for them. Note that {func}`~plenoptic.plot.synthesis_animshow` will take a fair amount of time to run and requires [ffmpeg](https://ffmpeg.org/download.html) on your system for most file formats (see [matplotlib docs](https://matplotlib.org/stable/api/animation_api.html#writer-classes) for more details).
+We similarly have an {func}`~plenoptic.plot.synthesis_animate` function, which animates the above plots over time, and everything that I said above also holds for them. Note that {func}`~plenoptic.plot.synthesis_animate` will take a fair amount of time to run and requires [ffmpeg](https://ffmpeg.org/download.html) on your system for most file formats (see [matplotlib docs](https://matplotlib.org/stable/api/animation_api.html#writer-classes) for more details).
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 3, figsize=(17, 12))
@@ -238,7 +238,7 @@ axes[1, 0].arrow(
     0.25,
 )
 axes[0, 0].plot(np.linspace(0, 1), np.random.rand(50))
-po.plot.synthesis_animshow(
+po.plot.synthesis_animate(
     met,
     included_plots=["synthesis_imshow", "synthesis_loss", "synthesis_histogram"],
     fig=fig,
@@ -286,5 +286,5 @@ fig = po.plot.synthesis_status(met)
 And again, we can animate this over time:
 
 ```{code-cell} ipython3
-po.plot.synthesis_animshow(met)
+po.plot.synthesis_animate(met)
 ```
