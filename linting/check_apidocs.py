@@ -14,6 +14,9 @@ EXCLUDE_MODULES = [
     "conftest.py",
 ]
 
+# specific public objects to exclude.
+EXCLUDE_OBJECTS = {"LoadWarning"}
+
 src_modules = pathlib.Path("src/plenoptic").glob("**/*.py")
 src_modules = [m for m in src_modules if m.name not in EXCLUDE_MODULES]
 # match public functions and classes that aren't nested (i.e., no tabs, don't start with
@@ -74,7 +77,7 @@ for module in src_modules:
         api_objs.extend(match_dict.get(mod_name, []))
     module_text = module.read_text()
     src_objs = re.findall(src_pattern, module_text)
-    if missing_objs := set(src_objs) - set(api_objs):
+    if missing_objs := set(src_objs) - set(api_objs) - EXCLUDE_OBJECTS:
         src_not_api.append((module, missing_objs))
 
 

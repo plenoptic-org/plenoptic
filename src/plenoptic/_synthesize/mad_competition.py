@@ -731,6 +731,7 @@ class MADCompetition(OptimizedSynthesis):
         self,
         file_path: str,
         map_location: str | None = None,
+        raise_on_checks: bool = True,
         tensor_equality_atol: float = 1e-8,
         tensor_equality_rtol: float = 1e-5,
         **pickle_load_args: Any,
@@ -747,6 +748,9 @@ class MADCompetition(OptimizedSynthesis):
            load behavior changed in a backwards-incompatible manner in order to
            compatible with breaking changes in torch 2.6.
 
+        .. versionchanged:: 2.0.0
+           Adds ``raise_on_checks`` argument.
+
         Parameters
         ----------
         file_path
@@ -757,6 +761,14 @@ class MADCompetition(OptimizedSynthesis):
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to :class:`torch.device`.
+        raise_on_checks
+            During load, we perform several checks to ensure that the saved object was
+            initialized in the same way as the loading object. This is to ensure that
+            the model, image, etc. are all the same and avoid unpleasant surprises. If
+            ``True``, we raise a ``ValueError`` if any of these checks fail. If
+            ``False``, we instead raise a ``LoadWarning``. The intended use here is if
+            you're loading something that was saved with an older version of plenoptic
+            and you're sure that you're doing everything correctly.
         tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
@@ -840,6 +852,7 @@ class MADCompetition(OptimizedSynthesis):
             check_attributes=check_attributes,
             check_io_attributes=check_io_attrs,
             state_dict_attributes=["_optimizer", "_scheduler"],
+            raise_on_checks=raise_on_checks,
             tensor_equality_atol=tensor_equality_atol,
             tensor_equality_rtol=tensor_equality_rtol,
             **pickle_load_args,

@@ -309,6 +309,30 @@ def _find_min_int(vals: list[int]) -> int:
     return min_int
 
 
+class LoadWarning(UserWarning):
+    """
+    Custom warning to raise if there's an issue with loading.
+
+    And we do not want it to result in an error.
+    """
+
+    pass
+
+
+def _warn_raise(message: str, should_raise: bool = True):
+    """
+    Raise a warning or a ValueError with appropriate message.
+
+    If ``should_raise``, we raise a ValueError. Else, we warn with our
+    custom ``LoadWarning`` class.
+    """  # noqa: DOC501
+    # numpydoc ignore=PR01
+    if should_raise:
+        raise ValueError(message)
+    else:
+        warnings.warn(message, category=LoadWarning)
+
+
 def _check_tensor_equality(
     x: Tensor,
     y: Tensor,
@@ -316,6 +340,7 @@ def _check_tensor_equality(
     yname: str = "y",
     rtol: float = 1e-5,
     atol: float = 1e-8,
+    raise_on_checks: bool = True,
     error_prepend_str: str = "Different {error_type}",
     error_append_str: str = "",
 ):
@@ -334,6 +359,10 @@ def _check_tensor_equality(
     rtol, atol
         Relative and absolute tolerance for value comparison, passed to
         :func:`torch.allclose`.
+    raise_on_checks
+        Determines behavior if any of the checks fail. If ``True``, we raise a
+        ``ValueError``. If ``False``, we instead raise a ``LoadWarning``. The
+        exception is checking the device, that always results in a ``ValueError``.
     error_prepend_str
         String to start error message with, should contain the string-formatting field
         ``"{error_type}"``.
@@ -356,6 +385,7 @@ def _check_tensor_equality(
         error_str = error_str.format(
             error_type="device", xvalue=x.device, yvalue=y.device, difference=""
         )
+        error_str += " Use the map_location arg to properly load on a different device."
         raise ValueError(error_str)
     # they're allowed to be different shapes if they both have 1 element (e.g., a scalar
     # and a 1-element tensor)
@@ -363,14 +393,14 @@ def _check_tensor_equality(
         error_str = error_str.format(
             error_type="shape", xvalue=x.shape, yvalue=y.shape, difference=""
         )
-        raise ValueError(error_str)
+        _warn_raise(error_str, raise_on_checks)
     elif x.dtype != y.dtype:
         error_str = error_str.format(
             error_type="dtype", xvalue=x.dtype, yvalue=y.dtype, difference=""
         )
-        raise ValueError(error_str)
+        _warn_raise(error_str, raise_on_checks)
     elif not torch.allclose(x, y, rtol=rtol, atol=atol):
         error_str = error_str.format(
             error_type="values", xvalue=x, yvalue=y, difference=f"\nDifference: {x - y}"
         )
-        raise ValueError(error_str)
+        _warn_raise(error_str, raise_on_checks)
