@@ -10,6 +10,7 @@
 [![codecov](https://codecov.io/gh/plenoptic-org/plenoptic/branch/main/graph/badge.svg?token=EDtl5kqXKA)](https://codecov.io/gh/plenoptic-org/plenoptic)
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/format.json)](https://github.com/astral-sh/ruff)
+[![pyOpenSci Peer-Reviewed](https://pyopensci.org/badges/peer-reviewed.svg)](https://github.com/pyOpenSci/software-review/issues/150)
 
 :::{image} /_static/images/Plenoptic_Logo_CMYK_Full_DarkMode_Wide.svg
 :alt: plenoptic logo
