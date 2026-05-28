@@ -783,7 +783,7 @@ def synthesis_imshow(
         the course of synthesis.
     :func:`~plenoptic.plot.mad_imshow_all`
         Display all MAD Competition images from a complete set of four
-        :class:`MADCompetition` instances.
+        :class:`~plenoptic.MADCompetition` instances.
     :func:`~plenoptic.plot.eigendistortion_imshow_all`
         Display base image, eigendistortions alone, and eigendistortions added to image
         together in a single figure.
