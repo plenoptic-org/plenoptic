@@ -13,6 +13,8 @@ import torch
 from skimage import color
 from torch import Tensor
 
+from .io import LoadWarning
+
 NUMPY_TO_TORCH_TYPES = {
     bool: torch.bool,  # np.bool deprecated in fav of built-in
     np.uint8: torch.uint8,
@@ -307,16 +309,6 @@ def _find_min_int(vals: list[int]) -> int:
     except ValueError:
         min_int = max(flat_vals) + 1
     return min_int
-
-
-class LoadWarning(UserWarning):
-    """
-    Custom warning to raise if there's an issue with loading.
-
-    And we do not want it to result in an error.
-    """
-
-    pass
 
 
 def _warn_raise(message: str, should_raise: bool = True):
