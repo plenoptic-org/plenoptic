@@ -1,3 +1,4 @@
+import copy
 import math
 from contextlib import nullcontext as does_not_raise
 
@@ -23,6 +24,17 @@ def custom_penalty2(x1):
 
 
 class TestMetamers:
+    @pytest.fixture(scope="class")
+    def gaussian_einstein_img_metamer_saved(self, einstein_img, tmp_path_factory):
+        model = po.models.Gaussian((31, 31))
+        po.remove_grad(model)
+        model.eval()
+        met = po.Metamer(einstein_img, model)
+        met.synthesize(2)
+        save_path = tmp_path_factory.mktemp("data") / "tmp.pt"
+        met.save(save_path)
+        return save_path
+
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
@@ -1293,3 +1305,224 @@ class TestMetamers:
         with pytest.warns(UserWarning, match="loss iteration and iteration for"):
             prog = met.get_progress(-2)
         assert torch.isnan(prog["penalties"])
+
+    @pytest.mark.parametrize(
+        "model",
+        ["naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("attr", ["loss", "penalty", "model"])
+    def test_load_same_names(
+        self, gaussian_einstein_img_metamer_saved, einstein_img, model, attr
+    ):
+        # test that if we have a different object with same name and behavior, there's
+        # no problem with loading:
+        loss_func = po.loss.mse
+        penalty = po.regularize.penalize_range
+        if attr == "loss":
+
+            def mse(*args, **kwargs):
+                return po.metric.mse(*args, **kwargs)
+
+            loss_func = mse
+        elif attr == "penalty":
+
+            def penalize_range(*args, **kwargs):
+                return po.regularize.penalize_range(*args, **kwargs)
+
+            penalty = penalize_range
+        elif attr == "model":
+
+            class Gaussian(po.models.Gaussian):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+
+            model = Gaussian((31, 31)).to(DEVICE)
+            po.remove_grad(model)
+            model.eval()
+        met = po.Metamer(einstein_img, model, loss_func, penalty)
+        met.load(gaussian_einstein_img_metamer_saved)
+        # basically, the following just ensures that the above does what I think it does
+        if attr == "loss":
+            assert met.loss_function != po.loss.mse
+        else:
+            assert met.loss_function == po.loss.mse
+        if attr == "penalty":
+            assert met.penalty_function != po.regularize.penalize_range
+        else:
+            assert met.penalty_function == po.regularize.penalize_range
+        if attr == "model":
+            assert model.__class__ != po.models.Gaussian
+        else:
+            assert model.__class__ == po.models.Gaussian
+
+    @pytest.mark.parametrize(
+        "model",
+        ["naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("attr", ["loss_function", "penalty_function", "model"])
+    def test_raise_on_checks_diff_name(
+        self, gaussian_einstein_img_metamer_saved, einstein_img, model, attr
+    ):
+        # test that if we have a different object with different name and same behavior,
+        # need to set raise_on_checks=False to load, and it only raises one warning,
+        # about the name
+        loss_func = po.loss.mse
+        penalty = po.regularize.penalize_range
+        if attr == "loss_function":
+
+            def mse_wrong(*args, **kwargs):
+                return po.metric.mse(*args, **kwargs)
+
+            loss_func = mse_wrong
+        elif attr == "penalty_function":
+
+            def penalize_range_wrong(*args, **kwargs):
+                return po.regularize.penalize_range(*args, **kwargs)
+
+            penalty = penalize_range_wrong
+        elif attr == "model":
+
+            class GaussianWrong(po.models.Gaussian):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+
+            model = GaussianWrong((31, 31)).to(DEVICE)
+            po.remove_grad(model)
+            model.eval()
+        met = po.Metamer(einstein_img, model, loss_func, penalty)
+        error_str = f"Saved and initialized {attr} have different names"
+        with pytest.raises(ValueError, match=error_str):
+            met.load(gaussian_einstein_img_metamer_saved)
+        met = po.Metamer(einstein_img, model, loss_func, penalty)
+        with pytest.warns(po.io.LoadWarning) as record:
+            met.load(gaussian_einstein_img_metamer_saved, raise_on_checks=False)
+            assert len(record) == 1
+            assert record[0].message.args[0].startswith(error_str)
+
+    @pytest.mark.parametrize(
+        "model",
+        ["naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    def test_raise_on_checks_new_attr(
+        self, gaussian_einstein_img_metamer_saved, einstein_img, model
+    ):
+        # proxy for plenoptic changing API of metamer: test that creating a variant of
+        # Metamer with a new attribute refuses load regularly, and loads with only that
+        # warning if raise_on_checks=False
+        class Metamer(po.Metamer):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.new_attribute = True
+
+        met = Metamer(einstein_img, model)
+        error_str = "Saved object was a plenoptic.Metamer"
+        with pytest.raises(ValueError, match=error_str):
+            met.load(gaussian_einstein_img_metamer_saved)
+        with pytest.warns(po.io.LoadWarning) as record:
+            met.load(gaussian_einstein_img_metamer_saved, raise_on_checks=False)
+            assert len(record) == 2
+            assert record[0].message.args[0].startswith(error_str)
+            assert (
+                record[1]
+                .message.args[0]
+                .startswith("Initialized object has 1 attribute")
+            )
+        assert met.new_attribute is True
+
+    @pytest.mark.parametrize(
+        "model",
+        ["frontend.OnOff.nograd"],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("tensor_problem", ["shape", "value"])
+    def test_raise_on_checks_different(
+        self, gaussian_einstein_img_metamer_saved, einstein_img, model, tensor_problem
+    ):
+        # users *shouldn't* do the behavior shown here, but just to ensure I know what
+        # happens in these cases: we're going to change all the initial arguments and
+        # see that the load can happen anyway with raise_on_checks=False, and then
+        # assert whether the attribute came from the saved or initialized object. we
+        # have to test the dtype, shape, value individually, the others can be tested at
+        # once.
+        if tensor_problem == "shape":
+            image = einstein_img[..., :100, :100]
+        elif tensor_problem == "value":
+            image = torch.rand_like(einstein_img)
+
+        def penalty(*args):
+            return po.regularize.penalize_range(*args, (0.5, 1))
+
+        met = po.Metamer(image, model, po.loss.l2_norm, penalty, 1)
+        with pytest.warns(po.io.LoadWarning) as record:
+            met.load(gaussian_einstein_img_metamer_saved, raise_on_checks=False)
+            assert len(record) == 8
+            errors = [
+                ("attribute image", tensor_problem),
+                ("penalty_lambda", False),
+                ("loss_function output", "values"),
+                ("penalty_function output", "values"),
+                ("model output", "shape"),
+                ("loss_function", "names"),
+                ("penalty_function", "names"),
+                ("model", "names"),
+            ]
+            for rec, (attr, err) in zip(record, errors):
+                if not err:
+                    assert rec.message.args[0].startswith(
+                        f"Saved and initialized {attr} are different"
+                    )
+                else:
+                    assert rec.message.args[0].startswith(
+                        f"Saved and initialized {attr} have different {err}"
+                    )
+        # image and penalty_lambda, the non-callables, are set to the saved values
+        assert torch.equal(met.image, einstein_img)
+        assert met.penalty_lambda == 0.1
+        # all the callables are set to the initialized values
+        assert met.loss_function == po.loss.l2_norm
+        assert met.penalty_function == penalty
+        assert met.model.__class__ == po.models.OnOff
+
+    @pytest.mark.parametrize(
+        "model",
+        ["naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    def test_raise_on_checks_dtype_error(
+        self, gaussian_einstein_img_metamer_saved, einstein_img_double, model
+    ):
+        # dtype and device issues will still raise errors, even if raise_on_checks,
+        # because things are weird else: model should only operate on a single
+        # dtype/device, so why expect it to operate on different versions in
+        # initialization and load? also, there are better ways to fix this issue: the to
+        # method / map_location arg.
+        model = copy.deepcopy(model).to(torch.float64)
+        met = po.Metamer(einstein_img_double, model)
+        error_str = "Saved and initialized attribute image have different dtype"
+        with pytest.raises(ValueError, match=error_str):
+            met.load(gaussian_einstein_img_metamer_saved)
+            met.load(gaussian_einstein_img_metamer_saved, raise_on_checks=False)
+
+    @pytest.mark.parametrize(
+        "model",
+        ["naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only do this on cuda")
+    def test_raise_on_checks_device_error(
+        self, gaussian_einstein_img_metamer_saved, einstein_img, model
+    ):
+        # dtype and device issues will still raise errors, even if raise_on_checks,
+        # because things are weird else: model should only operate on a single
+        # dtype/device, so why expect it to operate on different versions in
+        # initialization and load? also, there are better ways to fix this issue: the to
+        # method / map_location arg.
+        model = copy.deepcopy(model).to("cpu")
+        met = po.Metamer(einstein_img.to("cpu"), model)
+        error_str = "Saved and initialized image have different device"
+        with pytest.raises(ValueError, match=error_str):
+            met.load(gaussian_einstein_img_metamer_saved)
+            met.load(gaussian_einstein_img_metamer_saved, raise_on_checks=False)

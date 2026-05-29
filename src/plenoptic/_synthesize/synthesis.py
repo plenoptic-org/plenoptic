@@ -399,11 +399,18 @@ class Synthesis(abc.ABC):
             save_not_init_str = "\n ".join(
                 [f"{k}: {tmp_dict[k]}" for k in save_not_init]
             )
-            _warn_raise(
-                f"Saved object has {len(save_not_init)} attribute(s) "
-                f"not present in the initialized object!\n {save_not_init_str}",
-                raise_on_checks,
-            )
+            if raise_on_checks:
+                error_str = (
+                    f"Saved object has {len(save_not_init)} attribute(s) "
+                    f"not present in the initialized object!\n {save_not_init_str}",
+                )
+            else:
+                error_str = (
+                    f"Saved object has {len(save_not_init)} attribute(s) "
+                    "not present in the initialized object; they will be ignored!"
+                    f"\n {save_not_init_str}",
+                )
+            _warn_raise(error_str, raise_on_checks)
         for k in check_attributes:
             # The only hidden attributes we'd check are those like
             # penalty_lambda, where this function is checking the

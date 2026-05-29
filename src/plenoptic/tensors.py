@@ -390,7 +390,10 @@ def _check_tensor_equality(
         error_str = error_str.format(
             error_type="dtype", xvalue=x.dtype, yvalue=y.dtype, difference=""
         )
-        _warn_raise(error_str, raise_on_checks)
+        error_str += (
+            " Use the to method to ensure your synthesis object has the proper dtype."
+        )
+        raise ValueError(error_str)
     elif not torch.allclose(x, y, rtol=rtol, atol=atol):
         error_str = error_str.format(
             error_type="values", xvalue=x, yvalue=y, difference=f"\nDifference: {x - y}"
