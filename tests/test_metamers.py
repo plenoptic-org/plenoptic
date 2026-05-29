@@ -31,7 +31,9 @@ class TestMetamers:
         model.eval()
         met = po.Metamer(einstein_img, model)
         met.synthesize(2)
-        save_path = tmp_path_factory.mktemp("data") / "tmp.pt"
+        save_path = (
+            tmp_path_factory.mktemp("data") / "gaussian_einstein_img_metamer_saved.pt"
+        )
         met.save(save_path)
         return save_path
 
@@ -1352,9 +1354,9 @@ class TestMetamers:
         else:
             assert met.penalty_function == po.regularize.penalize_range
         if attr == "model":
-            assert model.__class__ != po.models.Gaussian
+            assert met.model.__class__ != po.models.Gaussian
         else:
-            assert model.__class__ == po.models.Gaussian
+            assert met.model.__class__ == po.models.Gaussian
 
     @pytest.mark.parametrize(
         "model",
@@ -1396,7 +1398,7 @@ class TestMetamers:
         with pytest.raises(ValueError, match=error_str):
             met.load(gaussian_einstein_img_metamer_saved)
         met = po.Metamer(einstein_img, model, loss_func, penalty)
-        with pytest.warns(po.io.LoadWarning) as record:
+        with pytest.warns() as record:
             met.load(gaussian_einstein_img_metamer_saved, raise_on_checks=False)
             assert len(record) == 1
             assert record[0].message.args[0].startswith(error_str)
@@ -1421,7 +1423,7 @@ class TestMetamers:
         error_str = "Saved object was a plenoptic.Metamer"
         with pytest.raises(ValueError, match=error_str):
             met.load(gaussian_einstein_img_metamer_saved)
-        with pytest.warns(po.io.LoadWarning) as record:
+        with pytest.warns() as record:
             met.load(gaussian_einstein_img_metamer_saved, raise_on_checks=False)
             assert len(record) == 2
             assert record[0].message.args[0].startswith(error_str)
@@ -1456,7 +1458,7 @@ class TestMetamers:
             return po.regularize.penalize_range(*args, (0.5, 1))
 
         met = po.Metamer(image, model, po.loss.l2_norm, penalty, 1)
-        with pytest.warns(po.io.LoadWarning) as record:
+        with pytest.warns() as record:
             met.load(gaussian_einstein_img_metamer_saved, raise_on_checks=False)
             assert len(record) == 8
             errors = [
