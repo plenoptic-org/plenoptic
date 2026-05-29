@@ -1,3 +1,4 @@
+import copy
 from contextlib import nullcontext as does_not_raise
 
 import matplotlib.pyplot as plt
@@ -15,6 +16,19 @@ LARGE_DIM = 100
 
 
 class TestEigendistortionSynthesis:
+    @pytest.fixture(scope="class")
+    def gaussian_einstein_img_eig_saved(self, einstein_img, tmp_path_factory):
+        model = po.models.Gaussian((31, 31))
+        po.remove_grad(model)
+        model.eval()
+        eig = po.Eigendistortion(einstein_img[..., :SMALL_DIM, :SMALL_DIM], model)
+        eig.synthesize(max_iter=2)
+        save_path = (
+            tmp_path_factory.mktemp("data") / "gaussian_einstein_img_eig_saved.pt"
+        )
+        eig.save(save_path)
+        return save_path
+
     @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
     def test_method_assertion(self, einstein_img, model):
         einstein_img = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
@@ -528,6 +542,174 @@ class TestEigendistortionSynthesis:
         ed_copy.load(tmp_path / "test_change_prec_save_load.pt")
         ed_copy.synthesize(max_iter=5)
         assert ed_copy.image.dtype == torch.float64, "dtype incorrect!"
+
+    @pytest.mark.parametrize(
+        "model",
+        ["naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    def test_load_same_names(
+        self, gaussian_einstein_img_eig_saved, einstein_img, model
+    ):
+        # test that if we have a different object with same name and behavior, there's
+        # no problem with loading:
+        class Gaussian(po.models.Gaussian):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+        model = Gaussian((31, 31)).to(DEVICE)
+        po.remove_grad(model)
+        model.eval()
+        eig = po.Eigendistortion(einstein_img[..., :SMALL_DIM, :SMALL_DIM], model)
+        eig.load(gaussian_einstein_img_eig_saved)
+        # basically, the following just ensures that the above does what I think it does
+        assert eig.model.__class__ != po.models.Gaussian
+
+    @pytest.mark.parametrize(
+        "model",
+        ["naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    def test_raise_on_checks_diff_name(
+        self, gaussian_einstein_img_eig_saved, einstein_img, model
+    ):
+        # test that if we have a different object with different name and same behavior,
+        # need to set raise_on_checks=False to load, and it only raises one warning,
+        # about the name
+
+        class GaussianWrong(po.models.Gaussian):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+        model = GaussianWrong((31, 31)).to(DEVICE)
+        po.remove_grad(model)
+        model.eval()
+        eig = po.Eigendistortion(einstein_img[..., :SMALL_DIM, :SMALL_DIM], model)
+        error_str = "Saved and initialized model have different names"
+        with pytest.raises(ValueError, match=error_str):
+            eig.load(gaussian_einstein_img_eig_saved)
+        eig = po.Eigendistortion(einstein_img[..., :SMALL_DIM, :SMALL_DIM], model)
+        with pytest.warns() as record:
+            eig.load(gaussian_einstein_img_eig_saved, raise_on_checks=False)
+            assert len(record) == 1
+            assert record[0].message.args[0].startswith(error_str)
+
+    @pytest.mark.parametrize(
+        "model",
+        ["naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    def test_raise_on_checks_new_attr(
+        self, gaussian_einstein_img_eig_saved, einstein_img, model
+    ):
+        # proxy for plenoptic changing API of metamer: test that creating a variant of
+        # Metamer with a new attribute refuses load regularly, and loads with only that
+        # warning if raise_on_checks=False
+        class Eigendistortion(po.Eigendistortion):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.new_attribute = True
+
+        eig = Eigendistortion(einstein_img[..., :SMALL_DIM, :SMALL_DIM], model)
+        error_str = "Saved object was a plenoptic.Eigendistortion"
+        with pytest.raises(ValueError, match=error_str):
+            eig.load(gaussian_einstein_img_eig_saved)
+        with pytest.warns() as record:
+            eig.load(gaussian_einstein_img_eig_saved, raise_on_checks=False)
+            assert len(record) == 2
+            assert record[0].message.args[0].startswith(error_str)
+            assert (
+                record[1]
+                .message.args[0]
+                .startswith("Initialized object has 1 attribute")
+            )
+        assert eig.new_attribute is True
+
+    @pytest.mark.parametrize(
+        "model",
+        ["frontend.OnOff.nograd"],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("tensor_problem", ["shape", "value"])
+    def test_raise_on_checks_different(
+        self, gaussian_einstein_img_eig_saved, einstein_img, model, tensor_problem
+    ):
+        # users *shouldn't* do the behavior shown here, but just to ensure I know what
+        # happens in these cases: we're going to change all the initial arguments and
+        # see that the load can happen anyway with raise_on_checks=False, and then
+        # assert whether the attribute came from the saved or initialized object. we
+        # have to test the dtype, shape, value individually, the others can be tested at
+        # once.
+        image = einstein_img[..., :SMALL_DIM, :SMALL_DIM]
+        if tensor_problem == "shape":
+            image = image[..., :16, :16]
+        elif tensor_problem == "value":
+            image = torch.rand_like(image)
+
+        eig = po.Eigendistortion(image, model)
+        with pytest.warns() as record:
+            eig.load(gaussian_einstein_img_eig_saved, raise_on_checks=False)
+            errors = [
+                ("attribute image", tensor_problem),
+                ("model output", "shape"),
+                ("model", "names"),
+            ]
+            assert len(record) == len(errors)
+            for rec, (attr, err) in zip(record, errors):
+                assert rec.message.args[0].startswith(
+                    f"Saved and initialized {attr} have different {err}"
+                )
+        # the non-callables are set to the saved values
+        assert torch.equal(eig.image, einstein_img[..., :SMALL_DIM, :SMALL_DIM])
+        # the callables are set to the initialized values
+        assert eig.model.__class__ == po.models.OnOff
+
+    @pytest.mark.parametrize(
+        "model",
+        ["naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    def test_raise_on_checks_dtype_error(
+        self, gaussian_einstein_img_eig_saved, einstein_img_double, model
+    ):
+        # dtype and device issues will still raise errors, even if raise_on_checks,
+        # because things are weird else: model should only operate on a single
+        # dtype/device, so why expect it to operate on different versions in
+        # initialization and load? also, there are better ways to fix this issue: the to
+        # method / map_location arg.
+        model = copy.deepcopy(model).to(torch.float64)
+        eig = po.Eigendistortion(
+            einstein_img_double[..., :SMALL_DIM, :SMALL_DIM], model
+        )
+        error_str = "Saved and initialized attribute image have different dtype"
+        with pytest.raises(ValueError, match=error_str):
+            eig.load(gaussian_einstein_img_eig_saved)
+        with pytest.raises(ValueError, match=error_str):
+            eig.load(gaussian_einstein_img_eig_saved, raise_on_checks=False)
+
+    @pytest.mark.parametrize(
+        "model",
+        ["naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only do this on cuda")
+    def test_raise_on_checks_device_error(
+        self, gaussian_einstein_img_eig_saved, einstein_img, model
+    ):
+        # dtype and device issues will still raise errors, even if raise_on_checks,
+        # because things are weird else: model should only operate on a single
+        # dtype/device, so why expect it to operate on different versions in
+        # initialization and load? also, there are better ways to fix this issue: the to
+        # method / map_location arg.
+        model = copy.deepcopy(model).to("cpu")
+        eig = po.Eigendistortion(
+            einstein_img[..., :SMALL_DIM, :SMALL_DIM].to("cpu"), model
+        )
+        error_str = "Saved and initialized image have different device"
+        with pytest.raises(ValueError, match=error_str):
+            eig.load(gaussian_einstein_img_eig_saved)
+        with pytest.raises(ValueError, match=error_str):
+            eig.load(gaussian_einstein_img_eig_saved, raise_on_checks=False)
 
 
 class TestAutodiffFunctions:
