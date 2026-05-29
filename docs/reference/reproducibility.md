@@ -35,6 +35,8 @@ We reproduce several results from the literature and validate these as part of o
 (compat)=
 ## Compatibility
 
+ADD SOMETHING ABOUT EAISE ON CHECKS
+
 While we try to maintain compatibility between `plenoptic` versions, `plenoptic` is under active development and so the API of its objects may change. Similar to the comments on reproducibility above, we cannot guarantee that you will be able to load a `plenoptic` object saved with a different version of `plenoptic` or `pytorch`. The following notes known breaking changes and how, if possible, to load your object anyway.
 
 Note that you should always be able to load in the saved object using `pytorch` directly, like so:
