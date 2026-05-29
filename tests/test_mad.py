@@ -1359,6 +1359,7 @@ class TestMAD:
         error_str = "Saved and initialized attribute image have different dtype"
         with pytest.raises(ValueError, match=error_str):
             mad.load(ssim_einstein_img_mad_saved)
+        with pytest.raises(ValueError, match=error_str):
             mad.load(ssim_einstein_img_mad_saved, raise_on_checks=False)
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only do this on cuda")
@@ -1379,4 +1380,5 @@ class TestMAD:
         error_str = "Saved and initialized image have different device"
         with pytest.raises(ValueError, match=error_str):
             mad.load(ssim_einstein_img_mad_saved)
+        with pytest.raises(ValueError, match=error_str):
             mad.load(ssim_einstein_img_mad_saved, raise_on_checks=False)

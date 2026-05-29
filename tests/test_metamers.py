@@ -1506,6 +1506,7 @@ class TestMetamers:
         error_str = "Saved and initialized attribute image have different dtype"
         with pytest.raises(ValueError, match=error_str):
             met.load(gaussian_einstein_img_metamer_saved)
+        with pytest.raises(ValueError, match=error_str):
             met.load(gaussian_einstein_img_metamer_saved, raise_on_checks=False)
 
     @pytest.mark.parametrize(
@@ -1527,4 +1528,5 @@ class TestMetamers:
         error_str = "Saved and initialized image have different device"
         with pytest.raises(ValueError, match=error_str):
             met.load(gaussian_einstein_img_metamer_saved)
+        with pytest.raises(ValueError, match=error_str):
             met.load(gaussian_einstein_img_metamer_saved, raise_on_checks=False)
