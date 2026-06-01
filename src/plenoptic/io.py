@@ -33,7 +33,7 @@ class LoadWarning(UserWarning):
     >>> met.save("load_warning_example.pt")
     >>> # this loss function has a different name but the same behavior
     >>> met = po.Metamer(po.data.einstein(), model, lambda *args: po.loss.mse(*args))
-    >>> with warnings.catch_warnings(record=True, category=po.io.LoadWarning) as warned:
+    >>> with warnings.catch_warnings(record=True) as warned:
     ...     met.load("load_warning_example.pt", raise_on_checks=False)
     ...     print(len(warned), warned[0].category)
     1 <class 'plenoptic.io.LoadWarning'>
