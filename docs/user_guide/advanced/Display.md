@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.19.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -148,19 +148,17 @@ met.synthesize(
 )
 ```
 
-After we've run synthesis for a while, we want to investigate how close we are. We can examine the numbers printed out above, but it's probably useful to plot something. We provide the {func}`~plenoptic.plot.metamer_synthesis_status` function for doing this. By default, it includes the synthesized image, the loss, and the representation error. That lost plot is the same as the one above, except it plots `data = base_representation - synthesized_representation`.
+After we've run synthesis for a while, we want to investigate how close we are. We can examine the numbers printed out above, but it's probably useful to plot something. We provide the {func}`~plenoptic.plot.synthesis_status` function for doing this. By default, it includes the synthesized image, the loss, and the representation error. That lost plot is the same as the one above, except it plots `data = base_representation - synthesized_representation`.
 
 ```{code-cell} ipython3
 # we have two image plots for representation error, so that bit should be 2x wider
-fig = po.plot.metamer_synthesis_status(
-    met, width_ratios={"metamer_representation_error": 2.1}
-)
+fig = po.plot.synthesis_status(met, width_ratios={"metamer_representation_error": 2.1})
 ```
 
 You can also create this plot at different iterations, in order to try and better understand what's happening
 
 ```{code-cell} ipython3
-fig = po.plot.metamer_synthesis_status(
+fig = po.plot.synthesis_status(
     met, iteration=10, width_ratios={"metamer_representation_error": 2.1}
 )
 ```
@@ -168,13 +166,13 @@ fig = po.plot.metamer_synthesis_status(
 The appearance of this figure is very customizable. There are several additional plots that can be included, and all plots are optional. The additional plot below is two histograms comparing the pixel values of the synthesized and base signal.
 
 ```{code-cell} ipython3
-fig = po.plot.metamer_synthesis_status(
+fig = po.plot.synthesis_status(
     met,
     included_plots=[
-        "metamer_imshow",
-        "metamer_loss",
+        "synthesis_imshow",
+        "synthesis_loss",
         "metamer_representation_error",
-        "metamer_pixel_values",
+        "synthesis_histogram",
     ],
     width_ratios={"metamer_representation_error": 2.1},
 )
@@ -184,9 +182,9 @@ In addition to being able to customize which plots to include, you can also pre-
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 2, figsize=(12, 12))
-fig = po.plot.metamer_synthesis_status(
+fig = po.plot.synthesis_status(
     met,
-    included_plots=["metamer_imshow", "metamer_loss", "metamer_pixel_values"],
+    included_plots=["synthesis_imshow", "synthesis_loss", "synthesis_histogram"],
     fig=fig,
 )
 ```
@@ -195,10 +193,10 @@ For even more flexibility, you can specify which plot should go in which axes, b
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 2, figsize=(12, 12))
-axes_idx = {"metamer_imshow": 3, "metamer_pixel_values": 0}
-fig = po.plot.metamer_synthesis_status(
+axes_idx = {"synthesis_imshow": 3, "synthesis_histogram": 0}
+fig = po.plot.synthesis_status(
     met,
-    included_plots=["metamer_imshow", "metamer_loss", "metamer_pixel_values"],
+    included_plots=["synthesis_imshow", "synthesis_loss", "synthesis_histogram"],
     fig=fig,
     axes_idx=axes_idx,
 )
@@ -208,8 +206,8 @@ This allows enables you to create more complicated figures, with axes containing
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 3, figsize=(17, 12))
-# to tell metamer_synthesis_status to ignore plots, add them to the misc keys
-axes_idx = {"metamer_imshow": 5, "misc": [0, 4]}
+# to tell synthesis_status to ignore plots, add them to the misc keys
+axes_idx = {"synthesis_imshow": 5, "misc": [0, 4]}
 axes[0, 0].text(0.5, 0.5, "SUPER COOL TEXT", color="r")
 axes[1, 0].arrow(
     0,
@@ -218,20 +216,20 @@ axes[1, 0].arrow(
     0.25,
 )
 axes[0, 0].plot(np.linspace(0, 1), np.random.rand(50))
-fig = po.plot.metamer_synthesis_status(
+fig = po.plot.synthesis_status(
     met,
-    included_plots=["metamer_imshow", "metamer_loss", "metamer_pixel_values"],
+    included_plots=["synthesis_imshow", "synthesis_loss", "synthesis_histogram"],
     fig=fig,
     axes_idx=axes_idx,
 )
 ```
 
-We similarly have an {func}`~plenoptic.plot.metamer_animshow` function, which animates the above plots over time, and everything that I said above also holds for them. Note that {func}`~plenoptic.plot.metamer_animshow` will take a fair amount of time to run and requires [ffmpeg](https://ffmpeg.org/download.html) on your system for most file formats (see [matplotlib docs](https://matplotlib.org/stable/api/animation_api.html#writer-classes) for more details).
+We similarly have an {func}`~plenoptic.plot.synthesis_animate` function, which animates the above plots over time, and everything that I said above also holds for them. Note that {func}`~plenoptic.plot.synthesis_animate` will take a fair amount of time to run and requires [ffmpeg](https://ffmpeg.org/download.html) on your system for most file formats (see [matplotlib docs](https://matplotlib.org/stable/api/animation_api.html#writer-classes) for more details).
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 3, figsize=(17, 12))
-# to tell metamer_synthesis_status to ignore plots, add them to the misc keys
-axes_idx = {"metamer_imshow": 5, "misc": [0, 4]}
+# to tell synthesis_status to ignore plots, add them to the misc keys
+axes_idx = {"synthesis_imshow": 5, "misc": [0, 4]}
 axes[0, 0].text(0.5, 0.5, "SUPER COOL TEXT", color="r")
 axes[1, 0].arrow(
     0,
@@ -240,9 +238,9 @@ axes[1, 0].arrow(
     0.25,
 )
 axes[0, 0].plot(np.linspace(0, 1), np.random.rand(50))
-po.plot.metamer_animshow(
+po.plot.synthesis_animate(
     met,
-    included_plots=["metamer_imshow", "metamer_loss", "metamer_pixel_values"],
+    included_plots=["synthesis_imshow", "synthesis_loss", "synthesis_histogram"],
     fig=fig,
     axes_idx=axes_idx,
 )
@@ -282,11 +280,11 @@ met.synthesize(
 ```
 
 ```{code-cell} ipython3
-fig, _ = po.plot.metamer_synthesis_status(met)
+fig = po.plot.synthesis_status(met)
 ```
 
 And again, we can animate this over time:
 
 ```{code-cell} ipython3
-po.plot.metamer_animshow(met)
+po.plot.synthesis_animate(met)
 ```

@@ -1530,3 +1530,26 @@ class TestMetamers:
             met.load(gaussian_einstein_img_metamer_saved)
         with pytest.raises(ValueError, match=error_str):
             met.load(gaussian_einstein_img_metamer_saved, raise_on_checks=False)
+
+    @pytest.mark.parametrize("seed", range(3))
+    @pytest.mark.parametrize(
+        "model",
+        ["frontend.LinearNonlinear.nograd", "naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
+    def test_metamer_loss_value(self, optim, model, seed):
+        # we don't store the "metamer loss" (i.e., loss_func(model(target_img) -
+        # model(metamer_img))) directly, but we tell people they can reconstruct it, so
+        # let's test that's right
+        po.set_seed(seed)
+        img = torch.rand((1, 1, 32, 32), device=DEVICE)
+        met = po.Metamer(img, model)
+        met.setup(optimizer=optim)
+        met.synthesize(10, store_progress=True)
+        met_loss = met.losses - met.penalty_lambda * met.penalties
+        saved_rep = torch.func.vmap(model.forward)(met.saved_metamer.to(DEVICE))
+        model_loss = torch.func.vmap(met.loss_function, (0, None))(
+            saved_rep, met.target_representation
+        )
+        torch.testing.assert_close(met_loss.to(DEVICE), model_loss)

@@ -19,7 +19,7 @@ from .autodiff import (
     _fisher_info_matrix_vector_product,
     _jacobian,
 )
-from .synthesis import Synthesis
+from .synthesis import _Synthesis
 
 __all__ = [
     "Eigendistortion",
@@ -30,7 +30,7 @@ def __dir__() -> list[str]:
     return __all__
 
 
-class Eigendistortion(Synthesis):
+class Eigendistortion(_Synthesis):
     r"""
     Synthesize eigendistortions induced by a model on a given input image.
 

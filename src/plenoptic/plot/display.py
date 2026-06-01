@@ -20,6 +20,7 @@ __all__ = [
     "plot_representation",
     "pyrshow",
     "update_plot",
+    "histogram",
 ]
 
 
@@ -202,8 +203,12 @@ def imshow(
 
     Raises
     ------
+    ValueError
+        If ``images`` is not a 4d tensor or list of 4d tensors.
     TypeError
-        If ``batch_idx`` or ``channel_idx`` takes an illegal value.
+        If ``batch_idx`` or ``channel_idx`` are not an int or ``None``.
+    IndexError
+        If ``batch_idx`` or ``channel_idx`` are out of bounds.
     ValueError
         If ``zoom`` takes an illegal value.
     ValueError
@@ -216,12 +221,8 @@ def imshow(
 
     See Also
     --------
-    :func:`~plenoptic.plot.metamer_imshow`
-        Show the image synthesized by a :class:`~plenoptic.Metamer` object.
-    :func:`~plenoptic.plot.mad_imshow`
-        Show the image synthesized by a :class:`~plenoptic.MADCompetition` object.
-    :func:`~plenoptic.plot.eigendistortion_imshow`
-        Show the image synthesized by a :class:`~plenoptic.Eigendistortion` object.
+    :func:`~plenoptic.plot.synthesis_imshow`
+        Show the image synthesized by a synthesis object.
     animshow
         Animate a video.
     pyrshow
@@ -236,16 +237,24 @@ def imshow(
     """
     if not isinstance(image, list):
         image = [image]
+    if any([im.ndim != 4 for im in image]):
+        raise ValueError("imshow only accepts images as 4d tensors!")
     images_to_plot = []
     heights, widths = [], []
     for im in image:
         im = to_numpy(im)
-        if im.shape[0] > 1 and batch_idx is not None:
+        orig_shape = im.shape
+        if batch_idx is not None:
             try:
                 # this preserves the number of dimensions
                 im = im[batch_idx : batch_idx + 1]
             except TypeError:
                 raise TypeError(f"batch_idx must be an int or None but got {batch_idx}")
+            if im.shape[0] == 0:
+                raise IndexError(
+                    f"{batch_idx=} is out of bounds for dimension 0 with size "
+                    f"{orig_shape[0]}"
+                )
         if channel_idx is not None:
             try:
                 # this preserves the number of dimensions
@@ -253,6 +262,11 @@ def imshow(
             except TypeError:
                 raise TypeError(
                     f"channel_idx must be an int or None but got {channel_idx}"
+                )
+            if im.shape[1] == 0:
+                raise IndexError(
+                    f"{channel_idx=} is out of bounds for dimension 1 with size "
+                    f"{orig_shape[1]}"
                 )
         # allow RGB and RGBA
         if as_rgb:
@@ -325,13 +339,6 @@ def animshow(
     input ``image`` will correspond to a pixel or an integer number of pixels. When
     ``zoom<1``, an integer number of input elements will be averaged into a single
     pixel.
-
-    This functions returns a matplotlib FuncAnimation object. See our
-    documentation (e.g., :ref:`quickstart-nb`) for examples on how to view it in
-    a Jupyter notebook. In order to save, use ``anim.save(filename)``. In either
-    case, this can take a while and you'll need the appropriate writer installed
-    and on your path, e.g., ffmpeg, imagemagick, etc). See
-    :doc:`matplotlib documentation <matplotlib:api/animation_api>` for more details.
 
     Parameters
     ----------
@@ -436,6 +443,8 @@ def animshow(
 
     Raises
     ------
+    ValueError
+        If ``videos`` is not a 5d tensor or list of 4d tensors.
     TypeError
         If ``batch_idx`` or ``channel_idx`` takes an illegal value.
     ValueError
@@ -450,13 +459,18 @@ def animshow(
     --------
     imshow
         Display an image.
-    :func:`~plenoptic.plot.metamer_animshow`
-        Animate synthesis process for a :class:`~plenoptic.Metamer` object.
-    :func:`~plenoptic.plot.mad_animshow`
-        Animate synthesis process for a :class:`~plenoptic.MADCompetition` object.
+    :func:`~plenoptic.plot.synthesis_animate`
+        Animate synthesis process for a :class:`~plenoptic.Metamer` or a
+        :class:`~plenoptic.MADCompetition` object.
 
     Notes
     -----
+    - This functions returns a matplotlib FuncAnimation object. See below for how
+      to view to view it in a Jupyter notebook. See Examples section for how to save to
+      disk. In either case, this can take a while and you'll need the appropriate writer
+      installed and on your path, e.g., ffmpeg, imagemagick, etc). See :doc:`matplotlib
+      documentation <matplotlib:api/animation_api>` for more details.
+
     - Unless specified, we use the ffmpeg backend, which requires that you have
       ffmpeg installed and on your path (https://ffmpeg.org/download.html). To
       use a different, use the matplotlib rcParams:
@@ -465,6 +479,17 @@ def animshow(
       <https://matplotlib.org/stable/api/animation_api.html#writer-classes>`_
       for more details.
 
+    - To view in a Jupyter notebook, we recommend adding the following to the first cell
+      of your notebook (requires ffmpeg):
+
+      .. code:: python
+
+          import matplotlib.pyplot as plt
+          plt.rcParams["animation.html"] = "html5"
+          # use single-threaded ffmpeg for animation writer
+          plt.rcParams["animation.writer"] = "ffmpeg"
+          plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
+
     - This interpolation avoidance is only guaranteed for the saved image; it should
       generally hold in notebooks as well, but will fail if, e.g., you plot an image
       that's 2000 pixels wide on an monitor 1000 pixels wide; the browser handles the
@@ -472,6 +497,8 @@ def animshow(
     """
     if not isinstance(video, list):
         video = [video]
+    if any([vid.ndim != 5 for vid in video]):
+        raise ValueError("animshow only accepts videos as 5d tensors!")
     videos_to_show = []
     heights, widths = [], []
     for vid in video:
@@ -817,7 +844,7 @@ def _rescale_ylim(axes: list[mpl.axes.Axes], data: np.ndarray | torch.Tensor):
 
 
 def stem_plot(
-    data: np.ndarray,
+    data: torch.Tensor,
     ax: mpl.axes.Axes | None = None,
     title: str | None = "",
     ylim: tuple | None | Literal[False] = None,
@@ -868,10 +895,10 @@ def stem_plot(
     break up the plot, as we see below.
 
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> import numpy as np
-      >>> import matplotlib.pyplot as plt
       >>> # if ylim=None, as in this example, the minimum y-valuewill get
       >>> # set to 0, so we want to make sure our values are all positive
       >>> y = np.abs(np.random.randn(55))
@@ -887,11 +914,9 @@ def stem_plot(
     In this case, this function will just clean up the plot a little bit.
 
     .. plot::
+      :context: close-figs
 
-      >>> import plenoptic as po
-      >>> import numpy as np
-      >>> import matplotlib.pyplot as plt
-      >>> # if ylim=None, as in this example, the minimum y-valuewill get
+      >>> # if ylim=None, as in this example, the minimum y-value will get
       >>> # set to 0, so we want to make sure our values are all positive
       >>> y = np.abs(np.random.randn(55))
       >>> po.plot.stem_plot(y)
@@ -1349,3 +1374,166 @@ def plot_representation(
             data = torch.cat(list(data.values()), dim=2)
         _rescale_ylim(axes, data)
     return axes
+
+
+def histogram(
+    data: torch.Tensor | list[torch.Tensor],
+    labels: str | list[str] | None = None,
+    batch_idx: int | None = 0,
+    channel_idx: int | None = None,
+    ylim: tuple[float, float] | Literal[False] = False,
+    xlim: tuple[float, float] | Literal[False, "range"] = "range",
+    xlabel: str | Literal[False] = "Values",
+    ax: mpl.axes.Axes | None = None,
+    title: str = "Histogram of tensor values",
+    alpha: float = 0.4,
+    **kwargs: Any,
+) -> mpl.axes.Axes:
+    r"""
+    Plot histogram of values from tensor.
+
+    Intended use for this is to plot distributions of pixel values.
+
+    Parameters
+    ----------
+    data
+        The data to plot. Must either be a single tensor or a list of tensors.
+    labels
+        Labels to use for legend. Must match ``data``: if ``data`` is a single
+        tensor, must be a single string; if ``data`` is a list of tensors, must
+        be a list of the same length. If ``None``, no legend is created.
+    batch_idx
+        Which index to take from the batch (first) dimension.  If ``None``, we
+        use all batches.
+    channel_idx
+        Which index to take from the channel (second) dimension. If ``None``,
+        we use all channels.
+    ylim
+        If tuple, the ylimit to set for this axis. If ``False``, we leave
+        it untouched.
+    xlim
+        If ``"range"``, set the xlimits to the range across plotted data.
+        If tuple, the xlimit to set for this axis. If ``False``, we leave
+        it untouched.
+    xlabel
+        Label to put on the x-axis.
+    ax
+        Pre-existing axes for plot. If ``None``, we call
+        :func:`matplotlib.pyplot.gca()`.
+    title
+        Title for the axis.
+    alpha
+        Alpha value for the histogram bars.
+    **kwargs
+        Passed to :func:`matplotlib.pyplot.hist`.
+
+    Returns
+    -------
+    ax
+        Created axes.
+
+    Raises
+    ------
+    ValueError
+        If ``labels`` and ``data`` are both lists but have different lengths
+
+    See Also
+    --------
+    :func:`~plenoptic.plot.synthesis_histogram`
+        Use this function to plot histogram of values from a synthesis object.
+
+    Examples
+    --------
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
+      >>> po.plot.histogram(img)
+      <Axes: ... 'Histogram of tensor values'...>
+
+    Plot on an existing axis:
+
+    .. plot::
+      :context: close-figs
+
+      >>> fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+      >>> po.plot.histogram(img, ax=axes[1])
+      <Axes: ... 'Histogram of tensor values'...>
+    """
+
+    def _freedman_diaconis_bins(a: np.ndarray) -> int:
+        """
+        Calculate number of hist bins using Freedman-Diaconis rule.
+
+        Copied from seaborn.
+
+        Parameters
+        ----------
+        a
+            The array to histogram.
+
+        Returns
+        -------
+        n_bins
+            Number of bins to use for histogram.
+        """  # numpydoc ignore=EX01
+        # From https://stats.stackexchange.com/questions/798/
+        a = np.asarray(a)
+        iqr = np.diff(np.percentile(a, [0.25, 0.75]))[0]
+        if len(a) < 2:
+            return 1
+        h = 2 * iqr / (len(a) ** (1 / 3))
+        # fall back to sqrt(a) bins if iqr is 0
+        if h == 0:
+            return int(np.sqrt(a.size))
+        else:
+            return int(np.ceil((a.max() - a.min()) / h))
+
+    if not isinstance(data, list):
+        data = [data]
+
+    if labels is None:
+        create_legend = False
+        # so we can iterate through labels along with data
+        labels = len(data) * [""]
+    else:
+        create_legend = True
+        if not isinstance(labels, list):
+            labels = [labels]
+        if len(labels) != len(data):
+            raise ValueError("labels must have the same length as data!")
+
+    if batch_idx is not None:
+        data = [d[batch_idx] for d in data]
+    if channel_idx is not None:
+        data = [d[channel_idx] for d in data]
+    data = [to_numpy(d).flatten() for d in data]
+
+    if xlim == "range":
+        tmp_data = np.concatenate(data)
+        xlim = (tmp_data.min(), tmp_data.max())
+
+    if ax is None:
+        ax = plt.gca()
+
+    for d, lab in zip(data, labels):
+        ax.hist(
+            d,
+            bins=min(_freedman_diaconis_bins(d), 50),
+            label=lab,
+            alpha=alpha,
+            **kwargs,
+        )
+
+    if create_legend:
+        ax.legend()
+    if ylim:
+        ax.set_ylim(ylim)
+    if xlim:
+        ax.set_xlim(xlim)
+    if xlabel:
+        ax.set_xlabel(xlabel)
+    ax.set_title(title)
+    return ax

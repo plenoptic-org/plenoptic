@@ -23,7 +23,7 @@ from tqdm.auto import tqdm
 from .. import regularize
 from ..convergence import _loss_convergence
 from ..validate import validate_input, validate_metric
-from .synthesis import OptimizedSynthesis
+from .synthesis import _OptimizedSynthesis
 
 __all__ = [
     "MADCompetition",
@@ -34,7 +34,7 @@ def __dir__() -> list[str]:
     return __all__
 
 
-class MADCompetition(OptimizedSynthesis):
+class MADCompetition(_OptimizedSynthesis):
     r"""
     Synthesize a single maximally-differentiating image for two metrics.
 

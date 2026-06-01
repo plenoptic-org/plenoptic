@@ -161,7 +161,7 @@ class PortillaSimoncelli(nn.Module):
       <Figure size ... with 4 Axes>
       >>> axes[0].xaxis.set_visible(False)
       >>> axes[0].yaxis.set_visible(False)
-      >>> po.plot.metamer_synthesis_status(met, fig=fig, axes_idx={"misc": 0})[0]
+      >>> po.plot.synthesis_status(met, fig=fig, axes_idx={"misc": 0})
       <Figure size ...>
     """
 
