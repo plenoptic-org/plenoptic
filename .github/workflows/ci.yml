@@ -115,7 +115,9 @@ jobs:
         #    for our custom LoadWarning, which we do some specific working with).
         # 2. for some reason, much quicker when run in sequence (-n 0) rather
         #    than parallel.
-        pytest -n 0 --doctest-continue-on-failure --doctest-modules src/ -W "ignore" -W 'default::plenoptic.io.LoadWarning'
+        # 3. import-mode=importlib works for doctests (avoiding an import path
+        #    error for src/plenoptic/conftest.py) but not for our regular tests
+        pytest -n 0 --import-mode=importlib --doctest-continue-on-failure --doctest-modules src/ -W "ignore" -W 'default::plenoptic.io.LoadWarning'
   check_sphinx_references:
     runs-on: ubuntu-latest
     name: Check sphinx references
