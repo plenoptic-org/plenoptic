@@ -255,9 +255,9 @@ fig = po.plot.imshow(
 fig.add_axes([0.33, -1, 0.33, 0.9])
 fig.add_axes([0.67, -1, 0.33, 0.9])
 # this helper function expects a metamer object. see the metamer notebook for details.
-po.plot.metamer_pixel_values(met, ax=fig.axes[3])
+po.plot.synthesis_histogram(met, ax=fig.axes[3])
 fig.axes[3].set_title("Full statistics")
-po.plot.metamer_pixel_values(met_remove, ax=fig.axes[4])
+po.plot.synthesis_histogram(met_remove, ax=fig.axes[4])
 fig.axes[4].set_title("Without marginal statistics")
 ```
 

@@ -18,9 +18,11 @@ If you have any problems with this process, please open [a discussion](https://g
 (plotting-func-changes)=
 ## Plotting function changes
 
-All plotting functions in plenoptic are now present within the `plot` module. This includes those that operates on tensors (e.g., {func}`plenoptic.plot.imshow`, previously `plenoptic.imshow`) and synthesis objects (e.g., {func}`plenoptic.plot.metamer_loss`, previously `plenoptic.synthesize.metamer.plot_loss`). Therefore, to avoid name collisions and redundancies (e.g., `plenoptic.plot.plot_loss`) and to clarify which functions operate on which synthesis objects, some of the function names have been changed. See [](migration-table) and search for `plot.` for a list.
+All plotting functions in plenoptic are now present within the `plot` module. This includes those that operates on tensors (e.g., {func}`plenoptic.plot.imshow`, previously `plenoptic.imshow`) and synthesis objects (e.g., {func}`plenoptic.plot.synthesis_loss`, previously `plenoptic.synthesize.metamer.plot_loss`). Therefore, to avoid name collisions and redundancies (e.g., `plenoptic.plot.plot_loss`) and to clarify which functions operate on which synthesis objects, some of the function names have been changed. See [](migration-table) and search for `plot.` for a list.
 
-Additionally, the acceptable values for the `included_plots` arguments for {func}`~plenoptic.plot.metamer_synthesis_status`, {func}`~plenoptic.plot.metamer_animshow`, {func}`~plenoptic.plot.mad_synthesis_status`, and {func}`~plenoptic.plot.mad_animshow` have all changed to reflect the current names of their component functions. Consult their docstrings for details. (These argument names cannot be remapped automatically by the following [](migration-script) and so need to be updated manually.)
+Additionally, many of the synthesis object plotting functions have been consolidated. For example, `plenoptic.synthesize.metamer.plot_loss` and `plenoptic.synthesize.mad_competition.plot_loss`, which would accept a {class}`~plenoptic.Metamer` or {class}`~plenoptic.MADCompetition` object and plot the synthesis loss, have been consolidated into a single function: {func}`plenoptic.plot.synthesis_loss`, which accepts both object types.
+
+The argument names and acceptable argument values of these consolidated functions have changed slightly to reflect this consolidation. Consult their docstrings for details. (These updates cannot be handled automatically by the following [](migration-script) and so need to be changed manually.)
 
 (migration-script)=
 ## Migration script
@@ -55,6 +57,12 @@ The table below shows functions as they were called in plenoptic's 1.x releases 
 :header-rows: 1
 :class: search-table
 :file: migration_table.csv
+:::
+
+The following functions are completely new:
+
+:::{csv-table} New functions
+:file: new_table.csv
 :::
 
 The following functions are deprecated and no longer accessible:

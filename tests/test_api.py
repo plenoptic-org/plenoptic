@@ -12,6 +12,8 @@ UPDATED_API = _api_change.API_CHANGE
 UPDATED_API.update(_api_change.SYNTH_PLOT_FUNCS)
 UPDATED_API.update(_api_change.PLOT_FUNCS)
 
+NEW_FUNCS = _api_change.NEW
+
 
 def test_dunder_module():
     # test that all objects have __module__ that match the way they're called
@@ -85,12 +87,20 @@ def test_new_api():
         mod_name = f"plenoptic.{mod}"
         obj = eval(mod_name)
         if not inspect.ismodule(obj):
-            if mod_name not in UPDATED_API.values() and mod_name not in OLD_API:
+            if (
+                mod_name not in UPDATED_API.values()
+                and mod_name not in NEW_FUNCS
+                and mod_name not in OLD_API
+            ):
                 raise ValueError(f"{mod_name} not found in api change or old api!")
         else:
             for mod2 in dir(obj):
                 mod2_name = f"plenoptic.{mod}.{mod2}"
-                if mod2_name not in UPDATED_API.values() and mod2_name not in OLD_API:
+                if (
+                    mod2_name not in UPDATED_API.values()
+                    and mod2_name not in NEW_FUNCS
+                    and mod2_name not in OLD_API
+                ):
                     raise ValueError(f"{mod2_name} not found in api change or old api!")
 
 

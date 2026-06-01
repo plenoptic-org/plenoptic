@@ -122,7 +122,7 @@ At the most basic, all we need to do is call the {func}`~plenoptic.MADCompetitio
 
 ```{code-cell} ipython3
 mad.synthesize(max_iter=200)
-fig = po.plot.mad_synthesis_status(mad)
+fig = po.plot.synthesis_status(mad)
 ```
 
 We can see from the loss plot that SSIM's loss has decreased, while MSE's, other than a brief dip in the beginning, is staying roughly constant.
@@ -139,7 +139,7 @@ mad_ssim_max = po.MADCompetition(
 )
 mad_ssim_max.setup(0.04)
 mad_ssim_max.synthesize(max_iter=200)
-fig = po.plot.mad_synthesis_status(mad_ssim_max)
+fig = po.plot.synthesis_status(mad_ssim_max)
 ```
 
 We're making progress, but it doesn't look like `SSIM` has quite saturated. Let's see if we can make more progress!
@@ -148,7 +148,7 @@ To continue synthesis, we can simply call {func}`~plenoptic.MADCompetition.synth
 
 ```{code-cell} ipython3
 mad_ssim_max.synthesize(max_iter=300)
-fig = po.plot.mad_synthesis_status(mad_ssim_max)
+fig = po.plot.synthesis_status(mad_ssim_max)
 ```
 
 Next, let's hold SSIM constant while changing MSE. This will require changing the {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda`. We also set `stop_criterion` explicitly, to a smaller value, to allow the synthesis to continue longer.
@@ -165,7 +165,7 @@ mad_mse_min = po.MADCompetition(
 )
 mad_mse_min.setup(0.04)
 mad_mse_min.synthesize(max_iter=400, stop_criterion=1e-6)
-fig = po.plot.mad_synthesis_status(mad_mse_min)
+fig = po.plot.synthesis_status(mad_mse_min)
 ```
 
 ```{code-cell} ipython3
@@ -178,17 +178,17 @@ mad_mse_max = po.MADCompetition(
 )
 mad_mse_max.setup(0.04)
 mad_mse_max.synthesize(max_iter=200, stop_criterion=1e-6)
-fig = po.plot.mad_synthesis_status(mad_mse_max)
+fig = po.plot.synthesis_status(mad_mse_max)
 ```
 
 The image above has increased the local contrast in different parts of the image, which SSIM generally doesn't care about but MSE does. For example, the collar, which in the original image is two different shades of gray, here is black and white. Similarly with the eyes, hair, and lips.
 
-While above we displayed the synthesized image and the loss together, these are actually handled by two helper functions, {func}`~plenoptic.plot.mad_imshow` and {func}`~plenoptic.plot.mad_loss`, which can be called separately as axes-level functions. They have additional arguments that may be worth playing around with:
+While above we displayed the synthesized image and the loss together, these are actually handled by two helper functions, {func}`~plenoptic.plot.synthesis_imshow` and {func}`~plenoptic.plot.synthesis_loss`, which can be called separately as axes-level functions. They have additional arguments that may be worth playing around with:
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(1, 2, figsize=(15, 5), gridspec_kw={"width_ratios": [1, 2]})
-po.plot.mad_imshow(mad, ax=axes[0], zoom=0.5)
-po.plot.mad_loss(mad, axes=axes[1], iteration=-100);
+po.plot.synthesis_imshow(mad, ax=axes[0], zoom=0.5)
+po.plot.synthesis_loss(mad, ax=axes[1], iteration=-100);
 ```
 
 We also provide helper functions to plot a full set of MAD images together, either displaying all their synthesized images or their losses (note that we're calling our metric `SDSIM` because it's now the structural *dis*-similarity):

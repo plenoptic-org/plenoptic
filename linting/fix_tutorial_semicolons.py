@@ -55,13 +55,14 @@ for p in paths:
         last_expr = " ".join([line.strip() for line in last_expr])
         # then we've found one of our plotting functions
         if "po.plot" in last_expr and "=" not in last_expr.split("po.plot")[0]:
-            # remove the semicolon from animshow functions
-            if "animshow" in last_expr and last_expr.endswith(";"):
+            # remove the semicolon from animshow and animate functions
+            is_animate = "animshow" in last_expr or "animate" in last_expr
+            if is_animate and last_expr.endswith(";"):
                 cell["source"][-1] = cell["source"][-1][:-1]
                 updated_file = True
                 updated_any_file = True
             # add semicolon from plotting functions
-            elif "animshow" not in last_expr and not last_expr.endswith(";"):
+            elif not is_animate and not last_expr.endswith(";"):
                 cell["source"][-1] += ";"
                 updated_file = True
                 updated_any_file = True

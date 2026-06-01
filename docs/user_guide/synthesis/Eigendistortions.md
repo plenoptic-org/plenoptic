@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -327,20 +327,18 @@ Let's display the eigendistortions.
 
 ```
 
-`plenoptic` includes a {func}`~plenoptic.plot.eigendistortion_imshow_all` function to visualize multiple eigendistortiosn together. Here, we show the original image on the bottom left, with the synthesized maximal eigendistortion in the top middle, and some constant $\alpha$ times the eigendistortion added to the image in the bottom middle. The rightmost column has a similar layout, but displays the minimal eigendistortion. Let's display the eigendistortions for the maxpool layer (pretty early in the model):
+`plenoptic` includes a {func}`~plenoptic.plot.eigendistortion_imshow_all` function to visualize multiple eigendistortiosn together. Here, we show the original image on the bottom left, with the synthesized maximal eigendistortion in the top middle, and some constant `distortion_scale` times the eigendistortion added to the image in the bottom middle. The rightmost column has a similar layout, but displays the minimal eigendistortion. Let's display the eigendistortions for the maxpool layer (pretty early in the model):
 
 ```{code-cell} ipython3
 po.plot.eigendistortion_imshow_all(
-    ed_resneta, [0, -1], as_rgb=True, suptitle="ResNet18 Maxpool Layer", zoom=2
+    ed_resneta, suptitle="ResNet18 Maxpool Layer", zoom=2
 );
 ```
 
 And the eigendistortions for layer 2 (about halfway through the model):
 
 ```{code-cell} ipython3
-po.plot.eigendistortion_imshow_all(
-    ed_resnetb, [0, -1], as_rgb=True, suptitle="ResNet18 Layer2", zoom=2
-);
+po.plot.eigendistortion_imshow_all(ed_resnetb, suptitle="ResNet18 Layer2", zoom=2);
 ```
 
 ### 2.5 - Which synthesized extremal eigendistortions better characterize human perception?
@@ -375,16 +373,14 @@ Unlike our [previous example](fisher-locally-adaptive), eigendistortions for eit
 
 ```{code-cell} ipython3
 po.plot.eigendistortion_imshow_all(
-    ed_resneta, [0, -1], as_rgb=True, suptitle="ResNet18 Maxpool Layer", zoom=2
+    ed_resneta, suptitle="ResNet18 Maxpool Layer", zoom=2
 );
 ```
 
 And the eigendistortions for layer 2 (about halfway through the model):
 
 ```{code-cell} ipython3
-po.plot.eigendistortion_imshow_all(
-    ed_resnetb, [0, -1], as_rgb=True, suptitle="ResNet18 Layer2", zoom=2
-);
+po.plot.eigendistortion_imshow_all(ed_resnetb, suptitle="ResNet18 Layer2", zoom=2);
 ```
 
 (eigendistortion-math-details)=

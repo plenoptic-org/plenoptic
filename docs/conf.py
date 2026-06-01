@@ -343,7 +343,7 @@ api_order = [
     "models.rst",
     "metrics.rst",
     "top_level.rst",
-    "display.rst",
+    "plot.rst",
     "process.rst",
     "images.rst",
     "validation.rst",
@@ -482,6 +482,16 @@ for k in _api_change.DEPRECATED:
     table.append([f"`{k}`"])
 
 with deprecated_table.open("w", newline="") as f:
+    csv_writer = csv.writer(f)
+    csv_writer.writerows(table)
+
+new_table = migration_table.with_stem("new_table")
+table = []
+
+for k in _api_change.NEW:
+    table.append([f"`{k}`"])
+
+with new_table.open("w", newline="") as f:
     csv_writer = csv.writer(f)
     csv_writer.writerows(table)
 
