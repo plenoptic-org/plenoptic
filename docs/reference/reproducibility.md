@@ -35,8 +35,6 @@ We reproduce several results from the literature and validate these as part of o
 (compat)=
 ## Compatibility
 
-ADD SOMETHING ABOUT EAISE ON CHECKS
-
 While we try to maintain compatibility between `plenoptic` versions, `plenoptic` is under active development and so the API of its objects may change. Similar to the comments on reproducibility above, we cannot guarantee that you will be able to load a `plenoptic` object saved with a different version of `plenoptic` or `pytorch`. The following notes known breaking changes and how, if possible, to load your object anyway.
 
 Note that you should always be able to load in the saved object using `pytorch` directly, like so:
@@ -113,3 +111,10 @@ Note that, if `store_progress>1`, then the synthesis procedure did not cache the
 :::
 
 (The above all holds for both {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition`.)
+
+(raise-on-checks)=
+### `raise_on_checks`
+
+When loading synthesis objects, `plenoptic` is fairly conservative: we do not save callable objects (as that can allow for arbitrary code execution during load, which is dangerous), which requires you to initialize the object before loading in the saved version. Thus, while loading, we run a variety of checks to ensure that the saved object is the same as the one doing the loading. However, it is possible that we're *too* conservative, and are raising errors where they don't belong. This is especially likely across plenoptic versions or if you do something simple like change the name of an object.
+
+Starting in `plenoptic` 2.0, all synthesis object load methods have the argument `raise_on_checks`. If this is set to `True` (the default), then failing any of our checks will result in an error. If it's set to `False`, then they will instead result in a warning ({class}`plenoptic.io.LoadWarning`) being raised. It is recommended that you always run your code with `raise_on_checks=True` first, only set it to `False` if you are *certain* that the saved object is the same as the loading one, and carefully inspect all {class}`~plenoptic.io.LoadWarning` raised. See the example in the docstring of {class}`~plenoptic.io.LoadWarning` for a usage example.

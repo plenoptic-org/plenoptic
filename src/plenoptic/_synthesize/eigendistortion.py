@@ -595,7 +595,9 @@ class Eigendistortion(Synthesis):
             ``True``, we raise a ``ValueError`` if any of these checks fail. If
             ``False``, we instead raise a ``LoadWarning``. The intended use here is if
             you're loading something that was saved with an older version of plenoptic
-            and you're sure that you're doing everything correctly.
+            and you're sure that you're doing everything correctly. See
+            :ref:`raise-on-checks` on the "Reproducibility and Compatibility" page of
+            the documentation for more info.
         tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
