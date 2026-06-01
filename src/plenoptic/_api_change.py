@@ -189,4 +189,5 @@ DEPRECATED = [
 
 NEW = [
     "plenoptic.plot.histogram",
+    "plenoptic.io.LoadWarning",
 ]
