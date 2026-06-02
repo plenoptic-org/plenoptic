@@ -1525,7 +1525,7 @@ class TestMetamers:
         # method / map_location arg.
         model = copy.deepcopy(model).to("cpu")
         met = po.Metamer(einstein_img.to("cpu"), model)
-        error_str = "Saved and initialized image have different device"
+        error_str = "Saved and initialized attribute image have different device"
         with pytest.raises(ValueError, match=error_str):
             met.load(gaussian_einstein_img_metamer_saved)
         with pytest.raises(ValueError, match=error_str):

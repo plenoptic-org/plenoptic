@@ -645,7 +645,7 @@ class TestEigendistortionSynthesis:
         eig = po.Eigendistortion(
             einstein_img[..., :SMALL_DIM, :SMALL_DIM].to("cpu"), model
         )
-        error_str = "Saved and initialized image have different device"
+        error_str = "Saved and initialized attribute image have different device"
         with pytest.raises(ValueError, match=error_str):
             eig.load(gaussian_einstein_img_eig_saved)
         with pytest.raises(ValueError, match=error_str):
