@@ -50,7 +50,11 @@ def _get_name(x: object) -> str:
     except AttributeError:
         # if we're here, then it's an object
         cls = x.__class__
-        name = f"{cls.__module__}.{cls.__name__}"
+        # for synthesis objects, return them as plenoptic.OBJ_NAME
+        if "_synthesize" in cls.__module__:
+            name = f"plenoptic.{cls.__name__}"
+        else:
+            name = f"{cls.__module__}.{cls.__name__}"
     return name
 
 
@@ -265,9 +269,9 @@ class _Synthesis(abc.ABC):
         )
         metadata = tmp_dict.pop("save_metadata")
         if metadata["synthesis_object"] != _get_name(self):
-            # in PR #418 (release 2.0.0), updated __module__ of synthesis objects from
-            # plenoptic.synthesize to the top-level one. this removes .synthesize and
-            # the three synthesis modules that were used before
+            # in PR #418 (release 2.0.0), updated moved synthesis objects from
+            # plenoptic.synthesize to publicly live under the top-most one. this removes
+            # .synthesize and the three synthesis modules that were used before.
             obj_name = metadata["synthesis_object"].replace(".synthesize", "")
             for mod_name in [".metamer", ".mad_competition", ".eigendistortion"]:
                 obj_name = obj_name.replace(mod_name, "")
