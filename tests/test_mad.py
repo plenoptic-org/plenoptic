@@ -1377,7 +1377,7 @@ class TestMAD:
         mad = po.MADCompetition(
             einstein_img.to("cpu"), test_metric.nlpd, po.metric.mse, "min", 1
         )
-        error_str = "Saved and initialized image have different device"
+        error_str = "Saved and initialized attribute image have different device"
         with pytest.raises(ValueError, match=error_str):
             mad.load(ssim_einstein_img_mad_saved)
         with pytest.raises(ValueError, match=error_str):
