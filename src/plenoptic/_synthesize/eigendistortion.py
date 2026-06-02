@@ -654,6 +654,10 @@ class Eigendistortion(_Synthesis):
         # it here
         self._init_representation(self.image)
 
+    def __repr__(self) -> str:
+        # numpydoc ignore=GL08
+        return super()._repr_format(["image", "model"])
+
     @property
     def model(self) -> torch.nn.Module:
         """The model for which the eigendistortions are synthesized."""

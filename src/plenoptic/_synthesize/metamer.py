@@ -1148,6 +1148,12 @@ class Metamer(_OptimizedSynthesis):
         if len(self._saved_metamer) and self._saved_metamer[0].device.type != "cpu":
             self._saved_metamer = [met.to("cpu") for met in self._saved_metamer]
 
+    def __repr__(self) -> str:
+        # numpydoc ignore=GL08
+        return super()._repr_format(
+            ["image", "model", "loss_function", "penalty_function", "penalty_lambda"]
+        )
+
     @property
     def loss_function(self) -> Callable[[Tensor, Tensor], Tensor]:
         """Callable which specifies how close metamer representation is to target."""
@@ -2033,6 +2039,19 @@ class MetamerCTF(Metamer):
             tensor_equality_atol=tensor_equality_atol,
             tensor_equality_rtol=tensor_equality_rtol,
             **pickle_load_args,
+        )
+
+    def __repr__(self) -> str:
+        # numpydoc ignore=GL08
+        return super()._repr_format(
+            [
+                "image",
+                "model",
+                "loss_function",
+                "penalty_function",
+                "penalty_lambda",
+                "coarse_to_fine",
+            ]
         )
 
     @property

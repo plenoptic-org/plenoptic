@@ -596,6 +596,41 @@ class _Synthesis(abc.ABC):
                 elif attr is not None:
                     setattr(self, k, move(attr, k))
 
+    def _repr_format(self, attrs: list[str]) -> str:
+        """
+        Help format __repr__ output.
+
+        Representation starts with name of the class and then loops through specified
+        attributes in order. Each tensor is displayed as ``{attr.shape}
+        ({attr.dtype})``, everything else we try to grab ``attr.__name__ and``, if that
+        doesn't exist, fall back on ``repr(attr)``, indenting after newlines it contains
+        (intended use is for torch.nn.Module objects)
+
+        Parameters
+        ----------
+        attrs
+            Attributes to display.
+
+        Returns
+        -------
+        repr
+            String representation.
+        """
+        repr_str = f"{self.__class__.__name__}(\n"
+        tab = "  "
+        for name in attrs:
+            val = eval(f"self.{name}")
+            if isinstance(val, torch.Tensor):
+                repr_str += f"{tab}{name}: {val.shape} ({val.dtype}),\n"
+            else:
+                try:
+                    repr_str += f"{tab}{name}: {val.__name__},\n"
+                except AttributeError:
+                    obj_rep = repr(val).replace("\n", f"\n{tab}")
+                    repr_str += f"{tab}{name}: {obj_rep},\n"
+        repr_str += ")"
+        return repr_str
+
 
 class _OptimizedSynthesis(_Synthesis):
     r"""
