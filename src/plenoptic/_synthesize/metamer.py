@@ -964,7 +964,8 @@ class Metamer(_OptimizedSynthesis):
             ``True``, we raise a ``ValueError`` if any of these checks fail. If
             ``False``, we instead raise a ``LoadWarning``. The intended use here is if
             you're loading something that was saved with an older version of plenoptic
-            and you're sure that you're doing everything correctly. See
+            and you're sure that you're doing everything correctly. Note that different
+            devices or dtypes will always result in a ``ValueError``. See
             :ref:`raise-on-checks` on the "Reproducibility and Compatibility" page of
             the documentation for more info.
         tensor_equality_atol
@@ -1971,7 +1972,8 @@ class MetamerCTF(Metamer):
             ``True``, we raise a ``ValueError`` if any of these checks fail. If
             ``False``, we instead raise a ``LoadWarning``. The intended use here is if
             you're loading something that was saved with an older version of plenoptic
-            and you're sure that you're doing everything correctly. See
+            and you're sure that you're doing everything correctly. Note that different
+            devices or dtypes will always result in a ``ValueError``. See
             :ref:`raise-on-checks` on the "Reproducibility and Compatibility" page of
             the documentation for more info.
         tensor_equality_atol

@@ -334,7 +334,8 @@ def _check_tensor_equality(
     atol: float = 1e-8,
     raise_on_checks: bool = True,
     error_prepend_str: str = "Different {error_type}",
-    error_append_str: str = "",
+    error_append_str_1: str = "",
+    error_append_str_2: str = "",
 ):
     """
     Check two tensors for equality: device, size, dtype, and values.
@@ -354,40 +355,52 @@ def _check_tensor_equality(
     raise_on_checks
         Determines behavior if any of the checks fail. If ``True``, we raise a
         ``ValueError``. If ``False``, we instead raise a ``LoadWarning``. The
-        exception is checking the device, that always results in a ``ValueError``.
+        exception is checking the device or dtype, that always results in a
+        ``ValueError``.
     error_prepend_str
         String to start error message with, should contain the string-formatting field
         ``"{error_type}"``.
-    error_append_str
-        String to finish error message with.
+    error_append_str_1
+        String to finish error message with if issue is with shape or value.
+    error_append_str_2
+        String to finish error message with if issue is with dtype or device.
 
     Raises
     ------
     ValueError
         If any of the device, dtype, size, or values differ.
     """
-    error_str = (
+    error_str_1 = (
         f"{error_prepend_str}"
         f"\n{xname}: {{xvalue}}"
         f"\n{yname}: {{yvalue}}"
         f"{{difference}}"
-        f"{error_append_str}"
+        f"{error_append_str_1}"
+    )
+    error_str_2 = (
+        f"{error_prepend_str}"
+        f"\n{xname}: {{xvalue}}"
+        f"\n{yname}: {{yvalue}}"
+        f"{{difference}}"
+        f"{error_append_str_2}"
     )
     if x.device != y.device:
-        error_str = error_str.format(
+        error_str = error_str_2.format(
             error_type="device", xvalue=x.device, yvalue=y.device, difference=""
         )
-        error_str += " Use the map_location arg to properly load on a different device."
+        error_str += (
+            "\n\nUse the map_location arg to properly load on a different device."
+        )
         raise ValueError(error_str)
     # they're allowed to be different shapes if they both have 1 element (e.g., a scalar
     # and a 1-element tensor)
     if x.shape != y.shape and not (x.nelement() == y.nelement() == 1):
-        error_str = error_str.format(
+        error_str = error_str_1.format(
             error_type="shape", xvalue=x.shape, yvalue=y.shape, difference=""
         )
         _warn_raise(error_str, raise_on_checks)
     elif x.dtype != y.dtype:
-        error_str = error_str.format(
+        error_str = error_str_2.format(
             error_type="dtype", xvalue=x.dtype, yvalue=y.dtype, difference=""
         )
         error_str += (
@@ -395,7 +408,7 @@ def _check_tensor_equality(
         )
         raise ValueError(error_str)
     elif not torch.allclose(x, y, rtol=rtol, atol=atol):
-        error_str = error_str.format(
+        error_str = error_str_1.format(
             error_type="values", xvalue=x, yvalue=y, difference=f"\nDifference: {x - y}"
         )
         _warn_raise(error_str, raise_on_checks)

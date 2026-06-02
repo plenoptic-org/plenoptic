@@ -259,8 +259,8 @@ class _Synthesis(abc.ABC):
             If :func:`setup` will need to be called after load, to finish initializing
             one of the ``state_dict_attributes``
         """
-        check_str = (
-            "If this is confusing, try calling "
+        check_str_bare = (
+            "\n\nIf this is confusing, try calling "
             f"{_get_name(examine_saved_synthesis)}('{file_path}'),"
             " to examine saved object."
         )
@@ -269,12 +269,12 @@ class _Synthesis(abc.ABC):
         # use the value from the saved object) or a callable (in which case we use the
         # value from the initialized object, since we didn't save the actual callable).
         if not raise_on_checks:
-            check_io_str = f"\nSetting to initialized value. {check_str}"
-            check_str = f"\nSetting to saved value. {check_str}"
+            check_io_str = f"\nSetting to initialized value. {check_str_bare.strip()}"
+            check_str = f"\nSetting to saved value. {check_str_bare.strip()}"
         else:
             check_str = (
-                f"\n\n{check_str}\n\nIf you are sure these objects are the same,"
-                " call load again with raise_on_checks=False"
+                f"{check_str_bare}\n\nIf you are sure these objects are the same,"
+                " call load again with raise_on_checks=False."
             )
             check_io_str = check_str
 
@@ -430,7 +430,8 @@ class _Synthesis(abc.ABC):
                         f"Saved and initialized attribute {display_k} have "
                         f"different {{error_type}}!"
                     ),
-                    error_append_str=check_str,
+                    error_append_str_1=check_str,
+                    error_append_str_2=check_str_bare,
                     raise_on_checks=raise_on_checks,
                     atol=tensor_equality_atol,
                     rtol=tensor_equality_rtol,
@@ -502,7 +503,8 @@ class _Synthesis(abc.ABC):
                     f"Saved and initialized {display_k} output have "
                     f"different {{error_type}}!"
                 ),
-                error_append_str=check_io_str,
+                error_append_str_1=check_io_str,
+                error_append_str_2=check_str_bare,
                 raise_on_checks=raise_on_checks,
                 atol=tensor_equality_atol,
                 rtol=tensor_equality_rtol,
