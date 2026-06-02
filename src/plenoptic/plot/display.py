@@ -234,6 +234,19 @@ def imshow(
     generally hold in notebooks as well, but will fail if, e.g., you plot an image
     that's 2000 pixels wide on an monitor 1000 pixels wide; the browser handles the
     rescaling in a way we can't control.
+
+    Examples
+    --------
+
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> img_dir = po.data.fetch_data("test_images.tar.gz") / "256"
+      >>> titles = ["color_wheel", "curie", "einstein", "metal", "nuts"]
+      >>> imgs = po.load_images(img_dir)
+      >>> po.plot.imshow(imgs, title=titles)
+      <PyrFigure size ... with 5 Axes>
     """
     if not isinstance(image, list):
         image = [image]
