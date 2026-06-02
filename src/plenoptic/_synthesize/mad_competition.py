@@ -86,8 +86,6 @@ class MADCompetition(_OptimizedSynthesis):
            https://dx.doi.org/10.1167/8.12.8
     """
 
-    __module__ = "plenoptic"
-
     def __init__(
         self,
         image: Tensor,

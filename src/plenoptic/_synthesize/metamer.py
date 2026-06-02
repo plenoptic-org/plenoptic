@@ -90,8 +90,6 @@ class Metamer(_OptimizedSynthesis):
       <Figure size ...>
     """
 
-    __module__ = "plenoptic"
-
     def __init__(
         self,
         image: Tensor,
@@ -1355,8 +1353,6 @@ class MetamerCTF(Metamer):
     Traceback (most recent call last):
     AttributeError: model has no scales attribute ...
     """
-
-    __module__ = "plenoptic"
 
     def __init__(
         self,

@@ -74,8 +74,6 @@ class Eigendistortion(_Synthesis):
            https://www.cns.nyu.edu/~lcv/eigendistortions/
     """
 
-    __module__ = "plenoptic"
-
     def __init__(self, image: Tensor, model: torch.nn.Module):
         super().__init__()
         validate_input(image, no_batch=True)
