@@ -1584,13 +1584,20 @@ class TestMetamers:
 
             kwargs["loss_function"] = loss
             loss_str = "loss"
-        met = po.Metamer(einstein_img, model, **kwargs)
         if isinstance(model, po.models.PortillaSimoncelli):
             model_str = (
                 r"PortillaSimoncelli\(\n    \(_pyr\): SteerablePyramidFreq\(\)\n  \)"
             )
+            if func_type is None:
+                # Note this behavior! the loss string is "loss" (the name of the
+                # function returned by portilla_simoncelli_loss_factory), not ps_loss
+                # (the name assigned here)
+                ps_loss = po.loss.portilla_simoncelli_loss_factory(model, einstein_img)
+                kwargs["loss_function"] = ps_loss
+                loss_str = "loss"
         elif isinstance(model, po.models.Gaussian):
             model_str = r"Gaussian\(\)"
+        met = po.Metamer(einstein_img, model, **kwargs)
         expected_str = (
             r"Metamer\(\n  image = torch.Size\(\[1, 1, 256, 256\]\) "
             rf"\(torch.float32\),\n  model = {model_str},\n  "
