@@ -259,7 +259,7 @@ def imshow(
       >>> titles = ["color_wheel", "curie", "einstein", "metal", "nuts"]
       >>> imgs = po.load_images(img_dir)
       >>> print(imgs.shape)
-      torch.Size([5, 3, 256, 256])
+      torch.Size([5, 1, 256, 256])
       >>> po.plot.imshow(imgs, title=titles)
       <PyrFigure size ... with 5 Axes>
 
@@ -271,8 +271,33 @@ def imshow(
       >>> titles = ["color_wheel", "curie", "einstein", "metal", "nuts"]
       >>> imgs = po.load_images(img_dir)
       >>> batch_idx = 2
-      >>> po.plot.imshow(imgs, title=titles[2], batch_idx=batch_idx)
+      >>> po.plot.imshow(imgs, title=titles[batch_idx], batch_idx=batch_idx)
       <PyrFigure size ... >
+
+    The vrange flag will normalize image values independently or across all images.
+
+    .. plot::
+      :context: close-figs
+
+      >>> import plenoptic as po
+      >>> img_dir = po.data.fetch_data("test_images.tar.gz") / "256"
+      >>> titles = ["color_wheel", "curie", "einstein", "metal", "nuts"]
+      >>> imgs = po.load_images(img_dir)
+      >>> po.plot.imshow(imgs, title=titles, vrange="auto2")
+      <PyrFigure size ... with 5 Axes>
+
+    Value errors can occur if the as_rgb flag and image dimensions are misaligned.
+
+    .. plot::
+      :context: close-figs
+
+      >>> import plenoptic as po
+      >>> einstein = po.data.einstein()
+      >>> einstein.shape
+      torch.Size([1, 1, 256, 256])
+      >>> po.plot.imshow(einstein, as_rgb=True)
+      Traceback (most recent call last):
+      ValueError: If as_rgb is True, then channel must have 3 or 4 elements!
     """
     if not isinstance(image, list):
         image = [image]
