@@ -621,13 +621,13 @@ class _Synthesis(abc.ABC):
         for name in attrs:
             val = eval(f"self.{name}")
             if isinstance(val, torch.Tensor):
-                repr_str += f"{tab}{name}: {val.shape} ({val.dtype}),\n"
+                repr_str += f"{tab}{name} = {val.shape} ({val.dtype}),\n"
             else:
                 try:
-                    repr_str += f"{tab}{name}: {val.__name__},\n"
+                    repr_str += f"{tab}{name} = {val.__name__},\n"
                 except AttributeError:
                     obj_rep = repr(val).replace("\n", f"\n{tab}")
-                    repr_str += f"{tab}{name}: {obj_rep},\n"
+                    repr_str += f"{tab}{name} = {obj_rep},\n"
         repr_str += ")"
         return repr_str
 
