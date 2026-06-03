@@ -1,4 +1,5 @@
 import copy
+import re
 from contextlib import nullcontext as does_not_raise
 
 import pytest
@@ -755,3 +756,36 @@ class TestAutodiffFunctions:
         Jv = autodiff._jacobian_vector_product(y, x, V)
         Fv = autodiff._vector_jacobian_product(y, x, Jv)
         assert torch.diag(V.T @ Fv).sqrt().allclose(singular_value, rtol=1e-3)
+
+    @pytest.mark.parametrize(
+        "model",
+        ["frontend.OnOff.nograd", "naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("method", ["exact", "power", "randomized_svd"])
+    @pytest.mark.filterwarnings(
+        "ignore:Randomized SVD complete!:UserWarning",
+    )
+    def test_repr(self, einstein_img, model, method):
+        # don't need the regex match in this case, but keeping it here to be consistent
+        # with the other synthesis object test_repr and in case we need to extend it in
+        # the future.
+        eig = po.Eigendistortion(einstein_img[..., :SMALL_DIM, :SMALL_DIM], model)
+        if isinstance(model, po.models.OnOff):
+            model_str = (
+                r"OnOff\(\n    \(center_surround\): CenterSurround\(\)\n    "
+                r"\(luminance\): Gaussian\(\)\n    \(contrast\): Gaussian\(\)"
+                r"\n  \)"
+            )
+        elif isinstance(model, po.models.Gaussian):
+            model_str = r"Gaussian\(\)"
+        expected_str = (
+            rf"Eigendistortion\(\n  image = torch.Size\(\[1, 1, 20, 20\]\)"
+            rf" \(torch.float32\),\n  model = {model_str},\n\)"
+        )
+        assert repr(eig) == str(eig)
+        assert re.match(expected_str, repr(eig))
+        # synthesize doesn't change repr
+        eig.synthesize(method=method, max_iter=2)
+        assert repr(eig) == str(eig)
+        assert re.match(expected_str, repr(eig))
