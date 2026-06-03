@@ -6,6 +6,11 @@ import pytest
 import torch
 
 import plenoptic as po
+
+# from test_metric, we're grabbing the nlpd wrapper with a lower epsilon. need to do it
+# this way (instead of `from test_metric import nlpd`) to avoid name collisions in
+# test_load_same_names
+import test_metric
 from conftest import DEVICE, check_loss_saved_synth
 
 
@@ -49,6 +54,14 @@ class NonModuleMetric:
 
 
 class TestMAD:
+    @pytest.fixture(scope="class")
+    def ssim_einstein_img_mad_saved(self, einstein_img, tmp_path_factory):
+        mad = po.MADCompetition(einstein_img, test_metric.nlpd, po.metric.mse, "min", 1)
+        mad.synthesize(2)
+        save_path = tmp_path_factory.mktemp("data") / "ssim_einstein_img_mad_saved.pt"
+        mad.save(save_path)
+        return save_path
+
     @pytest.mark.parametrize("target", ["min", "max"])
     @pytest.mark.parametrize("model_order", ["mse-ssim", "ssim-mse"])
     @pytest.mark.parametrize("store_progress", [False, True, 2])
@@ -1155,3 +1168,217 @@ class TestMAD:
             mad.setup(torch.rand(shape, device=DEVICE))
             loss = mad.objective_function()
             assert loss == mad._closure()
+
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.parametrize(
+        "attr", ["optimized_metric", "reference_metric", "penalty_function"]
+    )
+    def test_load_same_names(self, ssim_einstein_img_mad_saved, einstein_img, attr):
+        # test that if we have a different object with same name and behavior, there's
+        # no problem with loading:
+        opt_metric = test_metric.nlpd
+        ref_metric = po.metric.mse
+        penalty = po.regularize.penalize_range
+        if attr == "optimized_metric":
+
+            def nlpd(*args):
+                return test_metric.nlpd(*args)
+
+            opt_metric = nlpd
+        elif attr == "reference_metric":
+
+            def mse(*args):
+                return po.metric.mse(*args)
+
+            ref_metric = mse
+        elif attr == "penalty_function":
+
+            def penalize_range(*args, **kwargs):
+                return po.regularize.penalize_range(*args, **kwargs)
+
+            penalty = penalize_range
+        mad = po.MADCompetition(einstein_img, opt_metric, ref_metric, "min", 1, penalty)
+        mad.load(ssim_einstein_img_mad_saved)
+        # basically, the following just ensures that the above does what I think it does
+        if attr == "optimized_metric":
+            assert mad.optimized_metric != test_metric.nlpd
+        else:
+            assert mad.optimized_metric == test_metric.nlpd
+        if attr == "reference_metric":
+            assert mad.reference_metric != po.metric.mse
+        else:
+            assert mad.reference_metric == po.metric.mse
+        if attr == "penalty_function":
+            assert mad.penalty_function != po.regularize.penalize_range
+        else:
+            assert mad.penalty_function == po.regularize.penalize_range
+
+    @pytest.mark.parametrize(
+        "attr", ["optimized_metric", "reference_metric", "penalty_function"]
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_raise_on_checks_diff_name(
+        self, ssim_einstein_img_mad_saved, einstein_img, attr
+    ):
+        # test that if we have a different object with different name and same behavior,
+        # need to set raise_on_checks=False to load, and it only raises one warning,
+        # about the name
+        opt_metric = test_metric.nlpd
+        ref_metric = po.metric.mse
+        penalty = po.regularize.penalize_range
+        if attr == "optimized_metric":
+
+            def nlpd_wrong(*args):
+                return po.metric.nlpd(*args, 1e-20)
+
+            opt_metric = nlpd_wrong
+        elif attr == "reference_metric":
+
+            def mse_wrong(*args):
+                return po.metric.mse(*args)
+
+            ref_metric = mse_wrong
+        elif attr == "penalty_function":
+
+            def penalize_range_wrong(*args, **kwargs):
+                return po.regularize.penalize_range(*args, **kwargs)
+
+            penalty = penalize_range_wrong
+        mad = po.MADCompetition(einstein_img, opt_metric, ref_metric, "min", 1, penalty)
+        error_str = f"Saved and initialized {attr} have different names"
+        with pytest.raises(ValueError, match=error_str):
+            mad.load(ssim_einstein_img_mad_saved)
+        mad = po.MADCompetition(einstein_img, opt_metric, ref_metric, "min", 1, penalty)
+        with pytest.warns() as record:
+            mad.load(ssim_einstein_img_mad_saved, raise_on_checks=False)
+            # have to manually filter these warnings, because pytest.warns grabs
+            # everything
+            record = [rec for rec in record if rec.category == po.io.LoadWarning]
+            assert len(record) == 1
+            assert record[0].message.args[0].startswith(error_str)
+
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_raise_on_checks_new_attr(self, ssim_einstein_img_mad_saved, einstein_img):
+        # proxy for plenoptic changing API of MADCompetition: test that creating a
+        # variant of madcompetition with a new attribute refuses load regularly, and
+        # loads with only that warning if raise_on_checks=False
+        class MADCompetition(po.MADCompetition):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.new_attribute = True
+
+        mad = MADCompetition(einstein_img, test_metric.nlpd, po.metric.mse, "min", 1)
+        error_str = "Saved object was a plenoptic.MADCompetition"
+        with pytest.raises(ValueError, match=error_str):
+            mad.load(ssim_einstein_img_mad_saved)
+        with pytest.warns() as record:
+            mad.load(ssim_einstein_img_mad_saved, raise_on_checks=False)
+            record = [rec for rec in record if rec.category == po.io.LoadWarning]
+            assert len(record) == 2
+            assert record[0].message.args[0].startswith(error_str)
+            assert (
+                record[1]
+                .message.args[0]
+                .startswith("Initialized object has 1 attribute")
+            )
+        assert mad.new_attribute is True
+
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.parametrize("tensor_problem", ["shape", "value"])
+    def test_raise_on_checks_different(
+        self, ssim_einstein_img_mad_saved, einstein_img, tensor_problem
+    ):
+        # users *shouldn't* do the behavior shown here, but just to ensure I know what
+        # happens in these cases: we're going to change all the initial arguments and
+        # see that the load can happen anyway with raise_on_checks=False, and then
+        # assert whether the attribute came from the saved or initialized object. we
+        # have to test the dtype, shape, value individually, the others can be tested at
+        # once.
+        if tensor_problem == "shape":
+            image = einstein_img[..., :100, :100]
+        elif tensor_problem == "value":
+            image = torch.rand_like(einstein_img)
+
+        def penalty(*args):
+            return po.regularize.penalize_range(*args, (0.5, 1))
+
+        mad = po.MADCompetition(
+            image, po.metric.mse, test_metric.nlpd, "max", 10, penalty, 1
+        )
+        with pytest.warns() as record:
+            mad.load(ssim_einstein_img_mad_saved, raise_on_checks=False)
+            # have to manually filter these warnings, because pytest.warns grabs
+            # everything
+            record = [rec for rec in record if rec.category == po.io.LoadWarning]
+            errors = [
+                ("attribute image", tensor_problem),
+                ("metric_tradeoff_lambda", False),
+                ("penalty_lambda", False),
+                ("minmax", False),
+                ("optimized_metric output", "values"),
+                ("reference_metric output", "values"),
+                ("penalty_function output", "values"),
+                ("optimized_metric", "names"),
+                ("reference_metric", "names"),
+                ("penalty_function", "names"),
+            ]
+            assert len(record) == len(errors)
+            for rec, (attr, err) in zip(record, errors):
+                if not err:
+                    assert rec.message.args[0].startswith(
+                        f"Saved and initialized {attr} are different"
+                    )
+                else:
+                    assert rec.message.args[0].startswith(
+                        f"Saved and initialized {attr} have different {err}"
+                    )
+        # the non-callables are set to the saved values
+        assert torch.equal(mad.image, einstein_img)
+        assert mad.penalty_lambda == 0.1
+        assert mad.metric_tradeoff_lambda == 1
+        assert mad.minmax == "min"
+        # all the callables are set to the initialized values
+        assert mad.optimized_metric == po.metric.mse
+        assert mad.reference_metric == test_metric.nlpd
+        assert mad.penalty_function == penalty
+
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_raise_on_checks_dtype_error(
+        self, ssim_einstein_img_mad_saved, einstein_img_double
+    ):
+        # dtype and device issues will still raise errors, even if raise_on_checks,
+        # because things are weird else: model should only operate on a single
+        # dtype/device, so why expect it to operate on different versions in
+        # initialization and load? also, there are better ways to fix this issue: the to
+        # method / map_location arg. since metrics are often functions, this is less
+        # salient than for metamer and eigendistortions, but we should be consistent
+        # (and metrics can be torch modules)
+        mad = po.MADCompetition(
+            einstein_img_double, test_metric.nlpd, po.metric.mse, "min", 1
+        )
+        error_str = "Saved and initialized attribute image have different dtype"
+        with pytest.raises(ValueError, match=error_str):
+            mad.load(ssim_einstein_img_mad_saved)
+        with pytest.raises(ValueError, match=error_str):
+            mad.load(ssim_einstein_img_mad_saved, raise_on_checks=False)
+
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only do this on cuda")
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_raise_on_checks_device_error(
+        self, ssim_einstein_img_mad_saved, einstein_img
+    ):
+        # dtype and device issues will still raise errors, even if raise_on_checks,
+        # because things are weird else: model should only operate on a single
+        # dtype/device, so why expect it to operate on different versions in
+        # initialization and load? also, there are better ways to fix this issue: the to
+        # method / map_location arg. since metrics are often functions, this is less
+        # salient than for metamer and eigendistortions, but we should be consistent
+        # (and metrics can be torch modules)
+        mad = po.MADCompetition(
+            einstein_img.to("cpu"), test_metric.nlpd, po.metric.mse, "min", 1
+        )
+        error_str = "Saved and initialized attribute image have different device"
+        with pytest.raises(ValueError, match=error_str):
+            mad.load(ssim_einstein_img_mad_saved)
+        with pytest.raises(ValueError, match=error_str):
+            mad.load(ssim_einstein_img_mad_saved, raise_on_checks=False)

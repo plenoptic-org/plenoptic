@@ -8,6 +8,10 @@ from conftest import DEVICE
 from plenoptic.data import fetch_data
 
 
+def nlpd(*args):
+    return po.metric.nlpd(*args, 1e-20)
+
+
 @pytest.fixture()
 def test_files_dir():
     return fetch_data("plenoptic-test-files.tar.gz")

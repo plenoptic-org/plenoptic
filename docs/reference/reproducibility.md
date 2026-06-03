@@ -111,3 +111,16 @@ Note that, if `store_progress>1`, then the synthesis procedure did not cache the
 :::
 
 (The above all holds for both {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition`.)
+
+(raise-on-checks)=
+### `raise_on_checks`
+
+When loading synthesis objects, `plenoptic` is fairly conservative: we do not save callable objects (as that can allow for arbitrary code execution during load, which is unsafe), and thus users are required to initialize the object before loading in the saved version. Therefore, while loading, we run a variety of checks to ensure that the saved object is the same as the one doing the loading. This is to avoid a situation where e.g., a {class}`~plenoptic.Metamer` object was initialized `model=po.models.OnOff` but the saved object used `model=po.models.Gaussian`. If the user attempted to continue synthesis at that point, things would get very confused, and, even if they were just examining the completed synthesis, it's unclear what exactly correct behavior should be.
+
+However, it is possible that we're *too* conservative, and are raising errors where they don't belong. This is especially likely across plenoptic versions or if you do something simple like change the name of an object.
+
+Starting in `plenoptic` 2.0, all synthesis object load methods have the argument `raise_on_checks`. If this is set to `True` (the default), then failing any of our checks will result in an error. If it's set to `False`, then they will instead result in a warning ({class}`plenoptic.io.LoadWarning`) being raised. It is recommended that you always run your code with `raise_on_checks=True` first, only set it to `False` if you are *certain* that the saved object is the same as the loading one, and carefully inspect all {class}`~plenoptic.io.LoadWarning` raised. See the example in the docstring of {class}`~plenoptic.io.LoadWarning` for a usage example.
+
+Note that loading with `raise_on_checks=False` will still result in errors if the `dtype` or `device` are different. The proper way to handle this is to call `synth_object.to(dtype)` before loading or `synth_object.load(file, map_location=device)`, respectively. These will ensure that the object is properly moved to the correct data type or device.
+
+Finally, note that we are unable to ensure that the behavior of synthesis object's methods is unchanged. Thus, you should be especially careful if the synthesis object itself appears to have changed -- proceed at your own risk!

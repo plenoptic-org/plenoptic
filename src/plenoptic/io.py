@@ -6,11 +6,40 @@ import torch
 
 __all__ = [
     "examine_saved_synthesis",
+    "LoadWarning",
 ]
 
 
 def __dir__() -> list[str]:
     return __all__
+
+
+class LoadWarning(UserWarning):
+    """
+    Custom warning to raise if there's an issue with loading.
+
+    And we do not want it to result in an error.
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> import warnings
+    >>> model = po.models.Gaussian((31, 31))
+    >>> model.eval()
+    Gaussian()
+    >>> po.remove_grad(model)
+    >>> met = po.Metamer(po.data.einstein(), model)
+    >>> met.synthesize(2)
+    >>> met.save("load_warning_example.pt")
+    >>> # this loss function has a different name but the same behavior
+    >>> met = po.Metamer(po.data.einstein(), model, lambda *args: po.loss.mse(*args))
+    >>> with warnings.catch_warnings(record=True) as warned:
+    ...     met.load("load_warning_example.pt", raise_on_checks=False)
+    ...     print(len(warned), warned[0].category)
+    1 <class 'plenoptic.io.LoadWarning'>
+    """
+
+    pass
 
 
 def _parse_save_io_attr_name(
