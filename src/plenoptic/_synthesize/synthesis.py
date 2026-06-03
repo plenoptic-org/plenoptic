@@ -18,7 +18,7 @@ import torch
 
 from .. import regularize
 from ..io import _parse_save_io_attr_name, examine_saved_synthesis
-from ..tensors import _check_tensor_equality
+from ..tensors import _check_tensor_equality, _warn_raise
 
 __all__ = []
 
@@ -164,6 +164,7 @@ class _Synthesis(abc.ABC):
         check_attributes: list[str] = [],
         check_io_attributes: list[str] = [],
         state_dict_attributes: list[str] = [],
+        raise_on_checks: bool = True,
         tensor_equality_atol: float = 1e-8,
         tensor_equality_rtol: float = 1e-5,
         **pickle_load_args: Any,
@@ -174,6 +175,9 @@ class _Synthesis(abc.ABC):
         This should be called by ``Synthesis`` object that has just been initialized.
 
         Note this operates in place and so doesn't return anything.
+
+        .. versionchanged:: 2.0.0
+           Adds ``raise_on_checks`` argument.
 
         Parameters
         ----------
@@ -202,6 +206,16 @@ class _Synthesis(abc.ABC):
             are identical and then load the state_dict. If the attribute is None on the
             initialized Synthesis object, then we set the tuple, and count on the
             Synthesis object to properly handle it when needed.
+        raise_on_checks
+            During load, we perform several checks to ensure that the saved object was
+            initialized in the same way as the loading object. This is to ensure that
+            the model, image, etc. are all the same and avoid unpleasant surprises. If
+            ``True``, we raise a ``ValueError`` if any of these checks fail. If
+            ``False``, we instead raise a ``LoadWarning``. The intended use here is if
+            you're loading something that was saved with an older version of plenoptic
+            and you're sure that you're doing everything correctly. Note that, if the
+            synthesis object itself has changed, we cannot ensure that methods are the
+            same -- proceed at your own risk.
         tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
@@ -247,11 +261,25 @@ class _Synthesis(abc.ABC):
             If :func:`setup` will need to be called after load, to finish initializing
             one of the ``state_dict_attributes``
         """
-        check_str = (
+        check_str_bare = (
             "\n\nIf this is confusing, try calling "
             f"{_get_name(examine_saved_synthesis)}('{file_path}'),"
-            " to examine saved object"
+            " to examine saved object."
         )
+        # Want the warning to clarify what the *actual* value of the attribute is, after
+        # load. That depends upon whether the attribute was a tensor (in which case we
+        # use the value from the saved object) or a callable (in which case we use the
+        # value from the initialized object, since we didn't save the actual callable).
+        if not raise_on_checks:
+            check_io_str = f"\nSetting to initialized value. {check_str_bare.strip()}"
+            check_str = f"\nSetting to saved value. {check_str_bare.strip()}"
+        else:
+            check_str = (
+                f"{check_str_bare}\n\nIf you are sure these objects are the same,"
+                " call load again with raise_on_checks=False."
+            )
+            check_io_str = check_str
+
         empty_on_init_attr = getattr(self, empty_on_init_attr)
         if empty_on_init_attr is not None and len(empty_on_init_attr) > 0:
             raise ValueError(
@@ -271,12 +299,18 @@ class _Synthesis(abc.ABC):
             obj_name = metadata["synthesis_object"].replace(".synthesize", "")
             for mod_name in [".metamer", ".mad_competition", ".eigendistortion"]:
                 obj_name = obj_name.replace(mod_name, "")
-            if obj_name != _get_name(self):
-                raise ValueError(
-                    f"Saved object was a {metadata['synthesis_object']}"
-                    f", but initialized object is {_get_name(self)}! "
-                    f"{check_str}"
+            error_str = (
+                f"Saved object was a {metadata['synthesis_object']}"
+                f", but initialized object is {_get_name(self)}! "
+                f"{check_io_str}"
+            )
+            if not raise_on_checks:
+                error_str += (
+                    "\nNote that there's no way to ensure that method "
+                    "definitions have not changed, proceed at your own risk!"
                 )
+            if obj_name != _get_name(self):
+                _warn_raise(error_str, raise_on_checks)
             # in the same PR, also moved loss_function and penalty_function to private
             # (making them properties like many of the other attributes), so support
             # that as well.
@@ -298,9 +332,10 @@ class _Synthesis(abc.ABC):
                 init_not_save_str = "\n ".join(
                     [f"{k}: {getattr(self, k)}" for k in init_not_save]
                 )
-                raise ValueError(
+                _warn_raise(
                     f"Initialized object has {len(init_not_save)} attribute(s) "
-                    f"not present in the saved object!\n {init_not_save_str}"
+                    f"not present in the saved object!\n {init_not_save_str}",
+                    raise_on_checks,
                 )
             if "_current_loss" in init_not_save:
                 # in PR #370 (release 1.3.1), added _current_loss attribute, which we'll
@@ -371,10 +406,18 @@ class _Synthesis(abc.ABC):
             save_not_init_str = "\n ".join(
                 [f"{k}: {tmp_dict[k]}" for k in save_not_init]
             )
-            raise ValueError(
-                f"Saved object has {len(save_not_init)} attribute(s) "
-                f"not present in the initialized object!\n {save_not_init_str}"
-            )
+            if raise_on_checks:
+                error_str = (
+                    f"Saved object has {len(save_not_init)} attribute(s) "
+                    f"not present in the initialized object!\n {save_not_init_str}",
+                )
+            else:
+                error_str = (
+                    f"Saved object has {len(save_not_init)} attribute(s) "
+                    "not present in the initialized object; they will be ignored!"
+                    f"\n {save_not_init_str}",
+                )
+            _warn_raise(error_str, raise_on_checks)
         for k in check_attributes:
             # The only hidden attributes we'd check are those like
             # penalty_lambda, where this function is checking the
@@ -394,25 +437,29 @@ class _Synthesis(abc.ABC):
                         f"Saved and initialized attribute {display_k} have "
                         f"different {{error_type}}!"
                     ),
-                    error_append_str=check_str,
+                    error_append_str_1=check_str,
+                    error_append_str_2=check_str_bare,
+                    raise_on_checks=raise_on_checks,
                     atol=tensor_equality_atol,
                     rtol=tensor_equality_rtol,
                 )
             elif isinstance(getattr(self, k), float):
                 if not np.allclose(getattr(self, k), tmp_dict[k]):
-                    raise ValueError(
+                    _warn_raise(
                         f"Saved and initialized {display_k} are different!"
                         f"\nSaved: {tmp_dict[k]}"
                         f"\nInitialized: {getattr(self, k)}"
-                        f"{check_str}"
+                        f"{check_str}",
+                        raise_on_checks,
                     )
             else:
                 if getattr(self, k) != tmp_dict[k]:
-                    raise ValueError(
+                    _warn_raise(
                         f"Saved and initialized {display_k} are different!"
                         f"\nSaved: {tmp_dict[k]}"
                         f"\nInitialized: {getattr(self, k)}"
-                        f"{check_str}"
+                        f"{check_str}",
+                        raise_on_checks,
                     )
         for k, input_names in check_io_attributes:
             # same as above
@@ -441,12 +488,13 @@ class _Synthesis(abc.ABC):
                 else:
                     # in general/the future, we want to raise a more informative error
                     # message about this problem.
-                    raise ValueError(
+                    _warn_raise(
                         "Initialized and saved objects use different inputs to check "
                         f"identity of {display_k}, unsure how to proceed! If you trust "
                         "this object, see 'Reproducibility and Compatibility' page of "
                         "the documentation for how to load it anyway."
-                        f"\nSaved: {tmp_dict[k][1]}\nInitialized: {input_names}"
+                        f"\nSaved: {tmp_dict[k][1]}\nInitialized: {input_names}",
+                        raise_on_checks,
                     )
             tensors, _ = _parse_save_io_attr_name(tmp_dict, input_names)
             init_name = _get_name(getattr(self, k))
@@ -462,7 +510,9 @@ class _Synthesis(abc.ABC):
                     f"Saved and initialized {display_k} output have "
                     f"different {{error_type}}!"
                 ),
-                error_append_str=check_str,
+                error_append_str_1=check_io_str,
+                error_append_str_2=check_str_bare,
+                raise_on_checks=raise_on_checks,
                 atol=tensor_equality_atol,
                 rtol=tensor_equality_rtol,
             )
@@ -481,12 +531,13 @@ class _Synthesis(abc.ABC):
                     init_name = init_name.split(".")[-1]
                     saved_name = saved_name.split(".")[-1]
                     if init_name != saved_name:
-                        raise ValueError(
+                        _warn_raise(
                             f"Saved and initialized {display_k} "
                             "have different names!"
                             f"\nSaved: {saved_name}"
                             f"\nInitialized: {init_name}"
-                            f"{check_str}"
+                            f"{check_io_str}",
+                            raise_on_checks,
                         )
                     continue
                 # if init_attr is None, then we haven't set it yet, so we set the saved

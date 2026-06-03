@@ -11,3 +11,4 @@ Functions to help understand when things have gone wrong.
    :toctree: generated
 
    ~io.examine_saved_synthesis
+   ~io.LoadWarning
