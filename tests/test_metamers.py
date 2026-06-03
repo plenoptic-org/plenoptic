@@ -1603,3 +1603,31 @@ class TestMetamers:
         met.synthesize(2)
         assert repr(met) == str(met)
         assert re.match(expected_str, repr(met))
+
+    @pytest.mark.parametrize(
+        "model",
+        ["PortillaSimoncelli"],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("ctf", ["together", "separate"])
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+    )
+    def test_repr_metamerctf(self, einstein_img, model, ctf):
+        met = po.MetamerCTF(einstein_img, model, coarse_to_fine=ctf)
+        model_str = (
+            r"PortillaSimoncelli\(\n    \(_pyr\): SteerablePyramidFreq\(\)\n  \)"
+        )
+        expected_str = (
+            r"MetamerCTF\(\n  image = torch.Size\(\[1, 1, 256, 256\]\) "
+            rf"\(torch.float32\),\n  model = {model_str},\n  "
+            r"loss_function = mse,\n  penalty_function = "
+            r"penalize_range,\n  penalty_lambda = 0.1,\n  "
+            rf"coarse_to_fine = '{ctf}',\n\)"
+        )
+        assert repr(met) == str(met)
+        assert re.match(expected_str, repr(met))
+        # synthesize doesn't change repr
+        met.synthesize(2)
+        assert repr(met) == str(met)
+        assert re.match(expected_str, repr(met))
