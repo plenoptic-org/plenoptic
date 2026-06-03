@@ -74,8 +74,6 @@ class Eigendistortion(_Synthesis):
            https://www.cns.nyu.edu/~lcv/eigendistortions/
     """
 
-    __module__ = "plenoptic"
-
     def __init__(self, image: Tensor, model: torch.nn.Module):
         super().__init__()
         validate_input(image, no_batch=True)
@@ -673,6 +671,10 @@ class Eigendistortion(_Synthesis):
         # computation graph for the autograd calls to work, so we reinitialize
         # it here
         self._init_representation(self.image)
+
+    def __repr__(self) -> str:
+        # numpydoc ignore=GL08
+        return super()._repr_format(["image", "model"])
 
     @property
     def model(self) -> torch.nn.Module:

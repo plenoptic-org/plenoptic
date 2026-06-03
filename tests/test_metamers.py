@@ -1,5 +1,7 @@
 import copy
+import functools
 import math
+import re
 from contextlib import nullcontext as does_not_raise
 
 import pytest
@@ -1553,3 +1555,86 @@ class TestMetamers:
             saved_rep, met.target_representation
         )
         torch.testing.assert_close(met_loss.to(DEVICE), model_loss)
+
+    @pytest.mark.parametrize(
+        "model",
+        ["PortillaSimoncelli", "naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("func_type", [None, "lambda", "partial", "local_def"])
+    def test_repr(self, einstein_img, model, func_type):
+        kwargs = {}
+        loss_str = "mse"
+        penalty_str = "penalize_range"
+        if func_type == "lambda":
+            kwargs["loss_function"] = lambda *args: po.loss.mse(*args)
+            loss_str = "<lambda>"
+        elif func_type == "partial":
+            kwargs["penalty_function"] = functools.partial(
+                po.regularize.penalize_range, allowed_range=(0.5, 1)
+            )
+            penalty_str = (
+                r"functools.partial\(<function penalize_range at [0-9a-z]+?"
+                r">, allowed_range=\(0.5, 1\)\)"
+            )
+        elif func_type == "local_def":
+
+            def loss(*args):
+                return po.loss.mse(*args)
+
+            kwargs["loss_function"] = loss
+            loss_str = "loss"
+        if isinstance(model, po.models.PortillaSimoncelli):
+            model_str = (
+                r"PortillaSimoncelli\(\n    \(_pyr\): SteerablePyramidFreq\(\)\n  \)"
+            )
+            if func_type is None:
+                # Note this behavior! the loss string is "loss" (the name of the
+                # function returned by portilla_simoncelli_loss_factory), not ps_loss
+                # (the name assigned here)
+                ps_loss = po.loss.portilla_simoncelli_loss_factory(model, einstein_img)
+                kwargs["loss_function"] = ps_loss
+                loss_str = "loss"
+        elif isinstance(model, po.models.Gaussian):
+            model_str = r"Gaussian\(\)"
+        met = po.Metamer(einstein_img, model, **kwargs)
+        expected_str = (
+            r"Metamer\(\n  image = torch.Size\(\[1, 1, 256, 256\]\) "
+            rf"\(torch.float32\),\n  model = {model_str},\n  "
+            rf"loss_function = {loss_str},\n  penalty_function = "
+            rf"{penalty_str},\n  penalty_lambda = 0.1,\n\)"
+        )
+        assert repr(met) == str(met)
+        assert re.match(expected_str, repr(met))
+        # synthesize doesn't change repr
+        met.synthesize(2)
+        assert repr(met) == str(met)
+        assert re.match(expected_str, repr(met))
+
+    @pytest.mark.parametrize(
+        "model",
+        ["PortillaSimoncelli"],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("ctf", ["together", "separate"])
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+    )
+    def test_repr_metamerctf(self, einstein_img, model, ctf):
+        met = po.MetamerCTF(einstein_img, model, coarse_to_fine=ctf)
+        model_str = (
+            r"PortillaSimoncelli\(\n    \(_pyr\): SteerablePyramidFreq\(\)\n  \)"
+        )
+        expected_str = (
+            r"MetamerCTF\(\n  image = torch.Size\(\[1, 1, 256, 256\]\) "
+            rf"\(torch.float32\),\n  model = {model_str},\n  "
+            r"loss_function = mse,\n  penalty_function = "
+            r"penalize_range,\n  penalty_lambda = 0.1,\n  "
+            rf"coarse_to_fine = '{ctf}',\n\)"
+        )
+        assert repr(met) == str(met)
+        assert re.match(expected_str, repr(met))
+        # synthesize doesn't change repr
+        met.synthesize(2)
+        assert repr(met) == str(met)
+        assert re.match(expected_str, repr(met))

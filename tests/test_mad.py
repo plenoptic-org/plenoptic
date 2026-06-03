@@ -1,5 +1,7 @@
+import functools
 import inspect
 import math
+import re
 from contextlib import nullcontext as does_not_raise
 
 import pytest
@@ -1382,3 +1384,62 @@ class TestMAD:
             mad.load(ssim_einstein_img_mad_saved)
         with pytest.raises(ValueError, match=error_str):
             mad.load(ssim_einstein_img_mad_saved, raise_on_checks=False)
+
+    @pytest.mark.parametrize(
+        "func_type", ["lambda", "partial", "local_def", "module", "nonmodule"]
+    )
+    @pytest.mark.parametrize("minmax", ["min", "max"])
+    @pytest.mark.parametrize("which_metric", ["optimized", "reference"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_repr(self, einstein_img, func_type, minmax, which_metric):
+        kwargs = {
+            "optimized_metric": po.loss.l2_norm,
+            "reference_metric": po.loss.l2_norm,
+        }
+        default_metric_str = "l2_norm"
+        penalty_str = "penalize_range"
+        if func_type == "lambda":
+            kwargs[f"{which_metric}_metric"] = lambda *args: po.metric.nlpd(
+                *args, epsilon=1e-20
+            )
+            other_metric_str = "<lambda>"
+        elif func_type == "partial":
+            kwargs["penalty_function"] = functools.partial(
+                po.regularize.penalize_range, allowed_range=(0.5, 1)
+            )
+            penalty_str = (
+                r"functools.partial\(<function penalize_range at [0-9a-z]+?>"
+                r", allowed_range=\(0.5, 1\)\)"
+            )
+            other_metric_str = "l2_norm"
+        elif func_type == "local_def":
+            kwargs[f"{which_metric}_metric"] = dis_ssim
+            other_metric_str = "dis_ssim"
+        elif func_type == "module":
+            kwargs[f"{which_metric}_metric"] = ModuleMetric()
+            other_metric_str = r"ModuleMetric\(\n    \(mdl\): Gaussian\(\)\n  \)"
+        elif func_type == "nonmodule":
+            kwargs[f"{which_metric}_metric"] = NonModuleMetric()
+            other_metric_str = r"<test_mad.NonModuleMetric object at [0-9a-z]+?>"
+        if which_metric == "optimized":
+            ref_str = default_metric_str
+            opt_str = other_metric_str
+        elif which_metric == "reference":
+            opt_str = default_metric_str
+            ref_str = other_metric_str
+        mad = po.MADCompetition(
+            einstein_img, metric_tradeoff_lambda=1, minmax=minmax, **kwargs
+        )
+        expected_str = (
+            r"MADCompetition\(\n  image = torch.Size\(\[1, 1, 256, 256\]\) "
+            rf"\(torch.float32\),\n  optimized_metric = {opt_str},\n  "
+            rf"reference_metric = {ref_str},\n  minmax = '{minmax}',\n  "
+            rf"metric_tradeoff_lambda = 1,\n  penalty_function = "
+            rf"{penalty_str},\n  penalty_lambda = 0.1,\n\)"
+        )
+        assert repr(mad) == str(mad)
+        assert re.match(expected_str, repr(mad))
+        # synthesize doesn't change repr
+        mad.synthesize(2)
+        assert repr(mad) == str(mad)
+        assert re.match(expected_str, repr(mad))

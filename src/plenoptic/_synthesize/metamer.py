@@ -90,8 +90,6 @@ class Metamer(_OptimizedSynthesis):
       <Figure size ...>
     """
 
-    __module__ = "plenoptic"
-
     def __init__(
         self,
         image: Tensor,
@@ -1184,6 +1182,12 @@ class Metamer(_OptimizedSynthesis):
         if len(self._saved_metamer) and self._saved_metamer[0].device.type != "cpu":
             self._saved_metamer = [met.to("cpu") for met in self._saved_metamer]
 
+    def __repr__(self) -> str:
+        # numpydoc ignore=GL08
+        return super()._repr_format(
+            ["image", "model", "loss_function", "penalty_function", "penalty_lambda"]
+        )
+
     @property
     def loss_function(self) -> Callable[[Tensor, Tensor], Tensor]:
         """Callable which specifies how close metamer representation is to target."""
@@ -1389,8 +1393,6 @@ class MetamerCTF(Metamer):
     Traceback (most recent call last):
     AttributeError: model has no scales attribute ...
     """
-
-    __module__ = "plenoptic"
 
     def __init__(
         self,
@@ -2066,7 +2068,7 @@ class MetamerCTF(Metamer):
         >>> met = po.Metamer(img, model)
         >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
         Traceback (most recent call last):
-        ValueError: Saved object was a plenoptic._synthesize.metamer.Metamer...
+        ValueError: Saved object was a plenoptic.MetamerCTF...
 
         If the loading ``MetamerCTF`` object was not initialized with same values
         as the saved object, an error will be raised:
@@ -2093,6 +2095,19 @@ class MetamerCTF(Metamer):
             tensor_equality_atol=tensor_equality_atol,
             tensor_equality_rtol=tensor_equality_rtol,
             **pickle_load_args,
+        )
+
+    def __repr__(self) -> str:
+        # numpydoc ignore=GL08
+        return super()._repr_format(
+            [
+                "image",
+                "model",
+                "loss_function",
+                "penalty_function",
+                "penalty_lambda",
+                "coarse_to_fine",
+            ]
         )
 
     @property

@@ -86,8 +86,6 @@ class MADCompetition(_OptimizedSynthesis):
            https://dx.doi.org/10.1167/8.12.8
     """
 
-    __module__ = "plenoptic"
-
     def __init__(
         self,
         image: Tensor,
@@ -869,6 +867,20 @@ class MADCompetition(_OptimizedSynthesis):
         # fix that.
         if len(self._saved_mad_image) and self._saved_mad_image[0].device.type != "cpu":
             self._saved_mad_image = [mad.to("cpu") for mad in self._saved_mad_image]
+
+    def __repr__(self) -> str:
+        # numpydoc ignore=GL08
+        return super()._repr_format(
+            [
+                "image",
+                "optimized_metric",
+                "reference_metric",
+                "minmax",
+                "metric_tradeoff_lambda",
+                "penalty_function",
+                "penalty_lambda",
+            ]
+        )
 
     @property
     def mad_image(self) -> Tensor:

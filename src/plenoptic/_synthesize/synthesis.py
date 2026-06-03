@@ -50,7 +50,11 @@ def _get_name(x: object) -> str:
     except AttributeError:
         # if we're here, then it's an object
         cls = x.__class__
-        name = f"{cls.__module__}.{cls.__name__}"
+        # for synthesis objects, return them as plenoptic.OBJ_NAME
+        if cls.__module__.startswith("plenoptic.") and "_synthesize" in cls.__module__:
+            name = f"plenoptic.{cls.__name__}"
+        else:
+            name = f"{cls.__module__}.{cls.__name__}"
     return name
 
 
@@ -293,9 +297,9 @@ class _Synthesis(abc.ABC):
         )
         metadata = tmp_dict.pop("save_metadata")
         if metadata["synthesis_object"] != _get_name(self):
-            # in PR #418 (release 2.0.0), updated __module__ of synthesis objects from
-            # plenoptic.synthesize to the top-level one. this removes .synthesize and
-            # the three synthesis modules that were used before
+            # in PR #418 (release 2.0.0), updated moved synthesis objects from
+            # plenoptic.synthesize to publicly live under the top-most one. this removes
+            # .synthesize and the three synthesis modules that were used before.
             obj_name = metadata["synthesis_object"].replace(".synthesize", "")
             for mod_name in [".metamer", ".mad_competition", ".eigendistortion"]:
                 obj_name = obj_name.replace(mod_name, "")
@@ -642,6 +646,41 @@ class _Synthesis(abc.ABC):
                     setattr(self, k, [move(a, k) for a in attr])
                 elif attr is not None:
                     setattr(self, k, move(attr, k))
+
+    def _repr_format(self, attrs: list[str]) -> str:
+        """
+        Help format __repr__ output.
+
+        Representation starts with name of the class and then loops through specified
+        attributes in order. Each tensor is displayed as ``{attr.shape}
+        ({attr.dtype})``, everything else we try to grab ``attr.__name__`` and, if that
+        doesn't exist, fall back on ``repr(attr)``, indenting after newlines it contains
+        (intended use is for torch.nn.Module objects)
+
+        Parameters
+        ----------
+        attrs
+            Attributes to display.
+
+        Returns
+        -------
+        repr
+            String representation.
+        """
+        repr_str = f"{self.__class__.__name__}(\n"
+        tab = "  "
+        for name in attrs:
+            val = eval(f"self.{name}")
+            if isinstance(val, torch.Tensor):
+                repr_str += f"{tab}{name} = {val.shape} ({val.dtype}),\n"
+            else:
+                try:
+                    repr_str += f"{tab}{name} = {val.__name__},\n"
+                except AttributeError:
+                    obj_rep = repr(val).replace("\n", f"\n{tab}")
+                    repr_str += f"{tab}{name} = {obj_rep},\n"
+        repr_str += ")"
+        return repr_str
 
 
 class _OptimizedSynthesis(_Synthesis):

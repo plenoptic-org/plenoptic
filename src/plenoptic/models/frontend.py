@@ -99,8 +99,6 @@ class LinearNonlinear(nn.Module):
     >>> ln_model = po.models.LinearNonlinear(31, pretrained=True, cache_filt=True)
     """
 
-    __module__ = "plenoptic.models"
-
     def __init__(
         self,
         kernel_size: int | tuple[int, int],
@@ -283,8 +281,6 @@ class LuminanceGainControl(nn.Module):
     >>> import plenoptic as po
     >>> lg_model = po.models.LuminanceGainControl(31, pretrained=True, cache_filt=True)
     """
-
-    __module__ = "plenoptic.models"
 
     def __init__(
         self,
@@ -504,8 +500,6 @@ class LuminanceContrastGainControl(nn.Module):
     ...     31, pretrained=True, cache_filt=True
     ... )
     """
-
-    __module__ = "plenoptic.models"
 
     def __init__(
         self,
@@ -744,8 +738,6 @@ class OnOff(nn.Module):
     >>> import plenoptic as po
     >>> onoff_model = po.models.OnOff(31, pretrained=True, cache_filt=True)
     """
-
-    __module__ = "plenoptic.models"
 
     def __init__(
         self,
