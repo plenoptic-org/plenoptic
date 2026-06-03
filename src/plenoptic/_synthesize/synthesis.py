@@ -213,7 +213,9 @@ class _Synthesis(abc.ABC):
             ``True``, we raise a ``ValueError`` if any of these checks fail. If
             ``False``, we instead raise a ``LoadWarning``. The intended use here is if
             you're loading something that was saved with an older version of plenoptic
-            and you're sure that you're doing everything correctly.
+            and you're sure that you're doing everything correctly. Note that, if the
+            synthesis object itself has changed, we cannot ensure that methods are the
+            same -- proceed at your own risk.
         tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
@@ -297,13 +299,18 @@ class _Synthesis(abc.ABC):
             obj_name = metadata["synthesis_object"].replace(".synthesize", "")
             for mod_name in [".metamer", ".mad_competition", ".eigendistortion"]:
                 obj_name = obj_name.replace(mod_name, "")
-            if obj_name != _get_name(self):
-                _warn_raise(
-                    f"Saved object was a {metadata['synthesis_object']}"
-                    f", but initialized object is {_get_name(self)}! "
-                    f"{check_io_str}",
-                    raise_on_checks,
+            error_str = (
+                f"Saved object was a {metadata['synthesis_object']}"
+                f", but initialized object is {_get_name(self)}! "
+                f"{check_io_str}"
+            )
+            if not raise_on_checks:
+                error_str += (
+                    "\nNote that there's no way to ensure that method "
+                    "definitions have not changed, proceed at your own risk!"
                 )
+            if obj_name != _get_name(self):
+                _warn_raise(error_str, raise_on_checks)
             # in the same PR, also moved loss_function and penalty_function to private
             # (making them properties like many of the other attributes), so support
             # that as well.

@@ -598,7 +598,9 @@ class Eigendistortion(_Synthesis):
             and you're sure that you're doing everything correctly. Note that different
             devices or dtypes will always result in a ``ValueError``. See
             :ref:`raise-on-checks` on the "Reproducibility and Compatibility" page of
-            the documentation for more info.
+            the documentation for more info. Additionally, note that, if the
+            ``Eigendistortion`` object itself has changed, we cannot ensure that methods
+            are the same -- proceed at your own risk.
         tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
