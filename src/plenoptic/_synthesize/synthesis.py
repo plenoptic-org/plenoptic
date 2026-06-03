@@ -653,7 +653,7 @@ class _Synthesis(abc.ABC):
 
         Representation starts with name of the class and then loops through specified
         attributes in order. Each tensor is displayed as ``{attr.shape}
-        ({attr.dtype})``, everything else we try to grab ``attr.__name__ and``, if that
+        ({attr.dtype})``, everything else we try to grab ``attr.__name__`` and, if that
         doesn't exist, fall back on ``repr(attr)``, indenting after newlines it contains
         (intended use is for torch.nn.Module objects)
 
