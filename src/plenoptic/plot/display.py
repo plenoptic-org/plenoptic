@@ -237,16 +237,42 @@ def imshow(
 
     Examples
     --------
+    Plot a single grayscale image.
 
     .. plot::
       :context: reset
 
       >>> import plenoptic as po
+      >>> einstein = po.data.einstein()
+      >>> einstein.shape
+      torch.Size([1, 1, 256, 256])
+      >>> po.plot.imshow(einstein)
+      <PyrFigure size ... >
+
+    For a batch of images, imshow will plot every image unless batch_idx is specified.
+
+    .. plot::
+      :context: close-figs
+
+      >>> import plenoptic as po
       >>> img_dir = po.data.fetch_data("test_images.tar.gz") / "256"
       >>> titles = ["color_wheel", "curie", "einstein", "metal", "nuts"]
       >>> imgs = po.load_images(img_dir)
+      >>> print(imgs.shape)
+      torch.Size([5, 3, 256, 256])
       >>> po.plot.imshow(imgs, title=titles)
       <PyrFigure size ... with 5 Axes>
+
+    .. plot::
+      :context: close-figs
+
+      >>> import plenoptic as po
+      >>> img_dir = po.data.fetch_data("test_images.tar.gz") / "256"
+      >>> titles = ["color_wheel", "curie", "einstein", "metal", "nuts"]
+      >>> imgs = po.load_images(img_dir)
+      >>> batch_idx = 2
+      >>> po.plot.imshow(imgs, title=titles[2], batch_idx=batch_idx)
+      <PyrFigure size ... >
     """
     if not isinstance(image, list):
         image = [image]
