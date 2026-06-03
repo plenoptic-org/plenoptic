@@ -1420,7 +1420,7 @@ class TestMAD:
             other_metric_str = r"ModuleMetric\(\n    \(mdl\): Gaussian\(\)\n  \)"
         elif func_type == "nonmodule":
             kwargs[f"{which_metric}_metric"] = NonModuleMetric()
-            other_metric_str = "<test_mad.NonModuleMetric object at [0-9a-z]+?>"
+            other_metric_str = r"<test_mad.NonModuleMetric object at [0-9a-z]+?>"
         if which_metric == "optimized":
             ref_str = default_metric_str
             opt_str = other_metric_str
