@@ -237,7 +237,7 @@ def imshow(
 
     Examples
     --------
-    Plot a single grayscale image.
+    Plot a single grayscale image:
 
     .. plot::
       :context: reset
@@ -247,57 +247,120 @@ def imshow(
       >>> einstein.shape
       torch.Size([1, 1, 256, 256])
       >>> po.plot.imshow(einstein)
-      <PyrFigure size ... >
+      <PyrFigure size ... with 1 Axes>
 
-    For a batch of images, imshow will plot every image unless batch_idx is specified.
+    For a batch of images, imshow will plot every image:
 
     .. plot::
       :context: close-figs
 
       >>> import plenoptic as po
-      >>> img_dir = po.data.fetch_data("test_images.tar.gz") / "256"
-      >>> titles = ["color_wheel", "curie", "einstein", "metal", "nuts"]
-      >>> imgs = po.load_images(img_dir)
+      >>> po.plot.imshow([po.data.einstein(), po.data.curie()])
+      <PyrFigure size ... with 2 Axes>
+
+    .. plot::
+      :context: close-figs
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> imgs = torch.cat([po.data.einstein(), po.data.curie()])
       >>> print(imgs.shape)
-      torch.Size([5, 1, 256, 256])
-      >>> po.plot.imshow(imgs, title=titles)
-      <PyrFigure size ... with 5 Axes>
+      torch.Size([2, 1, 256, 256])
+      >>> po.plot.imshow(imgs)
+      <PyrFigure size ... with 2 Axes>
+
+    Specifying batch_idx will limit the output to a single image:
 
     .. plot::
       :context: close-figs
 
       >>> import plenoptic as po
-      >>> img_dir = po.data.fetch_data("test_images.tar.gz") / "256"
-      >>> titles = ["color_wheel", "curie", "einstein", "metal", "nuts"]
-      >>> imgs = po.load_images(img_dir)
-      >>> batch_idx = 2
-      >>> po.plot.imshow(imgs, title=titles[batch_idx], batch_idx=batch_idx)
-      <PyrFigure size ... >
+      >>> import torch
+      >>> imgs = torch.cat([po.data.einstein(), po.data.curie()])
+      >>> print(imgs.shape)
+      torch.Size([2, 1, 256, 256])
+      >>> batch_idx = 1
+      >>> po.plot.imshow(imgs, batch_idx=batch_idx)
+      <PyrFigure size ... with 1 Axes>
 
     The vrange flag will normalize image values independently or across all images.
+    Note the image ranges for each method.
 
     .. plot::
       :context: close-figs
 
       >>> import plenoptic as po
-      >>> img_dir = po.data.fetch_data("test_images.tar.gz") / "256"
-      >>> titles = ["color_wheel", "curie", "einstein", "metal", "nuts"]
-      >>> imgs = po.load_images(img_dir)
-      >>> po.plot.imshow(imgs, title=titles, vrange="auto2")
-      <PyrFigure size ... with 5 Axes>
-
-    Value errors can occur if the as_rgb flag and image dimensions are misaligned.
+      >>> import torch
+      >>> imgs = torch.cat([po.data.einstein(), po.data.einstein() * 2])
+      >>> po.plot.imshow(imgs, vrange="indep1")
+      <PyrFigure size ... with 2 Axes>
 
     .. plot::
       :context: close-figs
 
       >>> import plenoptic as po
-      >>> einstein = po.data.einstein()
-      >>> einstein.shape
-      torch.Size([1, 1, 256, 256])
-      >>> po.plot.imshow(einstein, as_rgb=True)
-      Traceback (most recent call last):
-      ValueError: If as_rgb is True, then channel must have 3 or 4 elements!
+      >>> import torch
+      >>> imgs = torch.cat([po.data.einstein(), po.data.einstein() * 2])
+      >>> po.plot.imshow(imgs, vrange="auto1")
+      <PyrFigure size ... with 2 Axes>
+
+    Using zoom will up- or downscale the number of display pixels:
+
+    .. plot::
+      :context: close-figs
+
+      >>> import plenoptic as po
+      >>> po.plot.imshow(po.data.einstein())
+      <PyrFigure size ... with 1 Axes>
+
+    .. plot::
+      :context: close-figs
+
+      >>> import plenoptic as po
+      >>> po.plot.imshow(po.data.einstein(), zoom=0.5)
+      <PyrFigure size ... with 1 Axes>
+
+    You can use the plot_complex flag for complex values:
+
+    .. plot::
+      :context: close-figs
+
+      >>> import plenoptic as po
+      >>> import torch
+      >>> img = po.data.einstein()
+      >>> fft_img = torch.fft.fft2(img)
+      >>> po.plot.imshow([img, fft_img], plot_complex="polar")
+      <PyrFigure size ... with 3 Axes>
+
+    Value errors can occur if the as_rgb flag and image dimensions are misaligned:
+
+    >>> import plenoptic as po
+    >>> einstein = po.data.einstein()
+    >>> einstein.shape
+    torch.Size([1, 1, 256, 256])
+    >>> po.plot.imshow(einstein, as_rgb=True)
+    Traceback (most recent call last):
+    ValueError: If as_rgb is True, then channel must have 3 or 4 elements!
+
+    >>> import plenoptic as po
+    >>> img = torch.cat([po.data.color_wheel(), po.data.color_wheel()])
+    >>> print(img.shape)
+    torch.Size([2, 3, 600, 600])
+    >>> po.plot.imshow(img)
+    Traceback (most recent call last):
+    ValueError: Don't know how to plot non-rgb images with more than one channel and ...
+
+    Images will automatically rescaled to be displayed at the same height and widths
+    if sizes are scalar multiples of each other:
+
+    .. plot::
+      :context: close-figs
+
+      >>> import plenoptic as po
+      >>> img = po.data.einstein()
+      >>> crop_img = po.process.center_crop(img, 32)
+      >>> po.plot.imshow([img, crop_img])
+      <PyrFigure size ... with 2 Axes>
     """
     if not isinstance(image, list):
         image = [image]
