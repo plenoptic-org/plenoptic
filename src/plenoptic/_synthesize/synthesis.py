@@ -51,7 +51,7 @@ def _get_name(x: object) -> str:
         # if we're here, then it's an object
         cls = x.__class__
         # for synthesis objects, return them as plenoptic.OBJ_NAME
-        if "_synthesize" in cls.__module__:
+        if cls.__module__.startswith("plenoptic.") and "_synthesize" in cls.__module__:
             name = f"plenoptic.{cls.__name__}"
         else:
             name = f"{cls.__module__}.{cls.__name__}"
