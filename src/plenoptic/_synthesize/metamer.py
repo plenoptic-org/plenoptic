@@ -90,8 +90,6 @@ class Metamer(_OptimizedSynthesis):
       <Figure size ...>
     """
 
-    __module__ = "plenoptic"
-
     def __init__(
         self,
         image: Tensor,
@@ -926,6 +924,7 @@ class Metamer(_OptimizedSynthesis):
         self,
         file_path: str,
         map_location: str | None = None,
+        raise_on_checks: bool = True,
         tensor_equality_atol: float = 1e-8,
         tensor_equality_rtol: float = 1e-5,
         **pickle_load_args: Any,
@@ -933,14 +932,18 @@ class Metamer(_OptimizedSynthesis):
         r"""
         Load all relevant stuff from a .pt file.
 
-        This must be called by a ``Metamer`` object initialized just like the saved
-        object.
+        This should be called by an initialized ``Metamer`` object -- we will
+        ensure that ``image``, ``target_representation`` (and thus
+        ``model``), and ``loss_function`` are all identical.
 
         Note this operates in place and so doesn't return anything.
 
         .. versionchanged:: 1.2
            load behavior changed in a backwards-incompatible manner in order to
            compatible with breaking changes in torch 2.6.
+
+        .. versionchanged:: 2.0.0
+           Adds ``raise_on_checks`` argument.
 
         Parameters
         ----------
@@ -952,6 +955,19 @@ class Metamer(_OptimizedSynthesis):
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to :class:`torch.device`.
+        raise_on_checks
+            During load, we perform several checks to ensure that the saved object was
+            initialized in the same way as the loading object. This is to ensure that
+            the model, image, etc. are all the same and avoid unpleasant surprises. If
+            ``True``, we raise a ``ValueError`` if any of these checks fail. If
+            ``False``, we instead raise a ``LoadWarning``. The intended use here is if
+            you're loading something that was saved with an older version of plenoptic
+            and you're sure that you're doing everything correctly. Note that different
+            devices or dtypes will always result in a ``ValueError``. See
+            :ref:`raise-on-checks` on the "Reproducibility and Compatibility" page of
+            the documentation for more info. Additionally, note that, if the ``Metamer``
+            object itself has changed, we cannot ensure that methods are the same --
+            proceed at your own risk.
         tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
@@ -1056,6 +1072,7 @@ class Metamer(_OptimizedSynthesis):
         self._load(
             file_path,
             map_location,
+            raise_on_checks=raise_on_checks,
             tensor_equality_atol=tensor_equality_atol,
             tensor_equality_rtol=tensor_equality_rtol,
             **pickle_load_args,
@@ -1067,6 +1084,7 @@ class Metamer(_OptimizedSynthesis):
         map_location: str | None = None,
         additional_check_attributes: list[str] = [],
         additional_check_io_attributes: list[str] = [],
+        raise_on_checks: bool = True,
         tensor_equality_atol: float = 1e-8,
         tensor_equality_rtol: float = 1e-5,
         **pickle_load_args: Any,
@@ -1095,6 +1113,19 @@ class Metamer(_OptimizedSynthesis):
         additional_check_io_attributes
             Any additional attributes whose input/output behavior we should check.
             Intended for use by any subclasses.
+        raise_on_checks
+            During load, we perform several checks to ensure that the saved object was
+            initialized in the same way as the loading object. This is to ensure that
+            the model, image, etc. are all the same and avoid unpleasant surprises. If
+            ``True``, we raise a ``ValueError`` if any of these checks fail. If
+            ``False``, we instead raise a ``LoadWarning``. The intended use here is if
+            you're loading something that was saved with an older version of plenoptic
+            and you're sure that you're doing everything correctly. Note that different
+            devices or dtypes will always result in a ``ValueError``. See
+            :ref:`raise-on-checks` on the "Reproducibility and Compatibility" page of
+            the documentation for more info. Additionally, note that, if the synthesis
+            object itself has changed, we cannot ensure that methods are the same --
+            proceed at your own risk.
         tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
@@ -1138,6 +1169,7 @@ class Metamer(_OptimizedSynthesis):
             check_attributes=check_attributes,
             check_io_attributes=check_io_attrs,
             state_dict_attributes=["_optimizer", "_scheduler"],
+            raise_on_checks=raise_on_checks,
             tensor_equality_atol=tensor_equality_atol,
             tensor_equality_rtol=tensor_equality_rtol,
             **pickle_load_args,
@@ -1149,6 +1181,12 @@ class Metamer(_OptimizedSynthesis):
         # fix that.
         if len(self._saved_metamer) and self._saved_metamer[0].device.type != "cpu":
             self._saved_metamer = [met.to("cpu") for met in self._saved_metamer]
+
+    def __repr__(self) -> str:
+        # numpydoc ignore=GL08
+        return super()._repr_format(
+            ["image", "model", "loss_function", "penalty_function", "penalty_lambda"]
+        )
 
     @property
     def loss_function(self) -> Callable[[Tensor, Tensor], Tensor]:
@@ -1355,8 +1393,6 @@ class MetamerCTF(Metamer):
     Traceback (most recent call last):
     AttributeError: model has no scales attribute ...
     """
-
-    __module__ = "plenoptic"
 
     def __init__(
         self,
@@ -1907,6 +1943,7 @@ class MetamerCTF(Metamer):
         self,
         file_path: str,
         map_location: str | None = None,
+        raise_on_checks: bool = True,
         tensor_equality_atol: float = 1e-8,
         tensor_equality_rtol: float = 1e-5,
         **pickle_load_args: Any,
@@ -1914,11 +1951,18 @@ class MetamerCTF(Metamer):
         r"""
         Load all relevant stuff from a .pt file.
 
-        This should be called by an initialized ``Metamer`` object -- we will
+        This should be called by an initialized ``MetamerCTF`` object -- we will
         ensure that ``image``, ``target_representation`` (and thus
         ``model``), and ``loss_function`` are all identical.
 
         Note this operates in place and so doesn't return anything.
+
+        .. versionchanged:: 1.2
+           load behavior changed in a backwards-incompatible manner in order to
+           compatible with breaking changes in torch 2.6.
+
+        .. versionchanged:: 2.0.0
+           Adds ``raise_on_checks`` argument.
 
         Parameters
         ----------
@@ -1930,6 +1974,19 @@ class MetamerCTF(Metamer):
             CPU, you'll need this to make sure everything lines up
             properly. This should be structured like the str you would
             pass to :class:`torch.device`.
+        raise_on_checks
+            During load, we perform several checks to ensure that the saved object was
+            initialized in the same way as the loading object. This is to ensure that
+            the model, image, etc. are all the same and avoid unpleasant surprises. If
+            ``True``, we raise a ``ValueError`` if any of these checks fail. If
+            ``False``, we instead raise a ``LoadWarning``. The intended use here is if
+            you're loading something that was saved with an older version of plenoptic
+            and you're sure that you're doing everything correctly. Note that different
+            devices or dtypes will always result in a ``ValueError``. See
+            :ref:`raise-on-checks` on the "Reproducibility and Compatibility" page of
+            the documentation for more info. Additionally, note that, if the
+            ``MetamerCTF`` object itself has changed, we cannot ensure that methods
+            are the same -- proceed at your own risk.
         tensor_equality_atol
             Absolute tolerance to use when checking for tensor equality during load,
             passed to :func:`torch.allclose`. It may be necessary to increase if you are
@@ -2011,7 +2068,7 @@ class MetamerCTF(Metamer):
         >>> met = po.Metamer(img, model)
         >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
         Traceback (most recent call last):
-        ValueError: Saved object was a plenoptic._synthesize.metamer.Metamer...
+        ValueError: Saved object was a plenoptic.MetamerCTF...
 
         If the loading ``MetamerCTF`` object was not initialized with same values
         as the saved object, an error will be raised:
@@ -2034,9 +2091,23 @@ class MetamerCTF(Metamer):
             file_path,
             map_location,
             ["_coarse_to_fine"],
+            raise_on_checks=raise_on_checks,
             tensor_equality_atol=tensor_equality_atol,
             tensor_equality_rtol=tensor_equality_rtol,
             **pickle_load_args,
+        )
+
+    def __repr__(self) -> str:
+        # numpydoc ignore=GL08
+        return super()._repr_format(
+            [
+                "image",
+                "model",
+                "loss_function",
+                "penalty_function",
+                "penalty_lambda",
+                "coarse_to_fine",
+            ]
         )
 
     @property

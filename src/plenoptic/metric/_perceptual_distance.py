@@ -269,7 +269,11 @@ def ms_ssim(
     return msssim
 
 
-def nlpd(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
+def nlpd(
+    img1: torch.Tensor,
+    img2: torch.Tensor,
+    epsilon: float = 1e-10,
+) -> torch.Tensor:
     """
     Compute the normalized Laplacian Pyramid Distance.
 
@@ -289,6 +293,9 @@ def nlpd(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
     these, effectively giving larger weight to the lower frequency coefficients
     (which are fewer in number, due to subsampling).
 
+    .. versionchanged:: 2.0.0
+       Made ``epsilon`` parameter public (previously, was hard-coded to ``1e-10``).
+
     Parameters
     ----------
     img1
@@ -301,6 +308,11 @@ def nlpd(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
         for each channel (so channels are treated in the same way as batches). Both
         images should have values between 0 and 1. Otherwise, the result may be
         inaccurate, and we will raise a warning (but will still compute it).
+    epsilon
+        Float added to the computation of the average distance on each band, helpful for
+        stabilizing gradient around zero for optimization purposes. Note that the
+        distance between two identical images will thus be ``sqrt(epsilon)`` (see
+        Examples).
 
     Returns
     -------
@@ -341,6 +353,14 @@ def nlpd(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
     >>> curie_img = po.data.curie()
     >>> po.metric.nlpd(einstein_img, curie_img)
     tensor([[1.3507]])
+
+    Distance between two identical images is ``sqrt(epsilon)`` (this is useful for
+    stabilitizing gradient around zero during optimization):
+
+    >>> po.metric.nlpd(einstein_img, einstein_img)
+    tensor([[1.0000e-05]])
+    >>> po.metric.nlpd(einstein_img, einstein_img, epsilon=1e-20)
+    tensor([[1.0000e-10]])
     """
     if not img1.ndim == img2.ndim == 4:
         raise ValueError(
@@ -372,7 +392,6 @@ def nlpd(img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
     y1 = normalized_laplacian_pyramid(img1)
     y2 = normalized_laplacian_pyramid(img2)
 
-    epsilon = 1e-10  # for optimization purpose (stabilizing the gradient around zero)
     dist = []
     for i in range(6):
         dist.append(torch.sqrt(torch.mean((y1[i] - y2[i]) ** 2, dim=(2, 3)) + epsilon))

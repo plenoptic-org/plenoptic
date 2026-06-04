@@ -165,8 +165,6 @@ class PortillaSimoncelli(nn.Module):
       <Figure size ...>
     """
 
-    __module__ = "plenoptic.models"
-
     def __init__(
         self,
         image_shape: tuple[int, int],
