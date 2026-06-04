@@ -249,14 +249,9 @@ def imshow(
       >>> po.plot.imshow(einstein)
       <PyrFigure size ... with 1 Axes>
 
-    For a batch of images, imshow will plot every image:
-
-    .. plot::
-      :context: close-figs
-
-      >>> import plenoptic as po
-      >>> po.plot.imshow([po.data.einstein(), po.data.curie()])
-      <PyrFigure size ... with 2 Axes>
+    For an image tensor with multiple elements along the batch dimension and a
+    single channel element, this function will plot each batch independently as
+    grayscale images:
 
     .. plot::
       :context: close-figs
@@ -269,7 +264,19 @@ def imshow(
       >>> po.plot.imshow(imgs)
       <PyrFigure size ... with 2 Axes>
 
-    Specifying batch_idx will limit the output to a single image:
+    A list of 4d tensors will be concatenated along the batch dimension before plotting.
+    Thus, the following example is the same as above:
+
+    .. plot::
+      :context: close-figs
+
+      >>> import plenoptic as po
+      >>> po.plot.imshow([po.data.einstein(), po.data.curie()])
+      <PyrFigure size ... with 2 Axes>
+
+    You may use the ``title`` argument for any number of images, either as a string
+    applied to all images or as a list the length of images. Additionally, ``col_wrap``
+    specifies the number of images per row.
 
     .. plot::
       :context: close-figs
@@ -279,21 +286,26 @@ def imshow(
       >>> imgs = torch.cat([po.data.einstein(), po.data.curie()])
       >>> print(imgs.shape)
       torch.Size([2, 1, 256, 256])
-      >>> batch_idx = 1
-      >>> po.plot.imshow(imgs, batch_idx=batch_idx)
-      <PyrFigure size ... with 1 Axes>
+      >>> po.plot.imshow(imgs, title=["einstein", "curie"], col_wrap=1)
+      <PyrFigure size ... with 2 Axes>
 
-    The vrange flag will normalize image values independently or across all images.
-    Note the image ranges for each method.
+    Specifying ``batch_idx`` will plot the corresponding element in
+    the batch dimension (i.e., ``imgs[batch_idx]``)
 
     .. plot::
       :context: close-figs
 
       >>> import plenoptic as po
       >>> import torch
-      >>> imgs = torch.cat([po.data.einstein(), po.data.einstein() * 2])
-      >>> po.plot.imshow(imgs, vrange="indep1")
-      <PyrFigure size ... with 2 Axes>
+      >>> imgs = torch.cat([po.data.einstein(), po.data.curie()])
+      >>> print(imgs.shape)
+      torch.Size([2, 1, 256, 256])
+      >>> po.plot.imshow(imgs, batch_idx=1)
+      <PyrFigure size ... with 1 Axes>
+
+    The vrange argument allows control over the min and max values of the color range.
+    In addition to a 2-tuple of labels, plenoptic includes several special strings:
+    ``"auto1"`` sets all images to have the same range.
 
     .. plot::
       :context: close-figs
@@ -304,14 +316,20 @@ def imshow(
       >>> po.plot.imshow(imgs, vrange="auto1")
       <PyrFigure size ... with 2 Axes>
 
-    Using zoom will up- or downscale the number of display pixels:
+    Meanwhile, ``"indep1"`` sets each image's range independently. Note the different
+    ranges in the titles!
 
     .. plot::
       :context: close-figs
 
       >>> import plenoptic as po
-      >>> po.plot.imshow(po.data.einstein())
-      <PyrFigure size ... with 1 Axes>
+      >>> import torch
+      >>> imgs = torch.cat([po.data.einstein(), po.data.einstein() * 2])
+      >>> po.plot.imshow(imgs, vrange="indep1")
+      <PyrFigure size ... with 2 Axes>
+
+    The ``zoom`` argument allows users to set the ratio of display to image pixels,
+    increasing or decreasing the size of the resulting plot:
 
     .. plot::
       :context: close-figs
@@ -320,7 +338,18 @@ def imshow(
       >>> po.plot.imshow(po.data.einstein(), zoom=0.5)
       <PyrFigure size ... with 1 Axes>
 
-    You can use the plot_complex flag for complex values:
+    If ``zoom<1`` and the value is not a divisor of the largest image size, it will
+    result in an error:
+
+    >>> import plenoptic as po
+    >>> print(po.data.einstein().shape)
+    torch.Size([1, 1, 256, 256])
+    >>> po.plot.imshow(po.data.einstein(), zoom=0.7)
+    Traceback (most recent call last):
+    Exception: zoom * signal.shape must result in integers!
+
+    You can use the ``plot_complex`` argument to control how complex tensors are
+    plotted:
 
     .. plot::
       :context: close-figs
@@ -329,28 +358,46 @@ def imshow(
       >>> import torch
       >>> img = po.data.einstein()
       >>> fft_img = torch.fft.fft2(img)
-      >>> po.plot.imshow([img, fft_img], plot_complex="polar")
+      >>> po.plot.imshow([img, fft_img], plot_complex="logpolar")
       <PyrFigure size ... with 3 Axes>
 
-    Value errors can occur if the as_rgb flag and image dimensions are misaligned:
+    To plot an RGB image, you must set ``as_rgb=True`` to plot a color image:
+
+    .. plot::
+      :context: close-figs
+
+      >>> import plenoptic as po
+      >>> color_wheel = po.data.color_wheel()
+      >>> print(color_wheel.shape)
+      torch.Size([1, 3, 600, 600])
+      >>> po.plot.imshow(color_wheel, as_rgb=True)
+      <PyrFigure size ... with 1 Axes>
+
+    Otherwise, images with multiple channels will have each channel plotted as a
+    separate grayscale image:
+
+    .. plot::
+      :context: close-figs
+
+      >>> import plenoptic as po
+      >>> color_wheel = po.data.color_wheel()
+      >>> print(color_wheel.shape)
+      torch.Size([1, 3, 600, 600])
+      >>> po.plot.imshow(color_wheel)
+      <PyrFigure size ... with 3 Axes>
+
+    Value errors can occur if ``as_rgb=True`` and the input image doesn't have the
+    required number of channels:
 
     >>> import plenoptic as po
     >>> einstein = po.data.einstein()
-    >>> einstein.shape
+    >>> print(einstein.shape)
     torch.Size([1, 1, 256, 256])
     >>> po.plot.imshow(einstein, as_rgb=True)
     Traceback (most recent call last):
     ValueError: If as_rgb is True, then channel must have 3 or 4 elements!
 
-    >>> import plenoptic as po
-    >>> img = torch.cat([po.data.color_wheel(), po.data.color_wheel()])
-    >>> print(img.shape)
-    torch.Size([2, 3, 600, 600])
-    >>> po.plot.imshow(img)
-    Traceback (most recent call last):
-    ValueError: Don't know how to plot non-rgb images with more than one channel and ...
-
-    Images will automatically rescaled to be displayed at the same height and widths
+    Images will be automatically rescaled to be displayed at the same heights and widths
     if sizes are scalar multiples of each other:
 
     .. plot::
