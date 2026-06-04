@@ -154,10 +154,12 @@ At this point, we will be notified of the pull request and will read it over. We
 
 If your changes are integrated, you will be added as a Github contributor and as one of the authors of the package. Thank you for being part of `plenoptic`!
 
+(code-style-and-linting)=
 ### Code Style and Linting
 
 We use [Ruff](https://docs.astral.sh/ruff/) for linting and formatting our Python code to maintain a consistent code style and catch potential errors early. We run ruff as part of our CI (using pre-commit, see below) and non-compliant code will not be merged! You can see the version of `ruff` that we are currently using in the `.pre-commit-config.yaml` file in the project root .
 
+(using-ruff)=
 #### Using Ruff
 
 Ruff is a fast and comprehensive Python formatter and linter that checks for common style and code quality issues. It combines multiple tools, like black, Pyflakes, pycodestyle, isort, and other linting rules into one efficient tool, which are specified in `pyproject.toml`. Before submitting your code, make sure to run Ruff to catch any issues. See other sections of this document for how to use `nox` and `pre-commit` to simplify this process.
@@ -192,6 +194,7 @@ ruff --fix .
 
 Be careful with **unsafe fixes**, safe fixes are symbolized with the tools emoji and are listed [here](https://docs.astral.sh/ruff/rules/)!
 
+(ignoring-ruff-linting)=
 #### Ignoring Ruff Linting
 In some cases, it may be acceptable to suppress lint errors, for example when too long lines (code `E501`) are desired because otherwise the url might not be readable anymore. These ignores will be evaluated on a case-by-case basis.
 You can do this by adding the following to the end of the line:
@@ -248,7 +251,6 @@ After installation, should you want to ignore pre-commit hooks for some reason (
 ```bash
 git commit -m <my commit message> --no-verify
 ```
-
 
 ### Adding models or synthesis methods
 
@@ -652,6 +654,7 @@ for the available strings. Note that unlike in the simple
 If we did not include that argument, `model` <!-- skip-lint --> would just be the strings `'SPyr'`
 and `'LNL'`!
 
+(documentation)=
 ## Documentation
 
 (adding-documentation)=
@@ -763,6 +766,7 @@ need to be as extensive.
 We follow the [numpydoc](https://numpydoc.readthedocs.io/en/latest/) conventions
 for docstring structure.
 
+(doctests)=
 ### Doctests
 
 All public-facing functions and classes should include {mod}`doctest`, which are the standard python way of showing short code examples in docstrings. These should be included in their own `Examples` section of the docstring. Every docstring should include at least one example, which shows the most common way of interacting with the function / class. Additional examples should be included where helpful, to show other common ways of interacting with the object (e.g., setting optional arguments), with brief descriptions describing what each example is doing.
