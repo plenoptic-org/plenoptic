@@ -55,8 +55,7 @@ We try to keep all our communication on Github, and we use several channels:
 
 ### Contribution workflow
 
-We welcome contributions to `plenoptic`! In order to contribute, please create
-your own branch, make sure the tests pass, and open a Pull Request. We follow
+We welcome contributions to `plenoptic`! We follow
 the [GitHub
 Flow](https://www.gitkraken.com/learn/git/best-practices/git-branch-strategy#github-flow-branch-strategy)
 workflow: no one is allowed to push to the `main` branch, all development
@@ -135,9 +134,9 @@ git commit -m "A helpful message explaining my changes"
 git push origin my_cool_branch
 ```
 
-You can also run `git status` at any time to keep track of what files have been changed and are staged for committing. You can also run `git switch my_other_branch` to move between branches.
+You can run `git status` at any time to keep track of what files have been changed and which are staged for committing. You can also run `git switch my_other_branch` to move between branches.
 
-If you have installed pre-commit, you will see a number of tests running, see [Code Style and Linting](code-style-and-linting) for details on these tests. Often, these errors will include formatting specifications from [ruff](using-ruff). Until these are fixed, the commit will not go through, so you must fix the errors, re-stage, and re-commit (or see [ignoring ruff linting](ignoring-ruff-linting) if needed).
+If you have installed pre-commit, you will see a number of tests running after you commit, see [Code Style and Linting](code-style-and-linting) for details on these tests. Often, these errors will include formatting specifications from [ruff](using-ruff). Until these are fixed, the commit will not go through, so you must fix the errors, re-stage, and re-commit (or see [ignoring ruff linting](ignoring-ruff-linting) if needed).
 
 #### Documenting your code
 
