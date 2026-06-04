@@ -73,13 +73,33 @@ Before we begin: everyone finds `git` confusing the first few (dozen) times they
 
 #### Creating a development environment
 
-You'll need a local installation of `plenoptic` which keeps up-to-date with any changes you make. To do so, you will need to fork and clone `plenoptic`:
+You'll need a local installation of `plenoptic` which keeps up-to-date with any changes you make. To do so, you will need to fork and clone `plenoptic`.
 
 1. Go to the [plenoptic repo](https://github.com/plenoptic-org/plenoptic/) and click on the `Fork` button at the top right of the page. This creates a copy of plenoptic in your Github account.
-2. You should then clone *your fork* to your local machine and create an editable installation. To do so, follow the instructions for an editable install found in our [docs](source), replacing `git clone https://github.com/plenoptic-org/plenoptic.git` with `git clone https://github.com/<YourUserName>/plenoptic.git`.
-3. Add the `upstream` branch: `git remote add upstream https://github.com/plenoptic-org/plenoptic.git`. At this point, you have two remotes: `origin` (your fork) and `upstream` (the canonical version). You won't have permission to push to upstream (only `origin`), but this makes it easy to keep your `plenoptic` up to date with the canonical version by pulling from upstream: `git pull upstream`.
+2. You should then clone *your fork* to your local machine and create an editable installation. You will also add the upstream version, which makes it easy to keep your `plenoptic` up to date with the canonical version. To do so, run the lines of code below, also outlined in our [docs](source):
 
-You should probably also install all the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, run `pip install -e ".[docs,dev,nb]"` from within the copy of `plenoptic` on your machine (see [docs](jupyter-doc) of our documentation for information on how to set up jupyter if you don't want an extra copy of it in this environment).
+```bash
+# replace with your personal GitHub username
+git clone https://github.com/github-username/plenoptic.git
+cd plenoptic
+# add the upstream branch. you will now have your fork (origin)
+# and the canonical version (upstream)
+git remote add upstream https://github.com/plenoptic-org/plenoptic.git
+```
+
+3. You will then want to install all of the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, make a virtual environment and run the installation from within the copy of `plenoptic` on your machine (see [docs](jupyter-doc) for information on how to set up jupyter if you don't want an extra copy of it in this environment).
+
+```bash
+# create virtual environment
+python -m venv .venv
+# activate environment
+.venv/Scripts/activate
+# install all dependencies. see jupyter notes if you also want to install [nb]
+pip install -e ".[docs,dev]"
+# add pre-commit which will run tests prior to each commit
+pip install pre-commit
+pre-commit install
+```
 
 #### Creating a new branch
 
@@ -98,22 +118,36 @@ git push origin main
 git checkout -b my_cool_branch
 ```
 
-Then, create new changes on this branch and, when you're ready, add and commit them:
+Anytime you want to sync with upstream changes, just run `git pull upstream main`. If you aren't comfortable with `git` commands, I recommend the [Software Carpentry git lesson](https://swcarpentry.github.io/git-novice/).
+
+Then, create new changes on this branch and, when you're ready, you can begin running tests locally and committing to your branch.
+
+#### Committing to your branch
+
+After making changes to the code on your branch, you should commit your changes. These should be done regularly so it is easy to see changes that were made and is simple to revert back to previous versions if issues arise. To make a commit, navigate to the plenoptic directory and run the following:
 
 ```bash
 # stage the changes
 git add src/plenoptic/the_file_you_changed.py
 # commit your changes
 git commit -m "A helpful message explaining my changes"
-# push to the origin remote
+# if the pre-commit checks pass, you can then push to the origin remote
 git push origin my_cool_branch
 ```
 
-If you aren't comfortable with `git add`, `git commit`, `git push`, I recommend the [Software Carpentry git lesson](https://swcarpentry.github.io/git-novice/).
+You can also run `git status` at any time to keep track of what files have been changed and are staged for committing. You can also run `git switch my_other_branch` to move between branches.
+
+If you have installed pre-commit, you will see a number of tests running, see [Code Style and Linting](code-style-and-linting) for details on these tests. Often, these errors will include formatting specifications from [ruff](using-ruff). Until these are fixed, the commit will not go through, so you must fix the errors, re-stage, and re-commit (or see [ignoring ruff linting](ignoring-ruff-linting) if needed).
+
+#### Documenting your code
+
+Depending on the type of change you are making, you will likely need to add or edit documentation related to the changes. Please see [Documentation](documentation) section for specifics on formatting and testing. If you would like to build the documentation locally before committing/pushing, you can run `make -C docs html` from the root directory. This may fail on Windows, so you can also run `make html` from the docs directory. The outputs will be put into `/docs/_build/html/` and you can run `firefox docs/_build/html/index.html` to open up the landing page (you may need to run `start firefox` or add to your path first). This process will run [sphinx](doctests) which only runs blocks contained in the plot directive. It will typically not display figures if the formatting is incorrect. However, sphinx does not check whether the code output is accurate, this is done with pytest.
+
+You should also run [pytest](doctests) locally before submitting a pull request: `pytest -n 0 --doctest-continue-on-failure --doctest-modules src/ -W "ignore"`. You can also replace `src/` with the path to a subdirectory or specific file to avoid running tests on everything. This will check whether the outputs of any code match what you have documented it should be. It can be very particular about format and syntax - see [Documentation](documentation) section.
 
 #### Contributing your change back to plenoptic
 
-You can make any number of changes on your branch. Once you're happy with your changes, [add tests](adding-tests) to check that they run correctly and [add documentation](adding-documentation), then make sure the existing [tests](testing) all run successfully, that your branch is up-to-date with main, and then open a pull request by clicking on the big `Compare & pull request` button that appears at the top of your fork after pushing to your branch (see [here](https://intersect-training.org/collaborative-git/pr.html) for a tutorial).
+You can make any number of changes on your branch. Once you're happy with your changes, make sure you have added [tests](adding-tests) and [documentation](adding-documentation), check that existing [tests](testing) all run successfully, that your branch is up-to-date with main, and then open a pull request by clicking on the big `Compare & pull request` button that appears at the top of your fork after pushing to your branch (see [here](https://intersect-training.org/collaborative-git/pr.html) for a tutorial).
 
 Your pull request should include information on what you changed and why, referencing any relevant issues or discussions, and highlighting any portion of your changes where you have lingering questions (e.g., "was this the right way to implement this?") or want reviewers to pay special attention. You can look at previous closed pull requests to see what this looks like.
 
