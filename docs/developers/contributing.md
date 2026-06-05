@@ -64,7 +64,7 @@ single feature, addresses a single issue, or fixes a single problem), and these
 get merged into `main` once we have determined they're ready. Then, after enough
 changes have accumulated, we put out a new release, adding a new tag which
 increments the version number, and uploading the new release to PyPI (see
-[releases](releases) for more details).
+[](releases) for more details).
 
 In addition to the information that follows, [Github](https://docs.github.com/en/get-started/quickstart/github-flow) (unsurprisingly) has good information on this workflow, as does the [Caiman package](https://github.com/flatironinstitute/CaImAn/blob/main/CONTRIBUTING.md) (though note that the Caiman uses **git** flow, which involves a separate develop branch in addition to main).
 
@@ -72,7 +72,7 @@ Before we begin: everyone finds `git` confusing the first few (dozen) times they
 
 #### Creating a development environment
 
-You'll need a local installation of `plenoptic` which keeps up-to-date with any changes you make. To do so, you will need to fork and clone `plenoptic`.
+You'll need a local copy of `plenoptic` which keeps up-to-date with any changes you make. To do so, you will need to fork and clone `plenoptic`.
 
 1. Go to the [plenoptic repo](https://github.com/plenoptic-org/plenoptic/) and click on the `Fork` button at the top right of the page. This creates a copy of plenoptic in your Github account.
 2. You should then clone *your fork* to your local machine and create an editable installation. You will also add the upstream version, which makes it easy to keep your `plenoptic` up to date with the canonical version. To do so, run the lines of code below, also outlined in our [docs](source):
@@ -81,12 +81,12 @@ You'll need a local installation of `plenoptic` which keeps up-to-date with any 
 # replace with your personal GitHub username
 git clone https://github.com/github-username/plenoptic.git
 cd plenoptic
-# add the upstream branch. you will now have your fork (origin)
-# and the canonical version (upstream)
+# add the upstream branch. you will now have two remotes:
+# your fork (origin) and the canonical version (upstream)
 git remote add upstream https://github.com/plenoptic-org/plenoptic.git
 ```
 
-3. You will then want to install all of the optional dependencies, so that you can run tests, build the documentation, and run the jupyter notebooks locally. To do so, make a virtual environment and run the installation from within the copy of `plenoptic` on your machine (see [docs](jupyter-doc) for information on how to set up jupyter if you don't want an extra copy of it in this environment).
+3. You will then want to install all the `docs` and `devs` optional dependencies, so that you can run tests and build the documentation. To do so, make a virtual environment and run the installation from within the copy of `plenoptic` on your machine.
 
 ```bash
 # create virtual environment
@@ -95,7 +95,11 @@ python -m venv .venv
 .venv/Scripts/activate
 # install all dependencies. see jupyter notes if you also want to install [nb]
 pip install -e ".[docs,dev]"
-# add pre-commit which will run tests prior to each commit
+```
+
+4. Finally, we strongly recommend you install pre-commit, which will run [linting and formatting](code-style-and-linting) each time you make a [commit](committing-to-your-branch). This will help you deal with common errors locally prior to pushing your code.
+
+```bash
 pip install pre-commit
 pre-commit install
 ```
@@ -121,6 +125,7 @@ Anytime you want to sync with upstream changes, just run `git pull upstream main
 
 Then, create new changes on this branch and, when you're ready, you can begin running tests locally and committing to your branch.
 
+(committing-to-your-branch)=
 #### Committing to your branch
 
 After making changes to the code on your branch, you should commit your changes. These should be done regularly so it is easy to see changes that were made and is simple to revert back to previous versions if issues arise. To make a commit, navigate to the plenoptic directory and run the following:
@@ -136,13 +141,21 @@ git push origin my_cool_branch
 
 You can run `git status` at any time to keep track of what files have been changed and which are staged for committing. You can also run `git switch my_other_branch` to move between branches.
 
-If you have installed pre-commit, you will see a number of tests running after you commit, see [Code Style and Linting](code-style-and-linting) for details on these tests. Often, these errors will include formatting specifications from [ruff](using-ruff). Until these are fixed, the commit will not go through, so you must fix the errors, re-stage, and re-commit (or see [ignoring ruff linting](ignoring-ruff-linting) if needed).
+If you have installed [pre-commit](pre-commit), you will see a number of linting and formatting checks running when you try to commit, see [](code-style-and-linting) for more details. Often, these errors will include formatting specifications from [ruff](using-ruff). Until these are fixed, the commit will not go through, so you must fix the errors, re-stage, and re-commit (or see [](ignoring-ruff-linting) if needed).
 
 #### Documenting your code
 
-Depending on the type of change you are making, you will likely need to add or edit documentation related to the changes. Please see [Documentation](documentation) section for specifics on formatting and testing. If you would like to build the documentation locally before committing/pushing, you can run `make -C docs html` from the root directory. This may fail on Windows, so you can also run `make html` from the docs directory. The outputs will be put into `/docs/_build/html/` and you can run `firefox docs/_build/html/index.html` to open up the landing page (you may need to run `start firefox` or add to your path first). This process will run [sphinx](doctests) which only runs blocks contained in the plot directive. It will typically not display figures if the formatting is incorrect. However, sphinx does not check whether the code output is accurate, this is done with pytest.
+Depending on the type of change you are making, you will likely need to add or edit documentation related to the changes. There are four classes of documentation in plenoptic:
 
-You should also run [pytest](doctests) locally before submitting a pull request: `pytest -n 0 --doctest-continue-on-failure --doctest-modules src/ -W "ignore"`. You can also replace `src/` with the path to a subdirectory or specific file to avoid running tests on everything. This will check whether the outputs of any code match what you have documented it should be. It can be very particular about format and syntax - see [Documentation](documentation) section.
+- [](docstrings): the "help" information that is written alongside code. If you add a new function or object, you will need to write an accompanying docstring.
+
+- [](doctests): A section of the docstring, examples which show how to use plenoptic functions or objects. We are in the process of adding examples to every function in plenoptic -- see [issue 237](https://github.com/plenoptic-org/plenoptic/issues/237) for progress and how to help! Any new functions or objects need to have examples included.
+
+- (Less common) Markdown files that live in `docs/`, plain text which might show some example code. These are used for explanations like this one!
+
+- (Less common) [MyST notebooks](https://myst-nb.readthedocs.io/): specially-formatted markdown files that live in `docs`/, these get converted into jupyter notebooks and executed while building the documentation. These are used to provide longer examples of how to use plenoptic, mixed with code.
+
+If you are adding a new function or object to plenoptic, you must include a docstring with accompanying doctests. Adding a new file to the `docs/` folder is less common and determined on a case-by-case basis, and we can discuss whether it's necessary during the course of a contribution. Please see [](documentation) section for specifics on formatting and testing, with notes on the above types, and [](build-the-documentation) for how to build the documentation locally.
 
 #### Contributing your change back to plenoptic
 
@@ -232,6 +245,7 @@ For more details, refer to the [documentation](https://docs.astral.sh/ruff/linte
   (see [below](docstrings) for details). Hidden ones do not *need* to have
   complete docstrings, but they probably should.
 
+(pre-commit)=
 #### Pre-Commit Hooks:  Identifying simple issues before submission to code review (and how to ignore those)
 
 [Pre-commit](https://pre-commit.com/) hooks are useful for the developer to check if all the linting and formatting rules (see Ruff above) are honored _before_ committing. That is, when you commit, pre-commit hooks are run and auto-fixed where possible (e.g., trailing whitespace). You then need to add _again_ if you want these changes to be included in your commit. If the problem is not automatically fixable, you will need to manually update your code before you are able to commit.
@@ -773,7 +787,7 @@ All public-facing functions and classes should include {mod}`doctest`, which are
 
 A function's Examples section must run independently from those of other functions (i.e., it can't reuse an object defined in a different function), but different blocks within the section can depend on each other (so that e.g., you don't have to reimport plenoptic in each block).
 
-Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/doctest.html) in our CI (the `doctests` action) and sphinx builds them as part of the documentation (which is part of the Jenkins CI step). Both are required to pass before any PR will be merged. Some notes about this:
+Our doctests are built using Sphinx as part of the documentation (which is part of the Jenkins CI step) and tested using [pytest](https://docs.pytest.org/en/stable/how-to/doctest.html) in our CI (the `doctests` action). Both are required to pass before any PR will be merged. Some notes about this:
 
 - If you would like to include a figure, use matplotlib's {doc}`plot directive <matplotlib:api/sphinxext_plot_directive_api>`. That means, your example should be structured like:
 
@@ -793,14 +807,14 @@ Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/
     Examples
     --------
     >>> import plenoptic as po
-    >>> img = po.data.einstein()
+    >>> einstein = po.data.einstein()
 
     And now we display the image:
 
     .. plot::
        :context: reset
 
-       >>> po.plot.imshow(img)
+       >>> po.plot.imshow(einstein)
     ```
 
     whereas the following will succeed:
@@ -812,19 +826,46 @@ Our doctests are tested using [pytest](https://docs.pytest.org/en/stable/how-to/
        :reset: reset
 
        >>> import plenoptic as po
-       >>> img = po.data.einstein()
+       >>> einstein = po.data.einstein()
 
     And now we display the image:
 
     .. plot::
        :context: close-figs
 
-       >>> po.plot.imshow(img)
+       >>> po.plot.imshow(einstein)
     ```
 
     Note that the second block cannot have `:context: reset` or you will be unable to use the objects from the first block!
 
     This only affects sphinx. pytest ignores the plot directive and so either structure will pass.
+
+- Alternatively, pytest only checks whether the actual execution outputs of Python code match the expected results written in your documentation. Therefore, while the following will succeed in sphinx,
+
+    ```python
+    Examples
+    --------
+    .. plot::
+       :reset: reset
+
+       >>> import plenoptic as po
+       >>> einstein = po.data.einstein()
+       >>> po.plot.imshow(img)
+    ```
+
+    you must add the expected output in order for pytest to succeed:
+
+    ```python
+    Examples
+    --------
+    .. plot::
+       :reset: reset
+
+       >>> import plenoptic as po
+       >>> einstein = po.data.einstein()
+       >>> po.plot.imshow(img)
+       <PyrFigure size ... with 1 Axes>
+    ```
 
 - pytest allows for the use of [fixtures](https://docs.pytest.org/en/stable/how-to/fixtures.html) in doctests. In order to be used, they must be included in the `src/plenoptic/conftest.py` file (**not** the `tests/conftest.py` file). Among other things, any downloads from `torchvision` / `torch.hub` should happen in those fixtures (since they are difficult to properly write doctests for, see note there for details). This does mean that the first time you run doctests on your local machine, it will take a while to download those files; they are cached and won't be downloaded again, so this is only a one-time cost.
 
@@ -838,14 +879,16 @@ documentation is built automatically, pushed to the
 github repo and published at http://docs.plenoptic.org/.
 :::
 
-However, it can be built locally as well. You would do this if you've made changes locally to the documentation (or the docstrings) that you would like to examine before pushing. All additional requirements are included in the `[docs]` optional dependency bundle, which you can install with `pip install plenoptic[docs]`.
+#### Sphinx
 
-Then, to build the documentation, run: `make -C docs html O="-j auto"`. (`-j auto` tells sphinx to parallelize the build, using as many cores as possible, a specific number can be set.)
+However, it can be built locally as well. You would do this if you've made changes locally to the documentation (or the docstrings) that you would like to examine before pushing. All necessary requirements are included in the `[docs]` optional dependency bundle, which you can install with `pip install plenoptic[docs]`.
+
+Then, to build the documentation, run: `make html` from within the `docs/` directory. The outputs will be put into `/docs/_build/html/` and you can then open built pages in your browser. For example, you can open the landing page (`docs/_build/html/index.html`) by opening it in your files or through the command line using your choice of browser (i.e. `firefox docs/_build/html/index.html`). It will typically not display figures if the formatting is incorrect. However, sphinx does not check whether the code output is accurate, this is done with pytest.
 
 By default, the text-based notebooks (see [earlier](adding-documentation)) are not run because they take a longish time to do so, especially if you do not have a GPU. In order to run all of them, prepend `RUN_NB=1` to the `make` command above. In order to run specific notebooks, set `RUN_NB` to a globbable comma-separated string in the above, e.g., `RUN_NB=Metamer,MAD` to run `docs/user_guide/synthesis/Metamer`, `docs/user_guide/synthesis/MAD_Competition_1`, and `docs/user_guide/synthesis/MAD_Competition_2`.
 
 Additionally, our docstrings have a variety of Examples blocks that are run by sphinx in order to render plots in the documentation, which can take a while to run. You can temporarily disable these by prepending `SKIP_MPL=1` to the `make` command. This will cause `docutils` to raise an error every time it encounters a [`plot` directive](https://matplotlib.org/stable/api/sphinxext_plot_directive_api.html), and so the build will appear to fail. However, the output will be rendered correctly (with the exception of those `plot` blocks), and so this can be useful for rapidly viewing changes locally when editing other parts of the documentation. In order to ensure the documentation build completes without any warnings or errors, you should build the docs normally before pushing.
 
-The index page of the documentation will then be located at
-`docs/_build/html/index.html`, open it in your browser to navigate
-around.
+#### Pytest
+
+You should also run pytest locally before submitting a pull request: `pytest -n 0 --doctest-continue-on-failure --doctest-modules src/ -W "ignore"`. You can also replace `src/` with the path to a subdirectory or specific file to avoid running tests on everything. This will check whether the outputs of any code match what you have documented it should be. It can be very particular about format and syntax - see [pytest docs](https://docs.pytest.org/en/stable/how-to/doctest.html) for details.
