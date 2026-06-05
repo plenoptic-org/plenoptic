@@ -256,9 +256,9 @@ def imshow(
     .. plot::
       :context: close-figs
 
-      >>> import plenoptic as po
       >>> import torch
-      >>> imgs = torch.cat([po.data.einstein(), po.data.curie()])
+      >>> curie = po.data.curie()
+      >>> imgs = torch.cat([einstein, curie])
       >>> print(imgs.shape)
       torch.Size([2, 1, 256, 256])
       >>> po.plot.imshow(imgs)
@@ -270,8 +270,7 @@ def imshow(
     .. plot::
       :context: close-figs
 
-      >>> import plenoptic as po
-      >>> po.plot.imshow([po.data.einstein(), po.data.curie()])
+      >>> po.plot.imshow([einstein, curie])
       <PyrFigure size ... with 2 Axes>
 
     You may use the ``title`` argument for any number of images, either as a string
@@ -281,11 +280,6 @@ def imshow(
     .. plot::
       :context: close-figs
 
-      >>> import plenoptic as po
-      >>> import torch
-      >>> imgs = torch.cat([po.data.einstein(), po.data.curie()])
-      >>> print(imgs.shape)
-      torch.Size([2, 1, 256, 256])
       >>> po.plot.imshow(imgs, title=["einstein", "curie"], col_wrap=1)
       <PyrFigure size ... with 2 Axes>
 
@@ -295,25 +289,20 @@ def imshow(
     .. plot::
       :context: close-figs
 
-      >>> import plenoptic as po
-      >>> import torch
-      >>> imgs = torch.cat([po.data.einstein(), po.data.curie()])
       >>> print(imgs.shape)
       torch.Size([2, 1, 256, 256])
       >>> po.plot.imshow(imgs, batch_idx=1)
       <PyrFigure size ... with 1 Axes>
 
     The vrange argument allows control over the min and max values of the color range.
-    In addition to a 2-tuple of labels, plenoptic includes several special strings:
+    In addition to a 2-tuple of floats, this functions accepts several special strings:
     ``"auto1"`` sets all images to have the same range.
 
     .. plot::
       :context: close-figs
 
-      >>> import plenoptic as po
-      >>> import torch
-      >>> imgs = torch.cat([po.data.einstein(), po.data.einstein() * 2])
-      >>> po.plot.imshow(imgs, vrange="auto1")
+      >>> einsteins_scaled = torch.cat([einstein, einstein * 2])
+      >>> po.plot.imshow(einsteins_scaled, vrange="auto1")
       <PyrFigure size ... with 2 Axes>
 
     Meanwhile, ``"indep1"`` sets each image's range independently. Note the different
@@ -322,10 +311,7 @@ def imshow(
     .. plot::
       :context: close-figs
 
-      >>> import plenoptic as po
-      >>> import torch
-      >>> imgs = torch.cat([po.data.einstein(), po.data.einstein() * 2])
-      >>> po.plot.imshow(imgs, vrange="indep1")
+      >>> po.plot.imshow(einsteins_scaled, vrange="indep1")
       <PyrFigure size ... with 2 Axes>
 
     The ``zoom`` argument allows users to set the ratio of display to image pixels,
@@ -334,17 +320,15 @@ def imshow(
     .. plot::
       :context: close-figs
 
-      >>> import plenoptic as po
-      >>> po.plot.imshow(po.data.einstein(), zoom=0.5)
+      >>> po.plot.imshow(einstein, zoom=0.5)
       <PyrFigure size ... with 1 Axes>
 
-    If ``zoom<1`` and the value is not a divisor of the largest image size, it will
-    result in an error:
+    If ``zoom<1`` and the value is not a divisor of the largest image size, this
+    function will raise an error:
 
-    >>> import plenoptic as po
-    >>> print(po.data.einstein().shape)
+    >>> print(einstein.shape)
     torch.Size([1, 1, 256, 256])
-    >>> po.plot.imshow(po.data.einstein(), zoom=0.7)
+    >>> po.plot.imshow(einstein, zoom=0.7)
     Traceback (most recent call last):
     Exception: zoom * signal.shape must result in integers!
 
@@ -354,11 +338,8 @@ def imshow(
     .. plot::
       :context: close-figs
 
-      >>> import plenoptic as po
-      >>> import torch
-      >>> img = po.data.einstein()
-      >>> fft_img = torch.fft.fft2(img)
-      >>> po.plot.imshow([img, fft_img], plot_complex="logpolar")
+      >>> einstein_fft = torch.fft.fft2(einstein)
+      >>> po.plot.imshow([einstein, einstein_fft], plot_complex="logpolar")
       <PyrFigure size ... with 3 Axes>
 
     To plot an RGB image, you must set ``as_rgb=True`` to plot a color image:
@@ -366,11 +347,10 @@ def imshow(
     .. plot::
       :context: close-figs
 
-      >>> import plenoptic as po
       >>> color_wheel = po.data.color_wheel()
       >>> print(color_wheel.shape)
       torch.Size([1, 3, 600, 600])
-      >>> po.plot.imshow(color_wheel, as_rgb=True)
+      >>> po.plot.imshow(color_wheel, as_rgb=True, zoom=0.5)
       <PyrFigure size ... with 1 Axes>
 
     Otherwise, images with multiple channels will have each channel plotted as a
@@ -379,18 +359,12 @@ def imshow(
     .. plot::
       :context: close-figs
 
-      >>> import plenoptic as po
-      >>> color_wheel = po.data.color_wheel()
-      >>> print(color_wheel.shape)
-      torch.Size([1, 3, 600, 600])
-      >>> po.plot.imshow(color_wheel)
+      >>> po.plot.imshow(color_wheel, zoom=0.5, title=["R", "G", "B"])
       <PyrFigure size ... with 3 Axes>
 
-    Value errors can occur if ``as_rgb=True`` and the input image doesn't have the
-    required number of channels:
+    This function will raise a ``ValueError`` if ``as_rgb=True`` and the input image
+    doesn't have the required number of channels:
 
-    >>> import plenoptic as po
-    >>> einstein = po.data.einstein()
     >>> print(einstein.shape)
     torch.Size([1, 1, 256, 256])
     >>> po.plot.imshow(einstein, as_rgb=True)
@@ -403,10 +377,8 @@ def imshow(
     .. plot::
       :context: close-figs
 
-      >>> import plenoptic as po
-      >>> img = po.data.einstein()
-      >>> crop_img = po.process.center_crop(img, 32)
-      >>> po.plot.imshow([img, crop_img])
+      >>> einstein_cropped = po.process.center_crop(einstein, 32)
+      >>> po.plot.imshow([einstein, einstein_cropped])
       <PyrFigure size ... with 2 Axes>
     """
     if not isinstance(image, list):
