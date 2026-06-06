@@ -8,8 +8,10 @@ __all__ = [
     "Gaussian",
     "CenterSurround",
     "PortillaSimoncelli",
+    "FeatureExtractorModel",
 ]
 
+from .feature_extractor import FeatureExtractorModel
 from .frontend import (
     LinearNonlinear,
     LuminanceContrastGainControl,
