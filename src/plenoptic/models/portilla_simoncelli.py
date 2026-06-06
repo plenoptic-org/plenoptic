@@ -1272,6 +1272,10 @@ class PortillaSimoncelli(nn.Module):
         ------
         ValueError
             If both ``figsize`` and ``ax`` are not ``None``.
+        ValueError
+            If ``data`` is a dictionary and contains additional keys.
+        KeyError
+            If ``data`` is a dictionary and is missing keys.
 
         Examples
         --------
@@ -1366,8 +1370,15 @@ class PortillaSimoncelli(nn.Module):
             If the tensors in ``rep`` looks like they have more than one batch
             or channel. Should select or average over those dimensions.
         ValueError
-            If ``rep`` contains unexpected keys.
+            If ``rep`` contains additional keys.
+        KeyError
+            If ``rep`` is missing any keys.
         """  # numpydoc ignore=EX01
+        if set(rep.keys()) > set(self._necessary_stats_dict.keys()):
+            raise ValueError("representation contains additional keys!")
+        elif set(rep.keys()) < set(self._necessary_stats_dict.keys()):
+            raise KeyError("representation is missing keys!")
+
         if rep["skew_reconstructed"].ndim > 1:
             raise ValueError(
                 "Currently, only know how to plot single batch and channel at"
@@ -1395,8 +1406,6 @@ class PortillaSimoncelli(nn.Module):
             "cross_scale_correlation_magnitude",
             "cross_scale_correlation_real",
         ]
-        if set(rep.keys()) != set(all_keys):
-            raise ValueError("representation has unexpected keys!")
         for k in all_keys:
             # if we only have one scale, no cross-scale stats
             if k.startswith("cross_scale") and self.n_scales == 1:

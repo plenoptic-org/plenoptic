@@ -1010,6 +1010,25 @@ class TestPortillaSimoncelli:
             rep = model.convert_to_dict(rep)
         fig, _ = model.plot_representation(rep, title="Representation")
 
+    @pytest.mark.parametrize("model", ["PortillaSimoncelli"], indirect=True)
+    @pytest.mark.parametrize("error_type", ["add", "remove"])
+    def test_plot_representation_bad_keys(
+        self, model, einstein_img, error_type, close_figures_on_teardown
+    ):
+        rep = model.convert_to_dict(model(einstein_img))
+        if error_type == "add":
+            rep["bad_key"] = torch.rand(1, 1, 100)
+            expectation = pytest.raises(
+                ValueError, match="representation contains additional keys"
+            )
+        elif error_type == "remove":
+            rep.pop("pixel_statistics")
+            expectation = pytest.raises(
+                KeyError, match="representation is missing keys"
+            )
+        with expectation:
+            model.plot_representation(rep)
+
     @pytest.mark.parametrize("figsize", [None, (5, 5), (5.0, 5.0), (10, 5)])
     @pytest.mark.parametrize("ax", [False, True])
     def test_plot_representation_figsize(
