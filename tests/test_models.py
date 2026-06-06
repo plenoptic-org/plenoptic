@@ -984,12 +984,14 @@ class TestPortillaSimoncelli:
                 "Output doesn't have same number of batch/channel dims as input!"
             )
 
+    @pytest.mark.parametrize("input_type", ["tensor", "dict"])
     @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
     def test_plot_representation(
         self,
+        input_type,
         batch_channel,
         n_scales,
         n_orientations,
@@ -1003,10 +1005,10 @@ class TestPortillaSimoncelli:
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
         ).to(DEVICE)
-        fig, _ = model.plot_representation(
-            model(einstein_img.repeat((*batch_channel, 1, 1))),
-            title="Representation",
-        )
+        rep = model(einstein_img.repeat((*batch_channel, 1, 1)))
+        if input_type == "dict":
+            rep = model.convert_to_dict(rep)
+        fig, _ = model.plot_representation(rep, title="Representation")
 
     @pytest.mark.parametrize("figsize", [None, (5, 5), (5.0, 5.0), (10, 5)])
     @pytest.mark.parametrize("ax", [False, True])
