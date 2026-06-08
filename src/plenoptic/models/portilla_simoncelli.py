@@ -27,7 +27,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from ..plot.display import _clean_up_axes, _update_stem, stem_plot
+from ..plot.display import _clean_up_axes, _rescale_ylim, _update_stem, stem_plot
 from ..process import signal, stats
 from ..process.steerable_pyramid_freq import (
     SCALES_TYPE as PYR_SCALES_TYPE,
@@ -1421,6 +1421,7 @@ class PortillaSimoncelli(nn.Module):
         axes: list[plt.Axes],
         data: Tensor,
         batch_idx: int = 0,
+        rescale_ylim: bool = False,
     ) -> list[plt.Artist]:
         r"""
         Update the information in our representation plot.
@@ -1457,6 +1458,8 @@ class PortillaSimoncelli(nn.Module):
             of this class).
         batch_idx
             Which index to take from the batch dimension (the first one).
+        rescale_ylim
+            Whether to rescale the y-limits to all have the same limits or not.
 
         Returns
         -------
@@ -1500,4 +1503,6 @@ class PortillaSimoncelli(nn.Module):
 
             sc = _update_stem(ax.containers[0], vals)
             stem_artists.extend([sc.markerline, sc.stemlines])
+        if rescale_ylim:
+            _rescale_ylim(axes, torch.cat([v.flatten() for v in rep.values()]))
         return stem_artists

@@ -27,22 +27,32 @@ def close_figures_on_teardown():
 
 
 class TestDisplay:
-    def test_update_plot_line(self):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_line(self, rescale_ylim):
         x = np.linspace(0, 100)
         y1 = np.random.rand(*x.shape)
         y2 = np.random.rand(*x.shape)
         fig, ax = plt.subplots(1, 1)
         ax.plot(x, y1, "-o", label="hi")
+        orig_ylim = ax.get_ylim()
         po.plot.update_plot(
-            ax, torch.as_tensor(y2, device=DEVICE).reshape(1, 1, len(x))
+            ax,
+            torch.as_tensor(y2, device=DEVICE).reshape(1, 1, len(x)),
+            rescale_ylim=rescale_ylim,
         )
+        updated_ylim = ax.get_ylim()
         assert len(ax.lines) == 1, "Too many lines were plotted!"
         _, ax_y = ax.lines[0].get_data()
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update line correctly!")
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
-    def test_update_plot_line_multi_axes(self, how):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_line_multi_axes(self, how, rescale_ylim):
         x = np.linspace(0, 100)
         y1 = np.random.rand(*x.shape)
         y2 = np.random.rand(2, *y1.shape)
@@ -54,9 +64,11 @@ class TestDisplay:
                 for i in range(2)
             }
         fig, axes = plt.subplots(1, 2)
+        orig_ylim = []
         for ax in axes:
             ax.plot(x, y1, "-o", label="hi")
-        po.plot.update_plot(axes, y2)
+            orig_ylim.append(ax.get_ylim())
+        po.plot.update_plot(axes, y2, rescale_ylim=rescale_ylim)
         for i, ax in enumerate(axes):
             assert len(ax.lines) == 1, "Too many lines were plotted!"
             _, ax_y = ax.lines[0].get_data()
@@ -64,6 +76,12 @@ class TestDisplay:
 
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update line correctly!")
+
+            updated_ylim = ax.get_ylim()
+            if rescale_ylim and np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
+            if not rescale_ylim and not np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
 
     @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
@@ -85,7 +103,8 @@ class TestDisplay:
             axes[0].figure
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
-    def test_update_plot_line_multi_channel(self, how):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_line_multi_channel(self, how, rescale_ylim):
         n_data = 1 if how == "dict-single" else 2
 
         x = np.linspace(0, 100)
@@ -103,7 +122,8 @@ class TestDisplay:
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.plot(x, y1[i], label=i)
-        po.plot.update_plot(ax, y2)
+        orig_ylim = ax.get_ylim()
+        po.plot.update_plot(ax, y2, rescale_ylim=rescale_ylim)
         assert len(ax.lines) == 2, "Incorrect number of lines were plotted!"
         for i in range(2):
             _, ax_y = ax.lines[i].get_data()
@@ -115,23 +135,38 @@ class TestDisplay:
                 y_check = {0: y2[0], 1: y1[1]}[i]
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update line correctly!")
+        updated_ylim = ax.get_ylim()
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
 
-    def test_update_plot_stem(self):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_stem(self, rescale_ylim):
         x = np.linspace(0, 100)
         y1 = np.random.rand(*x.shape)
         y2 = np.random.rand(*x.shape)
         fig, ax = plt.subplots(1, 1)
         ax.stem(x, y1, "-o", label="hi")
+        orig_ylim = ax.get_ylim()
         po.plot.update_plot(
-            ax, torch.as_tensor(y2, device=DEVICE).reshape(1, 1, len(x))
+            ax,
+            torch.as_tensor(y2, device=DEVICE).reshape(1, 1, len(x)),
+            rescale_ylim=rescale_ylim,
         )
         assert len(ax.containers) == 1, "Too many stems were plotted!"
         ax_y = ax.containers[0].markerline.get_ydata()
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update stems correctly!")
+        updated_ylim = ax.get_ylim()
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
-    def test_update_plot_stem_multi_axes(self, how):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_stem_multi_axes(self, how, rescale_ylim):
         x = np.linspace(0, 100)
         y1 = np.random.rand(*x.shape)
         y2 = np.random.rand(2, *y1.shape)
@@ -143,9 +178,11 @@ class TestDisplay:
                 for i in range(2)
             }
         fig, axes = plt.subplots(1, 2)
+        orig_ylim = []
         for ax in axes:
             ax.stem(x, y1, label="hi")
-        po.plot.update_plot(axes, y2)
+            orig_ylim.append(ax.get_ylim())
+        po.plot.update_plot(axes, y2, rescale_ylim=rescale_ylim)
         for i, ax in enumerate(axes):
             assert len(ax.containers) == 1, "Too many stems were plotted!"
             ax_y = ax.containers[0].markerline.get_ydata()
@@ -153,9 +190,15 @@ class TestDisplay:
 
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update stem correctly!")
+            updated_ylim = ax.get_ylim()
+            if rescale_ylim and np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
+            if not rescale_ylim and not np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
-    def test_update_plot_stem_multi_channel(self, how):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_stem_multi_channel(self, how, rescale_ylim):
         n_data = 1 if how == "dict-single" else 2
 
         x = np.linspace(0, 100)
@@ -173,7 +216,8 @@ class TestDisplay:
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.stem(x, y1[i], label=str(i))
-        po.plot.update_plot(ax, y2)
+        orig_ylim = ax.get_ylim()
+        po.plot.update_plot(ax, y2, rescale_ylim=rescale_ylim)
         assert len(ax.containers) == 2, "Incorrect number of stems were plotted!"
         for i in range(2):
             ax_y = ax.containers[i].markerline.get_ydata()
@@ -185,20 +229,33 @@ class TestDisplay:
                 y_check = {0: y2[0], 1: y1[1]}[i]
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update stem correctly!")
+        updated_ylim = ax.get_ylim()
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
 
-    def test_update_plot_image(self):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_image(self, rescale_ylim):
         y1 = np.random.rand(1, 1, 100, 100)
         y2 = np.random.rand(*y1.shape)
         fig = pt.imshow(y1.squeeze())
         ax = fig.axes[0]
-        po.plot.update_plot(ax, torch.as_tensor(y2, device=DEVICE))
+        orig_ylim = ax.get_ylim()
+        po.plot.update_plot(
+            ax, torch.as_tensor(y2, device=DEVICE), rescale_ylim=rescale_ylim
+        )
         assert len(ax.images) == 1, "Too many images were plotted!"
         ax_y = ax.images[0].get_array().data
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update image correctly!")
+        updated_ylim = ax.get_ylim()
+        if not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot should never change imshow ylim!")
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
-    def test_update_plot_image_multi_axes(self, how):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_image_multi_axes(self, how, rescale_ylim):
         y1 = np.random.rand(1, 2, 100, 100)
         y2 = np.random.rand(1, 2, 100, 100)
         if how == "tensor":
@@ -209,7 +266,8 @@ class TestDisplay:
                 for i in range(2)
             }
         fig = pt.imshow([y for y in y1.squeeze()])
-        po.plot.update_plot(fig.axes, y2)
+        orig_ylim = fig.axes[0].get_ylim()
+        po.plot.update_plot(fig.axes, y2, rescale_ylim=rescale_ylim)
         for i, ax in enumerate(fig.axes):
             assert len(ax.images) == 1, "Too many lines were plotted!"
             ax_y = ax.images[0].get_array().data
@@ -218,25 +276,36 @@ class TestDisplay:
 
             if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update image correctly!")
+        updated_ylim = fig.axes[0].get_ylim()
+        if not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot should never change imshow ylim!")
 
-    def test_update_plot_scatter(self):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_scatter(self, rescale_ylim):
         x1 = np.random.rand(100)
         x2 = np.random.rand(100)
         y1 = np.random.rand(*x1.shape)
         y2 = np.random.rand(*x2.shape)
         fig, ax = plt.subplots(1, 1)
         ax.scatter(x1, y1)
+        orig_ylim = ax.get_ylim()
         data = torch.stack(
             (torch.as_tensor(x2, device=DEVICE), torch.as_tensor(y2, device=DEVICE)), -1
         ).reshape(1, 1, len(x2), 2)
-        po.plot.update_plot(ax, data)
+        po.plot.update_plot(ax, data, rescale_ylim=rescale_ylim)
         assert len(ax.collections) == 1, "Too many scatter plots created"
         ax_data = ax.collections[0].get_offsets()
         if not np.allclose(ax_data, po.to_numpy(data)):
             raise Exception("Didn't update points of the scatter plot correctly!")
+        updated_ylim = ax.get_ylim()
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
 
     @pytest.mark.parametrize("how", ["dict", "tensor"])
-    def test_update_plot_scatter_multi_axes(self, how):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_scatter_multi_axes(self, how, rescale_ylim):
         x1 = np.random.rand(100)
         x2 = np.random.rand(2, 100)
         y1 = np.random.rand(*x1.shape)
@@ -261,9 +330,11 @@ class TestDisplay:
                 for i in range(2)
             }
         fig, axes = plt.subplots(1, 2)
+        orig_ylim = []
         for ax in axes:
             ax.scatter(x1, y1)
-        po.plot.update_plot(axes, data)
+            orig_ylim.append(ax.get_ylim())
+        po.plot.update_plot(axes, data, rescale_ylim=rescale_ylim)
         for i, ax in enumerate(axes):
             assert len(ax.collections) == 1, "Too many scatter plots created"
             ax_data = ax.collections[0].get_offsets()
@@ -271,9 +342,15 @@ class TestDisplay:
 
             if not np.allclose(ax_data, po.to_numpy(data_check)):
                 raise Exception("Didn't update points of the scatter plot correctly!")
+            updated_ylim = ax.get_ylim()
+            if rescale_ylim and np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
+            if not rescale_ylim and not np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
 
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
-    def test_update_plot_scatter_multi_channel(self, how):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_scatter_multi_channel(self, how, rescale_ylim):
         n_data = 1 if how == "dict-single" else 2
         x1 = np.random.rand(2, 100)
         x2 = np.random.rand(n_data, 100)
@@ -311,7 +388,8 @@ class TestDisplay:
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.scatter(x1[i], y1[i], label=i)
-        po.plot.update_plot(ax, data)
+        orig_ylim = ax.get_ylim()
+        po.plot.update_plot(ax, data, rescale_ylim=rescale_ylim)
         assert len(ax.collections) == 2, "Incorrect number of scatter plots created"
         for i in range(2):
             ax_data = ax.collections[i].get_offsets()
@@ -330,8 +408,14 @@ class TestDisplay:
                 data_check = {0: data[0], 1: tmp[1]}[i]
             if not np.allclose(ax_data, po.to_numpy(data_check)):
                 raise Exception("Didn't update points of the scatter plot correctly!")
+        updated_ylim = ax.get_ylim()
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
 
-    def test_update_plot_mixed_multi_axes(self):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_mixed_multi_axes(self, rescale_ylim):
         x1 = np.linspace(0, 1, 100)
         x2 = np.random.rand(2, 100)
         y1 = np.random.rand(*x1.shape)
@@ -347,12 +431,14 @@ class TestDisplay:
         }
         data[1] = torch.as_tensor(y2[1], device=DEVICE).reshape(1, 1, x2.shape[-1])
         fig, axes = plt.subplots(1, 2)
+        orig_ylim = []
         for i, ax in enumerate(axes):
             if i == 0:
                 ax.scatter(x1, y1)
             else:
                 ax.plot(x1, y1)
-        po.plot.update_plot(axes, data)
+            orig_ylim.append(ax.get_ylim())
+        po.plot.update_plot(axes, data, rescale_ylim=rescale_ylim)
         for i, ax in enumerate(axes):
             if i == 0:
                 assert len(ax.collections) == 1, "Too many scatter plots created"
@@ -364,6 +450,11 @@ class TestDisplay:
                 _, ax_data = ax.lines[0].get_data()
             if not np.allclose(ax_data, po.to_numpy(data[i])):
                 raise Exception("Didn't update points of the scatter plot correctly!")
+            updated_ylim = ax.get_ylim()
+            if rescale_ylim and np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
+            if not rescale_ylim and not np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
 
     @pytest.mark.parametrize("as_rgb", [True, False])
     @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])

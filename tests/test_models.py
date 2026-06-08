@@ -1052,17 +1052,24 @@ class TestPortillaSimoncelli:
                 ax=ax,
             )
 
-    def test_update_plot(self, einstein_img, close_figures_on_teardown):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot(self, einstein_img, rescale_ylim, close_figures_on_teardown):
         model = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
         ).to(DEVICE)
         fig, axes = model.plot_representation(model(einstein_img))
         orig_y = axes[0].containers[0].markerline.get_ydata()
+        orig_ylim = axes[0].get_ylim()
         img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
-        artists = model.update_plot(axes, model(img))
+        artists = model.update_plot(axes, model(img), rescale_ylim=rescale_ylim)
         updated_y = artists[0].get_ydata()
+        updated_ylim = axes[0].get_ylim()
         if np.equal(orig_y, updated_y).all():
             raise ValueError("Update plot didn't run successfully!")
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
 
     @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
