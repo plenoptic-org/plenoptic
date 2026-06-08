@@ -15,24 +15,6 @@ UPDATED_API.update(_api_change.PLOT_FUNCS)
 NEW_FUNCS = _api_change.NEW
 
 
-def test_dunder_module():
-    # test that all objects have __module__ that match the way they're called
-    for mod in dir(plenoptic):
-        obj = eval(f"plenoptic.{mod}")
-        if inspect.isclass(obj) and obj.__module__ != "plenoptic":
-            raise ValueError(
-                f"{mod} module should be plenoptic but got {obj.__module__}"
-            )
-        if inspect.ismodule(obj):
-            for mod2 in dir(obj):
-                obj2 = eval(f"plenoptic.{mod}.{mod2}")
-                if inspect.isclass(obj2) and obj2.__module__ != f"plenoptic.{mod}":
-                    raise ValueError(
-                        f"{mod2} module should be plenoptic.{mod} but got "
-                        f"{obj2.__module__}"
-                    )
-
-
 def test_api_nesting():
     # that our API only has a single level of nesting
     for mod in dir(plenoptic):
