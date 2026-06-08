@@ -1237,9 +1237,16 @@ def plot_representation(
     batch_idx: int = 0,
     title: str = "",
     as_rgb: bool = False,
+    axes_direction: Literal["horizontal", "vertical"] = "horizontal",
+    gridspec_kwargs: dict | None = None,
 ) -> list[mpl.axes.Axes]:
     r"""
     Plot model representation.
+
+    .. versionchanged:: 2.1
+
+       Adds ``axes_direction``, ``gridspec_kwargs`` arguments, supports data argument
+       containing both 3d and 4d values in same dictionary.
 
     We try to plot ``data`` on ``ax``, using the ``model.plot_representation`` method,
     if it has it, and otherwise use a function that makes sense based on the
@@ -1293,6 +1300,11 @@ def plot_representation(
         model has its own plot_representation_error() method. Else, it will
         be passed to :func:`~plenoptic.plot.imshow`, see that method's
         docstring for details.
+    axes_direction
+        When creating multiple axes, whether those axes should be placed
+        horizontally or vertically.
+    gridspec_kwargs
+        Dictionary of kwargs to pass to :ref:`gridspec`.
 
     Returns
     -------
@@ -1354,27 +1366,40 @@ def plot_representation(
         # want to make sure the axis we're taking over is basically invisible.
         ax = _clean_up_axes(ax, False, ["top", "right", "bottom", "left"], ["x", "y"])
         axes = []
-        if len(list(data.values())[0].shape) == 3:
-            # then this is 'vector-like'
-            gs = ax.get_subplotspec().subgridspec(
-                min(4, len(data)), int(np.ceil(len(data) / 4))
-            )
-            for i, (k, v) in enumerate(data.items()):
-                ax = fig.add_subplot(gs[i % 4, i // 4])
+
+        def round_down(x: int) -> int:
+            return x // 4
+
+        def modulo(x: int) -> int:
+            return x % 4
+
+        if axes_direction == "horizontal":
+            n_rows, n_cols = int(np.ceil(len(data) / 4)), min(4, len(data))
+            get_row = modulo
+            get_col = round_down
+        elif axes_direction == "vertical":
+            n_cols, n_rows = int(np.ceil(len(data) / 4)), min(4, len(data))
+            get_col = modulo
+            get_row = round_down
+        else:
+            raise ValueError(f"Don't know how to handle {axes_direction=}")
+        if gridspec_kwargs is None:
+            gridspec_kwargs = {}
+        gs = ax.get_subplotspec().subgridspec(n_rows, n_cols, **gridspec_kwargs)
+
+        for i, (k, v) in enumerate(data.items()):
+            ax = fig.add_subplot(gs[get_col(i), get_row(i)])
+
+            if v.ndim == 3:
+                # then this is 'vector-like'
                 # only plot the specified batch, but plot each channel
                 # in a separate call. there should probably only be one,
                 # and if there's not you probably want to do things
                 # differently
                 for d in v[batch_idx]:
                     ax = stem_plot(to_numpy(d), ax, k, ylim)
-                axes.append(ax)
-        elif len(list(data.values())[0].shape) == 4:
-            # then this is 'image-like'
-            gs = ax.get_subplotspec().subgridspec(
-                int(np.ceil(len(data) / 4)), min(4, len(data))
-            )
-            for i, (k, v) in enumerate(data.items()):
-                ax = fig.add_subplot(gs[i // 4, i % 4])
+
+            elif v.ndim == 4:
                 ax = _clean_up_axes(
                     ax, False, ["top", "right", "bottom", "left"], ["x", "y"]
                 )
@@ -1387,12 +1412,13 @@ def plot_representation(
                     vrange="indep0",
                     as_rgb=as_rgb,
                 )
-                axes.append(ax)
-            # because we're plotting image data, don't want to change
-            # ylim at all
-            ylim = False
-        else:
-            raise ValueError(f"Don't know what to do with data of shape {data.shape}")
+                ylim = False
+
+            else:
+                raise ValueError(f"Don't know what to do with data with {v.ndim=}")
+
+            axes.append(ax)
+
     if ylim is None:
         if isinstance(data, dict):
             data = torch.cat(list(data.values()), dim=2)
