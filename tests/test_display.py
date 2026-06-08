@@ -102,6 +102,27 @@ class TestDisplay:
             )
             axes[0].figure
 
+    @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
+    def test_plot_representation_illegal_direction(self, model, einstein_img):
+        with pytest.raises(ValueError, match="Don't know how to handle"):
+            po.plot.plot_representation(
+                data=model(einstein_img), axes_direction="bad_choice"
+            )
+
+    @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
+    def test_plot_representation_direction(self, model, einstein_img):
+        vert_axes = po.plot.plot_representation(
+            data=model(einstein_img), axes_direction="vertical"
+        )
+        vert_axes = np.asarray([ax.get_position() for ax in vert_axes])
+        horiz_axes = po.plot.plot_representation(
+            data=model(einstein_img), axes_direction="horizontal"
+        )
+        horiz_axes = np.asarray([ax.get_position() for ax in horiz_axes])
+        # not sure why the order switches, but still
+        assert np.allclose(vert_axes[1], horiz_axes[0])
+        assert not np.allclose(vert_axes[0], horiz_axes[1])
+
     @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
     @pytest.mark.parametrize("rescale_ylim", [True, False])
     def test_update_plot_line_multi_channel(self, how, rescale_ylim):
