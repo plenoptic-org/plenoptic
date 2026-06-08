@@ -3,15 +3,15 @@
 
 import warnings
 from collections import OrderedDict
-from typing import Literal
 
 import einops
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torchvision.models import feature_extraction
 
-from ..plot.display import _clean_up_axes, imshow
+from ..plot import display
 
 
 class FeatureExtractorModel(torch.nn.Module):
@@ -48,18 +48,19 @@ class FeatureExtractorModel(torch.nn.Module):
     >>> import torchvision
     >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
     >>> tv_model = torchvision.models.resnet50(weights=weights)
-    >>> tv_model.eval()
     >>> # This model's transform consists of resizing, cropping, and normalizing.
     >>> # We recommend only including the normalizing in the transform.
     >>> tv_transform = weights.transforms()
     >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
-    >>> model = FeatureExtractorModel(tv_model, "layer2", norm)
+    >>> model = po.models.FeatureExtractorModel(tv_model, "layer2", norm).eval()
     >>> # this model requires a 3d input, and expects it to have a certain input size.
     >>> img = po.process.center_crop(po.data.einstein(False), tv_transform.crop_size[0])
-    >>> img.shape)
-    (1, 3, 224, 224)
+    >>> img.shape
+    torch.Size([1, 3, 224, 224])
     >>> model(img).shape
-    (1, 401408)
+    torch.Size([1, 401408])
+    >>> po.remove_grad(model)
+    >>> po.validate.validate_model(model, image_shape=img.shape)
 
     Use with timm a model. The primary difference is in the syntax for retrieving
     the model and the transform:
@@ -70,61 +71,62 @@ class FeatureExtractorModel(torch.nn.Module):
     >>> timm_model = timm.create_model(
     ...     "hf-hub:nateraw/resnet50-oxford-iiit-pet", pretrained=True
     ... )
-    >>> timm_model.eval()
     >>> # Create Transform
     >>> timm_transform = create_transform(
     ...     **resolve_data_config(model.pretrained_cfg, model=model)
     ... )
     >>> # This model has the same resizing, cropping, normalizing transform as above,
-    >>> # but timm allows us to explicitly select only the final step.
+    >>> # but timm allows us to explicitly select the different steps
     >>> transform
     >>> timm_norm = timm_transform.transforms[-1]
     >>> timm_crop = timm_transform.transforms[1]
-    >>> model = FeatureExtractorModel(tv_model, "layer2", timm_norm)
+    >>> model = po.models.FeatureExtractorModel(tv_model, "layer2", timm_norm).eval()
     >>> # this model requires a 3d input, and expects it to have a certain input size.
     >>> img = timm_crop(po.data.einstein(False))
     >>> img.shape
-    (1, 3, 224, 224)
+    torch.Size([1, 3, 224, 224])
     >>> model(img).shape
-    (1, 401408)
+    torch.Size([1, 401408])
+    >>> po.remove_grad(model)
+    >>> po.validate.validate_model(model, image_shape=img.shape)
 
     The torchvision function
-    :func:`torchvision.models.feature_extraction.get_graph_node_names` allows us to view
-    possible node names:
+    :func:`torchvision.models.feature_extraction.get_graph_graph_node_names` allows us
+    to view possible node names:
 
     >>> from torchvision.models import feature_extraction
     >>> # This function returns two lists, one for nodes in train mode, one for those in
     >>> # eval mode. We want the eval mode list:
-    >>> node_names = feature_extraction.get_node_names(tv_model)[1]
+    >>> node_names = feature_extraction.get_graph_node_names(tv_model)[1]
     >>> len(node_names)
     176
     >>> node_names[77:81]
     ['layer2.3.add', 'layer2.3.relu_2', 'layer3.0.conv1', 'layer3.0.bn1']
-    >>> model = FeatureExtractorModel(tv_model, node_names[78], norm)
+    >>> model = po.models.FeatureExtractorModel(tv_model, node_names[78], norm)
     >>> model(img).shape
-    (1, 401408)
+    torch.Size([1, 401408])
 
     We can even pass multiple node names, in which case all corresponding outputs are
     concatenated together.
 
-    >>> model = FeatureExtractorModel(tv_model, ["layer2", "layer4"], norm)
+    >>> model = po.models.FeatureExtractorModel(tv_model, ["layer2", "layer4"], norm)
     >>> model(img).shape
-    (1, 501760)
+    torch.Size([1, 501760])
 
     The order of elements in ``return_nodes`` does not matter: the outputs are always
     returned based on their order in ``model``.
 
     >>> rep = model(img)
-    >>> model = FeatureExtractorModel(tv_model, ["layer4", "layer2"], norm)
+    >>> model = po.models.FeatureExtractorModel(tv_model, ["layer4", "layer2"], norm)
     >>> rep[0, 0] == model(img)[0, 0]
-    True
+    tensor(True)
 
     The function :meth:`convert_to_dict` will convert the output of :meth:`forward` to a
     dictionary and return its elements to their original shape. This may be useful for
     plotting or investigation.
 
-    >>> [(k, v.shape) for k, v in model.convert_to_dict(model(img))]
-    [("layer2", torch.Size([1, 512, 28, 28])), ("layer4", torch.Size([1, 2048, 7, 7]))]
+    >>> [(k, v.shape) for k, v in model.convert_to_dict(model(img)).items()]
+    [('layer2', torch.Size([1, 512, 28, 28])), ('layer4', torch.Size([1, 2048, 7, 7]))]
 
     Visualize model representation with :meth:`plot_representation`:
 
@@ -159,9 +161,9 @@ class FeatureExtractorModel(torch.nn.Module):
         Compute feature activity of an input.
 
         We flatten across all dimensions except the batch / first dimension. This allows
-        us to support returning features of different dimensionality (as is common
-        across layers in deep nets), while still returning only a single tensor, as is
-        necessary for our synthesis methods.
+        us to support returning features of different shapes and dimensionality (as is
+        common across layers in deep nets), while still returning only a single tensor,
+        as is necessary for our synthesis methods.
 
         Parameters
         ----------
@@ -178,6 +180,25 @@ class FeatureExtractorModel(torch.nn.Module):
         convert_to_dict
             Convert tensor representation to a dictionary, whose keys are the feature
             names, with their original shapes.
+
+        Examples
+        --------
+        >>> import plenoptic as po
+        >>> import torchvision
+        >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        >>> tv_model = torchvision.models.resnet50(weights=weights)
+        >>> # This model's transform consists of resizing, cropping, and normalizing.
+        >>> # We recommend only including the normalizing in the transform.
+        >>> tv_transform = weights.transforms()
+        >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
+        >>> model = po.models.FeatureExtractorModel(tv_model, "layer2", norm).eval()
+        >>> # this model requires a 3d input, and expects it to have a certain input
+        >>> # size.
+        >>> img = po.process.center_crop(
+        ...     po.data.einstein(False), tv_transform.crop_size[0]
+        ... )
+        >>> model(img).shape
+        torch.Size([1, 401408])
         """
         if self.transform is not None:
             x = self.transform(x)
@@ -210,6 +231,30 @@ class FeatureExtractorModel(torch.nn.Module):
         convert_to_dict
             Convert tensor representation to a dictionary, whose keys are the feature
             names, with their original shapes.
+
+        Examples
+        --------
+        >>> import plenoptic as po
+        >>> import torchvision
+        >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        >>> tv_model = torchvision.models.resnet50(weights=weights)
+        >>> # This model's transform consists of resizing, cropping, and normalizing.
+        >>> # We recommend only including the normalizing in the transform.
+        >>> tv_transform = weights.transforms()
+        >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
+        >>> model = po.models.FeatureExtractorModel(
+        ...     tv_model, ["layer2", "layer4"], norm
+        ... )
+        >>> # this model requires a 3d input, and expects it to have a certain input
+        >>> # size.
+        >>> img = po.process.center_crop(
+        ...     po.data.einstein(False), tv_transform.crop_size[0]
+        ... )
+        >>> representation_tensor = model(img)
+        >>> representation_dict = model.convert_to_dict(representation_tensor)
+        >>> representation_tensor_new = model.convert_to_tensor(representation_dict)
+        >>> torch.equal(representation_tensor, representation_tensor_new)
+        True
         """
         self._out_keys = representation_dict.keys()
         packed_out, self._packed_shapes = einops.pack(
@@ -253,6 +298,29 @@ class FeatureExtractorModel(torch.nn.Module):
         --------
         convert_to_tensor
             Convert dictionary representation to a 2d tensor.
+
+        Examples
+        --------
+        >>> import plenoptic as po
+        >>> import torchvision
+        >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        >>> tv_model = torchvision.models.resnet50(weights=weights)
+        >>> # This model's transform consists of resizing, cropping, and normalizing.
+        >>> # We recommend only including the normalizing in the transform.
+        >>> tv_transform = weights.transforms()
+        >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
+        >>> model = po.models.FeatureExtractorModel(
+        ...     tv_model, ["layer2", "layer4"], norm
+        ... )
+        >>> # this model requires a 3d input, and expects it to have a certain input
+        >>> # size.
+        >>> img = po.process.center_crop(
+        ...     po.data.einstein(False), tv_transform.crop_size[0]
+        ... )
+        >>> representation_dict = model.convert_to_dict(model(img))
+        >>> [(k, v.shape) for k, v in representation_dict.items()]
+        [('layer2', torch.Size([1, 512, 28, 28])),
+         ('layer4', torch.Size([1, 2048, 7, 7]))]
         """
         if self._packed_shapes is None or self._out_keys is None:
             raise ValueError(
@@ -262,19 +330,115 @@ class FeatureExtractorModel(torch.nn.Module):
         unpacked = einops.unpack(representation_tensor, self._packed_shapes, "b *")
         return OrderedDict({k: v for k, v in zip(self._out_keys, unpacked)})
 
+    def update_plot(
+        self,
+        axes: mpl.axes.Axes | list[mpl.axes.Axes],
+        data: torch.Tensor | dict,
+        batch_idx: int = 0,
+        rescale_ylim: bool = False,
+    ) -> list:
+        """
+        Update representation plot (for an animation).
+
+        This is a helper function for creating an animation over time.
+
+        Parameters
+        ----------
+        axes
+            The list of axes to update. We assume that these are the axes created by
+            :func:`plot_representation` and so contain artists in the correct order.
+        data
+            The new data to plot.
+        batch_idx
+            Which index to take from the batch dimension.
+        rescale_ylim
+            Whether to rescale the ylimits of the per-channel plot or not.
+
+        Returns
+        -------
+        artists
+            A list of the artists used to update the information on the
+            plots.
+
+        See Also
+        --------
+        plot_representation
+            Create plots to summarize model representation, which we assume created
+            the axes passed to this function for updating.
+        :func:`plenoptic.plot.update_plot`
+            Generic ``update_plot`` function.
+        :func:`plenoptic.plot.synthesis_animate`
+            Function which creates a video of synthesis process over time, makes use
+            of this function.
+
+        Examples
+        --------
+        .. plot::
+           :context: reset
+
+           >>> import plenoptic as po
+           >>> import torchvision
+           >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+           >>> tv_model = torchvision.models.resnet50(weights=weights)
+           >>> # This model's transform consists of resizing, cropping, and normalizing.
+           >>> # We recommend only including the normalizing in the transform.
+           >>> tv_transform = weights.transforms()
+           >>> norm = torchvision.transforms.Normalize(
+           ...     tv_transform.mean, tv_transform.std
+           ... )
+           >>> model = po.models.FeatureExtractorModel(tv_model, "layer2", norm)
+           >>> # this model requires a 3d input, and expects it to have a certain input
+           >>> # size.
+           >>> img = po.process.center_crop(
+           ...     po.data.einstein(False), tv_transform.crop_size[0]
+           ... )
+           >>> fig, axes = model.plot_representation(model(img))
+           >>> img = po.process.center_crop(
+           ...     po.data.curie(False), tv_transform.crop_size[0]
+           ... )
+           >>> model.update_plot(axes, model(img))
+           [<matplotlib...>]
+        """
+        if isinstance(data, torch.Tensor):
+            data = self.convert_to_dict(data)
+
+        artists = []
+        per_channel_reps = []
+        for i, (k, v) in enumerate(data.items()):
+            # Average representation across channels
+            avg_channel_rep = v.mean(dim=1, keepdim=True)
+            # Average representation across additional dimensions (probably space)
+            per_channel_rep = v.mean(dim=tuple(np.arange(2, v.ndim)))
+            while per_channel_rep.ndim < 3:
+                per_channel_rep = per_channel_rep.unsqueeze(0)
+            per_channel_reps.append(per_channel_rep)
+            art = display.update_plot(
+                axes[2 * i : 2 * (i + 1)],
+                {"00": avg_channel_rep, "01": per_channel_rep},
+                batch_idx=batch_idx,
+            )
+            artists.extend(art)
+        if rescale_ylim:
+            display._rescale_ylim(axes[1::2], torch.cat(per_channel_reps))
+        return artists
+
     def plot_representation(
         self,
         data: torch.Tensor | dict[str, torch.Tensor],
         ax: plt.Axes | None = None,
         figsize: tuple[float, float] | None = None,
-        ylim: tuple[float, float] | Literal[False] | None = None,
         batch_idx: int = 0,
         title: str | None = None,
     ) -> tuple[plt.Figure, list[plt.Axes]]:
         """
         Plot model representation.
 
-        A description goes here
+        This creates two plots: one containing the representation averaged across all
+        channels, and one containing the per-channel representation, i.e., the
+        representation averaged across all dimensions *except* channels.
+
+        Intended for neural networks, e.g., models whose output at each node has
+        many channels and one or two additional dimensions.
 
         Parameters
         ----------
@@ -288,11 +452,7 @@ class FeatureExtractorModel(torch.nn.Module):
             ``None``, we create a new figure.
         figsize
             The size of the figure to create. Must be ``None`` if ax is not ``None``. If
-            both figsize and ax are ``None``, then we set ``figsize=(12, 15)``.
-        ylim
-            If not None, the y-limits to use for this plot. If None, we use the
-            default, slightly adjusted so that the minimum is 0. If False, do not
-            change y-limits.
+            both figsize and ax are ``None``, then we set ``figsize=(7, 5)``.
         batch_idx
             Which index to take from the batch dimension (the first one).
         title
@@ -303,57 +463,119 @@ class FeatureExtractorModel(torch.nn.Module):
         fig
             Figure containing the plot.
         axes
-            List of 6 or 8 axes containing the plot (depending on ``self.n_scales``).
+            List of axes containing the plot. Number of axes will be two per node.
 
         Raises
         ------
         ValueError
             If both ``figsize`` and ``ax`` are not ``None``.
+
+        Examples
+        --------
+        .. plot::
+           :context: reset
+
+           >>> import plenoptic as po
+           >>> import torchvision
+           >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+           >>> tv_model = torchvision.models.resnet50(weights=weights)
+           >>> # This model's transform consists of resizing, cropping, and normalizing.
+           >>> # We recommend only including the normalizing in the transform.
+           >>> tv_transform = weights.transforms()
+           >>> norm = torchvision.transforms.Normalize(
+           ...     tv_transform.mean, tv_transform.std
+           ... )
+           >>> model = po.models.FeatureExtractorModel(tv_model, "layer2", norm)
+           >>> # this model requires a 3d input, and expects it to have a certain input
+           >>> # size.
+           >>> img = po.process.center_crop(
+           ...     po.data.einstein(False), tv_transform.crop_size[0]
+           ... )
+           >>> model.plot_representation(model(img))
+           (<Figure ...>, [<Axes...>, <Axes...>])
+
+        This function creates two axes per node, one showing the representation averaged
+        across channels, one showing it per channel (averaging across any additional
+        dimensions):
+
+        .. plot::
+           :context: close-figs
+
+           >>> model = po.models.FeatureExtractorModel(
+           ...     tv_model, ["layer2", "layer4"], norm
+           ... )
+           >>> model.plot_representation(model(img))
+           (<Figure ...>, [<Axes...>, <Axes...>, <Axes...>, <Axes...>])
+
+        Plot the dictionary representation:
+
+        .. plot::
+           :context: close-figs
+
+           >>> model.plot_representation(model.convert_to_dict(model(img)))
+           (<Figure ...>, [<Axes...>, <Axes...>, <Axes...>, <Axes...>])
+
+        Plot on an existing axes object:
+
+        .. plot::
+           :context: close-figs
+
+           >>> fig, axes = plt.subplots(1, 2)
+           >>> model.plot_representation(model.convert_to_dict(model(img)), ax=axes[1])
+           (<Figure ...>, [<Axes...>, <Axes...>, <Axes...>, <Axes...>])
         """
+        if ax is None and figsize is None:
+            figsize = (7, 5)
+        elif ax is not None and figsize is not None:
+            raise ValueError("figsize can't be set if ax is not None")
+
         if isinstance(data, torch.Tensor):
-            data = self.convert_to_dict(data)["layer2"]
-
-        # Select the batch index
-        data = data[batch_idx]
-
-        # Compute across channels spatal error
-        spatial_error = torch.abs(data).mean(dim=0).detach().cpu().numpy()
-
-        # Compute per-channel error
-        error = torch.abs(data).mean(dim=(1, 2))  # Shape: (C,)
-        sorted_idx = torch.argsort(error, descending=True)
-        sorted_error = error[sorted_idx].detach().cpu().numpy()
+            data = self.convert_to_dict(data)
 
         # Determine figure layout
+        n_cols = len(data)
+        axes = []
         if ax is None:
-            fig, axes = plt.subplots(
-                2, 1, figsize=figsize, gridspec_kw={"height_ratios": [1, 1]}
-            )
+            fig = plt.figure(figsize=figsize)
+            gs = mpl.gridspec.GridSpec(1, n_cols, fig)
         else:
-            ax = _clean_up_axes(
+            ax = display._clean_up_axes(
                 ax, False, ["top", "right", "bottom", "left"], ["x", "y"]
             )
-            gs = ax.get_subplotspec().subgridspec(2, 1, height_ratios=[3, 1])
+            gs = ax.get_subplotspec().subgridspec(1, n_cols)
             fig = ax.figure
-            axes = [fig.add_subplot(gs[0]), fig.add_subplot(gs[1])]
 
-        # Plot average error across channels
-        imshow(
-            ax=axes[0],
-            image=spatial_error[None, None, ...],
-            title="Average Error Across Channels",
-            vrange="auto0",
-        )
-        # axes[0].set_title()
+        for i, (k, v) in enumerate(data.items()):
+            ax = fig.add_subplot(gs[i])
 
-        # Plot channel error distribution
-        x_pos = np.arange(20)
-        axes[1].bar(x_pos, sorted_error[:20], color="C1", alpha=0.7)
-        axes[1].set_xticks(x_pos)
-        axes[1].set_xticklabels(sorted_idx[:20].tolist(), rotation=45)
-        axes[1].set_xlabel("Channel")
-        axes[1].set_ylabel("Absolute error")
-        axes[1].set_title("Top 20 Channels Contributions to Error")
+            # Average representation across channels
+            avg_channel_rep = v.mean(dim=1, keepdim=True)
+            # Average representation across additional dimensions (probably space)
+            per_channel_rep = v.mean(dim=tuple(np.arange(2, v.ndim)))
+            while per_channel_rep.ndim < 3:
+                per_channel_rep = per_channel_rep.unsqueeze(0)
+
+            if avg_channel_rep.ndim == 3:
+                height_ratios = [1, 1]
+            elif avg_channel_rep.ndim == 4:
+                height_ratios = [2, 1]
+
+            # this warning is not relevant here
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", message="data has keys, so we're ignoring title"
+                )
+                ax = display.plot_representation(
+                    data={
+                        f"{k} avg across channels": avg_channel_rep,
+                        f"{k} per channel (n={v.shape[1]})": per_channel_rep,
+                    },
+                    ax=ax,
+                    batch_idx=batch_idx,
+                    axes_direction="vertical",
+                    gridspec_kwargs={"height_ratios": height_ratios},
+                )
+            axes.extend(ax)
 
         if title is not None:
             fig.suptitle(title)
