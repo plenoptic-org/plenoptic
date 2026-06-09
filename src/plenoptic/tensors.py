@@ -69,6 +69,16 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     -------
     array
         The former tensor, now an array.
+
+    Examples
+    --------
+    tensor = torch.rand((256, 256, 1))
+    >>> array1 = po.to_numpy(tensor)
+    >>> print(f"Type: {type(array1)}, Shape: {array1.shape}")
+    Type: <class 'numpy.ndarray'>, Shape: (256, 256, 1)
+    >>> array2 = po.to_numpy(tensor, squeeze=True)
+    >>> print(f"Type: {type(array2)}, Shape: {array2.shape}")
+    Type: <class 'numpy.ndarray'>, Shape: (256, 256)
     """
     with contextlib.suppress(AttributeError):
         # if this fails, it's already a numpy array
