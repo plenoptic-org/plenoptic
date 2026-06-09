@@ -275,7 +275,7 @@ def imshow(
 
     You may use the ``title`` argument for any number of images, either as a string
     applied to all images or as a list the length of images. Additionally, ``col_wrap``
-    specifies the number of images per row.
+    specifies the number of images per row:
 
     .. plot::
       :context: close-figs
@@ -284,7 +284,7 @@ def imshow(
       <PyrFigure size ... with 2 Axes>
 
     Specifying ``batch_idx`` will plot the corresponding element in
-    the batch dimension (i.e., ``imgs[batch_idx]``)
+    the batch dimension (i.e., ``imgs[batch_idx]``):
 
     .. plot::
       :context: close-figs
@@ -295,8 +295,9 @@ def imshow(
       <PyrFigure size ... with 1 Axes>
 
     The vrange argument allows control over the min and max values of the color range.
-    In addition to a 2-tuple of floats, this functions accepts several special strings:
-    ``"auto1"`` sets all images to have the same range.
+    In addition to a 2-tuple of floats, this functions accepts several special strings
+    (see docstring for details). For example, ``"auto1"`` sets all images to have the
+    same range:
 
     .. plot::
       :context: close-figs
@@ -323,8 +324,8 @@ def imshow(
       >>> po.plot.imshow(einstein, zoom=0.5)
       <PyrFigure size ... with 1 Axes>
 
-    If ``zoom<1`` and the value is not a divisor of the largest image size, this
-    function will raise an error:
+    Note that if ``zoom<1`` and the value is not a divisor of the largest image size,
+    this function will raise an error:
 
     >>> print(einstein.shape)
     torch.Size([1, 1, 256, 256])
@@ -342,7 +343,7 @@ def imshow(
       >>> po.plot.imshow([einstein, einstein_fft], plot_complex="logpolar")
       <PyrFigure size ... with 3 Axes>
 
-    To plot an RGB image, you must set ``as_rgb=True`` to plot a color image:
+    To plot a RGB(A) image in color, you must set ``as_rgb=True``:
 
     .. plot::
       :context: close-figs
