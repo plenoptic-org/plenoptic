@@ -840,7 +840,7 @@ Our doctests are built using Sphinx as part of the documentation (which is part 
 
     This only affects sphinx. pytest ignores the plot directive and so either structure will pass.
 
-- Alternatively, pytest only checks whether the actual execution outputs of Python code match the expected results written in your documentation. Therefore, while the following will succeed in sphinx,
+- pytest only checks whether the actual execution outputs of Python code match the expected results written in your documentation. Therefore, while the following will succeed in sphinx,
 
     ```python
     Examples
@@ -869,6 +869,11 @@ Our doctests are built using Sphinx as part of the documentation (which is part 
 
 - pytest allows for the use of [fixtures](https://docs.pytest.org/en/stable/how-to/fixtures.html) in doctests. In order to be used, they must be included in the `src/plenoptic/conftest.py` file (**not** the `tests/conftest.py` file). Among other things, any downloads from `torchvision` / `torch.hub` should happen in those fixtures (since they are difficult to properly write doctests for, see note there for details). This does mean that the first time you run doctests on your local machine, it will take a while to download those files; they are cached and won't be downloaded again, so this is only a one-time cost.
 
+(pytest-doctests)=
+#### Testing doctests with Pytest
+
+You should also run pytest locally before submitting a pull request: `pytest -n 0 --doctest-continue-on-failure --doctest-modules src/ -W "ignore"`. You can also replace `src/` with the path to a subdirectory or specific file to avoid running tests on everything. This will check whether the outputs of any code match what you have documented it should be. It can be very particular about format and syntax - see [pytest docs](https://docs.pytest.org/en/stable/how-to/doctest.html) for details.
+
 (build-the-documentation)=
 ### Build the documentation
 
@@ -881,14 +886,10 @@ github repo and published at http://docs.plenoptic.org/.
 
 #### Sphinx
 
-However, it can be built locally as well. You would do this if you've made changes locally to the documentation (or the docstrings) that you would like to examine before pushing. All necessary requirements are included in the `[docs]` optional dependency bundle, which you can install with `pip install plenoptic[docs]`.
+In addition to being viewed on the web, plenoptic's documentation can be built locally. You should do this if you've made changes locally to the documentation (or the docstrings) that you would like to examine before pushing. All necessary requirements are included in the `[docs]` optional dependency bundle, which you can install with `pip install plenoptic[docs]`.
 
-Then, to build the documentation, run: `make html` from within the `docs/` directory. The outputs will be put into `/docs/_build/html/` and you can then open built pages in your browser. For example, you can open the landing page (`docs/_build/html/index.html`) by opening it in your files or through the command line using your choice of browser (i.e. `firefox docs/_build/html/index.html`). It will typically not display figures if the formatting is incorrect. However, sphinx does not check whether the code output is accurate, this is done with pytest.
+Then, to build the documentation, run: `make html` from within the `docs/` directory. The outputs will be put into `/docs/_build/html/` and you can then open built pages in your browser. For example, you can open the landing page (`docs/_build/html/index.html`) by opening it in your files or through the command line using your choice of browser (e.g., `firefox docs/_build/html/index.html`). It will typically not display figures if the formatting is incorrect. However, sphinx does not check whether the code output is accurate, this is done with [pytest](pytest-doctests).
 
 By default, the text-based notebooks (see [earlier](adding-documentation)) are not run because they take a longish time to do so, especially if you do not have a GPU. In order to run all of them, prepend `RUN_NB=1` to the `make` command above. In order to run specific notebooks, set `RUN_NB` to a globbable comma-separated string in the above, e.g., `RUN_NB=Metamer,MAD` to run `docs/user_guide/synthesis/Metamer`, `docs/user_guide/synthesis/MAD_Competition_1`, and `docs/user_guide/synthesis/MAD_Competition_2`.
 
 Additionally, our docstrings have a variety of Examples blocks that are run by sphinx in order to render plots in the documentation, which can take a while to run. You can temporarily disable these by prepending `SKIP_MPL=1` to the `make` command. This will cause `docutils` to raise an error every time it encounters a [`plot` directive](https://matplotlib.org/stable/api/sphinxext_plot_directive_api.html), and so the build will appear to fail. However, the output will be rendered correctly (with the exception of those `plot` blocks), and so this can be useful for rapidly viewing changes locally when editing other parts of the documentation. In order to ensure the documentation build completes without any warnings or errors, you should build the docs normally before pushing.
-
-#### Pytest
-
-You should also run pytest locally before submitting a pull request: `pytest -n 0 --doctest-continue-on-failure --doctest-modules src/ -W "ignore"`. You can also replace `src/` with the path to a subdirectory or specific file to avoid running tests on everything. This will check whether the outputs of any code match what you have documented it should be. It can be very particular about format and syntax - see [pytest docs](https://docs.pytest.org/en/stable/how-to/doctest.html) for details.
