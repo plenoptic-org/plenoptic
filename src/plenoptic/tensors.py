@@ -72,6 +72,8 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
 
     Examples
     --------
+    >>> import plenoptic as po
+    >>> import torch
     >>> tensor = torch.rand((256, 256, 1))
     >>> array1 = po.to_numpy(tensor)
     >>> print(f"Type: {type(array1)}, Shape: {array1.shape}")
