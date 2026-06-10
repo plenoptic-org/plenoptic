@@ -14,6 +14,7 @@ import torch
 from torch import Tensor
 
 from .loss import set_seed
+from .models import FeatureExtractorModel
 
 __all__ = [
     "validate_input",
@@ -261,7 +262,10 @@ def validate_model(
         )
     if model(test_img).dtype not in allowed_dtypes:
         raise TypeError("model changes precision of input, don't do that!")
-    if model(test_img).ndimension() not in [3, 4]:
+    # don't raise this warning if they're using our FeatureExtractorModel
+    if model(test_img).ndimension() not in [3, 4] and not isinstance(
+        model, FeatureExtractorModel
+    ):
         warnings.warn(
             "plenoptic's methods have mostly been tested on models which produce 3d"
             " or 4d outputs. They should theoretically work with different "
