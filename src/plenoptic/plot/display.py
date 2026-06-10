@@ -234,6 +234,153 @@ def imshow(
     generally hold in notebooks as well, but will fail if, e.g., you plot an image
     that's 2000 pixels wide on an monitor 1000 pixels wide; the browser handles the
     rescaling in a way we can't control.
+
+    Examples
+    --------
+    Plot a single grayscale image:
+
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> einstein = po.data.einstein()
+      >>> einstein.shape
+      torch.Size([1, 1, 256, 256])
+      >>> po.plot.imshow(einstein)
+      <PyrFigure size ... with 1 Axes>
+
+    For an image tensor with multiple elements along the batch dimension and a
+    single channel element, this function will plot each batch independently as
+    grayscale images:
+
+    .. plot::
+      :context: close-figs
+
+      >>> import torch
+      >>> curie = po.data.curie()
+      >>> imgs = torch.cat([einstein, curie])
+      >>> print(imgs.shape)
+      torch.Size([2, 1, 256, 256])
+      >>> po.plot.imshow(imgs)
+      <PyrFigure size ... with 2 Axes>
+
+    A list of 4d tensors will be concatenated along the batch dimension before plotting.
+    Thus, the following example is the same as above:
+
+    .. plot::
+      :context: close-figs
+
+      >>> po.plot.imshow([einstein, curie])
+      <PyrFigure size ... with 2 Axes>
+
+    You may use the ``title`` argument for any number of images, either as a string
+    applied to all images or as a list the length of images. Additionally, ``col_wrap``
+    specifies the number of images per row:
+
+    .. plot::
+      :context: close-figs
+
+      >>> po.plot.imshow(imgs, title=["einstein", "curie"], col_wrap=1)
+      <PyrFigure size ... with 2 Axes>
+
+    Specifying ``batch_idx`` will plot the corresponding element in
+    the batch dimension (i.e., ``imgs[batch_idx]``):
+
+    .. plot::
+      :context: close-figs
+
+      >>> print(imgs.shape)
+      torch.Size([2, 1, 256, 256])
+      >>> po.plot.imshow(imgs, batch_idx=1)
+      <PyrFigure size ... with 1 Axes>
+
+    The vrange argument allows control over the min and max values of the color range.
+    In addition to a 2-tuple of floats, this functions accepts several special strings
+    (see docstring for details). For example, ``"auto1"`` sets all images to have the
+    same range:
+
+    .. plot::
+      :context: close-figs
+
+      >>> einsteins_scaled = torch.cat([einstein, einstein * 2])
+      >>> po.plot.imshow(einsteins_scaled, vrange="auto1")
+      <PyrFigure size ... with 2 Axes>
+
+    Meanwhile, ``"indep1"`` sets each image's range independently. Note the different
+    ranges in the titles!
+
+    .. plot::
+      :context: close-figs
+
+      >>> po.plot.imshow(einsteins_scaled, vrange="indep1")
+      <PyrFigure size ... with 2 Axes>
+
+    The ``zoom`` argument allows users to set the ratio of display to image pixels,
+    increasing or decreasing the size of the resulting plot:
+
+    .. plot::
+      :context: close-figs
+
+      >>> po.plot.imshow(einstein, zoom=0.5)
+      <PyrFigure size ... with 1 Axes>
+
+    Note that if ``zoom<1`` and the value is not a divisor of the largest image size,
+    this function will raise an error:
+
+    >>> print(einstein.shape)
+    torch.Size([1, 1, 256, 256])
+    >>> po.plot.imshow(einstein, zoom=0.7)
+    Traceback (most recent call last):
+    Exception: zoom * signal.shape must result in integers!
+
+    You can use the ``plot_complex`` argument to control how complex tensors are
+    plotted:
+
+    .. plot::
+      :context: close-figs
+
+      >>> einstein_fft = torch.fft.fft2(einstein)
+      >>> po.plot.imshow([einstein, einstein_fft], plot_complex="logpolar")
+      <PyrFigure size ... with 3 Axes>
+
+    To plot a RGB(A) image in color, you must set ``as_rgb=True``:
+
+    .. plot::
+      :context: close-figs
+
+      >>> color_wheel = po.data.color_wheel()
+      >>> print(color_wheel.shape)
+      torch.Size([1, 3, 600, 600])
+      >>> po.plot.imshow(color_wheel, as_rgb=True, zoom=0.5)
+      <PyrFigure size ... with 1 Axes>
+
+    Otherwise, images with multiple channels will have each channel plotted as a
+    separate grayscale image:
+
+    .. plot::
+      :context: close-figs
+
+      >>> po.plot.imshow(color_wheel, zoom=0.5, title=["R", "G", "B"])
+      <PyrFigure size ... with 3 Axes>
+
+    This function will raise a ``ValueError`` if ``as_rgb=True`` and the input image
+    doesn't have the required number of channels:
+
+    >>> print(einstein.shape)
+    torch.Size([1, 1, 256, 256])
+    >>> po.plot.imshow(einstein, as_rgb=True)
+    Traceback (most recent call last):
+    ValueError: If as_rgb is True, then channel must have 3 or 4 elements!
+
+    Images will be automatically rescaled to be displayed at the same heights and widths
+    if sizes are scalar multiples of each other:
+
+    .. plot::
+      :context: close-figs
+
+      >>> einstein_cropped = po.process.center_crop(einstein, 32)
+      >>> po.plot.imshow([einstein, einstein_cropped])
+      <PyrFigure size ... with 2 Axes>
     """
     if not isinstance(image, list):
         image = [image]
