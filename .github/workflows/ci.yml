@@ -186,6 +186,7 @@ jobs:
         print_all: false
         timeout: 5
         retry_count: 3
+        exclude_urls: https://github.com/github-username/plenoptic.git
   validate_switcher_json:
     runs-on: ubuntu-latest
     name: Validate version_switcher.json
