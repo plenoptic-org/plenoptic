@@ -89,7 +89,7 @@ nb = [
 where = ["src"]
 
 [tool.setuptools_scm]
-version_scheme = 'python-simplified-semver'
+version_scheme = 'semver-pep440'
 local_scheme = 'no-local-version'
 
 [tool.pytest.ini_options]
