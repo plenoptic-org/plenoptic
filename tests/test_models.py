@@ -1053,7 +1053,10 @@ class TestPortillaSimoncelli:
             )
 
     @pytest.mark.parametrize("rescale_ylim", [True, False])
-    def test_update_plot(self, einstein_img, rescale_ylim, close_figures_on_teardown):
+    @pytest.mark.parametrize("input_type", ["tensor", "dict"])
+    def test_update_plot(
+        self, einstein_img, input_type, rescale_ylim, close_figures_on_teardown
+    ):
         model = po.models.PortillaSimoncelli(
             einstein_img.shape[-2:],
         ).to(DEVICE)
@@ -1061,7 +1064,10 @@ class TestPortillaSimoncelli:
         orig_y = axes[0].containers[0].markerline.get_ydata()
         orig_ylim = axes[0].get_ylim()
         img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
-        artists = model.update_plot(axes, model(img), rescale_ylim=rescale_ylim)
+        rep = model(img)
+        if input_type == "dict":
+            rep = model.convert_to_dict(rep)
+        artists = model.update_plot(axes, rep, rescale_ylim=rescale_ylim)
         updated_y = artists[0].get_ydata()
         updated_ylim = axes[0].get_ylim()
         if np.equal(orig_y, updated_y).all():

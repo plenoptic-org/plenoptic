@@ -1419,7 +1419,7 @@ class PortillaSimoncelli(nn.Module):
     def update_plot(
         self,
         axes: list[plt.Axes],
-        data: Tensor,
+        data: Tensor | dict,
         batch_idx: int = 0,
         rescale_ylim: bool = False,
     ) -> list[plt.Artist]:
@@ -1445,6 +1445,10 @@ class PortillaSimoncelli(nn.Module):
 
         Currently, this averages over all channels in the representation.
 
+        .. versionchanged:: 2.1.0
+           ``data`` argument can now be a dictionary (as returned by
+            :meth:`convert_to_dict` as well as a tensor).
+
         Parameters
         ----------
         axes
@@ -1452,10 +1456,9 @@ class PortillaSimoncelli(nn.Module):
             created by ``plot_representation`` and so contain stem plots
             in the correct order.
         data
-            The data to show on the plot. Else, should look like the output of
-            ``self.forward(img)``, with the exact same structure (e.g., as
-            returned by ``metamer.representation_error()`` or another instance
-            of this class).
+            The new data to use for updating the plot. Should look like the output of
+            :meth:`forward` or :meth:`convert_to_dict`, with the exact same structure
+            (e.g., as returned by another instance of this class).
         batch_idx
             Which index to take from the batch dimension (the first one).
         rescale_ylim
@@ -1487,13 +1490,16 @@ class PortillaSimoncelli(nn.Module):
         """
         stem_artists = []
         axes = [ax for ax in axes if len(ax.containers) == 1]
-        # pick the batch_idx we want (but keep the data 3d), and average over
-        # channels (but keep the data 3d). We keep data 3d because
-        # convert_to_dict relies on it.
-        data = data[batch_idx].unsqueeze(0).mean(1, keepdim=True)
-        # each of these values should now be a 3d tensor with 1 element in each
-        # of the first two dims
-        rep = {k: v[0, 0] for k, v in self.convert_to_dict(data).items()}
+        if isinstance(data, torch.Tensor):
+            # pick the batch_idx we want (but keep the data 3d), and average over
+            # channels (but keep the data 3d). We keep data 3d because
+            # convert_to_dict relies on it.
+            data = data[batch_idx].unsqueeze(0).mean(1, keepdim=True)
+            # each of these values should now be a 3d tensor with 1 element in each
+            # of the first two dims
+            rep = {k: v[0, 0] for k, v in self.convert_to_dict(data).items()}
+        else:
+            rep = {k: v[batch_idx].mean(0) for k, v in data.items()}
         rep = self._representation_for_plotting(rep)
         for ax, d in zip(axes, rep.values()):
             if isinstance(d, dict):
