@@ -153,6 +153,10 @@ class FeatureExtractorModel(torch.nn.Module):
                 "model is in training mode, you probably want to call eval()"
                 " to switch to evaluation mode"
             )
+        elif hasattr(model, "training") and not model.training:
+            # by default, all torch modules are in training mode. make sure
+            # FeatureExtractor mode matches that of the underlying model
+            self.eval()
         self._out_keys = None
         self._packed_shapes = None
 
