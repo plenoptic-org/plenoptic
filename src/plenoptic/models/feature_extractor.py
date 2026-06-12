@@ -352,7 +352,9 @@ class FeatureExtractorModel(torch.nn.Module):
             The list of axes to update. We assume that these are the axes created by
             :func:`plot_representation` and so contain artists in the correct order.
         data
-            The new data to plot.
+            The new data to use for updating the plot. Should look like the output of
+            :meth:`forward` or :meth:`convert_to_dict`, with the exact same structure
+            (e.g., as returned by another instance of this class).
         batch_idx
             Which index to take from the batch dimension.
         rescale_ylim
@@ -423,7 +425,7 @@ class FeatureExtractorModel(torch.nn.Module):
             )
             artists.extend(art)
         if rescale_ylim:
-            display._rescale_ylim(axes[1::2], torch.cat(per_channel_reps))
+            display._rescale_ylim(axes[1::2], torch.cat(per_channel_reps, -1))
         return artists
 
     def plot_representation(
