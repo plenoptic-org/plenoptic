@@ -34,7 +34,7 @@ class FeatureExtractorModel(torch.nn.Module):
     ----------
     model
         The pytorch module to use.
-    return_node
+    return_nodes
         The names of the nodes to return. See Examples and
         :external+torchvision:doc:`torchvision documentation <feature_extraction>`.
     transform
@@ -152,14 +152,16 @@ class FeatureExtractorModel(torch.nn.Module):
     def __init__(
         self,
         model: torch.nn.Module,
-        return_node: str | list[str] | dict[str, str],
+        return_nodes: str | list[str] | dict[str, str],
         transform: torch.nn.Module | None = None,
     ):
         super().__init__()
         self.transform = transform
-        if isinstance(return_node, str):
-            return_node = [return_node]
-        self.extractor = feature_extraction.create_feature_extractor(model, return_node)
+        if isinstance(return_nodes, str):
+            return_nodes = [return_nodes]
+        self.extractor = feature_extraction.create_feature_extractor(
+            model, return_nodes
+        )
         self.model = model
         if hasattr(model, "training") and model.training:
             warnings.warn(
