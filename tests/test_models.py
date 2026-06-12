@@ -8,6 +8,9 @@ import pyrtools as pt
 import pytest
 import scipy.io as sio
 import torch
+import torchvision
+from timm.data import resolve_data_config
+from timm.data.transforms_factory import create_transform
 
 import plenoptic as po
 from conftest import DEVICE, IMG_DIR
@@ -1449,3 +1452,154 @@ class TestFilters:
                 )
         test = torch.concat(test, dim=1)
         assert torch.allclose(test, output)
+
+
+class TestFeatureExtractor:
+    @pytest.fixture
+    def torchvision_img(self):
+        transform = torchvision.models.ResNet50_Weights.IMAGENET1K_V1.transforms()
+        # this model requires a 3d input, and expects it to have a certain input size.
+        return po.process.center_crop(
+            po.data.einstein(False).to(DEVICE), transform.crop_size[0]
+        )
+
+    @pytest.fixture
+    def timm_img(self, timm_resnet50):
+        timm_transform = create_transform(
+            **resolve_data_config(timm_resnet50.pretrained_cfg, model=timm_resnet50)
+        )
+        timm_crop = timm_transform.transforms[1]
+        return timm_crop(po.data.einstein(False).to(DEVICE))
+
+    def test_images(self, torchvision_img, timm_img):
+        # test images are the same, regardless whether we used timm or torchvision to
+        # get config
+        assert torch.equal(torchvision_img, timm_img)
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+            "timm_resnet50-layer2",
+            "torchvision_resnet50-layer2,layer4",
+            "timm_resnet50-layer2,layer4",
+        ],
+        indirect=True,
+    )
+    def test_valid(self, model, torchvision_img):
+        # importantly, this shouldn't raise warning about dimensionality of output, even
+        # though the output is 2d, which normally does raise that warning
+        po.validate.validate_model(model, image_shape=torchvision_img.shape)
+
+    @pytest.mark.parametrize(
+        ["model", "model2"],
+        (
+            ["torchvision_resnet50-layer2", "timm_resnet50-layer2"],
+            ["torchvision_resnet50-layer2,layer4", "timm_resnet50-layer2,layer4"],
+        ),
+        indirect=True,
+    )
+    @pytest.mark.parametrize("seed", [None, 0, 1, 2, 3, 4])
+    def test_models_equal(self, model, model2, torchvision_img, seed):
+        if seed is None:
+            img = torchvision_img
+        else:
+            po.set_seed(seed)
+            img = torch.rand_like(torchvision_img)
+        assert torch.allclose(model(img), model2(img))
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+            "timm_resnet50-layer2",
+            "torchvision_resnet50-layer2,layer4",
+            "timm_resnet50-layer2,layer4",
+        ],
+        indirect=True,
+    )
+    def test_convert(self, model, torchvision_img):
+        rep = model(torchvision_img)
+        assert torch.all(rep == model.convert_to_tensor(model.convert_to_dict(rep))), (
+            "Convert to tensor or dict is broken!"
+        )
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+            "timm_resnet50-layer2",
+            "torchvision_resnet50-layer2,layer4",
+            "timm_resnet50-layer2,layer4",
+        ],
+        indirect=True,
+    )
+    def test_convert_to_dict(self, model, torchvision_img):
+        rep = model.convert_to_dict(model(torchvision_img))
+        feature_extractor_out = model.extractor(model.transform(torchvision_img))
+        assert set(rep.keys()) == set(feature_extractor_out.keys())
+        for k, v in rep.items():
+            assert torch.equal(v, feature_extractor_out[k])
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+            "timm_resnet50-layer2",
+            "torchvision_resnet50-layer2,layer4",
+            "timm_resnet50-layer2,layer4",
+        ],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("input_type", ["tensor", "dict"])
+    @pytest.mark.parametrize("axis", ["existing", None])
+    def test_plot_representation(
+        self, model, input_type, axis, torchvision_img, close_figures_on_teardown
+    ):
+        rep = model(torchvision_img)
+        if input_type == "dict":
+            rep = model.convert_to_dict(rep)
+        if axis == "existing":
+            _, axis = plt.subplots(1, 1)
+        model.plot_representation(rep, ax=axis, title="Representation")
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+            "timm_resnet50-layer2",
+            "torchvision_resnet50-layer2,layer4",
+            "timm_resnet50-layer2,layer4",
+        ],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("input_type", ["tensor", "dict"])
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot(
+        self,
+        model,
+        input_type,
+        rescale_ylim,
+        torchvision_img,
+        close_figures_on_teardown,
+    ):
+        rep = model(torchvision_img)
+        fig, axes = model.plot_representation(rep, title="Representation")
+        orig_img = axes[0].images[0].get_array()
+        orig_y = axes[1].containers[0].markerline.get_ydata()
+        orig_ylim = axes[1].get_ylim()
+        rep = model(torch.rand_like(torchvision_img))
+        if input_type == "dict":
+            rep = model.convert_to_dict(rep)
+        artists = model.update_plot(axes, rep, rescale_ylim=rescale_ylim)
+        updated_img = artists[0].get_array()
+        updated_y = artists[1].get_ydata()
+        updated_ylim = axes[1].get_ylim()
+        if np.equal(orig_img, updated_img).all():
+            raise ValueError("Update plot didn't run successfully!")
+        if np.equal(orig_y, updated_y).all():
+            raise ValueError("Update plot didn't run successfully!")
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")

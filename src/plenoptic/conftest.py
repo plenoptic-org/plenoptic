@@ -12,6 +12,7 @@ affect doctests.
 
 import matplotlib.pyplot as plt
 import pytest
+import timm
 from torchvision import models
 
 
@@ -41,3 +42,14 @@ def download_torchvision():
     else happens.
     """
     models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1, progress=False)
+    models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1, progress=False)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def download_timm():
+    """
+    Pre-download timm models for use in doctests.
+
+    Similar potential problem to torchvision.
+    """
+    timm.create_model("timm/resnet50.tv_in1k", pretrained=True)
