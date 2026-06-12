@@ -1304,7 +1304,8 @@ def plot_representation(
         When creating multiple axes, whether those axes should be placed
         horizontally or vertically.
     gridspec_kwargs
-        Dictionary of kwargs to pass to :ref:`gridspec`.
+        Dictionary of kwargs to pass to
+        :external+matplotlib:class:`matplotlib.gridspec.GridSpec`.
 
     Returns
     -------

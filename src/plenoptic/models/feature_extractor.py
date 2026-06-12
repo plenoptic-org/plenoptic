@@ -19,15 +19,16 @@ class FeatureExtractorModel(torch.nn.Module):
     Return features from model.
 
     This adapter combines a torch model with a feature extractor and optional transform,
-    allowing us to target the output of a particular layer in a network for use with
-    synthesis objects.
+    allowing us to target the output of one or more particular layers in a deep neural
+    network for use with synthesis objects.
 
-    This adapter is intended to work with :ref:`TorchVision` and :ref:`timm`, two model
-    zoos from the deep learning community that contain a large number of models.
+    This adapter is intended to work with :external+torchvision:ref:`TorchVision
+    <models>` and :external+timm:doc:`timm <models>`, two model zoos from the deep
+    learning community that contain a large number of models.
 
     For more details on the node naming conventions used here, please see the
-    :ref:`relevant subheading <about-node-names>` in the `torchvision documentation
-    <https://pytorch.org/vision/stable/feature_extraction.html>`_.
+    :external+torchvision:ref:`About Node Names <about-node-names>` heading in the
+    :external+torchvision:doc:`torchvision documentation <feature_extraction>`.
 
     Parameters
     ----------
@@ -35,7 +36,7 @@ class FeatureExtractorModel(torch.nn.Module):
         The pytorch module to use.
     return_node
         The names of the nodes to return. See Examples and
-        :func:`torchvision.feature_extraction`.
+        :external+torchvision:doc:`torchvision documentation <feature_extraction>`.
     transform
         Pre-processing transform to apply to image before passing to model. If
         ``None``, will not apply any transform.
@@ -103,8 +104,8 @@ class FeatureExtractorModel(torch.nn.Module):
     >>> po.validate.validate_model(model, image_shape=img.shape)
 
     The torchvision function
-    :func:`torchvision.models.feature_extraction.get_graph_graph_node_names` allows us
-    to view possible node names:
+    :external+torchvision:func:`torchvision.models.feature_extraction.get_graph_node_names`
+    allows us to view possible node names:
 
     >>> from torchvision.models import feature_extraction
     >>> # This function returns two lists, one for nodes in train mode, one for those in
