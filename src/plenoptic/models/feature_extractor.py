@@ -51,6 +51,14 @@ class FeatureExtractorModel(torch.nn.Module):
     >>> # This model's transform consists of resizing, cropping, and normalizing.
     >>> # We recommend only including the normalizing in the transform.
     >>> tv_transform = weights.transforms()
+    >>> tv_transform
+    ImageClassification(
+        crop_size=[224]
+        resize_size=[256]
+        mean=[0.485, 0.456, 0.406]
+        std=[0.229, 0.224, 0.225]
+        interpolation=InterpolationMode.BILINEAR
+    )
     >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
     >>> model = po.models.FeatureExtractorModel(tv_model, "layer2", norm).eval()
     >>> # this model requires a 3d input, and expects it to have a certain input size.
@@ -68,19 +76,23 @@ class FeatureExtractorModel(torch.nn.Module):
     >>> import timm
     >>> from timm.data import resolve_data_config
     >>> from timm.data.transforms_factory import create_transform
-    >>> timm_model = timm.create_model(
-    ...     "hf-hub:nateraw/resnet50-oxford-iiit-pet", pretrained=True
-    ... )
+    >>> timm_model = timm.create_model("timm/resnet50.tv_in1k", pretrained=True)
     >>> # Create Transform
     >>> timm_transform = create_transform(
-    ...     **resolve_data_config(model.pretrained_cfg, model=model)
+    ...     **resolve_data_config(timm_model.pretrained_cfg, model=timm_model)
     ... )
     >>> # This model has the same resizing, cropping, normalizing transform as above,
     >>> # but timm allows us to explicitly select the different steps
-    >>> transform
-    >>> timm_norm = timm_transform.transforms[-1]
+    >>> timm_transform
+    Compose(
+        Resize(size=256, interpolation=bilinear, max_size=None, antialias=True)
+        CenterCrop(size=(224, 224))
+        MaybeToTensor()
+        Normalize(mean=tensor([0.4850, ...]), std=tensor([0.2290, ...]))
+    )
     >>> timm_crop = timm_transform.transforms[1]
-    >>> model = po.models.FeatureExtractorModel(tv_model, "layer2", timm_norm).eval()
+    >>> timm_norm = timm_transform.transforms[-1]
+    >>> model = po.models.FeatureExtractorModel(timm_model, "layer2", timm_norm).eval()
     >>> # this model requires a 3d input, and expects it to have a certain input size.
     >>> img = timm_crop(po.data.einstein(False))
     >>> img.shape
