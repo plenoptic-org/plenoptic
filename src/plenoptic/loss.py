@@ -120,7 +120,7 @@ def relative_sse(synth_rep: Tensor, ref_rep: Tensor, **kwargs: Any) -> Tensor:
 
         \frac{||x - y||_2^2}{||x||_2^2}
 
-    where :math:`x` is ``ref_rep``, :math:`x` is ``synth_rep``, and :math:`||x||_2` is
+    where :math:`x` is ``ref_rep``, :math:`y` is ``synth_rep``, and :math:`||x||_2` is
     the L2-norm.
 
     Parameters
