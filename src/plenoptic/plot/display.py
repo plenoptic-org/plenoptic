@@ -1388,6 +1388,9 @@ def plot_representation(
             gridspec_kwargs = {}
         gs = ax.get_subplotspec().subgridspec(n_rows, n_cols, **gridspec_kwargs)
 
+        # only include 3d (vector-like) data for rescale, not 4d (image-like)
+        data_for_rescale = {}
+
         for i, (k, v) in enumerate(data.items()):
             ax = fig.add_subplot(gs[get_col(i), get_row(i)])
 
@@ -1399,6 +1402,7 @@ def plot_representation(
                 # differently
                 for d in v[batch_idx]:
                     ax = stem_plot(to_numpy(d), ax, k, ylim)
+                data_for_rescale[k] = v
 
             elif v.ndim == 4:
                 ax = _clean_up_axes(
@@ -1420,10 +1424,15 @@ def plot_representation(
 
             axes.append(ax)
 
+        data = data_for_rescale
+
     if ylim is None:
         if isinstance(data, dict):
             data = torch.cat(list(data.values()), dim=2)
-        _rescale_ylim(axes, data)
+        try:
+            model.update_ylim(axes, data, batch_idx, rescale_ylim=True)
+        except AttributeError:
+            _rescale_ylim(axes, data)
     return axes
 
 
