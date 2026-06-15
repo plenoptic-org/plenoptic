@@ -82,7 +82,10 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     >>> print(f"Type: {type(array2)}, Shape: {array2.shape}")
     Type: <class 'numpy.ndarray'>, Shape: (256, 256)
 
-    This is handy for saving the synthesized metamer as an image
+    This is handy for saving the synthesized metamer as an image to disk (here, we use
+    :func:`plenoptic.convert_float_to_int` to convert the image to an 8-bit integer
+    for saving).
+
     >>> import plenoptic as po
     >>> import torch
     >>> import imageio
@@ -94,10 +97,8 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     >>> met.to(torch.float64)
     >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
     >>> met_squeezed = po.to_numpy(met.metamer, squeeze=True)
-    >>> met_squeezed = np.clip(met_squeezed * 255, 0, 255).astype("uint8")
+    >>> met_squeezed = po.convert_float_to_int(np.clip(met_squeezed, 0, 1))
     >>> imageio.v3.imwrite("example_metamer_gaussian.png", met_squeezed)
-
-    .. image:: example_metamer_gaussian.png
     """
     with contextlib.suppress(AttributeError):
         # if this fails, it's already a numpy array
