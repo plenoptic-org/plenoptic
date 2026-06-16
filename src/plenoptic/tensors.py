@@ -84,10 +84,12 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
 
     This is handy for saving the synthesized metamer as an image to disk (here, we use
     :func:`plenoptic.convert_float_to_int` to convert the image to an 8-bit integer
-    for saving). Note that we clip the image to $[0, 1]$ before converting and saving;
-    it contains some values just outside that range. In general, it's up to the user to
-    ensure this is reasonable (you could also use :func:`plenoptic.process.rescale` to
-    linearly rescale the image to that same range).
+    for saving).
+
+    Note that we clip the image to [0, 1] before converting and saving; it contains some
+    values just outside that range. In general, it's up to the user to ensure this is
+    reasonable (you could also use :func:`plenoptic.process.rescale` to linearly rescale
+    the image to that same range).
 
     >>> import imageio
     >>> import numpy as np
