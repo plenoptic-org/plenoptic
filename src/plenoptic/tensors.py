@@ -88,6 +88,7 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
 
     >>> import imageio
     >>> import numpy as np
+    >>> # Load in an example metamer synthesis
     >>> img = po.data.einstein()
     >>> model = po.models.Gaussian(30).eval()
     >>> po.remove_grad(model)
