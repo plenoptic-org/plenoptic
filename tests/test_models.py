@@ -1553,15 +1553,57 @@ class TestFeatureExtractor:
     )
     @pytest.mark.parametrize("input_type", ["tensor", "dict"])
     @pytest.mark.parametrize("axis", ["existing", None])
+    @pytest.mark.parametrize("ylim", [False, None, (0, 1)])
+    @pytest.mark.parametrize("plot_func", ["model", "display", "nomodel"])
     def test_plot_representation(
-        self, model, input_type, axis, torchvision_img, close_figures_on_teardown
+        self,
+        model,
+        input_type,
+        axis,
+        ylim,
+        plot_func,
+        torchvision_img,
+        close_figures_on_teardown,
     ):
         rep = model(torchvision_img)
         if input_type == "dict":
             rep = model.convert_to_dict(rep)
         if axis == "existing":
             _, axis = plt.subplots(1, 1)
-        model.plot_representation(rep, ax=axis, title="Representation")
+        if plot_func == "model":
+            _, axes = model.plot_representation(
+                rep, ax=axis, title="Representation", ylim=ylim
+            )
+        elif plot_func == "display":
+            axes = po.plot.plot_representation(
+                model, rep, ax=axis, title="Representation", ylim=ylim
+            )
+        if not isinstance(rep, dict):
+            rep = model.convert_to_dict(rep)
+        layers = ["layer2", "layer2", "layer4", "layer4"]
+        for i, (ax, layer) in enumerate(zip(axes, layers)):
+            ax_ylim = ax.get_ylim()
+            if i % 2 == 0:
+                # then this is an image axis, so ylim should correspond to the size of
+                # the image
+                assert ax_ylim[0] == rep[layer].shape[-1] - 0.5
+                assert ax_ylim[1] == -0.5
+            else:
+                # then this is the stem plot
+                if ylim is False:
+                    # in this case ymin is just below 0, ymax is something positive
+                    assert ax_ylim[0] < 0
+                    assert abs(ax_ylim[0]) < ax_ylim[1]
+                    assert ax_ylim[1] > 0
+                elif ylim is None:
+                    # in this case ymin and ymax are symmetric about 0
+                    assert ax_ylim[0] < 0
+                    assert abs(ax_ylim[0]) == ax_ylim[1]
+                    assert ax_ylim[1] > 0
+                else:
+                    # in this case ymin and ymax are set explicitly
+                    assert ax_ylim[0] == ylim[0]
+                    assert ax_ylim[1] == ylim[1]
 
     @pytest.mark.parametrize(
         "model",
@@ -1586,6 +1628,7 @@ class TestFeatureExtractor:
         rep = model(torchvision_img)
         fig, axes = model.plot_representation(rep, title="Representation")
         orig_img = axes[0].images[0].get_array()
+        orig_img_ylim = axes[0].get_ylim()
         orig_y = axes[1].containers[0].markerline.get_ydata()
         orig_ylim = axes[1].get_ylim()
         rep = model(torch.rand_like(torchvision_img))
@@ -1593,6 +1636,7 @@ class TestFeatureExtractor:
             rep = model.convert_to_dict(rep)
         artists = model.update_plot(axes, rep, rescale_ylim=rescale_ylim)
         updated_img = artists[0].get_array()
+        updated_img_ylim = axes[0].get_ylim()
         updated_y = artists[1].get_ydata()
         updated_ylim = axes[1].get_ylim()
         if np.equal(orig_img, updated_img).all():
@@ -1603,3 +1647,5 @@ class TestFeatureExtractor:
             raise ValueError("Update plot didn't rescale_ylim successfully!")
         if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
             raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not np.equal(orig_img_ylim, updated_img_ylim).all():
+            raise ValueError("Image ylim should never change!")
