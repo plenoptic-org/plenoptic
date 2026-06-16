@@ -17,7 +17,8 @@ LARGE_DIM = 100
 
 class TestEigendistortionSynthesis:
     @pytest.fixture(scope="class")
-    def gaussian_einstein_img_eig_saved(self, einstein_img, tmp_path_factory):
+    @classmethod
+    def gaussian_einstein_img_eig_saved(cls, einstein_img, tmp_path_factory):
         model = po.models.Gaussian((31, 31)).to(DEVICE)
         po.remove_grad(model)
         model.eval()
@@ -688,7 +689,8 @@ class TestEigendistortionSynthesis:
 
 class TestAutodiffFunctions:
     @pytest.fixture(scope="class")
-    def state(self, einstein_img_double):
+    @classmethod
+    def state(cls, einstein_img_double):
         """variables to be reused across tests in this class"""
 
         # num vectors with which to compute vjp, jvp, Fv
