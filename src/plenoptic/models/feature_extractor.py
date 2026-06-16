@@ -3,6 +3,7 @@
 
 import warnings
 from collections import OrderedDict
+from typing import Literal
 
 import einops
 import matplotlib as mpl
@@ -448,6 +449,7 @@ class FeatureExtractorModel(torch.nn.Module):
         data: torch.Tensor | dict[str, torch.Tensor],
         ax: plt.Axes | None = None,
         figsize: tuple[float, float] | None = None,
+        ylim: tuple[float, float] | Literal[False] | None = False,
         batch_idx: int = 0,
         title: str | None = None,
     ) -> tuple[plt.Figure, list[plt.Axes]]:
@@ -474,6 +476,9 @@ class FeatureExtractorModel(torch.nn.Module):
         figsize
             The size of the figure to create. Must be ``None`` if ax is not ``None``. If
             both figsize and ax are ``None``, then we set ``figsize=(7, 5)``.
+        ylim
+            If not ``None``, the y-limits to use for this plot. If ``None``, we adjust
+            y-limits to be symmetrical about 0. If ``False``, do not change y-limits.
         batch_idx
             Which index to take from the batch dimension (the first one).
         title
@@ -595,6 +600,7 @@ class FeatureExtractorModel(torch.nn.Module):
                     batch_idx=batch_idx,
                     axes_direction="vertical",
                     gridspec_kwargs={"height_ratios": height_ratios},
+                    ylim=ylim,
                 )
             axes.extend(ax)
 

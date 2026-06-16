@@ -1417,7 +1417,6 @@ def plot_representation(
                     vrange="indep0",
                     as_rgb=as_rgb,
                 )
-                ylim = False
 
             else:
                 raise ValueError(f"Don't know what to do with data with {v.ndim=}")
