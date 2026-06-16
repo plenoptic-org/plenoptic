@@ -1427,7 +1427,7 @@ def plot_representation(
 
     if ylim is None:
         if isinstance(data, dict):
-            data = torch.cat(list(data.values()), dim=2)
+            data = torch.cat([v.flatten() for v in data.values()], dim=0)
         try:
             model.update_ylim(axes, data, batch_idx, rescale_ylim=True)
         except AttributeError:
