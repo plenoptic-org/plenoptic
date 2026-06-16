@@ -86,8 +86,6 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     :func:`plenoptic.convert_float_to_int` to convert the image to an 8-bit integer
     for saving).
 
-    >>> import plenoptic as po
-    >>> import torch
     >>> import imageio
     >>> import numpy as np
     >>> img = po.data.einstein()
