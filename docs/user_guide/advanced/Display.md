@@ -246,6 +246,7 @@ po.plot.synthesis_animate(
 )
 ```
 
+(model-plot-rep)=
 ## More complicated model representation plots
 
 While this provides a starting point, it's not always super useful. In the example above, the {class}`~plenoptic.models.LinearNonlinear` model returns the output of several convolutional kernels across the image, and so plotting as a series of images is pretty decent. The representation of the {class}`~plenoptic.models.PortillaSimoncelli` model below, however, has several distinct components at multiple spatial scales and orientations. That structure is lost in a single stem plot:
@@ -262,6 +263,28 @@ Trying to guess this advanced structure would be impossible for our generic plot
 ```{code-cell} ipython3
 ps.plot_representation(data=rep, ylim=False);
 ```
+
+:::{admonition} Required signature
+
+Your model's `plot_representation` <!-- skip-lint --> method must have the following signature:
+
+```{code-block} python
+def plot_representation(
+    self,
+    data: Tensor,
+    ax: plt.Axes | None = None,
+    figsize: tuple[float, float] | None = None,
+    ylim: tuple[float, float] | Literal[False] | None = None,
+    batch_idx: int = 0,
+    title: str | None = None,
+) -> tuple[plt.Figure, list[plt.Axes]]:
+```
+
+The return values must be the figure containing the plot (which may contain other plots, depending on the `ax` input) and the axes containing the plots created by this method.
+
+See {meth}`plenoptic.models.PortillaSimoncelli.plot_representation` for an example.
+
+:::
 
 Our {func}`~plenoptic.plot.plot_representation` function can make use of this method if you pass it the model; note how the plot below is identical to the one above. This might not seem very useful, but we make use of this in the different plotting methods used by our synthesis classes explained above.
 

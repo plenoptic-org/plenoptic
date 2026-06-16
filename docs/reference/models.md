@@ -17,6 +17,8 @@
 
 5. finally, your model inputs and outputs should be real- or complex-valued and should be *interpretable* for all possible values (within some range). The intention of stimulus synthesis is to facilitate model understanding --- if the synthesized stimulus are meaningless, this defeats the purpose. (Note that domain restrictions, such as requiring integer-valued inputs, can probably be accomplished by adding a penalty to an objective function, but will make optimization harder.)
 
+Additionally, if you model has a `plot_representation` <!-- skip-lint --> method, it will be compatible with our existing plotting methods. See [](model-plot-rep) for more details.
+
 (models-coarse-to-fine)=
 ## Compatibility with coarse-to-fine synthesis
 {class}`~plenoptic.MetamerCTF` implements
