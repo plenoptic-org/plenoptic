@@ -1429,7 +1429,7 @@ def plot_representation(
         if isinstance(data, dict):
             data = torch.cat([v.flatten() for v in data.values()], dim=0)
         try:
-            model.update_ylim(axes, data, batch_idx, rescale_ylim=True)
+            model.update_plot(axes, data, batch_idx, rescale_ylim=True)
         except AttributeError:
             _rescale_ylim(axes, data)
     return axes
