@@ -54,6 +54,7 @@ REGISTRY = {
     "example_mad.pt": "583c60eab6cfb5c5b031af4960db41cc0db767492871182be06da224cd133767",  # noqa: E501
     "example_mad-cuda.pt": "fd7e1372397bb57cc31a13ca4886ee73ffd405df64e0bb7d291977ba1b460b77",  # noqa: E501
     "example_eigendistortion_color.pt": "63147c5ed9588a64b6af4f181a8d0532d3de5639b20ae79c4706ec488c1854dc",  # noqa: E501
+    "Macaca_nigra_self-portrait.jpg": "7d091cf79ef8be1f36b70ee0e601f168dc95e654956f627231dde2861e1c3f5b",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"
@@ -96,6 +97,7 @@ REGISTRY_URLS = {
     "example_eigendistortion_color.pt": OSF_TEMPLATE.format("jc63h/?revision=3"),
     "example_mad.pt": OSF_TEMPLATE.format("ersfy/?revision=4"),
     "example_mad-cuda.pt": OSF_TEMPLATE.format("qjdbc/?revision=3"),
+    "Macaca_nigra_self-portrait.jpg": OSF_TEMPLATE.format("whcx9/?revision=1"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch_data`
