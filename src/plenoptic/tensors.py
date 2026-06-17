@@ -69,6 +69,40 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     -------
     array
         The former tensor, now an array.
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> import torch
+    >>> tensor = torch.rand((1, 1, 256, 256))
+    >>> array1 = po.to_numpy(tensor)
+    >>> print(f"Type: {type(array1)}, Shape: {array1.shape}")
+    Type: <class 'numpy.ndarray'>, Shape: (1, 1, 256, 256)
+    >>> array2 = po.to_numpy(tensor, squeeze=True)
+    >>> print(f"Type: {type(array2)}, Shape: {array2.shape}")
+    Type: <class 'numpy.ndarray'>, Shape: (256, 256)
+
+    This is handy for saving the synthesized metamer as an image to disk (here, we use
+    :func:`plenoptic.convert_float_to_int` to convert the image to an 8-bit integer
+    for saving).
+
+    Note that we clip the image to [0, 1] before converting and saving; it contains some
+    values just outside that range. In general, it's up to the user to ensure this is
+    reasonable (you could also use :func:`plenoptic.process.rescale` to linearly rescale
+    the image to that same range).
+
+    >>> import imageio
+    >>> import numpy as np
+    >>> # Load in an example metamer synthesis
+    >>> img = po.data.einstein()
+    >>> model = po.models.Gaussian(30).eval()
+    >>> po.remove_grad(model)
+    >>> met = po.Metamer(img, model)
+    >>> met.to(torch.float64)
+    >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
+    >>> met_squeezed = po.to_numpy(met.metamer, squeeze=True)
+    >>> met_squeezed = po.convert_float_to_int(np.clip(met_squeezed, 0, 1))
+    >>> imageio.v3.imwrite("example_metamer_gaussian.png", met_squeezed)
     """
     with contextlib.suppress(AttributeError):
         # if this fails, it's already a numpy array
