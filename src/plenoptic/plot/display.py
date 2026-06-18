@@ -1425,7 +1425,7 @@ def plot_representation(
 
         data = data_for_rescale
 
-    if ylim is None:
+    if ylim is None and len(data):
         if isinstance(data, dict):
             data = torch.cat([v.flatten() for v in data.values()], dim=0)
         try:
