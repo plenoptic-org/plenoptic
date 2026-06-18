@@ -10,6 +10,7 @@
 plenoptic's synthesis methods are high-dimensional non-linear optimization problems. Thus, when trying to make your results reproducible, you should follow the guidelines below, which plenoptic uses for its tests and documentation:
 
 - Set the seed for the random number generator. In plenoptic's synthesis methods, this largely affects the initialization of the synthesis method (e.g., with random noise for {class}`plenoptic.Metamer`). We provide a convenience function for this, {func}`~plenoptic.set_seed`, which sets both the pytorch and numpy seeds.
+(float64-doc)=
 - Use `torch.float64` dtype (torch defaults to `torch.float32`). {func}`torch.set_default_dtype` might be helpful for this. See {class}`torch.dtype` for more information.
 - Note the versions of plenoptic and pytorch when performing your analysis. We do not believe the versions of other packages are likely to affect reproducibility, but breaking changes in both plenoptic and pytorch have broken reproducibility.
 - If you *really* need to guarantee reproducibility and you used a GPU, note all relevant information, especially the CUDA and driver versions. See [plenoptic issue #368](https://github.com/plenoptic-org/plenoptic/issues/368) for a discussion here.

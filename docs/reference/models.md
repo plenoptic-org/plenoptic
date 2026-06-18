@@ -13,6 +13,7 @@
 
 3. the above transformation must be differentiable by [torch](inv:torch:std:doc#index). In practice, this generally means you perform all computations using [torch functions](inv:torch:std:doc#torch) (unless you want to write a custom `backward` method).
 
+(remove-grad-doc)=
 4. must not have any learnable parameters. This is largely to save time by avoiding calculation of unnecessary gradients, but synthesis is performed with a **fixed** model --- we are optimizing the input, not the model parameters. You can use the helper function {func}`~plenoptic.remove_grad` to detach all parameters. Similarly, your model should probably be in evaluation mode (i.e., call `model.eval`), though this is not strictly required. See the [pytorch documentation](https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc) for the difference between evaluation mode and disabling gradient computation.
 
 5. finally, your model inputs and outputs should be real- or complex-valued and should be *interpretable* for all possible values (within some range). The intention of stimulus synthesis is to facilitate model understanding --- if the synthesized stimulus are meaningless, this defeats the purpose. (Note that domain restrictions, such as requiring integer-valued inputs, can probably be accomplished by adding a penalty to an objective function, but will make optimization harder.)
