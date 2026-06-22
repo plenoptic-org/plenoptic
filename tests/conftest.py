@@ -274,6 +274,7 @@ def get_model(name, timm_resnet50=None):
         layers = name.split("-")[1].split(",")
         model = po.models.FeatureExtractorModel(timm_resnet50, layers, timm_norm)
         po.remove_grad(model)
+        model.to(DEVICE)
         return model
     elif name.startswith("torchvision_resnet50"):
         weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
@@ -286,6 +287,7 @@ def get_model(name, timm_resnet50=None):
         layers = name.split("-")[1].split(",")
         model = po.models.FeatureExtractorModel(tv_model, layers, norm)
         po.remove_grad(model)
+        model.to(DEVICE)
         return model
 
 
