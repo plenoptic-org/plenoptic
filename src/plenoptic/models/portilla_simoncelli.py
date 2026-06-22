@@ -111,11 +111,14 @@ class PortillaSimoncelli(nn.Module):
     --------
     Compute texture statistics of an image:
 
-    >>> import plenoptic as po
-    >>> img = po.data.reptile_skin()
-    >>> ps_model = po.models.PortillaSimoncelli(img.shape[2:])
-    >>> ps_model(img)
-    tensor([[[ 4.1716e-01, 5.4735e-02, ..., 4.7756e-03]]])
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> img = po.data.reptile_skin()
+      >>> ps_model = po.models.PortillaSimoncelli(img.shape[2:])
+      >>> ps_model(img)
+      tensor([[[ 4.1716e-01, 5.4735e-02, ..., 4.7756e-03]]])
 
     Visualize texture statistics:
 
@@ -1291,7 +1294,7 @@ class PortillaSimoncelli(nn.Module):
         Plot the dictionary representation:
 
         .. plot::
-          :context: reset
+          :context: close-figs
 
           >>> representation_dict = ps_model.convert_to_dict(representation_tensor)
           >>> fig, axes = ps_model.plot_representation(representation_tensor)
