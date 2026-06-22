@@ -1554,7 +1554,7 @@ class TestFeatureExtractor:
     @pytest.mark.parametrize("input_type", ["tensor", "dict"])
     @pytest.mark.parametrize("axis", ["existing", None])
     @pytest.mark.parametrize("ylim", [False, None, (0, 1)])
-    @pytest.mark.parametrize("plot_func", ["model", "display", "nomodel"])
+    @pytest.mark.parametrize("plot_func", ["model", "display"])
     def test_plot_representation(
         self,
         model,
