@@ -14,6 +14,7 @@ __all__ = [
     "parrot",
     "reptile_skin",
     "color_wheel",
+    "macaque",
 ]
 
 
@@ -188,3 +189,52 @@ def color_wheel(as_gray: bool = False) -> torch.Tensor:
       <PyrFigure size ...>
     """  # numpydoc ignore=ES01
     return load_images(FILES / "color_wheel.jpg", as_gray=as_gray)
+
+
+def macaque(as_gray: bool = False) -> torch.Tensor:
+    """
+    Return an example image of a macaque.
+
+    Parameters
+    ----------
+    as_gray :
+        Whether to load a single grayscale channel or 3 RGB channels.
+
+    Returns
+    -------
+    image :
+        4d tensor of the image.
+
+    Notes
+    -----
+    This is one of the `monkey selfies
+    <https://en.wikipedia.org/wiki/Monkey_selfie_copyright_dispute>`_ and is in the
+    public domain.
+
+    It was originally downloaded from `wikimedia
+    <https://commons.wikimedia.org/wiki/Category:Monkey_selfie>`_
+
+    Examples
+    --------
+    .. plot::
+
+      >>> import plenoptic as po
+      >>> macaque = po.data.macaque()
+      >>> macaque.shape
+      torch.Size([1, 3, 1500, 1085])
+      >>> po.plot.imshow(macaque, as_rgb=True, zoom=0.5)
+      <PyrFigure size ...>
+
+    To resize this image for use with an ImageNet-trained model, centering
+    the monkey's face:
+
+    .. plot::
+
+      >>> macaque = po.process.blur_downsample(macaque, 2)[..., :-60, :]
+      >>> macaque = po.process.center_crop(macaque, 224)
+      >>> macaque.shape
+      torch.Size([1, 3, 224, 224])
+      >>> po.plot.imshow(macaque)
+      <PyrFigure size ...>
+    """  # numpydoc ignore=ES01
+    return load_images(FILES / "macaca_nigra_self-portrait.jpg", as_gray=as_gray)
