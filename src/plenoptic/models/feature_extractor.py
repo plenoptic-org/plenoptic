@@ -46,31 +46,37 @@ class FeatureExtractorModel(torch.nn.Module):
     --------
     Use with a torchvision model:
 
-    >>> import plenoptic as po
-    >>> import torchvision
-    >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
-    >>> tv_model = torchvision.models.resnet50(weights=weights).eval()
-    >>> # This model's transform consists of resizing, cropping, and normalizing.
-    >>> # We recommend only including the normalizing in the transform.
-    >>> tv_transform = weights.transforms()
-    >>> tv_transform
-    ImageClassification(
-        crop_size=[224]
-        resize_size=[256]
-        mean=[0.485, 0.456, 0.406]
-        std=[0.229, 0.224, 0.225]
-        interpolation=InterpolationMode.BILINEAR
-    )
-    >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
-    >>> model = po.models.FeatureExtractorModel(tv_model, "layer2", norm)
-    >>> # this model requires a 3d input, and expects it to have a certain input size.
-    >>> img = po.process.center_crop(po.data.einstein(False), tv_transform.crop_size[0])
-    >>> img.shape
-    torch.Size([1, 3, 224, 224])
-    >>> model(img).shape
-    torch.Size([1, 401408])
-    >>> po.remove_grad(model)
-    >>> po.validate.validate_model(model, image_shape=img.shape)
+    .. plot::
+       :context: reset
+
+       >>> import plenoptic as po
+       >>> import torchvision
+       >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+       >>> tv_model = torchvision.models.resnet50(weights=weights).eval()
+       >>> # This model's transform consists of resizing, cropping, and normalizing.
+       >>> # We recommend only including the normalizing in the transform.
+       >>> tv_transform = weights.transforms()
+       >>> tv_transform
+       ImageClassification(
+           crop_size=[224]
+           resize_size=[256]
+           mean=[0.485, 0.456, 0.406]
+           std=[0.229, 0.224, 0.225]
+           interpolation=InterpolationMode.BILINEAR
+       )
+       >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
+       >>> model = po.models.FeatureExtractorModel(tv_model, "layer2", norm)
+       >>> # this model requires a 3d input, and expects it to have a certain input
+       >>> # size.
+       >>> img = po.process.center_crop(
+       ...     po.data.einstein(False), tv_transform.crop_size[0]
+       ... )
+       >>> img.shape
+       torch.Size([1, 3, 224, 224])
+       >>> model(img).shape
+       torch.Size([1, 401408])
+       >>> po.remove_grad(model)
+       >>> po.validate.validate_model(model, image_shape=img.shape)
 
     Use with timm a model. The primary difference is in the syntax for retrieving
     the model and the transform:
@@ -145,7 +151,7 @@ class FeatureExtractorModel(torch.nn.Module):
     Visualize model representation with :meth:`plot_representation`:
 
     .. plot::
-       :context: reset
+       :context: close-figs
 
        >>> fig, axes = model.plot_representation(model(img))
     """
