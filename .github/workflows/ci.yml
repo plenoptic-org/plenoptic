@@ -118,6 +118,36 @@ jobs:
         # 3. import-mode=importlib works for doctests (avoiding an import path
         #    error for src/plenoptic/conftest.py) but not for our regular tests
         pytest -n 0 --import-mode=importlib --doctest-continue-on-failure --doctest-modules src/ -W "ignore" -W 'default::plenoptic.io.LoadWarning'
+  extra_doc_scripts:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
+      fail-fast: false
+    name: Run additional doc scripts
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - name: Install Python 3
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: pip
+        cache-dependency-path: setup.py
+    - name: Install dependencies
+      run: |
+        # using the --upgrade and --upgrade-strategy eager flags ensures that
+        # pip will always install the latest allowed version of all
+        # dependencies, to make sure the cache doesn't go stale
+        pip install --upgrade --upgrade-strategy eager . torchvision timm --extra-index-url https://download.pytorch.org/whl/cpu
+    - name: Run scripts
+      run: |
+        for l in layer2 layer3 layer4; do
+          for m in torchvision timm; do
+            python docs/scripts/feature_extractor.py -l $l -m $m
+          done
+        done
   check_sphinx_references:
     runs-on: ubuntu-latest
     name: Check sphinx references
