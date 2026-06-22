@@ -546,6 +546,7 @@ class TestTutorialNotebooks:
             print(np.random.get_state())
             weights = torchvision.models.VGG16_Weights.IMAGENET1K_V1
             model = torchvision.models.vgg16(weights=weights, progress=False)
+            model.eval()
             model = po.models.FeatureExtractorModel(model, "features.11")
             po.remove_grad(model)
             # in this case, apply norm outside the model
