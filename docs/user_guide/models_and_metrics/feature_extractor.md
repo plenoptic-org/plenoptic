@@ -28,6 +28,7 @@ Download the script: [`feature_extractor.py`](../../scripts/feature_extractor.py
 
 :::
 
+(feature_extractor)=
 # Using Deep Neural Networks with plenoptic
 
 :::{warning}

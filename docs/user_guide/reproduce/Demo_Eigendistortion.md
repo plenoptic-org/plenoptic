@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.18.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -39,6 +39,7 @@ This signal-flow diagram shows an input being decomposed into two channels, with
 Our perception is influenced by our internal representation (neural responses) of the external world. Eigendistortions are rank-ordered directions in image space, along which a model's responses are more sensitive. `Plenoptic`'s {class}`~plenoptic.Eigendistortion` provides an easy way to synthesize eigendistortions for any PyTorch model.
 
 ```{code-cell} ipython3
+import einops
 import torch
 
 import plenoptic as po
@@ -47,8 +48,7 @@ import plenoptic as po
 # if this fails, install torchvision in your plenoptic environment
 # and restart the notebook kernel.
 try:
-    from torchvision import models
-    from torchvision.models import feature_extraction
+    import torchvision
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         "optional dependency torchvision not found!"
@@ -66,7 +66,7 @@ Let's load the parrot image used in the paper and display it:
 ```{code-cell} ipython3
 # crop the image to be square:
 image_tensor = po.data.parrot().to(DEVICE).to(torch.float64)
-image_tensor = po.process.center_crop(image_tensor, min(image_tensor.shape[-2:]))
+image_tensor = po.process.center_crop(image_tensor, 224)
 
 print("Torch image shape:", image_tensor.shape)
 
@@ -134,46 +134,27 @@ po.plot.eigendistortion_imshow_all(
 
 ### VGG16: eigendistortion synthesis
 
-Following the lead of Berardino et al. (2017), let's compare the Front End model's eigendistortion to those of an early layer of VGG16! VGG16 takes as input color images, so we'll need to repeat the grayscale parrot along the RGB color dimension.
+Following the lead of Berardino et al. (2017), let's compare the Front End model's eigendistortion to those of an early layer of VGG16! VGG16 takes as input color images, so we'll need to repeat the grayscale parrot along the RGB color dimension. We'll also apply the ImageNet normalization to the parrot image before initializing the {class}`~plenoptic.Eigendistortion` object.
+
+:::{admonition} FeatureExtractorModel
+:class: note
+
+For more information about the way we're using VGG16 with plenoptic and an alternative way of handling `norm`, see [](feature_extractor) and {class}`~plenoptic.models.FeatureExtractorModel`.
+
+:::
 
 ```{code-cell} ipython3
-# Create a class that takes the nth layer output of a given model
-class TorchVision(torch.nn.Module):
-    def __init__(self, model, return_node: str):
-        super().__init__()
-        self.extractor = feature_extraction.create_feature_extractor(
-            model, return_nodes=[return_node]
-        )
-        self.model = model
-        self.return_node = return_node
-
-    def forward(self, x):
-        return self.extractor(x)[self.return_node]
-```
-
-VGG16 was trained on pre-processed ImageNet images with approximately zero mean and unit stdev, so we can preprocess our Parrot image the same way.
-
-```{code-cell} ipython3
-# VGG16
-def normalize(img_tensor):
-    """standardize the image for vgg16"""
-    return (img_tensor - img_tensor.mean()) / img_tensor.std()
-
-
-# store these for later so we can un-normalize the image for display purposes
-orig_mean = image_tensor.mean().detach()
-orig_std = image_tensor.std().detach()
-image_tensor = normalize(image_tensor)
-
-image_tensor3 = image_tensor.repeat(1, 3, 1, 1)
-
+weights = torchvision.models.VGG16_Weights.IMAGENET1K_V1
+transform = weights.transforms()
+norm = torchvision.transforms.Normalize(transform.mean, transform.std)
+image_tensor3 = norm(image_tensor.repeat(1, 3, 1, 1))
+vgg = torchvision.models.vgg16(weights=weights, progress=False)
+vgg.eval().to(DEVICE).to(image_tensor3.dtype)
 # "layer 3" according to Berardino et al (2017)
-vgg = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1, progress=False)
-mdl_v = TorchVision(vgg, "features.11").to(DEVICE).to(image_tensor.dtype)
+mdl_v = po.models.FeatureExtractorModel(vgg, "features.11")
 po.remove_grad(mdl_v)
-mdl_v.eval()
 
-eigendist_v = po.Eigendistortion(image=image_tensor3, model=mdl_v)
+eigendist_v = po.Eigendistortion(image_tensor3, mdl_v)
 # this synthesis takes a long time to run, so we load in a cached version.
 # see the following admonition for how to run this yourself
 eigendist_v.load(
@@ -196,12 +177,13 @@ eigendist_v.synthesize(k=2, method="power", max_iter=5000)
 
 We can now display the most- and least-noticeable eigendistortions as before, then compare their quality to those of the Front-end model.
 
-Since the distortions here were synthesized using a pre-processed (normalized) imagea, we can easily pass a function to unprocess the image.
-
 ```{code-cell} ipython3
-# create an image processing function to unnormalize the image
 def unnormalize(x):
-    return x * orig_std.to(x.device) + orig_mean.to(x.device)
+    std = torch.as_tensor(transform.std, device=x.device, dtype=x.dtype)
+    std = einops.rearrange(std, "c -> 1 c 1 1")
+    mean = torch.as_tensor(transform.mean, device=x.device, dtype=x.dtype)
+    mean = einops.rearrange(mean, "c -> 1 c 1 1")
+    return x * std + mean
 
 
 po.plot.eigendistortion_imshow_all(

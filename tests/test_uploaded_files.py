@@ -17,7 +17,6 @@ import numpy as np
 import pytest
 import torch
 import torchvision
-from torchvision.models import feature_extraction
 
 import plenoptic as po
 from conftest import DEVICE, DEVICE2
@@ -538,23 +537,6 @@ class TestTutorialNotebooks:
             compare_eigendistortions(eig, eig_up)
 
         def test_berardino_vgg16(self, parrot_square_double):
-            # Create a class that takes the nth layer output of a given model
-            class TorchVision(torch.nn.Module):
-                def __init__(self, model, return_node: str):
-                    super().__init__()
-                    self.extractor = feature_extraction.create_feature_extractor(
-                        model, return_nodes=[return_node]
-                    )
-                    self.model = model
-                    self.return_node = return_node
-
-                def forward(self, x):
-                    return self.extractor(x)[self.return_node]
-
-            def normalize(img_tensor):
-                """standardize the image for vgg16"""
-                return (img_tensor - img_tensor.mean()) / img_tensor.std()
-
             po.set_seed(0)
             os.makedirs("uploaded_files", exist_ok=True)
             torch.save(
@@ -562,13 +544,14 @@ class TestTutorialNotebooks:
                 "uploaded_files/torch_rng_state_berardino_vgg16.pt",
             )
             print(np.random.get_state())
-            model = torchvision.models.vgg16(
-                weights=torchvision.models.VGG16_Weights.IMAGENET1K_V1, progress=False
-            )
-            model = TorchVision(model, "features.11")
+            weights = torchvision.models.VGG16_Weights.IMAGENET1K_V1
+            model = torchvision.models.vgg16(weights=weights, progress=False)
+            model = po.models.FeatureExtractorModel(model, "features.11")
             po.remove_grad(model)
-            img = parrot_square_double.to(DEVICE2)
-            img = normalize(img).repeat(1, 3, 1, 1)
+            # in this case, apply norm outside the model
+            transform = weights.transforms()
+            norm = torchvision.transforms.Normalize(transform.mean, transform.std)
+            img = norm(parrot_square_double.to(DEVICE2).repeat(1, 3, 1, 1))
             model = model.to(DEVICE2).to(img.dtype)
             model.eval()
             with pytest.warns(UserWarning, match="input_tensor range is"):
