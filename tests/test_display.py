@@ -858,7 +858,8 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
 
 class TestMADDisplay:
     @pytest.fixture(scope="class", params=["rgb", "grayscale"])
-    def synthesized_mad(self, request):
+    @classmethod
+    def synthesized_mad(cls, request):
         # make the images really small so nothing takes as long
         if request.param == "rgb":
             img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
@@ -886,7 +887,8 @@ class TestMADDisplay:
     @pytest.fixture(
         scope="class", params=["rgb-5", "rgb-4", "grayscale-5", "grayscale-4"]
     )
-    def synthesized_mad_store_progress(self, request):
+    @classmethod
+    def synthesized_mad_store_progress(cls, request):
         # make the images really small so nothing takes as long
         img, max_iter = request.param.split("-")
         if img == "rgb":
@@ -969,7 +971,8 @@ class TestMADDisplay:
         )
 
     @pytest.fixture(scope="class")
-    def all_mad(self):
+    @classmethod
+    def all_mad(cls):
         # run synthesis for all 4 MAD images.
         img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
         img = img[..., :16, :16]
@@ -1196,7 +1199,8 @@ class TestMADDisplay:
 
 class TestMetamerDisplay:
     @pytest.fixture(scope="class", params=["rgb", "grayscale"])
-    def synthesized_met_nostore(self, request):
+    @classmethod
+    def synthesized_met_nostore(cls, request):
         img = request.param
         # make the images really small so nothing takes as long
         if img == "rgb":
@@ -1225,7 +1229,8 @@ class TestMetamerDisplay:
         return met
 
     @pytest.fixture(scope="class", params=["rgb", "grayscale"])
-    def synthesized_met(self, request):
+    @classmethod
+    def synthesized_met(cls, request):
         img = request.param
         # make the images really small so nothing takes as long
         if img == "rgb":
@@ -1254,7 +1259,8 @@ class TestMetamerDisplay:
         return met
 
     @pytest.fixture(scope="class", params=["rgb", "grayscale"])
-    def synthesized_met_3d(self, request):
+    @classmethod
+    def synthesized_met_3d(cls, request):
         img = request.param
         # make the images really small so nothing takes as long
         if img == "rgb":
@@ -1285,7 +1291,8 @@ class TestMetamerDisplay:
     @pytest.fixture(
         scope="class", params=["rgb-5", "rgb-4", "grayscale-5", "grayscale-4"]
     )
-    def synthesized_met_store_progress(self, request):
+    @classmethod
+    def synthesized_met_store_progress(cls, request):
         img, max_iter = request.param.split("-")
         # make the images really small so nothing takes as long
         if img == "rgb":
@@ -1651,7 +1658,8 @@ class TestEigendistortionDisplay:
             "Color-randomized_svd-3",
         ],
     )
-    def synthesized_eig(self, request, einstein_img, color_img):
+    @classmethod
+    def synthesized_eig(cls, request, einstein_img, color_img):
         model, method, k = request.param.split("-")
         if model == "OnOff":
             model = po.models.OnOff((31, 31), pretrained=True, cache_filt=True).to(

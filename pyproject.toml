@@ -56,7 +56,8 @@ docs = [
 ]
 
 test = [
-    "pytest>=5.1.2",
+    # 9.1.0 unsupported because of https://github.com/pytest-dev/pytest/issues/14591
+    "pytest>=5.1.2,!=9.1.0",
     'pytest-cov',
     'pytest-xdist',
     'pytest-order',
@@ -90,7 +91,7 @@ nb = [
 where = ["src"]
 
 [tool.setuptools_scm]
-version_scheme = 'python-simplified-semver'
+version_scheme = 'semver-pep440'
 local_scheme = 'no-local-version'
 
 [tool.pytest.ini_options]

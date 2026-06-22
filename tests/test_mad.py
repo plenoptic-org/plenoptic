@@ -57,7 +57,8 @@ class NonModuleMetric:
 
 class TestMAD:
     @pytest.fixture(scope="class")
-    def ssim_einstein_img_mad_saved(self, einstein_img, tmp_path_factory):
+    @classmethod
+    def ssim_einstein_img_mad_saved(cls, einstein_img, tmp_path_factory):
         mad = po.MADCompetition(einstein_img, test_metric.nlpd, po.metric.mse, "min", 1)
         mad.synthesize(2)
         save_path = tmp_path_factory.mktemp("data") / "ssim_einstein_img_mad_saved.pt"
