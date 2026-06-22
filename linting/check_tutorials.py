@@ -5,7 +5,7 @@ import sys
 # these notebooks have a "download script" admonition on the top, instead of download
 # notebook, because the notebook itself is a tangled mess (due to using tabs and showing
 # several different paths)
-SCRIPT_NBS = ["Feature_Extractor"]
+SCRIPT_NBS = ["feature_extractor"]
 
 paths = []
 for p in sys.argv[1:]:
@@ -29,7 +29,8 @@ for p in paths:
     filename = p.stem
     if filename in SCRIPT_NBS:
         if not re.findall(
-            f"Download the script: [`{filename}.py`](../../scripts/{filename}.py)", md
+            rf"Download the script: \[`{filename}.py`\]\(../../scripts/{filename}.py\)",
+            md,
         ):
             fails.append(p)
     elif (
