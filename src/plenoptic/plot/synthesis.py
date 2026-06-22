@@ -1998,7 +1998,13 @@ def synthesis_animate(
 
     if isinstance(synthesis_object, Metamer):
         saved_synth = synthesis_object.saved_metamer
-        losses = [synthesis_object.losses]
+        # this plot shows the metamer loss, which requires subtracting the penalty off
+        # of the objective function
+        met_loss = (
+            synthesis_object.losses
+            - synthesis_object.penalty_lambda * synthesis_object.penalties
+        )
+        losses = [met_loss]
     elif isinstance(synthesis_object, MADCompetition):
         saved_synth = synthesis_object.saved_mad_image
         losses = [
