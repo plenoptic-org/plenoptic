@@ -496,7 +496,9 @@ class TestTutorialNotebooks:
                 scheduler=scheduler,
                 scheduler_kwargs=scheduler_kwargs,
             )
-            met.synthesize(max_iter=12000)
+            # by setting stop_iters_to_check=max_iter, we ensure it keeps going through
+            # all 12k iterations
+            met.synthesize(max_iter=12000, stop_iters_to_check=12000)
             met.save(f"uploaded_files/ResNet50-{target_layer}_macaque_metamer.pt")
             met_up = po.Metamer(img, model)
             with pytest.warns(UserWarning, match="You will need to call setup"):

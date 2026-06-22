@@ -376,7 +376,9 @@ met.setup(
     scheduler=scheduler,
     scheduler_kwargs=scheduler_kwargs
 )
-met.synthesize(max_iter=12000)
+# by setting stop_iters_to_check=max_iter, we ensure it keeps going through
+# all 12k iterations
+met.synthesize(max_iter=12000, stop_iters_to_check=12000)
 ```
 :::
 
