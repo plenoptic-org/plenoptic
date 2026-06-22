@@ -39,6 +39,7 @@ def einstein(as_gray: bool = True) -> torch.Tensor:
     Examples
     --------
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> einstein = po.data.einstein()
@@ -72,6 +73,7 @@ def curie(as_gray: bool = True) -> torch.Tensor:
     Examples
     --------
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> curie = po.data.curie()
@@ -105,6 +107,7 @@ def parrot(as_gray: bool = True) -> torch.Tensor:
     Examples
     --------
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> parrot = po.data.parrot()
@@ -138,6 +141,7 @@ def reptile_skin(as_gray: bool = True) -> torch.Tensor:
     Examples
     --------
     .. plot::
+       :context: reset
 
       >>> import plenoptic as po
       >>> reptile_skin = po.data.reptile_skin()
@@ -171,6 +175,7 @@ def color_wheel(as_gray: bool = False) -> torch.Tensor:
     Examples
     --------
     .. plot::
+       :context: reset
 
       >>> import plenoptic as po
       >>> color_wheel = po.data.color_wheel()
@@ -180,6 +185,7 @@ def color_wheel(as_gray: bool = False) -> torch.Tensor:
       <PyrFigure size ...>
 
     .. plot::
+      :context: close-figs
 
       >>> import plenoptic as po
       >>> color_wheel_gray = po.data.color_wheel(as_gray=True)
@@ -217,18 +223,20 @@ def macaque(as_gray: bool = False) -> torch.Tensor:
     Examples
     --------
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> macaque = po.data.macaque()
       >>> macaque.shape
       torch.Size([1, 3, 1500, 1085])
-      >>> po.plot.imshow(macaque, as_rgb=True, zoom=0.5)
+      >>> po.plot.imshow(macaque[..., :-1], as_rgb=True, zoom=0.25)
       <PyrFigure size ...>
 
     To resize this image for use with an ImageNet-trained model, centering
     the monkey's face:
 
     .. plot::
+      :context: close-figs
 
       >>> macaque = po.process.blur_downsample(macaque, 2)[..., :-60, :]
       >>> macaque = po.process.center_crop(macaque, 224)

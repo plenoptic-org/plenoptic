@@ -186,6 +186,7 @@ def eigendistortion_imshow_all(
     .. plot::
       :context: close-figs
 
+      >>> import einops
       >>> import torchvision
       >>> img = po.data.parrot(False).to(torch.float64)
       >>> weights = torchvision.models.VGG16_Weights.IMAGENET1K_V1
@@ -196,7 +197,6 @@ def eigendistortion_imshow_all(
       >>> vgg = po.models.FeatureExtractorModel(vgg, "features.11")
       >>> vgg.eval().to(torch.float64)
       FeatureExtractorModel(...)
-      >>> vgg = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1)
       >>> po.remove_grad(vgg)
       >>> eig_vgg = po.Eigendistortion(img, vgg)
       >>> eig_vgg.load(
