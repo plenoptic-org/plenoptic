@@ -10,7 +10,11 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torchvision.models import feature_extraction
+
+try:
+    from torchvision.models import feature_extraction
+except ImportError:
+    feature_extraction = None
 
 from ..plot import display
 
@@ -41,6 +45,11 @@ class FeatureExtractorModel(torch.nn.Module):
     transform
         Pre-processing transform to apply to image before passing to model. If
         ``None``, will not apply any transform.
+
+    Raises
+    ------
+    ImportError
+        If torchvision is not installed.
 
     Examples
     --------
@@ -166,6 +175,11 @@ class FeatureExtractorModel(torch.nn.Module):
         self.transform = transform
         if isinstance(return_nodes, str):
             return_nodes = [return_nodes]
+        if feature_extraction is None:
+            raise ImportError(
+                "Missing optional dependency torchvision, which is needed for "
+                "FeatureExtractorModel, please install it!"
+            )
         self.extractor = feature_extraction.create_feature_extractor(
             model, return_nodes
         )
