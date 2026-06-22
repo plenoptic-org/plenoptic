@@ -229,11 +229,11 @@ Finally, we'll pass our neural network, target layer, and preprocessing transfor
 Now, let's prepare the image. The input image needs to be an RGB image with a height and width of 224 pixels. It should probably also be like those found in ImageNet: a single object in the center of the frame that belongs to one of the [image classes](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). We'll use one of the famous [monkey selfies](https://en.wikipedia.org/wiki/Monkey_selfie_copyright_dispute), and resize it appropriately:
 
 ```{code-cell} ipython3
-img = po.load_images(po.data.fetch_data("Macaca_nigra_self-portrait.jpg"), False)
+img = po.data.macaque()
 # here we downsample the original image by a factor of 4 and then lop off the bottom.
 # that way, when we take the central 224 pixels in the following block, we end up with a
 # decent image.
-img = po.process.blur_downsample(img, 2)[..., :-60, :]
+img = po.process.blur_downsample(img, 2)[..., :-59, :]
 ```
 
 How we crop the image down to 224 depends on which model zoo we're using:

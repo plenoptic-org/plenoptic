@@ -64,7 +64,7 @@ def prepare_image(crop):
     # here we downsample the original image by a factor of 4 and then lop off the
     # bottom. that way, when we take the central 224 pixels in the following block, we
     # end up with a decent image.
-    img = po.process.blur_downsample(img, 2)[..., :-60, :]
+    img = po.process.blur_downsample(img, 2)[..., :-59, :]
     img = crop(img)
     return img
 

@@ -238,7 +238,7 @@ def macaque(as_gray: bool = False) -> torch.Tensor:
     .. plot::
       :context: close-figs
 
-      >>> macaque = po.process.blur_downsample(macaque, 2)[..., :-60, :]
+      >>> macaque = po.process.blur_downsample(macaque, 2)[..., :-59, :]
       >>> macaque = po.process.center_crop(macaque, 224)
       >>> macaque.shape
       torch.Size([1, 3, 224, 224])
