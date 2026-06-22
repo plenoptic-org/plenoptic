@@ -8,6 +8,7 @@ These tests check that the outputs haven't changed, notifying us if we need to
 update them.
 """
 
+import functools
 import os
 from collections import OrderedDict
 
@@ -15,7 +16,7 @@ import einops
 import numpy as np
 import pytest
 import torch
-from torchvision import models
+import torchvision
 from torchvision.models import feature_extraction
 
 import plenoptic as po
@@ -452,6 +453,61 @@ class TestDoctest:
     reason="These take a long time, so don't run every time",
 )
 class TestTutorialNotebooks:
+    class TestFeatureExtractor:
+        @pytest.mark.parametrize("target_layer", ["layer2", "layer3", "layer4"])
+        def test_resnet_macaque_metamer(self, target_layer):
+            po.set_seed(0)
+            os.makedirs("uploaded_files", exist_ok=True)
+            torch.save(
+                torch.random.get_rng_state(),
+                f"uploaded_files/torch_rng_state_ResNet50-{target_layer}_macaque_metamer.pt",
+            )
+            print(np.random.get_state())
+            weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+            deepnet = torchvision.models.resnet50(weights=weights)
+            deepnet.eval()
+            transform = weights.transforms()
+            norm = torchvision.transforms.Normalize(transform.mean, transform.std)
+            crop = functools.partial(
+                po.process.center_crop, output_size=transform.crop_size[0]
+            )
+
+            imagenet_categories = np.asarray(weights.meta["categories"])
+
+            def get_category(image, thresh=0.1):
+                image_cat = po.to_numpy(
+                    torch.nn.functional.softmax(deepnet(norm(image)), dim=1).squeeze()
+                )
+                return imagenet_categories[image_cat > thresh]
+
+            img = po.data.macaque().to(DEVICE).to(torch.float64)
+            img = crop(po.process.blur_downsample(img, 2)[..., :-60, :])
+            model = po.models.FeatureExtractorModel(deepnet, target_layer, norm)
+            model.to(torch.float64).to(DEVICE)
+            po.remove_grad(model)
+            met = po.Metamer(img, model)
+            scheduler = torch.optim.lr_scheduler.StepLR
+            scheduler_kwargs = {
+                "step_size": 5000 if target_layer == "layer4" else 3000,
+                "gamma": 0.5,
+            }
+            lr = 3e-2 if target_layer == "layer4" else 1e-2
+            met.setup(
+                optimizer_kwargs={"lr": lr},
+                scheduler=scheduler,
+                scheduler_kwargs=scheduler_kwargs,
+            )
+            met.synthesize(max_iter=12000)
+            met.save(f"uploaded_files/ResNet50-{target_layer}_macaque_metamer.pt")
+            met_up = po.Metamer(img, model)
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    po.data.fetch_data("ResNet50-{target_layer}_macaque_metamer.pt"),
+                    tensor_equality_atol=1e-7,
+                    map_location=DEVICE,
+                )
+            compare_metamers(met, met_up)
+
     class TestDemoEigendistortion:
         def test_berardino_onoff(self, parrot_square_double):
             po.set_seed(0)
@@ -506,8 +562,8 @@ class TestTutorialNotebooks:
                 "uploaded_files/torch_rng_state_berardino_vgg16.pt",
             )
             print(np.random.get_state())
-            model = models.vgg16(
-                weights=models.VGG16_Weights.IMAGENET1K_V1, progress=False
+            model = torchvision.models.vgg16(
+                weights=torchvision.models.VGG16_Weights.IMAGENET1K_V1, progress=False
             )
             model = TorchVision(model, "features.11")
             po.remove_grad(model)

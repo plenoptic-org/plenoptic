@@ -11,12 +11,20 @@ kernelspec:
   name: python3
 ---
 
+```{code-cell} ipython3
+:tags: [hide-input]
+
+import pooch
+
+# don't have pooch output messages about downloading or untarring
+logger = pooch.get_logger()
+logger.setLevel("WARNING")
+```
+
 :::{admonition} Run this notebook yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`Feature_Extractor.ipynb`**!
-
-Run it in your browser: **{binder}`Feature_Extractor.ipynb`**!
+Download the script: [`feature_extractor.py`](../../scripts/feature_extractor.py)!
 
 :::
 
@@ -30,7 +38,6 @@ plenoptic is compatible with any model written in pytorch, including deep neural
 
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
 
 import plenoptic as po
@@ -67,8 +74,6 @@ po.set_seed(0)
 
 The example metamer shown in this notebook takes about 15 minutes to synthesize on a GPU. Thus, instead of performing synthesis in this notebook, we have cached the result of it online and only download them for investigation.
 
-Additionally, while you can normally call {func}`~plenoptic.Metamer.synthesize` again to pick up where we left out, the cached version of the results shown here discarded the optimizer's state dict (to reduce the size on disk). Thus, calling `met.synthesize(100)` with one of our cached and loaded metamer objects **will not** give the same result as calling `met.synthesize(12100)` with a new metamer object initialized as shown in this notebook.
-
 :::
 
 
@@ -76,9 +81,29 @@ Additionally, while you can normally call {func}`~plenoptic.Metamer.synthesize` 
 
 When synthesizing images for deep nets, as in {cite:alp}`Feather2023-model-metam`, it is common to pick a specific intermediate layer whose representation we wish to use. `torchvision` contains a "feature extractor" to grab activity from intermediate layers, and plenoptic's {class}`plenoptic.models.FeatureExtractorModel` is a small wrapper to simplify this process.
 
-```{code-cell} ipython3
+::::{tab-set}
+:::{tab-item} layer2
+:sync: layer2
+
+```python
+target_layer = "layer2"
+```
+:::
+:::{tab-item} layer3
+:sync: layer3
+
+```python
 target_layer = "layer3"
 ```
+:::
+:::{tab-item} layer4
+:sync: layer4
+
+```python
+target_layer = "layer4"
+```
+:::
+::::
 
 In the rest of this section, we show how to initialize a plenoptic-compatible model using the weights from either the {external+torchvision:ref}`TorchVision <models>` or {external+timm:doc}`timm <models>` model zoos; their behavior after this section is the same.
 
@@ -88,9 +113,9 @@ First, we download the model weights for ResNet50 trained on [ImageNet-1K](https
 :::{tab-item} torchvision
 :sync: torchvision
 
-```{code-block} python
-weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
-tv_model = torchvision.models.resnet50(weights=weights)
+```{literalinclude} ../../scripts/feature_extractor.py
+:dedent:
+:lines: 22-23
 ```
 
 :::
@@ -100,35 +125,19 @@ tv_model = torchvision.models.resnet50(weights=weights)
 
 Note that to run this cell (and the following `timm` cells), you must install `timm` as well (`pip install timm`)!
 
-```{code-block} python
-import timm
-from timm.data import resolve_data_config
-from timm.data.transforms_factory import create_transform
-timm_model = timm.create_model("timm/resnet50.tv_in1k", pretrained=True)
+```{literalinclude} ../../scripts/feature_extractor.py
+:dedent:
+:lines: 40
 ```
 :::
 ::::
 
 Next, we ensure that our model is in evaluation mode. Many models, including ResNet50, behave differently when in training and evaluation mode. In plenoptic, models are fixed and so we want the evaluation behavior:
 
-::::{tab-set}
-:::{tab-item} torchvision
-:sync: torchvision
-
-```{code-block} python
-tv_model = tv_model.eval()
+```{literalinclude} ../../scripts/feature_extractor.py
+:dedent:
+:lines: 24
 ```
-
-:::
-
-:::{tab-item} timm
-:sync: timm
-
-```{code-block} python
-timm_model = timm_model.eval()
-```
-:::
-::::
 
 Next, we need to specify the layer to target. If we look at the ResNet50 metamers in Figure 2e from {cite:alp}`Feather2023-model-metam`, we can see an interesting progression in layers 2 through 4: the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 is almost completely unidentifiable, looking almost completely like random RGB noise.
 
@@ -139,10 +148,10 @@ Let's start with `"layer3"`, but note the metamer synthesis procedure in this no
 
 You can view possible layer names with {external+torchvision:func}`torchvision.models.feature_extraction.get_graph_node_names`. (For more details on the node naming conventions, please see the {external+torchvision:ref}`About Node Names <about-node-names>` heading in the {external+torchvision:doc}`torchvision documentation <feature_extraction>`.)
 
-```{code-block} python
+```python
 from torchvision.models import feature_extraction
 # this function returns two lists, the first for training mode, the second for eval mode
-feature_extraction.get_graph_node_names(tv_model)[1]
+feature_extraction.get_graph_node_names(deepnet)[1]
 ```
 
 And note that you can specify multiple layers!
@@ -162,14 +171,16 @@ Let's grab the normalizing transform and then initialize our plenoptic model:
 
 In torchvision, the transform is a single torch Module which we cannot easily subdivide, so we create a separate normalization transform, which we pass to {class}`~plenoptic.models.FeatureExtractorModel`:
 
-```{code-block} python
-tv_transform = weights.transforms()
-print(tv_transform)
-tv_norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
-model = po.models.FeatureExtractorModel(tv_model, target_layer, tv_norm)
+```{literalinclude} ../../scripts/feature_extractor.py
+:dedent:
+:lines: 25-26
 ```
 
-```{code-block} python
+```python
+print(transform)
+```
+
+```python
 ImageClassification(
     crop_size=[224]
     resize_size=[256]
@@ -186,16 +197,16 @@ ImageClassification(
 
 In timm, the transform can be indexed into, so we can explicitly grab the normalization:
 
-```{code-block} python
-timm_transform = create_transform(
-    **resolve_data_config(timm_model.pretrained_cfg, model=timm_model)
-)
-print(timm_transform)
-timm_norm = timm_transform.transforms[-1]
-model = po.models.FeatureExtractorModel(timm_model, target_layer, timm_norm)
+```{literalinclude} ../../scripts/feature_extractor.py
+:dedent:
+:lines: 42-45
 ```
 
-```{code-block}
+```python
+print(transform)
+```
+
+```python
 Compose(
     Resize(size=256, interpolation=bilinear, max_size=None, antialias=True)
     CenterCrop(size=(224, 224))
@@ -207,7 +218,14 @@ Compose(
 :::
 ::::
 
-Now, let's prepare the image. The input image needs to be an RGB image with a height and width of 224 pixels. We'll use one of the famous [monkey selfies](https://en.wikipedia.org/wiki/Monkey_selfie_copyright_dispute), and resize it appropriately:
+Finally, we'll pass our neural network, target layer, and preprocessing transform to plenoptic's {class}`~plenoptic.models.FeatureExtractorModel`:
+
+```{literalinclude} ../../scripts/feature_extractor.py
+:dedent:
+:lines: 85
+```
+
+Now, let's prepare the image. The input image needs to be an RGB image with a height and width of 224 pixels. It should probably also be like those found in ImageNet: a single object in the center of the frame that belongs to one of the [image classes](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). We'll use one of the famous [monkey selfies](https://en.wikipedia.org/wiki/Monkey_selfie_copyright_dispute), and resize it appropriately:
 
 ```{code-cell} ipython3
 img = po.load_images(po.data.fetch_data("Macaca_nigra_self-portrait.jpg"), False)
@@ -217,12 +235,15 @@ img = po.load_images(po.data.fetch_data("Macaca_nigra_self-portrait.jpg"), False
 img = po.process.blur_downsample(img, 2)[..., :-60, :]
 ```
 
+How we crop the image down to 224 depends on which model zoo we're using:
+
 ::::{tab-set}
 :::{tab-item} torchvision
 :sync: torchvision
 
-```{code-block} python
-img = po.process.center_crop(img, tv_transform.crop_size[0])
+```{literalinclude} ../../scripts/feature_extractor.py
+:dedent:
+:lines: 27,68
 ```
 
 :::
@@ -230,9 +251,9 @@ img = po.process.center_crop(img, tv_transform.crop_size[0])
 :::{tab-item} timm
 :sync: timm
 
-```{code-block} python
-timm_crop = timm_transform.transforms[1]
-img = timm_crop(img)
+```{literalinclude} ../../scripts/feature_extractor.py
+:dedent:
+:lines: 46,68
 ```
 :::
 ::::
@@ -240,12 +261,13 @@ img = timm_crop(img)
 ```{code-cell} ipython3
 :tags: [remove-cell]
 
+target_layer = "layer2"
 weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
-tv_model = torchvision.models.resnet50(weights=weights).eval()
-tv_transform = weights.transforms()
-tv_norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
-model = po.models.FeatureExtractorModel(tv_model, target_layer, tv_norm)
-img = po.process.center_crop(img, tv_transform.crop_size[0])
+deepnet = torchvision.models.resnet50(weights=weights).eval()
+transform = weights.transforms()
+norm = torchvision.transforms.Normalize(transform.mean, transform.std)
+model = po.models.FeatureExtractorModel(deepnet, target_layer, norm)
+img = po.process.center_crop(img, transform.crop_size[0])
 ```
 
 Let's visualize our resulting image:
@@ -256,18 +278,34 @@ po.plot.imshow(img, as_rgb=True);
 
 ResNet50 is trained to classify images into one of [1000 categories](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). Any metamer of an intermediate layer should preserve this classification, which is the output of the final layer; this is one of the criteria that {cite:alp}`Feather2023-model-metam` check for synthesis success. Let's examine that classification now, creating a little helper function:
 
-```{code-cell} ipython3
-# adding this threshold means we'll get multiple categories if the model isn't sure, but
-# for the examples in this notebook, there's only one good classification.
-def get_category(image, thresh=0.1):
-    imagenet_categories = np.asarray(weights.meta["categories"])
-    image_cat = po.to_numpy(
-        torch.nn.functional.softmax(tv_model(tv_norm(image)), dim=1).squeeze()
-    )
-    return imagenet_categories[image_cat > thresh]
+::::{tab-set}
+:::{tab-item} torchvision
+:sync: torchvision
 
+```{literalinclude} ../../scripts/feature_extractor.py
+:dedent:
+:lines: 28
+```
 
-get_category(img)
+:::
+
+:::{tab-item} timm
+:sync: timm
+
+```{literalinclude} ../../scripts/feature_extractor.py
+:dedent:
+:lines: 48-51
+```
+:::
+::::
+
+```{literalinclude} ../../scripts/feature_extractor.py
+:dedent:
+:lines: 30-34,88
+```
+
+```python
+array(["guenon"], dtype='<U30')
 ```
 
 The category, [guenon](https://en.wikipedia.org/wiki/Guenon), is an Old World monkey. Though it isn't the actual species of the monkey in question (a [Celebes crested macaque](https://en.wikipedia.org/wiki/Celebes_crested_macaque)), it's a reasonable category for it.
@@ -287,7 +325,7 @@ Our `model` <!-- skip-lint --> object now returns only the activations from our 
 ```{code-cell} ipython3
 rep = model(img)
 print(rep)
-rep.shape
+print(rep.shape)
 ```
 
 We have flattened the model representation of the given layer (to support representations from multiple layers simultaneously). If you would like to retrieve the original shape, you can use the {func}`~plenoptic.models.FeatureExtractorModel.convert_to_dict` method:
@@ -295,51 +333,129 @@ We have flattened the model representation of the given layer (to support repres
 ```{code-cell} ipython3
 rep = model.convert_to_dict(rep)
 print(rep.keys())
-rep[target_layer].shape
+print(rep[target_layer].shape)
 ```
 
 {class}`~plenoptic.models.FeatureExtractorModel` also has a {func}`~plenoptic.models.FeatureExtractorModel.plot_representation` method, which creates two subplots. The first plots the average across channel, the average spatial representation, while the second averages across space to get a per-channel average representation:
 
 ```{code-cell} ipython3
-model.plot_representation(rep)
+fig, _ = model.plot_representation(rep)
 ```
 
 ## Synthesizing the metamer
 
 :::{warning}
-We do not perform synthesis in the exact same way as {cite:alp}`Feather2023-model-metam`. However, the resulting metamer is qualitatively similar. We will note the differences below.
+We do not perform synthesis in the exact same way as {cite:alp}`Feather2023-model-metam`. However, the resulting metamer is qualitatively similar. We note the differences below.
 :::
 
-Let us initialize our metamer object using the above image and model. Unlike in {cite:alp}`Feather2023-model-metam`, we are using the mean-squared error (the default) as our loss function. Like that paper, we find better synthesis results if we use learning-rate scheduler to halve the optimizer's learning rate every 3000 iterations, using {class}`~torch.optim.lr_scheduler.StepLR` (the exception is for the `"layer4"` metamer, where we find better results without a scheduler):
+Let us initialize our metamer object using the above image and model. Unlike in {cite:alp}`Feather2023-model-metam`, we are using the mean-squared error (the default) as our loss function. Like that paper, we find better synthesis results if we use a learning-rate scheduler to halve the optimizer's learning rate regularly, using {class}`~torch.optim.lr_scheduler.StepLR` (see the following dropdown for more details):
 
 ```{code-cell} ipython3
 met = po.Metamer(img, model)
-met.load(po.data.fetch_data("ResNet50_macaque_metamer.pt"))
+met.load(po.data.fetch_data(f"ResNet50-{target_layer}_macaque_metamer.pt"))
 ```
 
 :::{admonition} How to run this synthesis manually
 :class: dropdown note
 
-<!-- TestFeatureExtractor.test_macaque_metamer -->
-```{code-block} python
-lr = 1e-2 if target_layer == "layer4" else 3e-3
-scheduler = torch.optim.lr_scheduler.StepLR if target_layer != "layer4" else None
-scheduler_kwargs = {"step_size": 3000, "gamma": 0.5}
-met.setup(optimizer_kwargs={"lr": lr}, scheduler=scheduler, scheduler_kwargs=scheduler_kwargs)
+These hyperparameters are the ones that work best for this target image. They should make a good starting point for other images, but you are encouraged to play around with the learning rate and scheduler!
+
+Note that, as shown in the following block, `"layer2"` and `"layer3"` metamers were synthesized using the same hyperparameters, but we found better results for `"layer4"` with a slightly higher learning rate and slightly longer gaps before reducing learning rate size.
+
+<!-- TestFeatureExtractor.test_resnet_macaque_metamer -->
+```python
+scheduler = torch.optim.lr_scheduler.StepLR
+scheduler_kwargs = {
+    "step_size": 5000 if target_layer == "layer4" else 3000,
+    "gamma": 0.5
+}
+lr = 3e-2 if target_layer == "layer4" else 1e-2
+met.setup(
+    optimizer_kwargs={"lr": lr},
+    scheduler=scheduler,
+    scheduler_kwargs=scheduler_kwargs
+)
 met.synthesize(max_iter=12000)
 ```
 :::
 
-```{code-cell} ipython3
-po.plot.synthesis_status(met);
+```{literalinclude} ../../scripts/feature_extractor.py
+:dedent:
+:lines: 92
 ```
 
-```{code-cell} ipython3
-get_category(met.metamer)
+::::{tab-set}
+:::{tab-item} layer2
+:sync: layer2
+
+```{eval-rst}
+.. plot:: scripts/feature_extractor_mpl.py layer2
+  :include-source: false
+```
+:::
+:::{tab-item} layer3
+:sync: layer3
+
+```{eval-rst}
+.. plot:: scripts/feature_extractor_mpl.py layer3
+  :include-source: false
+```
+:::
+:::{tab-item} layer4
+:sync: layer4
+
+```{eval-rst}
+.. plot:: scripts/feature_extractor_mpl.py layer4
+  :include-source: false
+```
+:::
+::::
+
+In the above plots, we can see the metamer in the leftmost subplot, the loss over synthesis iterations in the middle, and the representation error on the right:
+- Our metamers match the results discussed earlier in this notebook:  the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 is almost completely unidentifiable, looking almost completely like random RGB noise.
+- We can see that the optimization performed reasonably well: the loss decreased gradually over synthesis. If you were using these stimuli in an experiment (especially for `"layer4"`), it may be worth continuing a bit more to get the loss even lower, but these demonstrate the point.
+- The representation error plot has the same structure as the {func}`~plenoptic.models.FeatureExtractorModel.plot_representation` plot above. We see that the error is fairly uniform across both space and channels.
+
+The authors of {cite:alp}`Feather2023-model-metam` used two additional checks to verify that metamer synthesis had succeeded (quotes from "Results > Metamer optimization" section, pdf page 5):
+- "the metamer had to result in the same classification decision by the model as the reference stimulus" (here, `guenon`):
+- "measures of the match between the activations for the natural reference stimulus and its model metamer at the matched stage had to be much higher than would be expected by chance, as quantified with a null distribution". The authors used three measures here: Pearson and Spearman correlations and signal-to-noise ratio. Here, we show the Pearson correlation:
+
+These can be computed as follows:
+
+```{literalinclude} ../../scripts/feature_extractor.py
+:dedent:
+:lines: 73-76
 ```
 
-```{code-cell} ipython3
-pearson_corr = torch.corrcoef(torch.cat([model(met.metamer), model(met.image)], 0))[
-    0, 1
-].item()
+And the following shows the result of this for each of our layers:
+
+::::{tab-set}
+:::{tab-item} layer2
+:sync: layer2
+
+```{eval-rst}
+.. plot:: scripts/feature_extractor_mpl.py layer2_stats
+  :include-source: false
 ```
+:::
+:::{tab-item} layer3
+:sync: layer3
+
+```{eval-rst}
+.. plot:: scripts/feature_extractor_mpl.py layer3_stats
+  :include-source: false
+```
+:::
+:::{tab-item} layer4
+:sync: layer4
+
+```{eval-rst}
+.. plot:: scripts/feature_extractor_mpl.py layer4_stats
+  :include-source: false
+```
+:::
+::::
+
+We don't have the null distribution of correlations for this model. In order to truly verify synthesis success, one should compute these for each of the measures described above and verify the values for each the metamer.
+
+In this notebook, we have demonstrated how to use deep neural networks from external models zoos with  {class}`plenoptic.models.FeatureExtractorModel`, and shown how to generate metamers for several intermediate layers.

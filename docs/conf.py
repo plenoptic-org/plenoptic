@@ -287,6 +287,7 @@ binder_url = f"https://mybinder.org/v2/gh/plenoptic-org/plenoptic-binder/{tag}?u
 # showing link. in actual doc pages, this needs to be reversed.
 plot_include_source = True
 plot_html_show_source_link = False
+plot_rcparams = {"savefig.bbox": "tight", "figure.dpi": 72}
 
 # MYST
 
