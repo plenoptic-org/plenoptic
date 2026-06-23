@@ -153,9 +153,6 @@ def validate_model(
       learnable parameters, see `pytorch docs
       <https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc>`_.
 
-    - If ``model`` returns an output with other than 3 or 4 dimensions when given a
-      tensor with shape ``image_shape``.
-
     Parameters
     ----------
     model
@@ -183,8 +180,6 @@ def validate_model(
     -----
     UserWarning
        If ``model`` is in training mode.
-    UserWarning
-       If returns an output with other than 3 or 4 dimensions.
 
     See Also
     --------

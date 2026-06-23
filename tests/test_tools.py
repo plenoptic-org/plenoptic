@@ -676,14 +676,6 @@ class TestValidate:
         with pytest.raises(TypeError, match="model changes precision of input"):
             po.validate.validate_model(model, device=DEVICE)
 
-    @pytest.mark.parametrize("model", ["diff_dims-2", "diff_dims-5"], indirect=True)
-    def test_model_output_dim(self, model):
-        model.eval()
-        with pytest.warns(
-            UserWarning, match="mostly been tested on models which produce 3d"
-        ):
-            po.validate.validate_model(model, device=DEVICE)
-
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     def test_model_device(self):
         class TestModel(torch.nn.Module):
