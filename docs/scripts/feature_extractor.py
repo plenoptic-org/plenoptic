@@ -14,6 +14,7 @@ from timm.data.transforms_factory import create_transform
 
 import plenoptic as po
 
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
@@ -88,7 +89,10 @@ def main(target_layer="layer3", model_zoo="torchvision"):
     get_category(img)
     met = po.Metamer(img, model)
     met.to(torch.float64)
-    met.load(po.data.fetch_data(f"ResNet50-{target_layer}_macaque_metamer.pt"))
+    met.load(
+        po.data.fetch_data(f"ResNet50-{target_layer}_macaque_metamer.pt"),
+        map_location=DEVICE,
+    )
     fig = po.plot.synthesis_status(met, figsize=(15, 4.5))
     return fig
 
