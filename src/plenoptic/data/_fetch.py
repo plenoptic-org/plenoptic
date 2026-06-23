@@ -44,7 +44,7 @@ REGISTRY = {
     "example_eigendistortion.pt": "87080836713e8efe1e7ff29538099e82a26b8700080e1bc1d30f00de1a54b2f5",  # noqa: E501
     "load_image_test.tar.gz": "8a2b92dc0d442695c45b1e908ef0a04cae35c5f21b774a93b9fc6b675423b526",  # noqa: E501
     "berardino_onoff.pt": "2174a40005489b9c94acc91213b2f6d57a75f262caf118cb1980658eadbfd047",  # noqa: E501
-    "berardino_vgg16.pt": "5e0d10f4a367244879cd8a61c453992370ab801db1f66e10caa1ee2ecfab8ca4",  # noqa: E501
+    "berardino_vgg16.pt": "ba6cea1d6ab242a3ae176770d2772e305449a942d4a0b146a554af2a28cafcfc",  # noqa: E501
     "ps_regression.tar.gz": "dcb92f7df6344e7f6760c16ece4395245d43703bf6783629272549674f753faf",  # noqa: E501
     "example_metamer_gaussian-old.pt": "adef079df878a9e0319cb5ad59791435f9b7eec695e1d8f21019c8e11b891d85",  # noqa: E501
     "example_metamer_gaussian.pt": "02e12c7c2a93e2e5a83f6d7aa8320368c00641deacfba3359b02fedc9a0dc0f1",  # noqa: E501
@@ -54,9 +54,9 @@ REGISTRY = {
     "example_mad.pt": "583c60eab6cfb5c5b031af4960db41cc0db767492871182be06da224cd133767",  # noqa: E501
     "example_mad-cuda.pt": "fd7e1372397bb57cc31a13ca4886ee73ffd405df64e0bb7d291977ba1b460b77",  # noqa: E501
     "example_eigendistortion_color.pt": "63147c5ed9588a64b6af4f181a8d0532d3de5639b20ae79c4706ec488c1854dc",  # noqa: E501
-    "ResNet50-layer2_macaque_metamer.pt": "45461e0ad326e2574385231c4b61e843dbf0d6f6964f153a7ba9f31745de4103",  # noqa: E501
-    "ResNet50-layer3_macaque_metamer.pt": "5d99faac32f6994591a82f70c804829f53d590fcf3c6d07f1519a1784017dc14",  # noqa: E501
-    "ResNet50-layer4_macaque_metamer.pt": "9eef3d52177f6f60b26272dd104136112d6a7269bfa3191dcf27a87894ed9305",  # noqa: E501
+    "ResNet50-layer2_macaque_metamer.pt": "e37f3f5b8175032f638de4c49455c3f1083bae41a94fa3ef2e53c8818ecd7b1d",  # noqa: E501
+    "ResNet50-layer3_macaque_metamer.pt": "e8b1b1173029b1f19e850fa24eb4bf93c2c6e70c47074baaed2526e29d00dacb",  # noqa: E501
+    "ResNet50-layer4_macaque_metamer.pt": "e9e1b5bfb712e79a99bb76b4dcd0dd018af40edd171dfe141f44782b823069f1",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"
@@ -89,7 +89,7 @@ REGISTRY_URLS = {
     "example_eigendistortion.pt": OSF_TEMPLATE.format("gwhz2"),
     "load_image_test.tar.gz": OSF_TEMPLATE.format("avpzq"),
     "berardino_onoff.pt": OSF_TEMPLATE.format("uqfa8"),
-    "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b"),
+    "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b/?revision=5"),
     "ps_regression.tar.gz": OSF_TEMPLATE.format("7t4fj/?revision=15"),
     "example_metamer_gaussian-old.pt": OSF_TEMPLATE.format("7e48u/?revision=5"),
     "example_metamer_gaussian.pt": OSF_TEMPLATE.format("7e48u/?revision=6"),
@@ -99,9 +99,9 @@ REGISTRY_URLS = {
     "example_eigendistortion_color.pt": OSF_TEMPLATE.format("jc63h/?revision=3"),
     "example_mad.pt": OSF_TEMPLATE.format("ersfy/?revision=4"),
     "example_mad-cuda.pt": OSF_TEMPLATE.format("qjdbc/?revision=3"),
-    "ResNet50-layer2_macaque_metamer.pt": OSF_TEMPLATE.format("zdbne/?revision=1"),
-    "ResNet50-layer3_macaque_metamer.pt": OSF_TEMPLATE.format("bqt2s/?revision=1"),
-    "ResNet50-layer4_macaque_metamer.pt": OSF_TEMPLATE.format("yvwjs/?revision=1"),
+    "ResNet50-layer2_macaque_metamer.pt": OSF_TEMPLATE.format("zdbne/?revision=2"),
+    "ResNet50-layer3_macaque_metamer.pt": OSF_TEMPLATE.format("bqt2s/?revision=2"),
+    "ResNet50-layer4_macaque_metamer.pt": OSF_TEMPLATE.format("yvwjs/?revision=2"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch_data`
