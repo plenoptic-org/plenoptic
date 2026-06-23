@@ -1489,7 +1489,7 @@ class TestFeatureExtractor:
     def test_valid(self, model, torchvision_img):
         # importantly, this shouldn't raise warning about dimensionality of output, even
         # though the output is 2d, which normally does raise that warning
-        po.validate.validate_model(model, image_shape=torchvision_img.shape)
+        po.validate.validate_model(model, torchvision_img.shape, torchvision_img.device)
 
     @pytest.mark.parametrize(
         ["model", "model2"],
