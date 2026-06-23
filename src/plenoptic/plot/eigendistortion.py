@@ -192,7 +192,7 @@ def eigendistortion_imshow_all(
       >>> weights = torchvision.models.VGG16_Weights.IMAGENET1K_V1
       >>> transform = weights.transforms()
       >>> norm = torchvision.transforms.Normalize(transform.mean, transform.std)
-      >>> img = norm(po.process.center_crop(img, transform.crop_size[0]))
+      >>> img = norm(po.process.center_crop(img, 254))
       >>> vgg = torchvision.models.vgg16(weights=weights, progress=False)
       >>> vgg = po.models.FeatureExtractorModel(vgg, "features.11")
       >>> vgg.eval().to(torch.float64)
