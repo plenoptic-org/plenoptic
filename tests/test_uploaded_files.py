@@ -480,7 +480,7 @@ class TestTutorialNotebooks:
                 return imagenet_categories[image_cat > thresh]
 
             img = po.data.macaque().to(DEVICE).to(torch.float64)
-            img = crop(po.process.blur_downsample(img, 2)[..., :-60, :])
+            img = crop(po.process.blur_downsample(img, 2)[..., :-59, :])
             model = po.models.FeatureExtractorModel(deepnet, target_layer, norm)
             model.to(torch.float64).to(DEVICE)
             po.remove_grad(model)
@@ -503,7 +503,7 @@ class TestTutorialNotebooks:
             met_up = po.Metamer(img, model)
             with pytest.warns(UserWarning, match="You will need to call setup"):
                 met_up.load(
-                    po.data.fetch_data("ResNet50-{target_layer}_macaque_metamer.pt"),
+                    po.data.fetch_data(f"ResNet50-{target_layer}_macaque_metamer.pt"),
                     tensor_equality_atol=1e-7,
                     map_location=DEVICE,
                 )
