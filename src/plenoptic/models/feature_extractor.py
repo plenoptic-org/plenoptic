@@ -35,6 +35,10 @@ class FeatureExtractorModel(torch.nn.Module):
     :external+torchvision:ref:`About Node Names <about-node-names>` heading in the
     :external+torchvision:doc:`torchvision documentation <feature_extraction>`.
 
+    .. attention::
+       This model requires the optional dependency ``torchvision``. Make sure it is
+       installed before initializing this model.
+
     Parameters
     ----------
     model
@@ -89,6 +93,9 @@ class FeatureExtractorModel(torch.nn.Module):
 
     Use with timm a model. The primary difference is in the syntax for retrieving
     the model and the transform:
+
+    .. attention::
+       The following block requires the additional package ``timm``.
 
     >>> import timm
     >>> from timm.data import resolve_data_config
