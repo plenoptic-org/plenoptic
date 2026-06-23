@@ -353,7 +353,11 @@ Let us initialize our metamer object using the above image and model. Unlike in 
 
 ```{code-cell} ipython3
 met = po.Metamer(img, model)
-met.load(po.data.fetch_data(f"ResNet50-{target_layer}_macaque_metamer.pt"))
+met.to(DEVICE)
+met.load(
+    po.data.fetch_data(f"ResNet50-{target_layer}_macaque_metamer.pt"),
+    map_location=DEVICE,
+)
 ```
 
 :::{admonition} How to run this synthesis manually
