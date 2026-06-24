@@ -300,7 +300,7 @@ ResNet50 is trained to classify images into one of [1000 categories](https://dee
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 48-51
+:lines: 5,48-51
 ```
 :::
 ::::
