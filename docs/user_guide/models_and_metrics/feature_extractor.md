@@ -116,7 +116,7 @@ First, we download the model weights for ResNet50 trained on [ImageNet-1K](https
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 22-23
+:lines: 23-24
 ```
 
 :::
@@ -128,7 +128,7 @@ Note that to run this cell (and the following `timm` cells), you must install `t
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 40
+:lines: 41
 ```
 :::
 ::::
@@ -137,7 +137,7 @@ Next, we ensure that our model is in evaluation mode. Many models, including Res
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 24
+:lines: 25
 ```
 
 Next, we need to specify the layer to target. If we look at the ResNet50 metamers in Figure 2e from {cite:alp}`Feather2023-model-metam`, we can see an interesting progression in layers 2 through 4: the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 is almost completely unidentifiable, looking almost completely like random RGB noise.
@@ -174,7 +174,7 @@ In torchvision, the transform is a single torch Module which we cannot easily su
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 25-26
+:lines: 26-27
 ```
 
 ```python
@@ -200,7 +200,7 @@ In timm, the transform can be indexed into, so we can explicitly grab the normal
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 42-45
+:lines: 43-46
 ```
 
 ```python
@@ -223,7 +223,7 @@ Finally, we'll pass our neural network, target layer, and preprocessing transfor
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 85
+:lines: 86
 ```
 
 Now, let's prepare the image. The input image needs to be an RGB image with a height and width of 224 pixels. It should probably also be like those found in ImageNet: a single object in the center of the frame that belongs to one of the [image classes](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). We'll use one of the famous [monkey selfies](https://en.wikipedia.org/wiki/Monkey_selfie_copyright_dispute), and resize it appropriately:
@@ -244,7 +244,7 @@ How we crop the image down to 224 depends on which model zoo we're using:
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 27,68
+:lines: 28
 ```
 
 :::
@@ -254,10 +254,15 @@ How we crop the image down to 224 depends on which model zoo we're using:
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 46,68
+:lines: 47
 ```
 :::
 ::::
+
+```{literalinclude} ../../scripts/feature_extractor.py
+:dedent:
+:lines: 69
+```
 
 ```{code-cell} ipython3
 :tags: [remove-cell]
@@ -285,7 +290,7 @@ ResNet50 is trained to classify images into one of [1000 categories](https://dee
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 28
+:lines: 29
 ```
 
 :::
@@ -295,18 +300,18 @@ ResNet50 is trained to classify images into one of [1000 categories](https://dee
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 48-51
+:lines: 49-52
 ```
 :::
 ::::
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 30-34,88
+:lines: 31-35,89
 ```
 
 ```python
-array(["guenon"], dtype='<U30')
+guenon
 ```
 
 The category, [guenon](https://en.wikipedia.org/wiki/Guenon), is an Old World monkey. Though it isn't the actual species of the monkey in question (a [Celebes crested macaque](https://en.wikipedia.org/wiki/Celebes_crested_macaque)), it's a reasonable category for it.
@@ -349,7 +354,7 @@ fig, _ = model.plot_representation(rep)
 We do not perform synthesis in the exact same way as {cite:alp}`Feather2023-model-metam`. However, the resulting metamer is qualitatively similar. We note the differences below.
 :::
 
-Let us initialize our metamer object using the above image and model. Unlike in {cite:alp}`Feather2023-model-metam`, we are using the mean-squared error (the default) as our loss function. Like that paper, we find better synthesis results if we use a learning-rate scheduler to halve the optimizer's learning rate regularly, using {class}`~torch.optim.lr_scheduler.StepLR` (see the following dropdown for more details):
+Let us initialize our metamer object using the above image and model. Unlike in {cite:alp}`Feather2023-model-metam`, we are using the mean-squared error (the default for {class}`~plenoptic.Metamer`) as our loss function. We also initialize with a sample of uniformly-distributed noise whose values range from 0 to 1, whereas the paper initialized with "a sample from a normal distribution with a standard deviation of 0.05 and a mean of 0.5". Like that paper, we find better synthesis results if we use a learning-rate scheduler to halve the optimizer's learning rate regularly, using {class}`~torch.optim.lr_scheduler.StepLR` (see the following dropdown for more details):
 
 ```{code-cell} ipython3
 met = po.Metamer(img, model)
@@ -389,8 +394,15 @@ met.synthesize(max_iter=12000, stop_iters_to_check=12000)
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 92
+:lines: 97
 ```
+
+:::{admonition}
+:class: attention
+
+Depending upon how zoomed in your browser is, there may be some aliasing artifacts in the appearance of the metamers. If you see faint grid lines, you are encouraged to click on the `png` button to view the figure in its own tab and zoom in to avoid aliasing.
+
+:::
 
 ::::{tab-set}
 :::{tab-item} layer2
@@ -432,7 +444,7 @@ These can be computed as follows:
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 73-76
+:lines: 74-77
 ```
 
 And the following shows the result of this for each of our layers:
