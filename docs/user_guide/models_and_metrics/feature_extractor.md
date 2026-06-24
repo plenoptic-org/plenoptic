@@ -397,8 +397,7 @@ met.synthesize(max_iter=12000, stop_iters_to_check=12000)
 :lines: 97
 ```
 
-:::{admonition}
-:class: attention
+:::{attention}
 
 Depending upon how zoomed in your browser is, there may be some aliasing artifacts in the appearance of the metamers. If you see faint grid lines, you are encouraged to click on the `png` button to view the figure in its own tab and zoom in to avoid aliasing.
 
