@@ -357,6 +357,7 @@ met.to(DEVICE)
 met.load(
     po.data.fetch_data(f"ResNet50-{target_layer}_macaque_metamer.pt"),
     map_location=DEVICE,
+    tensor_equality_atol=1e-6,
 )
 ```
 
@@ -376,7 +377,7 @@ scheduler_kwargs = {
 }
 lr = 3e-2 if target_layer == "layer4" else 1e-2
 met.setup(
-    optimizer_kwargs={"lr": lr},
+    optimizer_kwargs={"lr": lr, "amsgrad": False},
     scheduler=scheduler,
     scheduler_kwargs=scheduler_kwargs
 )

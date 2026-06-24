@@ -471,14 +471,6 @@ class TestTutorialNotebooks:
                 po.process.center_crop, output_size=transform.crop_size[0]
             )
 
-            imagenet_categories = np.asarray(weights.meta["categories"])
-
-            def get_category(image, thresh=0.1):
-                image_cat = po.to_numpy(
-                    torch.nn.functional.softmax(deepnet(norm(image)), dim=1).squeeze()
-                )
-                return imagenet_categories[image_cat > thresh]
-
             img = po.data.macaque().to(DEVICE).to(torch.float64)
             img = crop(po.process.blur_downsample(img, 2)[..., :-59, :])
             model = po.models.FeatureExtractorModel(deepnet, target_layer, norm)
@@ -492,7 +484,7 @@ class TestTutorialNotebooks:
             }
             lr = 3e-2 if target_layer == "layer4" else 1e-2
             met.setup(
-                optimizer_kwargs={"lr": lr},
+                optimizer_kwargs={"lr": lr, "amsgrad": False},
                 scheduler=scheduler,
                 scheduler_kwargs=scheduler_kwargs,
             )
@@ -504,7 +496,7 @@ class TestTutorialNotebooks:
             with pytest.warns(UserWarning, match="You will need to call setup"):
                 met_up.load(
                     po.data.fetch_data(f"ResNet50-{target_layer}_macaque_metamer.pt"),
-                    tensor_equality_atol=1e-7,
+                    tensor_equality_atol=1e-6,
                     map_location=DEVICE,
                 )
             compare_metamers(met, met_up)

@@ -91,6 +91,7 @@ def main(target_layer="layer3", model_zoo="torchvision"):
     met.to(torch.float64)
     met.load(
         po.data.fetch_data(f"ResNet50-{target_layer}_macaque_metamer.pt"),
+        tensor_equality_atol=1e-6,
         map_location=DEVICE,
     )
     fig = po.plot.synthesis_status(met, figsize=(15, 4.5))
@@ -104,7 +105,11 @@ def get_stats(target_layer="layer3"):
     img = prepare_image(crop)
     met = po.Metamer(img, model)
     met.to(torch.float64)
-    met.load(po.data.fetch_data(f"ResNet50-{target_layer}_macaque_metamer.pt"))
+    met.load(
+        po.data.fetch_data(f"ResNet50-{target_layer}_macaque_metamer.pt"),
+        tensor_equality_atol=1e-6,
+        map_location=DEVICE,
+    )
     return get_success_measures(met, get_category)
 
 
