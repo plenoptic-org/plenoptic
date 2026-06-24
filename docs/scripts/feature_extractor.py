@@ -28,11 +28,11 @@ def torchvision_setup():
     crop = functools.partial(po.process.center_crop, output_size=transform.crop_size[0])
     imagenet_categories = np.asarray(weights.meta["categories"])
 
-    def get_category(image, thresh=0.1):
+    def get_category(image):
         image_cat = po.to_numpy(
             torch.nn.functional.softmax(deepnet(norm(image)), dim=1).squeeze()
         )
-        return imagenet_categories[image_cat > thresh]
+        return imagenet_categories[image_cat.argmax()]
 
     return deepnet, norm, crop, get_category
 
