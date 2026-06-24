@@ -54,9 +54,9 @@ REGISTRY = {
     "example_mad.pt": "583c60eab6cfb5c5b031af4960db41cc0db767492871182be06da224cd133767",  # noqa: E501
     "example_mad-cuda.pt": "fd7e1372397bb57cc31a13ca4886ee73ffd405df64e0bb7d291977ba1b460b77",  # noqa: E501
     "example_eigendistortion_color.pt": "63147c5ed9588a64b6af4f181a8d0532d3de5639b20ae79c4706ec488c1854dc",  # noqa: E501
-    "ResNet50-layer2_macaque_metamer.pt": "a10e7e45cfa4b6889529fbbaeff12d5877fb69e2f63c2597d785f2f586495dcb",  # noqa: E501
-    "ResNet50-layer3_macaque_metamer.pt": "dcf9c9bfc6a0c379fdd687840d3589949691ea516636fec9f5c477e13675e3ed",  # noqa: E501
-    "ResNet50-layer4_macaque_metamer.pt": "2e4a559dd116e6994c57fa2dfcb5db479743f02f252c2e53e4984365ffb403ed",  # noqa: E501
+    "ResNet50-layer2_macaque_metamer.pt": "7274535ee415f80a8069c76daa62a1d0f918f2d49a4d0759143a4efa413ac819",  # noqa: E501
+    "ResNet50-layer3_macaque_metamer.pt": "ac694853d8dcee2b90aa6d70d94bd464c6039c411c368d4f965d05f150dc3a2c",  # noqa: E501
+    "ResNet50-layer4_macaque_metamer.pt": "5cc0a5543421e180fc69fddea618e970ce7756e0a098ec78a5f305ab80124fea",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"
@@ -99,9 +99,9 @@ REGISTRY_URLS = {
     "example_eigendistortion_color.pt": OSF_TEMPLATE.format("jc63h/?revision=3"),
     "example_mad.pt": OSF_TEMPLATE.format("ersfy/?revision=4"),
     "example_mad-cuda.pt": OSF_TEMPLATE.format("qjdbc/?revision=3"),
-    "ResNet50-layer2_macaque_metamer.pt": OSF_TEMPLATE.format("zdbne/?revision=3"),
-    "ResNet50-layer3_macaque_metamer.pt": OSF_TEMPLATE.format("bqt2s/?revision=3"),
-    "ResNet50-layer4_macaque_metamer.pt": OSF_TEMPLATE.format("yvwjs/?revision=3"),
+    "ResNet50-layer2_macaque_metamer.pt": OSF_TEMPLATE.format("zdbne/?revision=4"),
+    "ResNet50-layer3_macaque_metamer.pt": OSF_TEMPLATE.format("bqt2s/?revision=4"),
+    "ResNet50-layer4_macaque_metamer.pt": OSF_TEMPLATE.format("yvwjs/?revision=4"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch_data`
