@@ -141,7 +141,7 @@ def reptile_skin(as_gray: bool = True) -> torch.Tensor:
     Examples
     --------
     .. plot::
-       :context: reset
+      :context: reset
 
       >>> import plenoptic as po
       >>> reptile_skin = po.data.reptile_skin()
@@ -175,7 +175,7 @@ def color_wheel(as_gray: bool = False) -> torch.Tensor:
     Examples
     --------
     .. plot::
-       :context: reset
+      :context: reset
 
       >>> import plenoptic as po
       >>> color_wheel = po.data.color_wheel()
@@ -229,7 +229,7 @@ def macaque(as_gray: bool = False) -> torch.Tensor:
       >>> macaque = po.data.macaque()
       >>> macaque.shape
       torch.Size([1, 3, 1500, 1085])
-      >>> po.plot.imshow(macaque[..., :-1], as_rgb=True, zoom=0.25)
+      >>> po.plot.imshow(macaque[..., :-1], as_rgb=True)
       <PyrFigure size ...>
 
     To resize this image for use with an ImageNet-trained model, centering
@@ -242,7 +242,7 @@ def macaque(as_gray: bool = False) -> torch.Tensor:
       >>> macaque = po.process.center_crop(macaque, 224)
       >>> macaque.shape
       torch.Size([1, 3, 224, 224])
-      >>> po.plot.imshow(macaque)
+      >>> po.plot.imshow(macaque, as_rgb=True)
       <PyrFigure size ...>
     """  # numpydoc ignore=ES01
     return load_images(FILES / "macaca_nigra_self-portrait.jpg", as_gray=as_gray)
