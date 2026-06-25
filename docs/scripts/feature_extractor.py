@@ -92,7 +92,14 @@ def main(target_layer="layer3", model_zoo="torchvision"):
 
 
 def get_stats(target_layer="layer3"):
-    deepnet, norm, crop, get_category = torchvision_setup()
+    deepnet, norm, crop, imagenet_categories = torchvision_setup()
+
+    def get_category(image):
+        image_cat = po.to_numpy(
+            torch.nn.functional.softmax(deepnet(norm(image)), dim=1).squeeze()
+        )
+        return imagenet_categories[image_cat.argmax()]
+
     model = po.models.FeatureExtractorModel(deepnet, target_layer, norm)
     po.remove_grad(model)
     img = prepare_image(crop)
