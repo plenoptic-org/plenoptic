@@ -116,7 +116,8 @@ First, we download the model weights for ResNet50 trained on [ImageNet-1K](https
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 22-23
+:start-at: ResNet50_Weights
+:end-at: weights=weights
 ```
 
 :::
@@ -128,7 +129,8 @@ Note that to run this cell (and the following `timm` cells), you must install `t
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 40
+:start-at: timm.create_model
+:end-at: timm.create_model
 ```
 :::
 ::::
@@ -137,7 +139,8 @@ Next, we ensure that our model is in evaluation mode. Many models, including Res
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 24
+:start-at: deepnet.eval()
+:end-at: deepnet.eval()
 ```
 
 Next, we need to specify the layer to target. If we look at the ResNet50 metamers in Figure 2e from {cite:alp}`Feather2023-model-metam`, we can see an interesting progression in layers 2 through 4: the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 is almost completely unidentifiable, looking almost completely like random RGB noise.
@@ -174,7 +177,8 @@ In torchvision, the transform is a single torch Module which we cannot easily su
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 25-26
+:start-at: weights.transform
+:end-at: transforms.Normalize
 ```
 
 ```python
@@ -200,7 +204,8 @@ In timm, the transform can be indexed into, so we can explicitly grab the normal
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 42-45
+:start-at: = create_transform
+:end-at: norm = transform
 ```
 
 ```python
@@ -223,7 +228,8 @@ Finally, we'll pass our neural network, target layer, and preprocessing transfor
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 85
+:start-at: po.models.FeatureExtractorModel
+:end-at: po.models.FeatureExtractorModel
 ```
 
 Now, let's prepare the image. The input image needs to be an RGB image with a height and width of 224 pixels. It should probably also be like those found in ImageNet: a single object in the center of the frame that belongs to one of the [image classes](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). We'll use one of the famous [monkey selfies](https://en.wikipedia.org/wiki/Monkey_selfie_copyright_dispute), and resize it appropriately:
@@ -244,7 +250,8 @@ How we crop the image down to 224 depends on which model zoo we're using:
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 27
+:start-at: functools.partial
+:end-at: functools.partial
 ```
 
 :::
@@ -254,14 +261,16 @@ How we crop the image down to 224 depends on which model zoo we're using:
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 46
+:start-at: crop = transform
+:end-at: crop = transform
 ```
 :::
 ::::
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 68
+:start-at: crop(img)
+:end-at: crop(img)
 ```
 
 ```{code-cell} ipython3
@@ -290,7 +299,8 @@ ResNet50 is trained to classify images into one of [1000 categories](https://dee
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 28
+:start-at: weights.meta
+:end-at: weights.meta
 ```
 
 :::
@@ -300,14 +310,16 @@ ResNet50 is trained to classify images into one of [1000 categories](https://dee
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 5,48-51
+:start-at: import urllib
+:end-at: read().decode()
 ```
 :::
 ::::
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 30-34,88
+:start-at: def get_category
+:end-at: get_category(img
 ```
 
 ```python
@@ -394,7 +406,8 @@ met.synthesize(max_iter=12000, stop_iters_to_check=12000)
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 96
+:start-at: plot.synthesis_status
+:end-at: plot.synthesis_status
 ```
 
 :::{attention}
@@ -443,7 +456,8 @@ These can be computed as follows:
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:lines: 73-76
+:start-at: original_cat =
+:end-at: pearson_r =
 ```
 
 And the following shows the result of this for each of our layers:

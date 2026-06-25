@@ -2,7 +2,6 @@
 
 import argparse
 import functools
-import urllib
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,14 +25,7 @@ def torchvision_setup():
     norm = torchvision.transforms.Normalize(transform.mean, transform.std)
     crop = functools.partial(po.process.center_crop, output_size=transform.crop_size[0])
     imagenet_categories = np.asarray(weights.meta["categories"])
-
-    def get_category(image):
-        image_cat = po.to_numpy(
-            torch.nn.functional.softmax(deepnet(norm(image)), dim=1).squeeze()
-        )
-        return imagenet_categories[image_cat.argmax()]
-
-    return deepnet, norm, crop, get_category
+    return deepnet, norm, crop, imagenet_categories
 
 
 def timm_setup():
@@ -45,18 +37,13 @@ def timm_setup():
     norm = transform.transforms[-1]
     crop = transform.transforms[1]
 
+    import urllib
+
     r = urllib.request.urlopen(
         "https://raw.githubusercontent.com/pytorch/hub/master/imagenet_classes.txt"
     )
     imagenet_categories = np.asarray(r.read().decode().split("\n"))
-
-    def get_category(image, thresh=0.1):
-        image_cat = po.to_numpy(
-            torch.nn.functional.softmax(deepnet(norm(image)), dim=1).squeeze()
-        )
-        return imagenet_categories[image_cat > thresh]
-
-    return deepnet, norm, crop, get_category
+    return deepnet, norm, crop, imagenet_categories
 
 
 def prepare_image(crop):
@@ -79,12 +66,19 @@ def get_success_measures(met, get_category):
 
 def main(target_layer="layer3", model_zoo="torchvision"):
     if model_zoo == "torchvision":
-        deepnet, norm, crop, get_category = torchvision_setup()
+        deepnet, norm, crop, imagenet_categories = torchvision_setup()
     elif model_zoo == "timm":
-        deepnet, norm, crop, get_category = timm_setup()
+        deepnet, norm, crop, imagenet_categories = timm_setup()
     model = po.models.FeatureExtractorModel(deepnet, target_layer, norm)
     po.remove_grad(model)
     img = prepare_image(crop)
+
+    def get_category(image):
+        image_cat = po.to_numpy(
+            torch.nn.functional.softmax(deepnet(norm(image)), dim=1).squeeze()
+        )
+        return imagenet_categories[image_cat.argmax()]
+
     get_category(img)
     met = po.Metamer(img, model)
     met.to(torch.float64)
