@@ -455,7 +455,9 @@ class TestTutorialNotebooks:
     class TestFeatureExtractor:
         @pytest.mark.parametrize("target_layer", ["layer2", "layer3", "layer4"])
         def test_resnet_macaque_metamer(self, target_layer):
-            po.set_seed(0)
+            # torch convolution on cuda is non-deterministic by default
+            torch.use_deterministic_algorithms(True)
+            po.set_seed(1)
             os.makedirs("uploaded_files", exist_ok=True)
             torch.save(
                 torch.random.get_rng_state(),

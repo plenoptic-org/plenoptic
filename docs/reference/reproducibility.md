@@ -14,6 +14,8 @@ plenoptic's synthesis methods are high-dimensional non-linear optimization probl
 - Use `torch.float64` dtype (torch defaults to `torch.float32`). {func}`torch.set_default_dtype` might be helpful for this. See {class}`torch.dtype` for more information.
 - Note the versions of plenoptic and pytorch when performing your analysis. We do not believe the versions of other packages are likely to affect reproducibility, but breaking changes in both plenoptic and pytorch have broken reproducibility.
 - If you *really* need to guarantee reproducibility and you used a GPU, note all relevant information, especially the CUDA and driver versions. See [plenoptic issue #368](https://github.com/plenoptic-org/plenoptic/issues/368) for a discussion here.
+- Use {func}`torch.use_deteterministic_algorithms` to use deterministic algorithms where available, which largely affects operations performed on CUDA tensors (i.e., on the GPU). See the documentation of that function for a full list of affected operations, which includes convolution when performed on the GPU. Note that, as the torch docs say: "deterministic operations tend to have worse performance than nondeterministic operations."
+    - And note that not all operations can be done in a deterministic fashion! If you need strict reproducibility, you may need to avoid such operations or perform them on the CPU.
 
 Small differences in the output of computations resulting from any of the latter three points above can result in small differences in the gradient that accumulate over the course of synthesis, so that it is easier to guarantee reproducibility for procedures that take fewer iterations than those that take more.
 
