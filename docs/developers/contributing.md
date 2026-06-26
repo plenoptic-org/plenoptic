@@ -75,7 +75,7 @@ Before we begin: everyone finds `git` confusing the first few (dozen) times they
 You'll need a local copy of `plenoptic` which keeps up-to-date with any changes you make. To do so, you will need to fork and clone `plenoptic`.
 
 1. Go to the [plenoptic repo](https://github.com/plenoptic-org/plenoptic/) and click on the `Fork` button at the top right of the page. This creates a copy of plenoptic in your Github account.
-2. You should then clone *your fork* to your local machine and create an editable installation. You will also add the upstream version, which makes it easy to keep your `plenoptic` up to date with the canonical version. To do so, run the lines of code below, also outlined in our [docs](source). It is recommended to set up an [ssh key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) through GitHub and clone with ssh rather than HTTPS, but both options are listed below:
+2. You should then clone *your fork* to your local machine and create an editable installation. You will also add the upstream version, which makes it easy to keep your `plenoptic` up to date with the canonical version. To do so, run the lines of code below, also outlined in our [docs](source). It is recommended to set up an [SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) through GitHub and clone with SSH rather than HTTPS, but both options are listed below:
 
 ::::{tab-set}
 :::{tab-item} SSH
