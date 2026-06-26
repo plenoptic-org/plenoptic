@@ -82,11 +82,11 @@ You'll need a local copy of `plenoptic` which keeps up-to-date with any changes 
 :sync: posix
 
 ```{code-block} console
-# replace github-username with your personal username
+$ # replace github-username with your personal username
 $ git clone git@github.com:github-username/plenoptic.git
 $ cd plenoptic
-# add the upstream branch. you will now have two remotes:
-# your fork (origin) and the canonical version (upstream)
+$ # add the upstream branch. you will now have two remotes:
+$ # your fork (origin) and the canonical version (upstream)
 $ git remote add upstream git@github.com:plenoptic-org/plenoptic.git
 ```
 :::
@@ -94,12 +94,12 @@ $ git remote add upstream git@github.com:plenoptic-org/plenoptic.git
 :sync: windows
 
 ```{code-block} pwsh-session
-PS> # replace with your personal GitHub username
-PS> git clone https://github.com/github-username/plenoptic.git
-PS> cd plenoptic
-PS> # add the upstream branch. you will now have two remotes:
-PS> # your fork (origin) and the canonical version (upstream)
-PS> remote add upstream https://github.com/plenoptic-org/plenoptic.git
+$ # replace with your personal GitHub username
+$ git clone https://github.com/github-username/plenoptic.git
+$ cd plenoptic
+$ # add the upstream branch. you will now have two remotes:
+$ # your fork (origin) and the canonical version (upstream)
+$ remote add upstream https://github.com/plenoptic-org/plenoptic.git
 ```
 :::
 ::::
