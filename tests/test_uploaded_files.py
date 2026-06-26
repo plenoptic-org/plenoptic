@@ -8,6 +8,7 @@ These tests check that the outputs haven't changed, notifying us if we need to
 update them.
 """
 
+import functools
 import os
 from collections import OrderedDict
 
@@ -15,8 +16,7 @@ import einops
 import numpy as np
 import pytest
 import torch
-from torchvision import models
-from torchvision.models import feature_extraction
+import torchvision
 
 import plenoptic as po
 from conftest import DEVICE, DEVICE2
@@ -452,6 +452,57 @@ class TestDoctest:
     reason="These take a long time, so don't run every time",
 )
 class TestTutorialNotebooks:
+    class TestFeatureExtractor:
+        @pytest.mark.parametrize("target_layer", ["layer2", "layer3", "layer4"])
+        def test_resnet_macaque_metamer(self, target_layer):
+            # torch convolution on cuda is non-deterministic by default
+            torch.use_deterministic_algorithms(True)
+            po.set_seed(1)
+            os.makedirs("uploaded_files", exist_ok=True)
+            torch.save(
+                torch.random.get_rng_state(),
+                f"uploaded_files/torch_rng_state_ResNet50-{target_layer}_macaque_metamer.pt",
+            )
+            print(np.random.get_state())
+            weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+            deepnet = torchvision.models.resnet50(weights=weights)
+            deepnet.eval()
+            transform = weights.transforms()
+            norm = torchvision.transforms.Normalize(transform.mean, transform.std)
+            crop = functools.partial(
+                po.process.center_crop, output_size=transform.crop_size[0]
+            )
+
+            img = po.data.macaque().to(DEVICE).to(torch.float64)
+            img = crop(po.process.blur_downsample(img, 2)[..., :-59, :])
+            model = po.models.FeatureExtractorModel(deepnet, target_layer, norm)
+            model.to(torch.float64).to(DEVICE)
+            po.remove_grad(model)
+            met = po.Metamer(img, model)
+            scheduler = torch.optim.lr_scheduler.StepLR
+            scheduler_kwargs = {
+                "step_size": 5000 if target_layer == "layer4" else 3000,
+                "gamma": 0.5,
+            }
+            lr = 3e-2 if target_layer == "layer4" else 1e-2
+            met.setup(
+                optimizer_kwargs={"lr": lr, "amsgrad": False},
+                scheduler=scheduler,
+                scheduler_kwargs=scheduler_kwargs,
+            )
+            # by setting stop_iters_to_check=max_iter, we ensure it keeps going through
+            # all 12k iterations
+            met.synthesize(max_iter=12000, stop_iters_to_check=12000)
+            met.save(f"uploaded_files/ResNet50-{target_layer}_macaque_metamer.pt")
+            met_up = po.Metamer(img, model)
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    po.data.fetch_data(f"ResNet50-{target_layer}_macaque_metamer.pt"),
+                    tensor_equality_atol=1e-6,
+                    map_location=DEVICE,
+                )
+            compare_metamers(met, met_up)
+
     class TestDemoEigendistortion:
         def test_berardino_onoff(self, parrot_square_double):
             po.set_seed(0)
@@ -482,23 +533,6 @@ class TestTutorialNotebooks:
             compare_eigendistortions(eig, eig_up)
 
         def test_berardino_vgg16(self, parrot_square_double):
-            # Create a class that takes the nth layer output of a given model
-            class TorchVision(torch.nn.Module):
-                def __init__(self, model, return_node: str):
-                    super().__init__()
-                    self.extractor = feature_extraction.create_feature_extractor(
-                        model, return_nodes=[return_node]
-                    )
-                    self.model = model
-                    self.return_node = return_node
-
-                def forward(self, x):
-                    return self.extractor(x)[self.return_node]
-
-            def normalize(img_tensor):
-                """standardize the image for vgg16"""
-                return (img_tensor - img_tensor.mean()) / img_tensor.std()
-
             po.set_seed(0)
             os.makedirs("uploaded_files", exist_ok=True)
             torch.save(
@@ -506,13 +540,15 @@ class TestTutorialNotebooks:
                 "uploaded_files/torch_rng_state_berardino_vgg16.pt",
             )
             print(np.random.get_state())
-            model = models.vgg16(
-                weights=models.VGG16_Weights.IMAGENET1K_V1, progress=False
-            )
-            model = TorchVision(model, "features.11")
+            weights = torchvision.models.VGG16_Weights.IMAGENET1K_V1
+            model = torchvision.models.vgg16(weights=weights, progress=False)
+            model.eval()
+            model = po.models.FeatureExtractorModel(model, "features.11")
             po.remove_grad(model)
-            img = parrot_square_double.to(DEVICE2)
-            img = normalize(img).repeat(1, 3, 1, 1)
+            # in this case, apply norm outside the model
+            transform = weights.transforms()
+            norm = torchvision.transforms.Normalize(transform.mean, transform.std)
+            img = norm(parrot_square_double.to(DEVICE2).repeat(1, 3, 1, 1))
             model = model.to(DEVICE2).to(img.dtype)
             model.eval()
             with pytest.warns(UserWarning, match="input_tensor range is"):

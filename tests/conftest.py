@@ -3,7 +3,11 @@ import os
 import einops
 import numpy as np
 import pytest
+import timm
 import torch
+import torchvision
+from timm.data import resolve_data_config
+from timm.data.transforms_factory import create_transform
 
 import plenoptic as po
 from plenoptic.data import fetch_data
@@ -83,7 +87,13 @@ def basic_stim():
     return po.load_images(IMG_DIR / "256").to(DEVICE)
 
 
-def get_model(name):
+@pytest.fixture(scope="package")
+def timm_resnet50():
+    model = timm.create_model("timm/resnet50.tv_in1k", pretrained=True)
+    return model
+
+
+def get_model(name, timm_resnet50=None):
     if name == "SPyr":
         # in order to get a tensor back, need to wrap steerable pyramid so that
         # we can call convert_pyr_to_tensor in the forward call. in order for
@@ -255,18 +265,42 @@ def get_model(name):
         model = DimModel()
         model.eval()
         return model
+    elif name.startswith("timm_resnet50"):
+        timm_resnet50.eval()
+        timm_transform = create_transform(
+            **resolve_data_config(timm_resnet50.pretrained_cfg, model=timm_resnet50)
+        )
+        timm_norm = timm_transform.transforms[-1]
+        layers = name.split("-")[1].split(",")
+        model = po.models.FeatureExtractorModel(timm_resnet50, layers, timm_norm)
+        po.remove_grad(model)
+        model.to(DEVICE)
+        return model
+    elif name.startswith("torchvision_resnet50"):
+        weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        tv_model = torchvision.models.resnet50(weights=weights)
+        # This model's transform consists of resizing, cropping, and normalizing.
+        # We recommend only including the normalizing in the transform.
+        tv_transform = weights.transforms()
+        norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
+        tv_model.eval()
+        layers = name.split("-")[1].split(",")
+        model = po.models.FeatureExtractorModel(tv_model, layers, norm)
+        po.remove_grad(model)
+        model.to(DEVICE)
+        return model
 
 
 @pytest.fixture(scope="package")
-def model(request):
-    return get_model(request.param)
+def model(request, timm_resnet50):
+    return get_model(request.param, timm_resnet50)
 
 
 # this is the same as model() fixture above, in order to get two independent
 # fixtures.
 @pytest.fixture(scope="package")
-def model2(request):
-    return get_model(request.param)
+def model2(request, timm_resnet50):
+    return get_model(request.param, timm_resnet50)
 
 
 def check_loss_saved_synth(

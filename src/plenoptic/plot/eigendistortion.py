@@ -186,38 +186,29 @@ def eigendistortion_imshow_all(
     .. plot::
       :context: close-figs
 
-      >>> from torchvision import models
-      >>> from torchvision.models import feature_extraction
-      >>> class TorchVision(torch.nn.Module):
-      ...     def __init__(self, model, return_node: str):
-      ...         super().__init__()
-      ...         self.extractor = feature_extraction.create_feature_extractor(
-      ...             model, return_nodes=[return_node]
-      ...         )
-      ...         self.model = model
-      ...         self.return_node = return_node
-      ...
-      ...     def forward(self, x):
-      ...         return self.extractor(x)[self.return_node]
-      >>> def normalize(img_tensor):
-      ...     "Standardize the image for vgg16."
-      ...     return (img_tensor - img_tensor.mean()) / img_tensor.std()
-      >>> img = po.process.center_crop(po.data.parrot(False).to(torch.float64), 254)
-      >>> orig_mean = img.mean().detach()
-      >>> orig_std = img.std().detach()
-      >>> img = normalize(img)
-      >>> vgg = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1)
-      >>> vgg = TorchVision(vgg, "features.11").to(torch.float64)
+      >>> import einops
+      >>> import torchvision
+      >>> img = po.data.parrot(False).to(torch.float64)
+      >>> weights = torchvision.models.VGG16_Weights.IMAGENET1K_V1
+      >>> transform = weights.transforms()
+      >>> norm = torchvision.transforms.Normalize(transform.mean, transform.std)
+      >>> img = norm(po.process.center_crop(img, 254))
+      >>> vgg = torchvision.models.vgg16(weights=weights, progress=False)
+      >>> vgg = po.models.FeatureExtractorModel(vgg, "features.11")
+      >>> vgg.eval().to(torch.float64)
+      FeatureExtractorModel(...)
       >>> po.remove_grad(vgg)
-      >>> vgg.eval()
-      TorchVision(...)
       >>> eig_vgg = po.Eigendistortion(img, vgg)
       >>> eig_vgg.load(
       ...     po.data.fetch_data("berardino_vgg16.pt"),
       ...     map_location="cpu",
       ... )
       >>> def unnormalize(x):
-      ...     return x * orig_std + orig_mean
+      ...     std = torch.as_tensor(transform.std, device=x.device, dtype=x.dtype)
+      ...     std = einops.rearrange(std, "c -> 1 c 1 1")
+      ...     mean = torch.as_tensor(transform.mean, device=x.device, dtype=x.dtype)
+      ...     mean = einops.rearrange(mean, "c -> 1 c 1 1")
+      ...     return x * std + mean
       >>> po.plot.eigendistortion_imshow_all(eig_vgg, process_image=unnormalize)
       <PyrFigure size ...>
 

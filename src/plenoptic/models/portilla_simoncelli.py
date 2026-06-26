@@ -27,7 +27,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from ..plot.display import _clean_up_axes, _update_stem, stem_plot
+from ..plot.display import _clean_up_axes, _rescale_ylim, _update_stem, stem_plot
 from ..process import signal, stats
 from ..process.steerable_pyramid_freq import (
     SCALES_TYPE as PYR_SCALES_TYPE,
@@ -114,11 +114,11 @@ class PortillaSimoncelli(nn.Module):
     .. plot::
       :context: reset
 
-       >>> import plenoptic as po
-       >>> img = po.data.reptile_skin()
-       >>> ps_model = po.models.PortillaSimoncelli(img.shape[2:])
-       >>> ps_model(img)
-       tensor([[[ 4.1716e-01, 5.4735e-02, ..., 4.7756e-03]]])
+      >>> import plenoptic as po
+      >>> img = po.data.reptile_skin()
+      >>> ps_model = po.models.PortillaSimoncelli(img.shape[2:])
+      >>> ps_model(img)
+      tensor([[[ 4.1716e-01, 5.4735e-02, ..., 4.7756e-03]]])
 
     Visualize texture statistics:
 
@@ -1238,13 +1238,16 @@ class PortillaSimoncelli(nn.Module):
           component of the pyramid coefficients and the real and imaginary
           components (at the same orientation) at the next-coarsest scale.
 
+        .. versionchanged:: 2.1.0
+           ``data`` argument can now be a dictionary (as returned by
+            :meth:`convert_to_dict` as well as a tensor).
+
         Parameters
         ----------
         data
-            The data to show on the plot. Else, should look like the output of
-            ``self.forward(img)``, with the exact same structure (e.g., as
-            returned by ``metamer.representation_error()`` or another instance
-            of this class).
+            The data to show on the plot. Should look like the output of
+            :meth:`forward` or :meth:`convert_to_dict`, with the exact same
+            structure (e.g., as returned by another instance of this class).
         ax
             Axes where we will plot the data. If a ``plt.Axes`` instance, will
             subdivide into 6 or 8 new axes (depending on self.n_scales). If
@@ -1272,6 +1275,10 @@ class PortillaSimoncelli(nn.Module):
         ------
         ValueError
             If both ``figsize`` and ``ax`` are not ``None``.
+        ValueError
+            If ``data`` is a dictionary and contains additional keys.
+        KeyError
+            If ``data`` is a dictionary and is missing keys.
 
         Examples
         --------
@@ -1280,24 +1287,33 @@ class PortillaSimoncelli(nn.Module):
 
           >>> import plenoptic as po
           >>> img = po.data.reptile_skin()
-          >>> portilla_simoncelli_model = po.models.PortillaSimoncelli(img.shape[2:])
-          >>> representation_tensor = portilla_simoncelli_model(img)
-          >>> fig, axes = portilla_simoncelli_model.plot_representation(
-          ...     representation_tensor
-          ... )
+          >>> ps_model = po.models.PortillaSimoncelli(img.shape[2:])
+          >>> representation_tensor = ps_model(img)
+          >>> fig, axes = ps_model.plot_representation(representation_tensor)
+
+        Plot the dictionary representation:
+
+        .. plot::
+          :context: close-figs
+
+          >>> representation_dict = ps_model.convert_to_dict(representation_tensor)
+          >>> fig, axes = ps_model.plot_representation(representation_tensor)
         """
         if ax is None and figsize is None:
             figsize = (12, 5)
         elif ax is not None and figsize is not None:
             raise ValueError("figsize can't be set if ax is not None")
-        # pick the batch_idx we want (but keep the data 3d), and average over
-        # channels (but keep the data 3d). We keep data 3d because
-        # convert_to_dict relies on it.
-        data = data[batch_idx].unsqueeze(0).mean(1, keepdim=True)
-        # each of these values should now be a 3d tensor with 1 element in each
-        # of the first two dims
-        rep = {k: v[0, 0] for k, v in self.convert_to_dict(data).items()}
-        data = self._representation_for_plotting(rep)
+        if isinstance(data, torch.Tensor):
+            # pick the batch_idx we want (but keep the data 3d), and average over
+            # channels (but keep the data 3d). We keep data 3d because
+            # convert_to_dict relies on it.
+            data = data[batch_idx].unsqueeze(0).mean(1, keepdim=True)
+            # each of these values should now be a 3d tensor with 1 element in each
+            # of the first two dims
+            data = {k: v[0, 0] for k, v in self.convert_to_dict(data).items()}
+        else:
+            data = {k: v[batch_idx].mean(0) for k, v in data.items()}
+        data = self._representation_for_plotting(data)
 
         # Determine plot grid layout
         if self.n_scales != 1:
@@ -1357,8 +1373,15 @@ class PortillaSimoncelli(nn.Module):
             If the tensors in ``rep`` looks like they have more than one batch
             or channel. Should select or average over those dimensions.
         ValueError
-            If ``rep`` contains unexpected keys.
+            If ``rep`` contains additional keys.
+        KeyError
+            If ``rep`` is missing any keys.
         """  # numpydoc ignore=EX01
+        if set(rep.keys()) > set(self._necessary_stats_dict.keys()):
+            raise ValueError("representation contains additional keys!")
+        elif set(rep.keys()) < set(self._necessary_stats_dict.keys()):
+            raise KeyError("representation is missing keys!")
+
         if rep["skew_reconstructed"].ndim > 1:
             raise ValueError(
                 "Currently, only know how to plot single batch and channel at"
@@ -1386,8 +1409,6 @@ class PortillaSimoncelli(nn.Module):
             "cross_scale_correlation_magnitude",
             "cross_scale_correlation_real",
         ]
-        if set(rep.keys()) != set(all_keys):
-            raise ValueError("representation has unexpected keys!")
         for k in all_keys:
             # if we only have one scale, no cross-scale stats
             if k.startswith("cross_scale") and self.n_scales == 1:
@@ -1401,8 +1422,9 @@ class PortillaSimoncelli(nn.Module):
     def update_plot(
         self,
         axes: list[plt.Axes],
-        data: Tensor,
+        data: Tensor | dict,
         batch_idx: int = 0,
+        rescale_ylim: bool = False,
     ) -> list[plt.Artist]:
         r"""
         Update the information in our representation plot.
@@ -1426,6 +1448,10 @@ class PortillaSimoncelli(nn.Module):
 
         Currently, this averages over all channels in the representation.
 
+        .. versionchanged:: 2.1.0
+           ``data`` argument can now be a dictionary (as returned by
+            :meth:`convert_to_dict` as well as a tensor).
+
         Parameters
         ----------
         axes
@@ -1433,12 +1459,13 @@ class PortillaSimoncelli(nn.Module):
             created by ``plot_representation`` and so contain stem plots
             in the correct order.
         data
-            The data to show on the plot. Else, should look like the output of
-            ``self.forward(img)``, with the exact same structure (e.g., as
-            returned by ``metamer.representation_error()`` or another instance
-            of this class).
+            The new data to use for updating the plot. Should look like the output of
+            :meth:`forward` or :meth:`convert_to_dict`, with the exact same structure
+            (e.g., as returned by another instance of this class).
         batch_idx
             Which index to take from the batch dimension (the first one).
+        rescale_ylim
+            Whether to rescale the y-limits to all have the same limits or not.
 
         Returns
         -------
@@ -1466,13 +1493,16 @@ class PortillaSimoncelli(nn.Module):
         """
         stem_artists = []
         axes = [ax for ax in axes if len(ax.containers) == 1]
-        # pick the batch_idx we want (but keep the data 3d), and average over
-        # channels (but keep the data 3d). We keep data 3d because
-        # convert_to_dict relies on it.
-        data = data[batch_idx].unsqueeze(0).mean(1, keepdim=True)
-        # each of these values should now be a 3d tensor with 1 element in each
-        # of the first two dims
-        rep = {k: v[0, 0] for k, v in self.convert_to_dict(data).items()}
+        if isinstance(data, torch.Tensor):
+            # pick the batch_idx we want (but keep the data 3d), and average over
+            # channels (but keep the data 3d). We keep data 3d because
+            # convert_to_dict relies on it.
+            data = data[batch_idx].unsqueeze(0).mean(1, keepdim=True)
+            # each of these values should now be a 3d tensor with 1 element in each
+            # of the first two dims
+            rep = {k: v[0, 0] for k, v in self.convert_to_dict(data).items()}
+        else:
+            rep = {k: v[batch_idx].mean(0) for k, v in data.items()}
         rep = self._representation_for_plotting(rep)
         for ax, d in zip(axes, rep.values()):
             if isinstance(d, dict):
@@ -1482,4 +1512,6 @@ class PortillaSimoncelli(nn.Module):
 
             sc = _update_stem(ax.containers[0], vals)
             stem_artists.extend([sc.markerline, sc.stemlines])
+        if rescale_ylim:
+            _rescale_ylim(axes, torch.cat([v.flatten() for v in rep.values()]))
         return stem_artists

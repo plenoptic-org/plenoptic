@@ -196,6 +196,7 @@ class TestSignal:
             (500, pytest.raises(ValueError, match="output_size is bigger than")),
             (256, does_not_raise()),
             (128, does_not_raise()),
+            (127, does_not_raise()),
             (0, pytest.raises(ValueError, match="output_size must be positive")),
             (-10, pytest.raises(ValueError, match="output_size must be positive")),
             (10.0, pytest.raises(TypeError, match="output_size must be an int")),
@@ -217,7 +218,11 @@ class TestSignal:
     )
     def test_center_crop(self, einstein_img, size, expectation):
         with expectation:
-            po.process.center_crop(einstein_img, size)
+            cropped = po.process.center_crop(einstein_img, size)
+            if cropped.shape[-1] != size:
+                raise ValueError("Crop failed")
+            if cropped.shape[-2] != size:
+                raise ValueError("Crop failed")
 
     @pytest.mark.parametrize("n", range(1, 15))
     def test_autocorrelation(self, n, basic_stim):
@@ -669,14 +674,6 @@ class TestValidate:
         model = TestModel()
         model.eval()
         with pytest.raises(TypeError, match="model changes precision of input"):
-            po.validate.validate_model(model, device=DEVICE)
-
-    @pytest.mark.parametrize("model", ["diff_dims-2", "diff_dims-5"], indirect=True)
-    def test_model_output_dim(self, model):
-        model.eval()
-        with pytest.warns(
-            UserWarning, match="mostly been tested on models which produce 3d"
-        ):
             po.validate.validate_model(model, device=DEVICE)
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")

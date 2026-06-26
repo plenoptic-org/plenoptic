@@ -45,7 +45,11 @@ method_format = []
 for p in paths:
     with open(p) as f:
         md = f.read()
-    if xr := re.findall(r"\[`.*?`\]\(?.*?\)?", md):
+    xr = re.findall(r"\[`.*?`\]\(?.*?\)?", md)
+    # can't get this working with regex, but: want to exclude any that look like
+    # [`script.py`] because that's going to be a link to download a script file.
+    xr = [x for x in xr if ".py`]" not in x]
+    if xr:
         xrefs.append((p, xr))
     miss_xr = []
     for obj in objects_to_check:

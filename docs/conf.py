@@ -69,10 +69,12 @@ nitpicky = True
 
 intersphinx_mapping = {
     "torch": ("https://docs.pytorch.org/docs/stable/", None),
+    "torchvision": ("https://docs.pytorch.org/vision/stable/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "pyrtools": ("https://pyrtools.readthedocs.io/en/latest", None),
     "python": ("https://docs.python.org/3/", None),
+    "timm": ("https://huggingface.co/docs/timm/main/en", None),
 }
 
 # Add any paths that contain templates here, relative to this directory.
@@ -285,6 +287,7 @@ binder_url = f"https://mybinder.org/v2/gh/plenoptic-org/plenoptic-binder/{tag}?u
 # showing link. in actual doc pages, this needs to be reversed.
 plot_include_source = True
 plot_html_show_source_link = False
+plot_rcparams = {"savefig.bbox": "tight", "figure.dpi": 72}
 
 # MYST
 

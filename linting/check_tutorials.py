@@ -2,6 +2,11 @@ import pathlib
 import re
 import sys
 
+# these notebooks have a "download script" admonition on the top, instead of download
+# notebook, because the notebook itself is a tangled mess (due to using tabs and showing
+# several different paths)
+SCRIPT_NBS = ["feature_extractor"]
+
 paths = []
 for p in sys.argv[1:]:
     p = pathlib.Path(p)
@@ -22,7 +27,13 @@ for p in paths:
         # then this isn't a markdown notebook
         continue
     filename = p.stem
-    if (
+    if filename in SCRIPT_NBS:
+        if not re.findall(
+            rf"Download the script: \[`{filename}.py`\]\(../../scripts/{filename}.py\)",
+            md,
+        ):
+            fails.append(p)
+    elif (
         not re.findall("Run this notebook yourself!", md)
         or not re.findall(f"{{nb-download}}`{filename}.ipynb`", md)
         or not re.findall(f"{{binder}}`{filename}.ipynb`", md)

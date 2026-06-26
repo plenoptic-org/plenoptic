@@ -153,9 +153,6 @@ def validate_model(
       learnable parameters, see `pytorch docs
       <https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc>`_.
 
-    - If ``model`` returns an output with other than 3 or 4 dimensions when given a
-      tensor with shape ``image_shape``.
-
     Parameters
     ----------
     model
@@ -183,8 +180,6 @@ def validate_model(
     -----
     UserWarning
        If ``model`` is in training mode.
-    UserWarning
-       If returns an output with other than 3 or 4 dimensions.
 
     See Also
     --------
@@ -261,14 +256,6 @@ def validate_model(
         )
     if model(test_img).dtype not in allowed_dtypes:
         raise TypeError("model changes precision of input, don't do that!")
-    if model(test_img).ndimension() not in [3, 4]:
-        warnings.warn(
-            "plenoptic's methods have mostly been tested on models which produce 3d"
-            " or 4d outputs. They should theoretically work with different "
-            "dimensionality; if you have any problems, please open an issue at "
-            "https://github.com/plenoptic-org/plenoptic/issues/new?"
-            "template=bug_report.md"
-        )
     if model(test_img).device != test_img.device:
         # pytorch device errors are RuntimeErrors
         raise RuntimeError("model changes device of input, don't do that!")

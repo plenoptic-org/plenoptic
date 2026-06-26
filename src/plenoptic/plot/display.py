@@ -944,12 +944,17 @@ def _update_stem(
     return stem_container
 
 
-def _rescale_ylim(axes: list[mpl.axes.Axes], data: np.ndarray | torch.Tensor):
+def _rescale_ylim(
+    axes: mpl.axes.Axes | list[mpl.axes.Axes], data: np.ndarray | torch.Tensor
+):
     r"""
     Rescale y-limits nicely.
 
     We take the axes and set their limits to be ``(-y_max, y_max)``,
     where ``y_max=np.abs(data).max()``.
+
+    If one of the axes object has an image artist (e.g., if ``len(ax.images)``), then we
+    skip it.
 
     Parameters
     ----------
@@ -958,7 +963,9 @@ def _rescale_ylim(axes: list[mpl.axes.Axes], data: np.ndarray | torch.Tensor):
     data
         The data to use when rescaling (or a dictionary of such values).
     """
-    data = data.cpu()
+    data = to_numpy(data)
+    if not hasattr(axes, "__iter__"):
+        axes = [axes]
 
     def find_ymax(data: np.ndarray | torch.Tensor) -> float:
         """
@@ -987,6 +994,9 @@ def _rescale_ylim(axes: list[mpl.axes.Axes], data: np.ndarray | torch.Tensor):
         # then this is a dictionary
         y_max = np.max([find_ymax(d) for d in data.values()])
     for ax in axes:
+        # don't try to update ylim on image axes, does weird things
+        if len(ax.images):
+            continue
         ax.set_ylim((-y_max, y_max))
 
 
@@ -1199,9 +1209,15 @@ def update_plot(
     data: torch.Tensor | dict,
     model: torch.nn.Module | None = None,
     batch_idx: int = 0,
+    rescale_ylim: bool = False,
 ) -> list:
     r"""
     Update the information in some axes (for an animation).
+
+    .. versionchanged:: 2.1
+       Adds ``rescale_ylim`` argument, which determines whether we rescale y-limits
+       or not (only for axes without images). This argument is also passed to
+       ``model.update_plot``.
 
     This is used for creating an animation over time. In order to create the animation,
     we need to know how to update the matplotlib Artists, and this provides a simple way
@@ -1226,8 +1242,9 @@ def update_plot(
       dictionary with the same number of keys as ``axes``, which we can iterate through
       in order, and whose values are :class:`torch.Tensor`.
 
-    In all cases, ``data`` Tensors should be 3d (if the plot we're updating is a
-    line or stem plot) or 4d (if it's an image or scatter plot).
+    In both cases, ``data`` Tensors should be 3d (if the plot we're updating is a line
+    or stem plot) or 4d (if it's an image or scatter plot). The only exception for this
+    is if ``model`` is set and knows how to handle tensors of different dimensionality.
 
     RGB(A) images are special, since we store that info along the channel
     dimension, so they only work with single-axis mode (which will only have a
@@ -1239,9 +1256,10 @@ def update_plot(
     :func:`plenoptic.models.PortillaSimoncelli.update_plot`
     for an example).
 
-    If ``model`` is set, we try to call ``model.update_plot()`` (which must also return
-    artists). If ``model`` doesn't have an ``update_plot`` method, then we try to figure
-    out how to update the axes ourselves, based on the shape of the data.
+    If ``model`` is set, we try to call ``model.update_plot(axes, batch_idx, data,
+    rescale_ylim)`` (which must also return artists). If ``model`` doesn't have an
+    ``update_plot`` method, then we try to figure out how to update the axes ourselves,
+    based on the shape of the data.
 
     Parameters
     ----------
@@ -1256,6 +1274,8 @@ def update_plot(
         behavior if ``None``.
     batch_idx
         Which index to take from the batch dimension.
+    rescale_ylim
+        Whether to rescale the ylimits or not.
 
     Returns
     -------
@@ -1268,24 +1288,26 @@ def update_plot(
     ValueError
         If ``data`` (or its values, if it's a ``dict``) are not 3 or 4 dimensional.
     """
-    if isinstance(data, dict):
-        for v in data.values():
-            if v.ndim not in [3, 4]:
+    try:
+        artists = model.update_plot(
+            axes=axes, batch_idx=batch_idx, data=data, rescale_ylim=rescale_ylim
+        )
+    except AttributeError:
+        if isinstance(data, dict):
+            for v in data.values():
+                if v.ndim not in [3, 4]:
+                    raise ValueError(
+                        "update_plot expects 3 or 4 dimensional data"
+                        "; unexpected behavior will result otherwise!"
+                        f" Got data of shape {v.shape}"
+                    )
+        else:
+            if data.ndim not in [3, 4]:
                 raise ValueError(
                     "update_plot expects 3 or 4 dimensional data"
                     "; unexpected behavior will result otherwise!"
-                    f" Got data of shape {v.shape}"
+                    f" Got data of shape {data.shape}"
                 )
-    else:
-        if data.ndim not in [3, 4]:
-            raise ValueError(
-                "update_plot expects 3 or 4 dimensional data"
-                "; unexpected behavior will result otherwise!"
-                f" Got data of shape {data.shape}"
-            )
-    try:
-        artists = model.update_plot(axes=axes, batch_idx=batch_idx, data=data)
-    except AttributeError:
         ax_artists = _get_artists_from_axes(axes, data)
         artists = []
         if not isinstance(data, dict):
@@ -1345,6 +1367,8 @@ def update_plot(
                 # in channel, but for images, it should be at the end
                 art.set_data(np.moveaxis(d, 0, -1))
                 artists.append(art)
+        if rescale_ylim:
+            _rescale_ylim(axes, torch.cat([v.flatten() for v in data.values()]))
     # make sure to always return a list
     if not isinstance(artists, list):
         artists = [artists]
@@ -1360,9 +1384,16 @@ def plot_representation(
     batch_idx: int = 0,
     title: str = "",
     as_rgb: bool = False,
+    axes_direction: Literal["horizontal", "vertical"] = "horizontal",
+    gridspec_kwargs: dict | None = None,
 ) -> list[mpl.axes.Axes]:
     r"""
     Plot model representation.
+
+    .. versionchanged:: 2.1
+
+       Adds ``axes_direction``, ``gridspec_kwargs`` arguments, supports data argument
+       containing both 3d and 4d values in same dictionary.
 
     We try to plot ``data`` on ``ax``, using the ``model.plot_representation`` method,
     if it has it, and otherwise use a function that makes sense based on the
@@ -1416,6 +1447,12 @@ def plot_representation(
         model has its own plot_representation_error() method. Else, it will
         be passed to :func:`~plenoptic.plot.imshow`, see that method's
         docstring for details.
+    axes_direction
+        When creating multiple axes, whether those axes should be placed
+        horizontally or vertically.
+    gridspec_kwargs
+        Dictionary of kwargs to pass to
+        :external+matplotlib:class:`matplotlib.gridspec.GridSpec`.
 
     Returns
     -------
@@ -1477,27 +1514,44 @@ def plot_representation(
         # want to make sure the axis we're taking over is basically invisible.
         ax = _clean_up_axes(ax, False, ["top", "right", "bottom", "left"], ["x", "y"])
         axes = []
-        if len(list(data.values())[0].shape) == 3:
-            # then this is 'vector-like'
-            gs = ax.get_subplotspec().subgridspec(
-                min(4, len(data)), int(np.ceil(len(data) / 4))
-            )
-            for i, (k, v) in enumerate(data.items()):
-                ax = fig.add_subplot(gs[i % 4, i // 4])
+
+        def round_down(x: int) -> int:
+            return x // 4
+
+        def modulo(x: int) -> int:
+            return x % 4
+
+        if axes_direction == "horizontal":
+            n_rows, n_cols = int(np.ceil(len(data) / 4)), min(4, len(data))
+            get_row = modulo
+            get_col = round_down
+        elif axes_direction == "vertical":
+            n_cols, n_rows = int(np.ceil(len(data) / 4)), min(4, len(data))
+            get_col = modulo
+            get_row = round_down
+        else:
+            raise ValueError(f"Don't know how to handle {axes_direction=}")
+        if gridspec_kwargs is None:
+            gridspec_kwargs = {}
+        gs = ax.get_subplotspec().subgridspec(n_rows, n_cols, **gridspec_kwargs)
+
+        # only include 3d (vector-like) data for rescale, not 4d (image-like)
+        data_for_rescale = {}
+
+        for i, (k, v) in enumerate(data.items()):
+            ax = fig.add_subplot(gs[get_col(i), get_row(i)])
+
+            if v.ndim == 3:
+                # then this is 'vector-like'
                 # only plot the specified batch, but plot each channel
                 # in a separate call. there should probably only be one,
                 # and if there's not you probably want to do things
                 # differently
                 for d in v[batch_idx]:
                     ax = stem_plot(to_numpy(d), ax, k, ylim)
-                axes.append(ax)
-        elif len(list(data.values())[0].shape) == 4:
-            # then this is 'image-like'
-            gs = ax.get_subplotspec().subgridspec(
-                int(np.ceil(len(data) / 4)), min(4, len(data))
-            )
-            for i, (k, v) in enumerate(data.items()):
-                ax = fig.add_subplot(gs[i // 4, i % 4])
+                data_for_rescale[k] = v
+
+            elif v.ndim == 4:
                 ax = _clean_up_axes(
                     ax, False, ["top", "right", "bottom", "left"], ["x", "y"]
                 )
@@ -1510,16 +1564,21 @@ def plot_representation(
                     vrange="indep0",
                     as_rgb=as_rgb,
                 )
-                axes.append(ax)
-            # because we're plotting image data, don't want to change
-            # ylim at all
-            ylim = False
-        else:
-            raise ValueError(f"Don't know what to do with data of shape {data.shape}")
-    if ylim is None:
-        if isinstance(data, dict):
-            data = torch.cat(list(data.values()), dim=2)
-        _rescale_ylim(axes, data)
+
+            else:
+                raise ValueError(f"Don't know what to do with data with {v.ndim=}")
+
+            axes.append(ax)
+
+        data = data_for_rescale
+
+    if ylim is None and len(data):
+        try:
+            model.update_plot(axes, data, batch_idx, rescale_ylim=True)
+        except AttributeError:
+            if isinstance(data, dict):
+                data = torch.cat([v.flatten() for v in data.values()], dim=0)
+            _rescale_ylim(axes, data)
     return axes
 
 

@@ -44,7 +44,7 @@ REGISTRY = {
     "example_eigendistortion.pt": "87080836713e8efe1e7ff29538099e82a26b8700080e1bc1d30f00de1a54b2f5",  # noqa: E501
     "load_image_test.tar.gz": "8a2b92dc0d442695c45b1e908ef0a04cae35c5f21b774a93b9fc6b675423b526",  # noqa: E501
     "berardino_onoff.pt": "2174a40005489b9c94acc91213b2f6d57a75f262caf118cb1980658eadbfd047",  # noqa: E501
-    "berardino_vgg16.pt": "5e0d10f4a367244879cd8a61c453992370ab801db1f66e10caa1ee2ecfab8ca4",  # noqa: E501
+    "berardino_vgg16.pt": "ba6cea1d6ab242a3ae176770d2772e305449a942d4a0b146a554af2a28cafcfc",  # noqa: E501
     "ps_regression.tar.gz": "dcb92f7df6344e7f6760c16ece4395245d43703bf6783629272549674f753faf",  # noqa: E501
     "example_metamer_gaussian-old.pt": "adef079df878a9e0319cb5ad59791435f9b7eec695e1d8f21019c8e11b891d85",  # noqa: E501
     "example_metamer_gaussian.pt": "02e12c7c2a93e2e5a83f6d7aa8320368c00641deacfba3359b02fedc9a0dc0f1",  # noqa: E501
@@ -54,6 +54,9 @@ REGISTRY = {
     "example_mad.pt": "583c60eab6cfb5c5b031af4960db41cc0db767492871182be06da224cd133767",  # noqa: E501
     "example_mad-cuda.pt": "fd7e1372397bb57cc31a13ca4886ee73ffd405df64e0bb7d291977ba1b460b77",  # noqa: E501
     "example_eigendistortion_color.pt": "63147c5ed9588a64b6af4f181a8d0532d3de5639b20ae79c4706ec488c1854dc",  # noqa: E501
+    "ResNet50-layer2_macaque_metamer.pt": "c821bce0b2690002f9dad6c141adb4d1693b2c72cc8f25baeecee33b252618d2",  # noqa: E501
+    "ResNet50-layer3_macaque_metamer.pt": "ba88ee25631ea0624317eeae6830163e0b3504f74727732baf261b7cad81bf3d",  # noqa: E501
+    "ResNet50-layer4_macaque_metamer.pt": "39aed7e79ec86f9533ce577b6de289982a4e1da8c4a0f5bc88732f63af1d9b3b",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"
@@ -86,7 +89,7 @@ REGISTRY_URLS = {
     "example_eigendistortion.pt": OSF_TEMPLATE.format("gwhz2"),
     "load_image_test.tar.gz": OSF_TEMPLATE.format("avpzq"),
     "berardino_onoff.pt": OSF_TEMPLATE.format("uqfa8"),
-    "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b"),
+    "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b/?revision=5"),
     "ps_regression.tar.gz": OSF_TEMPLATE.format("7t4fj/?revision=15"),
     "example_metamer_gaussian-old.pt": OSF_TEMPLATE.format("7e48u/?revision=5"),
     "example_metamer_gaussian.pt": OSF_TEMPLATE.format("7e48u/?revision=6"),
@@ -96,6 +99,9 @@ REGISTRY_URLS = {
     "example_eigendistortion_color.pt": OSF_TEMPLATE.format("jc63h/?revision=3"),
     "example_mad.pt": OSF_TEMPLATE.format("ersfy/?revision=4"),
     "example_mad-cuda.pt": OSF_TEMPLATE.format("qjdbc/?revision=3"),
+    "ResNet50-layer2_macaque_metamer.pt": OSF_TEMPLATE.format("zdbne/?revision=6"),
+    "ResNet50-layer3_macaque_metamer.pt": OSF_TEMPLATE.format("bqt2s/?revision=6"),
+    "ResNet50-layer4_macaque_metamer.pt": OSF_TEMPLATE.format("yvwjs/?revision=6"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch_data`

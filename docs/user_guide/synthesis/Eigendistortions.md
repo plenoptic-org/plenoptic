@@ -79,8 +79,7 @@ plt.rcParams["figure.dpi"] = 72
 # if this fails, install torchvision in your plenoptic environment
 # and restart the notebook kernel.
 try:
-    from torchvision import models
-    from torchvision.models import feature_extraction
+    import torchvision
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         "optional dependency torchvision not found!"
@@ -282,29 +281,25 @@ po.plot.imshow(img, as_rgb=True, zoom=2);
 ### 2.2 - Instantiate models and Eigendistortion objects
 Let's make a wrapper class that can return the nth layer output of ResNet18. We're going to use this to compare eigendistortions synthesized using different layers of ResNet18 as models for distortion perception.
 
+:::{admonition} FeatureExtractorModel
+:class: note
+
+For more information about the way we're using ResNet18 with plenoptic and what `norm` is doing, see [](feature_extractor) and {class}`~plenoptic.models.FeatureExtractorModel`.
+
+:::
+
 ```{code-cell} ipython3
-class TorchVision(torch.nn.Module):
-    def __init__(self, model, return_node: str):
-        super().__init__()
-        self.extractor = feature_extraction.create_feature_extractor(
-            model, return_nodes=[return_node]
-        )
-        self.model = model
-        self.return_node = return_node
-
-    def forward(self, x):
-        return self.extractor(x)[self.return_node]
-
-
 # different potential models of human visual perception of distortions
-resnet = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1, progress=False)
-resnet = resnet.to(DEVICE)
-resnet18_a = TorchVision(resnet, "maxpool")
+weights = torchvision.models.ResNet18_Weights.IMAGENET1K_V1
+transform = weights.transforms()
+norm = torchvision.transforms.Normalize(transform.mean, transform.std)
+resnet = torchvision.models.resnet18(weights=weights, progress=False)
+resnet.to(DEVICE).eval()
+
+resnet18_a = po.models.FeatureExtractorModel(resnet, "maxpool", norm)
 po.remove_grad(resnet18_a)
-resnet18_a.eval()
-resnet18_b = TorchVision(resnet, "layer2")
+resnet18_b = po.models.FeatureExtractorModel(resnet, "layer2", norm)
 po.remove_grad(resnet18_b)
-resnet18_b.eval()
 
 ed_resneta = po.Eigendistortion(img, resnet18_a)
 ed_resnetb = po.Eigendistortion(img, resnet18_b)

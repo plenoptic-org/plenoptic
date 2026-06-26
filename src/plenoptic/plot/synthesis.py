@@ -2059,15 +2059,9 @@ def synthesis_animate(
                     batch_idx=batch_idx,
                     model=synthesis_object.model,
                     data=rep_error,
+                    rescale_ylim=(i + 1) % rescale_ylim_interval == 0,
                 )
             )
-            if (
-                (i + 1) % rescale_ylim_interval == 0
-                and synthesis_object.target_representation.ndimension() == 3
-            ):
-                display._rescale_ylim(
-                    axes_dict["metamer_representation_error"], rep_error
-                )
 
         if "synthesis_histogram" in axes_dict:
             # this is the dumbest way to do this, but it's simple --
