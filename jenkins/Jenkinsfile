@@ -1,10 +1,12 @@
-properties([
+props = [
   disableConcurrentBuilds(abortPrevious: true),
   buildDiscarder(logRotator(numToKeepStr: '8', daysToKeepStr: '20'))
-])
+]
 
 if (env.BRANCH_NAME == "main" && !env.TAG_NAME)
-  properties([pipelineTriggers([cron('@weekly')])])
+  props <<= pipelineTriggers([cron('@weekly')])
+
+properties(props)
 
 catchError {
   timeout(time: 3, unit: 'HOURS') {
