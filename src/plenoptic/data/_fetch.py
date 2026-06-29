@@ -86,7 +86,7 @@ REGISTRY_URLS = {
     "example_eigendistortion.pt": OSF_TEMPLATE.format("gwhz2"),
     "load_image_test.tar.gz": OSF_TEMPLATE.format("avpzq"),
     "berardino_onoff.pt": OSF_TEMPLATE.format("uqfa8"),
-    "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b"),
+    "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b/?revision=4"),
     "ps_regression.tar.gz": OSF_TEMPLATE.format("7t4fj/?revision=15"),
     "example_metamer_gaussian-old.pt": OSF_TEMPLATE.format("7e48u/?revision=5"),
     "example_metamer_gaussian.pt": OSF_TEMPLATE.format("7e48u/?revision=6"),
