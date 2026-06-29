@@ -93,7 +93,7 @@ $ git remote add upstream git@github.com:plenoptic-org/plenoptic.git
 :::{tab-item} HTTPS
 :sync: windows
 
-```{code-block} pwsh-session
+```{code-block} console
 $ # replace with your personal GitHub username
 $ git clone https://github.com/github-username/plenoptic.git
 $ cd plenoptic
