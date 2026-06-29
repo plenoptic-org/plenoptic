@@ -79,7 +79,6 @@ You'll need a local copy of `plenoptic` which keeps up-to-date with any changes 
 
 ::::{tab-set}
 :::{tab-item} SSH
-:sync: posix
 
 ```{code-block} console
 $ # replace github-username with your personal username
@@ -91,7 +90,6 @@ $ git remote add upstream git@github.com:plenoptic-org/plenoptic.git
 ```
 :::
 :::{tab-item} HTTPS
-:sync: windows
 
 ```{code-block} console
 $ # replace with your personal GitHub username
