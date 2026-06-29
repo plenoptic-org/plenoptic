@@ -536,7 +536,8 @@ class TestTutorialNotebooks:
     )
     class TestPortillaSimoncelli:
         @pytest.fixture(scope="class")
-        def ps_images(self):
+        @classmethod
+        def ps_images(cls):
             img_dir = po.data.fetch_data("portilla_simoncelli_images.tar.gz")
             images = po.load_images(img_dir).to(DEVICE).to(torch.float64)
             filenames = [p.stem for p in sorted(img_dir.iterdir())]
@@ -549,7 +550,8 @@ class TestTutorialNotebooks:
             return images[filenames.index(tgt_filename)].unsqueeze(0).clone()
 
         @pytest.fixture(scope="class")
-        def ps_regression(self):
+        @classmethod
+        def ps_regression(cls):
             return po.data.fetch_data("ps_regression.tar.gz")
 
         @pytest.mark.parametrize(

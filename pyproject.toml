@@ -56,7 +56,8 @@ docs = [
 ]
 
 test = [
-    "pytest>=5.1.2",
+    # 9.1.0 unsupported because of https://github.com/pytest-dev/pytest/issues/14591
+    "pytest>=5.1.2,!=9.1.0",
     'pytest-cov',
     'pytest-xdist',
     'pytest-order',

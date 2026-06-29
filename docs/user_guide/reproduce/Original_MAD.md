@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.18.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -14,13 +14,7 @@ kernelspec:
 ```{code-cell} ipython3
 :tags: [hide-input]
 
-import warnings
 
-warnings.filterwarnings(
-    "ignore",
-    message="The default behavior of tarfile extraction",
-    category=RuntimeWarning,
-)
 ```
 
 :::{admonition} Under development

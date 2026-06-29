@@ -1,13 +1,17 @@
-properties([
+props = [
   disableConcurrentBuilds(abortPrevious: true),
-  buildDiscarder(logRotator(numToKeepStr: '8', daysToKeepStr: '20')),
-  pipelineTriggers([cron('@weekly')])
-])
+  buildDiscarder(logRotator(numToKeepStr: '8', daysToKeepStr: '20'))
+]
 
-try {
+if (env.BRANCH_NAME == "main" && !env.TAG_NAME)
+  props <<= pipelineTriggers([cron('@weekly')])
+
+properties(props)
+
+catchError {
   timeout(time: 3, unit: 'HOURS') {
     buildImage(context: 'jenkins')
-    if (env.BRANCH_NAME == 'main' && currentBuild.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause')) {
+    if (currentBuild.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause')) {
       runPod(gpus: 2, gpuType: 'v100') {
         stage('weekly') {
           withEnv([
@@ -145,6 +149,4 @@ try {
     }
   }
 }
-finally {
-  emailFailure()
-}
+emailFailure()
