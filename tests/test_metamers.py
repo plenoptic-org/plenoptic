@@ -27,7 +27,8 @@ def custom_penalty2(x1):
 
 class TestMetamers:
     @pytest.fixture(scope="class")
-    def gaussian_einstein_img_metamer_saved(self, einstein_img, tmp_path_factory):
+    @classmethod
+    def gaussian_einstein_img_metamer_saved(cls, einstein_img, tmp_path_factory):
         model = po.models.Gaussian((31, 31)).to(DEVICE)
         po.remove_grad(model)
         model.eval()

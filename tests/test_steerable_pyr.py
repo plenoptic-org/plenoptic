@@ -146,7 +146,8 @@ class TestSteerablePyramid:
             for shape in [None, 224, "128_1", "128_2"]
         ],
     )
-    def img(self, request):
+    @classmethod
+    def img(cls, request):
         im, shape = request.param.split("-")
         img = po.load_images(IMG_DIR / "256" / f"{im}.pgm").to(DEVICE)
         if shape == "224":
@@ -161,7 +162,8 @@ class TestSteerablePyramid:
         scope="class",
         params=[f"{shape}" for shape in [None, 224, "128_1", "128_2"]],
     )
-    def multichannel_img(self, request):
+    @classmethod
+    def multichannel_img(cls, request):
         shape = request.param
         # use fixture for img and use color_wheel instead.
         img = po.load_images(IMG_DIR / "mixed" / "flowers.jpg", as_gray=False).to(
@@ -181,7 +183,8 @@ class TestSteerablePyramid:
     # different sizes. Otherwise, this will generate a bunch of tests that use
     # the spyr with those strange shapes
     @pytest.fixture(scope="class")
-    def spyr(self, img, request):
+    @classmethod
+    def spyr(cls, img, request):
         height, order, is_complex, downsample, tightframe = request.param.split("-")
 
         with suppress(ValueError):
@@ -201,7 +204,8 @@ class TestSteerablePyramid:
         return pyr
 
     @pytest.fixture(scope="class")
-    def spyr_multi(self, multichannel_img, request):
+    @classmethod
+    def spyr_multi(cls, multichannel_img, request):
         height, order, is_complex, downsample, tightframe = request.param.split("-")
 
         with suppress(ValueError):
