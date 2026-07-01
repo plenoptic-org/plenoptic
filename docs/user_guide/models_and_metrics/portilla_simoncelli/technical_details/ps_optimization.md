@@ -3,6 +3,7 @@
 
 As you read the other Portilla-Simoncelli notebooks, you may have noticed that the example metamer synthesis code is a bit more complicated than the [basic Metamer usage](metamer-nb). There are two choices that are important for finding good solutions: the LBFGS optimization algorithm and a custom loss function. This notebook will discuss those two choices in a bit more detail, as well as what "good" means.
 
+(good-enough)=
 ## What is a "good" metamer?
 
 In theory, model metamers are sets of images that have different pixel values and identical model outputs. In practice, metamer synthesis is a non-convex optimization problem in a high-dimensional space. In such problems, one typically optimizes until optimization has converged (i.e., the loss has stopped decreasing) or your result is "good enough" (i.e., the loss is low enough). Each study must determine what "good enough" means for them, and you are encouraged to read papers that have used model metamers (e.g., {cite:alp}`Freeman2011-metam-ventr-stream`, {cite:alp}`Feather2019-metam`, {cite:alp}`Broderick2025-foveat-metam`) to see the approaches they have taken.

@@ -139,7 +139,7 @@ Following the lead of Berardino et al. (2017), let's compare the Front End model
 :::{admonition} DeepNetFeatures
 :class: note
 
-For more information about the way we're using VGG16 with plenoptic and an alternative way of handling `norm`, see [](feature_extractor) and {class}`~plenoptic.models.DeepNetFeatures`.
+For more information about the way we're using VGG16 with plenoptic and an alternative way of handling `norm`, see [](deep_nets) and {class}`~plenoptic.models.DeepNetFeatures`.
 
 :::
 

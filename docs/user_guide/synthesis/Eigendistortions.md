@@ -284,7 +284,7 @@ Let's make a wrapper class that can return the nth layer output of ResNet18. We'
 :::{admonition} DeepNetFeatures
 :class: note
 
-For more information about the way we're using ResNet18 with plenoptic and what `norm` is doing, see [](feature_extractor) and {class}`~plenoptic.models.DeepNetFeatures`.
+For more information about the way we're using ResNet18 with plenoptic and what `norm` is doing, see [](deep_nets) and {class}`~plenoptic.models.DeepNetFeatures`.
 
 :::
 
