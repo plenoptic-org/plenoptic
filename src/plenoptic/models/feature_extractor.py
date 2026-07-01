@@ -19,7 +19,7 @@ except ImportError:
 from ..plot import display
 
 
-class FeatureExtractorModel(torch.nn.Module):
+class DeepNetFeatures(torch.nn.Module):
     """
     Return features from model.
 
@@ -78,7 +78,7 @@ class FeatureExtractorModel(torch.nn.Module):
            interpolation=InterpolationMode.BILINEAR
        )
        >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
-       >>> model = po.models.FeatureExtractorModel(tv_model, "layer2", norm)
+       >>> model = po.models.DeepNetFeatures(tv_model, "layer2", norm)
        >>> # this model requires a 3d input, and expects it to have a certain input
        >>> # size.
        >>> img = po.process.center_crop(
@@ -116,7 +116,7 @@ class FeatureExtractorModel(torch.nn.Module):
     )
     >>> timm_crop = timm_transform.transforms[1]
     >>> timm_norm = timm_transform.transforms[-1]
-    >>> model = po.models.FeatureExtractorModel(timm_model, "layer2", timm_norm)
+    >>> model = po.models.DeepNetFeatures(timm_model, "layer2", timm_norm)
     >>> # this model requires a 3d input, and expects it to have a certain input size.
     >>> img = timm_crop(po.data.einstein(False))
     >>> img.shape
@@ -138,14 +138,14 @@ class FeatureExtractorModel(torch.nn.Module):
     176
     >>> node_names[77:81]
     ['layer2.3.add', 'layer2.3.relu_2', 'layer3.0.conv1', 'layer3.0.bn1']
-    >>> model = po.models.FeatureExtractorModel(tv_model, node_names[78], norm)
+    >>> model = po.models.DeepNetFeatures(tv_model, node_names[78], norm)
     >>> model(img).shape
     torch.Size([1, 401408])
 
     We can even pass multiple node names, in which case all corresponding outputs are
     concatenated together.
 
-    >>> model = po.models.FeatureExtractorModel(tv_model, ["layer2", "layer4"], norm)
+    >>> model = po.models.DeepNetFeatures(tv_model, ["layer2", "layer4"], norm)
     >>> model(img).shape
     torch.Size([1, 501760])
 
@@ -153,7 +153,7 @@ class FeatureExtractorModel(torch.nn.Module):
     returned based on their order in ``model``.
 
     >>> rep = model(img)
-    >>> model = po.models.FeatureExtractorModel(tv_model, ["layer4", "layer2"], norm)
+    >>> model = po.models.DeepNetFeatures(tv_model, ["layer4", "layer2"], norm)
     >>> rep[0, 0] == model(img)[0, 0]
     tensor(True)
 
@@ -185,7 +185,7 @@ class FeatureExtractorModel(torch.nn.Module):
         if feature_extraction is None:
             raise ImportError(
                 "Missing optional dependency torchvision, which is needed for "
-                "FeatureExtractorModel, please install it!"
+                "DeepNetFeatures, please install it!"
             )
         self.extractor = feature_extraction.create_feature_extractor(
             model, return_nodes
@@ -238,7 +238,7 @@ class FeatureExtractorModel(torch.nn.Module):
         >>> # We recommend only including the normalizing in the transform.
         >>> tv_transform = weights.transforms()
         >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
-        >>> model = po.models.FeatureExtractorModel(tv_model, "layer2", norm).eval()
+        >>> model = po.models.DeepNetFeatures(tv_model, "layer2", norm).eval()
         >>> # this model requires a 3d input, and expects it to have a certain input
         >>> # size.
         >>> img = po.process.center_crop(
@@ -289,9 +289,7 @@ class FeatureExtractorModel(torch.nn.Module):
         >>> # We recommend only including the normalizing in the transform.
         >>> tv_transform = weights.transforms()
         >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
-        >>> model = po.models.FeatureExtractorModel(
-        ...     tv_model, ["layer2", "layer4"], norm
-        ... )
+        >>> model = po.models.DeepNetFeatures(tv_model, ["layer2", "layer4"], norm)
         >>> # this model requires a 3d input, and expects it to have a certain input
         >>> # size.
         >>> img = po.process.center_crop(
@@ -356,9 +354,7 @@ class FeatureExtractorModel(torch.nn.Module):
         >>> # We recommend only including the normalizing in the transform.
         >>> tv_transform = weights.transforms()
         >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
-        >>> model = po.models.FeatureExtractorModel(
-        ...     tv_model, ["layer2", "layer4"], norm
-        ... )
+        >>> model = po.models.DeepNetFeatures(tv_model, ["layer2", "layer4"], norm)
         >>> # this model requires a 3d input, and expects it to have a certain input
         >>> # size.
         >>> img = po.process.center_crop(
@@ -435,7 +431,7 @@ class FeatureExtractorModel(torch.nn.Module):
            >>> norm = torchvision.transforms.Normalize(
            ...     tv_transform.mean, tv_transform.std
            ... )
-           >>> model = po.models.FeatureExtractorModel(tv_model, "layer2", norm)
+           >>> model = po.models.DeepNetFeatures(tv_model, "layer2", norm)
            >>> # this model requires a 3d input, and expects it to have a certain input
            >>> # size.
            >>> img = po.process.center_crop(
@@ -538,7 +534,7 @@ class FeatureExtractorModel(torch.nn.Module):
            >>> norm = torchvision.transforms.Normalize(
            ...     tv_transform.mean, tv_transform.std
            ... )
-           >>> model = po.models.FeatureExtractorModel(tv_model, "layer2", norm)
+           >>> model = po.models.DeepNetFeatures(tv_model, "layer2", norm)
            >>> # this model requires a 3d input, and expects it to have a certain input
            >>> # size.
            >>> img = po.process.center_crop(
@@ -554,9 +550,7 @@ class FeatureExtractorModel(torch.nn.Module):
         .. plot::
            :context: close-figs
 
-           >>> model = po.models.FeatureExtractorModel(
-           ...     tv_model, ["layer2", "layer4"], norm
-           ... )
+           >>> model = po.models.DeepNetFeatures(tv_model, ["layer2", "layer4"], norm)
            >>> model.plot_representation(model(img))
            (<Figure ...>, [<Axes...>, <Axes...>, <Axes...>, <Axes...>])
 

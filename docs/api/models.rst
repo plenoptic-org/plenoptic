@@ -14,7 +14,7 @@ See :ref:`models-doc` for more details.
    :template: torch_module.rst.jinja
 
    ~PortillaSimoncelli
-   ~FeatureExtractorModel
+   ~DeepNetFeatures
 
 .. rubric:: LGN-inspired Models
    :heading-level: 3

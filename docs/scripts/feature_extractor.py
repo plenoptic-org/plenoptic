@@ -69,7 +69,7 @@ def main(target_layer="layer3", model_zoo="torchvision"):
         deepnet, norm, crop, imagenet_categories = torchvision_setup()
     elif model_zoo == "timm":
         deepnet, norm, crop, imagenet_categories = timm_setup()
-    model = po.models.FeatureExtractorModel(deepnet, target_layer, norm)
+    model = po.models.DeepNetFeatures(deepnet, target_layer, norm)
     po.remove_grad(model)
     img = prepare_image(crop)
 
@@ -100,7 +100,7 @@ def get_stats(target_layer="layer3"):
         )
         return imagenet_categories[image_cat.argmax()]
 
-    model = po.models.FeatureExtractorModel(deepnet, target_layer, norm)
+    model = po.models.DeepNetFeatures(deepnet, target_layer, norm)
     po.remove_grad(model)
     img = prepare_image(crop)
     met = po.Metamer(img, model)
@@ -116,9 +116,7 @@ def get_stats(target_layer="layer3"):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        description=(
-            "Load in some example ResNet50 metamers, using FeatureExtractorModel."
-        ),
+        description="Load in some example ResNet50 metamers, using DeepNetFeatures.",
     )
     parser.add_argument("--target_layer", "-l", default="layer3")
     parser.add_argument("--model-zoo", "-m", default="torchvision")

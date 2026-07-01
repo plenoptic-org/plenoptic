@@ -475,7 +475,7 @@ class TestTutorialNotebooks:
 
             img = po.data.macaque().to(DEVICE).to(torch.float64)
             img = crop(po.process.blur_downsample(img, 2)[..., :-59, :])
-            model = po.models.FeatureExtractorModel(deepnet, target_layer, norm)
+            model = po.models.DeepNetFeatures(deepnet, target_layer, norm)
             model.to(torch.float64).to(DEVICE)
             po.remove_grad(model)
             met = po.Metamer(img, model)
@@ -543,7 +543,7 @@ class TestTutorialNotebooks:
             weights = torchvision.models.VGG16_Weights.IMAGENET1K_V1
             model = torchvision.models.vgg16(weights=weights, progress=False)
             model.eval()
-            model = po.models.FeatureExtractorModel(model, "features.11")
+            model = po.models.DeepNetFeatures(model, "features.11")
             po.remove_grad(model)
             # in this case, apply norm outside the model
             transform = weights.transforms()

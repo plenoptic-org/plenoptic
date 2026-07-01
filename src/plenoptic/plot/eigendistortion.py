@@ -194,9 +194,9 @@ def eigendistortion_imshow_all(
       >>> norm = torchvision.transforms.Normalize(transform.mean, transform.std)
       >>> img = norm(po.process.center_crop(img, 254))
       >>> vgg = torchvision.models.vgg16(weights=weights, progress=False)
-      >>> vgg = po.models.FeatureExtractorModel(vgg, "features.11")
+      >>> vgg = po.models.DeepNetFeatures(vgg, "features.11")
       >>> vgg.eval().to(torch.float64)
-      FeatureExtractorModel(...)
+      DeepNetFeatures(...)
       >>> po.remove_grad(vgg)
       >>> eig_vgg = po.Eigendistortion(img, vgg)
       >>> eig_vgg.load(

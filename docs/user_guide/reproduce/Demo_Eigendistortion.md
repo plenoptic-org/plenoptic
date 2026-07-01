@@ -136,10 +136,10 @@ po.plot.eigendistortion_imshow_all(
 
 Following the lead of Berardino et al. (2017), let's compare the Front End model's eigendistortion to those of an early layer of VGG16! VGG16 takes as input color images, so we'll need to repeat the grayscale parrot along the RGB color dimension. We'll also apply the ImageNet normalization to the parrot image before initializing the {class}`~plenoptic.Eigendistortion` object.
 
-:::{admonition} FeatureExtractorModel
+:::{admonition} DeepNetFeatures
 :class: note
 
-For more information about the way we're using VGG16 with plenoptic and an alternative way of handling `norm`, see [](feature_extractor) and {class}`~plenoptic.models.FeatureExtractorModel`.
+For more information about the way we're using VGG16 with plenoptic and an alternative way of handling `norm`, see [](feature_extractor) and {class}`~plenoptic.models.DeepNetFeatures`.
 
 :::
 
@@ -151,7 +151,7 @@ image_tensor3 = norm(image_tensor.repeat(1, 3, 1, 1))
 vgg = torchvision.models.vgg16(weights=weights, progress=False)
 vgg.eval().to(DEVICE).to(image_tensor3.dtype)
 # "layer 3" according to Berardino et al (2017)
-mdl_v = po.models.FeatureExtractorModel(vgg, "features.11")
+mdl_v = po.models.DeepNetFeatures(vgg, "features.11")
 po.remove_grad(mdl_v)
 
 eigendist_v = po.Eigendistortion(image_tensor3, mdl_v)

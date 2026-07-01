@@ -281,10 +281,10 @@ po.plot.imshow(img, as_rgb=True, zoom=2);
 ### 2.2 - Instantiate models and Eigendistortion objects
 Let's make a wrapper class that can return the nth layer output of ResNet18. We're going to use this to compare eigendistortions synthesized using different layers of ResNet18 as models for distortion perception.
 
-:::{admonition} FeatureExtractorModel
+:::{admonition} DeepNetFeatures
 :class: note
 
-For more information about the way we're using ResNet18 with plenoptic and what `norm` is doing, see [](feature_extractor) and {class}`~plenoptic.models.FeatureExtractorModel`.
+For more information about the way we're using ResNet18 with plenoptic and what `norm` is doing, see [](feature_extractor) and {class}`~plenoptic.models.DeepNetFeatures`.
 
 :::
 
@@ -296,9 +296,9 @@ norm = torchvision.transforms.Normalize(transform.mean, transform.std)
 resnet = torchvision.models.resnet18(weights=weights, progress=False)
 resnet.to(DEVICE).eval()
 
-resnet18_a = po.models.FeatureExtractorModel(resnet, "maxpool", norm)
+resnet18_a = po.models.DeepNetFeatures(resnet, "maxpool", norm)
 po.remove_grad(resnet18_a)
-resnet18_b = po.models.FeatureExtractorModel(resnet, "layer2", norm)
+resnet18_b = po.models.DeepNetFeatures(resnet, "layer2", norm)
 po.remove_grad(resnet18_b)
 
 ed_resneta = po.Eigendistortion(img, resnet18_a)

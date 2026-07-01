@@ -80,7 +80,7 @@ The example metamer shown in this notebook takes about 15 minutes to synthesize 
 
 ## Initializing the model
 
-When synthesizing images for deep nets, as in {cite:alp}`Feather2023-model-metam`, it is common to pick a specific intermediate layer whose representation we wish to use. `torchvision` contains a "feature extractor" to grab activity from intermediate layers, and plenoptic's {class}`plenoptic.models.FeatureExtractorModel` is a small wrapper to simplify this process.
+When synthesizing images for deep nets, as in {cite:alp}`Feather2023-model-metam`, it is common to pick a specific intermediate layer whose representation we wish to use. `torchvision` contains a "feature extractor" to grab activity from intermediate layers, and plenoptic's {class}`plenoptic.models.DeepNetFeatures` is a small wrapper to simplify this process.
 
 ::::{tab-set}
 :::{tab-item} layer2
@@ -173,7 +173,7 @@ Let's grab the normalizing transform and then initialize our plenoptic model:
 :::{tab-item} torchvision
 :sync: torchvision
 
-In torchvision, the transform is a single torch Module which we cannot easily subdivide, so we create a separate normalization transform, which we pass to {class}`~plenoptic.models.FeatureExtractorModel`:
+In torchvision, the transform is a single torch Module which we cannot easily subdivide, so we create a separate normalization transform, which we pass to {class}`~plenoptic.models.DeepNetFeatures`:
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
@@ -224,12 +224,12 @@ Compose(
 :::
 ::::
 
-Finally, we'll pass our neural network, target layer, and preprocessing transform to plenoptic's {class}`~plenoptic.models.FeatureExtractorModel`:
+Finally, we'll pass our neural network, target layer, and preprocessing transform to plenoptic's {class}`~plenoptic.models.DeepNetFeatures`:
 
 ```{literalinclude} ../../scripts/feature_extractor.py
 :dedent:
-:start-at: po.models.FeatureExtractorModel
-:end-at: po.models.FeatureExtractorModel
+:start-at: po.models.DeepNetFeatures
+:end-at: po.models.DeepNetFeatures
 ```
 
 Now, let's prepare the image. The input image needs to be an RGB image with a height and width of 224 pixels. It should probably also be like those found in ImageNet: a single object in the center of the frame that belongs to one of the [image classes](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). We'll use one of the famous [monkey selfies](https://en.wikipedia.org/wiki/Monkey_selfie_copyright_dispute), and resize it appropriately:
@@ -281,7 +281,7 @@ weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
 deepnet = torchvision.models.resnet50(weights=weights).eval()
 transform = weights.transforms()
 norm = torchvision.transforms.Normalize(transform.mean, transform.std)
-model = po.models.FeatureExtractorModel(deepnet, target_layer, norm)
+model = po.models.DeepNetFeatures(deepnet, target_layer, norm)
 img = po.process.center_crop(img, transform.crop_size[0])
 ```
 
@@ -346,7 +346,7 @@ print(rep)
 print(rep.shape)
 ```
 
-We have flattened the model representation of the given layer (to support representations from multiple layers simultaneously). If you would like to retrieve the original shape, you can use the {func}`~plenoptic.models.FeatureExtractorModel.convert_to_dict` method:
+We have flattened the model representation of the given layer (to support representations from multiple layers simultaneously). If you would like to retrieve the original shape, you can use the {func}`~plenoptic.models.DeepNetFeatures.convert_to_dict` method:
 
 ```{code-cell} ipython3
 rep = model.convert_to_dict(rep)
@@ -354,7 +354,7 @@ print(rep.keys())
 print(rep[target_layer].shape)
 ```
 
-{class}`~plenoptic.models.FeatureExtractorModel` also has a {func}`~plenoptic.models.FeatureExtractorModel.plot_representation` method, which creates two subplots. The first plots the average across channel, the average spatial representation, while the second averages across space to get a per-channel average representation:
+{class}`~plenoptic.models.DeepNetFeatures` also has a {func}`~plenoptic.models.DeepNetFeatures.plot_representation` method, which creates two subplots. The first plots the average across channel, the average spatial representation, while the second averages across space to get a per-channel average representation:
 
 ```{code-cell} ipython3
 fig, _ = model.plot_representation(rep)
@@ -446,7 +446,7 @@ Depending upon how zoomed in your browser is, there may be some aliasing artifac
 In the above plots, we can see the metamer in the leftmost subplot, the loss over synthesis iterations in the middle, and the representation error on the right:
 - Our metamers match the results discussed earlier in this notebook:  the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 is almost completely unidentifiable, looking almost completely like random RGB noise.
 - We can see that the optimization performed reasonably well: the loss decreased gradually over synthesis. If you were using these stimuli in an experiment (especially for `"layer4"`), it may be worth continuing a bit more to get the loss even lower, but these demonstrate the point.
-- The representation error plot has the same structure as the {func}`~plenoptic.models.FeatureExtractorModel.plot_representation` plot above. We see that the error is fairly uniform across both space and channels.
+- The representation error plot has the same structure as the {func}`~plenoptic.models.DeepNetFeatures.plot_representation` plot above. We see that the error is fairly uniform across both space and channels.
 
 The authors of {cite:alp}`Feather2023-model-metam` used two additional checks to verify that metamer synthesis had succeeded (quotes from "Results > Metamer optimization" section, pdf page 5):
 - "the metamer had to result in the same classification decision by the model as the reference stimulus" (here, `guenon`):
@@ -491,4 +491,4 @@ And the following shows the result of this for each of our layers:
 
 We don't have the null distribution of correlations for this model. In order to truly verify synthesis success, one should compute these for each of the measures described above and verify the values for each the metamer.
 
-In this notebook, we have demonstrated how to use deep neural networks from external models zoos with  {class}`plenoptic.models.FeatureExtractorModel`, and shown how to generate metamers for several intermediate layers.
+In this notebook, we have demonstrated how to use deep neural networks from external models zoos with  {class}`plenoptic.models.DeepNetFeatures`, and shown how to generate metamers for several intermediate layers.
