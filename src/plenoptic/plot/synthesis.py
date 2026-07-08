@@ -1,5 +1,6 @@
 """Plots for understanding synthesis objects."""  # numpydoc ignore=EX01
 
+import functools
 import re
 import warnings
 from collections.abc import Callable
@@ -677,6 +678,27 @@ def synthesis_histogram(
     )
 
 
+def _synth_as_rgb(image: torch.Tensor, channel_idx: int | None) -> bool:
+    """
+    Determine whether to try to plot image as RGB(A).
+
+    Checks whether channel_idx is ``None`` and image.shape[1] > 1.
+
+    Parameters
+    ----------
+    image
+        The tensor we'll be plotting, of shape (batch, channel, height, width).
+    channel_idx
+        If ``None``, we're plotting all channels. Else, the channel to plot.
+
+    Returns
+    -------
+    as_rgb
+        Whether to try to plot this as RGB(A).
+    """
+    return bool(channel_idx is None and image.shape[1] > 1)
+
+
 def synthesis_imshow(
     synthesis_object: Metamer | MADCompetition | Eigendistortion,
     batch_idx: int = 0,
@@ -915,7 +937,7 @@ def synthesis_imshow(
 
     # we're only plotting one image here, so if the user wants multiple
     # channels, they must be RGB
-    as_rgb = bool(channel_idx is None and image.shape[1] > 1)
+    as_rgb = _synth_as_rgb(image, channel_idx)
     if ax is None:
         ax = plt.gca()
     display.imshow(
@@ -1659,6 +1681,7 @@ def synthesis_animate(
     batch_idx: int = 0,
     channel_idx: int | None = None,
     included_plots: list[str] | None = None,
+    process_image: Callable[[torch.Tensor], torch.Tensor] | None = None,
     fig: mpl.figure.Figure | None = None,
     axes_idx: dict[str, int] = {},
     figsize: tuple[float, float] | None = None,
@@ -1701,6 +1724,11 @@ def synthesis_animate(
         Which plots to include. See above for behavior if ``None``, otherwise must be a
         list of strings whose values are names of plotting functions that can accept
         ``synthesis_object``, see above for list.
+    process_image
+        A function to process the stored image over time. E.g., rescaling so all values
+        lie between 0 and 1. If ``None``, no processing is performed for grayscale
+        images, and RGB(A) images will be clipped to lie within [0, 1]. See Warns
+        section for details.
     fig
         If ``None``, we create a new figure. Otherwise we assume this is
         a figure that has the appropriate size and number of subplots.
@@ -1766,6 +1794,15 @@ def synthesis_animate(
     TypeError
         If ``synthesis_object`` is not :class:`~plenoptic.MADCompetition` or
         :class:`~plenoptic.Metamer`
+
+    Warns
+    -----
+    UserWarning
+        If stored image contains values outside of [0, 1], has multiple channels, and
+        ``channel_idx=None``, we will clip each frame so all values lie within [0, 1].
+        (This is because of the requirements of :func:`matplotlib.pyplot.imshow`.) The
+        warning will say how many frames were clipped. To avoid clipping, use
+        ``process_image`` argument to remap values within [0, 1] in some other way.
 
     See Also
     --------
@@ -1951,6 +1988,51 @@ def synthesis_animate(
       >>> ani.save("animate-example-8.gif")
 
     .. image:: animate-example-8.gif
+
+    When working with RGB(A) images, clipping may occur. This is because matplotlib will
+    only display values in the range [0, 1] for RGB(A) images:
+
+    .. plot::
+      :context: close-figs
+
+      >>> img = po.process.center_crop(po.data.color_wheel(), 100)
+      >>> # simple model which convoles identical Gaussians independently on each of the
+      >>> # color channels.
+      >>> class ColorGaussian(torch.nn.Module):
+      >>>     def __init__(self, *args, **kwargs):
+      >>>         super().__init__()
+      >>>         self.model = po.models.Gaussian(*args, **kwargs)
+      >>>         self._forward = torch.vmap(self.model.forward, 1)
+      >>>     def forward(self, x):
+      >>>         return self._forward(x)
+      >>> model = ColorGaussian(30)
+      >>> po.remove_grad(model)
+      >>> met = po.Metamer(img, model)
+      >>> # here we start with an image whose pixel values
+      >>> met.setup(initial_image=torch.rand_like(img) - 0.5)
+      >>> met.synthesize(5, store_progress=True)
+      >>> ani = po.plot.synthesis_animate(met)
+      >>> # Save the video (here we're saving it as a .gif)
+      >>> ani.save("animate-example-9.gif")
+
+    .. image:: animate-example-9.gif
+
+    Many of the pixels in the above video are black because they fall below 0. A
+    warning message is displayed which says how many frames this happens on (this
+    message is not rendered in the online documentation).
+
+    If you wish to avoid this clipping, you can use the ``process_image`` argument to
+    map all pixels within [0, 1] in some other way, such as by linearly rescaling the
+    values with :func:`plenoptic.process.rescale`
+
+    .. plot::
+      :context: close-figs
+
+      >>> ani = po.plot.synthesis_animate(met, process_image=po.process.rescale)
+      >>> # Save the video (here we're saving it as a .gif)
+      >>> ani.save("animate-example-10.gif")
+
+    .. image:: animate-example-10.gif
     """
     if not isinstance(synthesis_object, (Metamer, MADCompetition)):
         raise TypeError(
@@ -1962,6 +2044,38 @@ def synthesis_animate(
     # rescale_ylim only relevant for metamer_representation_error plot
     if isinstance(synthesis_object, Metamer):
         rescale_ylim_interval = _get_rescale_ylim(synthesis_object, rescale_ylim)
+    if isinstance(synthesis_object, Metamer):
+        saved_synth = synthesis_object.saved_metamer
+        # this plot shows the metamer loss, which requires subtracting the penalty off
+        # of the objective function
+        met_loss = (
+            synthesis_object.losses
+            - synthesis_object.penalty_lambda * synthesis_object.penalties
+        )
+        losses = [met_loss]
+        video_name = "saved metamer"
+    elif isinstance(synthesis_object, MADCompetition):
+        saved_synth = synthesis_object.saved_mad_image
+        losses = [
+            synthesis_object.reference_metric_loss,
+            synthesis_object.optimized_metric_loss,
+        ]
+        video_name = "saved mad image"
+
+    as_rgb = _synth_as_rgb(saved_synth[0], channel_idx)
+    if process_image is None and as_rgb:
+        process_image = functools.partial(torch.clip, min=0, max=1)
+        print(saved_synth.shape)
+        to_avoid = "To avoid clipping, use process_image argument."
+        warning_msg = display._clip_frames_warnings_msg(
+            saved_synth, 0, video_name, to_avoid
+        )
+        if warning_msg:
+            warnings.warn(warning_msg)
+    if process_image is not None:
+        saved_synth = process_image(saved_synth)
+        kwargs["synthesis_imshow_kwargs"] = {"process_image": process_image}
+
     fig, axes_dict = _synthesis_status(
         synthesis_object,
         batch_idx,
@@ -1995,22 +2109,6 @@ def synthesis_animate(
         # this here because we need the figure to have been created
         for ax in axes_dict["metamer_representation_error"]:
             ax.set_title(re.sub(r"\n range: .* \n", "\n\n", ax.get_title()))
-
-    if isinstance(synthesis_object, Metamer):
-        saved_synth = synthesis_object.saved_metamer
-        # this plot shows the metamer loss, which requires subtracting the penalty off
-        # of the objective function
-        met_loss = (
-            synthesis_object.losses
-            - synthesis_object.penalty_lambda * synthesis_object.penalties
-        )
-        losses = [met_loss]
-    elif isinstance(synthesis_object, MADCompetition):
-        saved_synth = synthesis_object.saved_mad_image
-        losses = [
-            synthesis_object.reference_metric_loss,
-            synthesis_object.optimized_metric_loss,
-        ]
 
     def movie_plot(i: int) -> list[mpl.artist.Artist]:
         """
