@@ -578,7 +578,8 @@ def animshow(
         Whether to consider the channels as encoding RGB(A) values. If ``True``, we
         attempt to plot the image in color, so your tensor must have 3 (or 4 if
         you want the alpha channel) elements in the channel dimension. If ``False``,
-        we plot each channel as a separate grayscale image.
+        we plot each channel as a separate grayscale image. Note that if ``True``,
+        clipping may result, see Warns section below for details.
     **kwargs
         Passed to :func:`matplotlib.pyplot.imshow`.
 
@@ -601,6 +602,15 @@ def animshow(
         one batch and neither ``batch_idx`` nor ``channel_idx`` is set.
     Exception
         If ``plot_complex`` takes an illegal value.
+
+    Warns
+    -----
+    UserWarning
+        If ``as_rgb`` and ``video`` contains values outside of [0, 1], we will clip
+        ``video`` so all values lie within [0, 1]. (This is because of the requirements
+        of :func:`matplotlib.pyplot.imshow`.) The warning will say how many frames of
+        which video were clipped. To avoid clipping, you should remap ``video`` to
+        [0, 1] before calling this function.
 
     See Also
     --------
@@ -648,7 +658,7 @@ def animshow(
         raise ValueError("animshow only accepts videos as 5d tensors!")
     videos_to_show = []
     heights, widths = [], []
-    for vid in video:
+    for i, vid in enumerate(video):
         vid = to_numpy(vid)
         if vid.shape[0] > 1 and batch_idx is not None:
             # this preserves the number of dimensions
@@ -670,7 +680,24 @@ def animshow(
                 raise ValueError(
                     "If as_rgb is True, then channel must have 3 or 4 elements!"
                 )
-            vid = vid.transpose(0, 2, 3, 4, 1)
+            # with RGB float images, matplotlib will always clip them to lie between 0
+            # and 1 and raise a warning. because of how we animate, this warning gets
+            # raised on each frame. that's annoying, so let's do the clipping here,
+            # telling the user how much was lost.
+            mpl_warning_text = (
+                "Clipping input data to the valid range for imshow "
+                "with RGB data ([0..1] for floats)."
+            )
+            n_frames_min = (einops.reduce(vid, "b c t h w -> t", "min") < 0).sum()
+            n_frames_max = (einops.reduce(vid, "b c t h w -> t", "max") > 1).sum()
+            if (n_frames := n_frames_min + n_frames_max) > 0:
+                warning_msg = (
+                    f"{n_frames.item()} frames of video {i} clipped: "
+                    f"{mpl_warning_text} To avoid clipping, modify video "
+                    "before calling animshow."
+                )
+                warnings.warn(warning_msg)
+            vid = vid.transpose(0, 2, 3, 4, 1).clip(min=0, max=1)
             # want to insert a fake "channel" dimension here, so our putting it
             # into a list below works as expected
             vid = vid.reshape((vid.shape[0], 1, *vid.shape[1:]))

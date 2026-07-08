@@ -598,6 +598,37 @@ class TestDisplay:
         with pytest.raises(ValueError, match="3 or 4 dimensional"):
             po.plot.update_plot(fig.axes[0], einstein_img.squeeze())
 
+    @pytest.mark.parametrize("pix_range", [(0, 1), (-0.5, 0.5), (-1, 0)])
+    @pytest.mark.parametrize("as_rgb", [True, False])
+    @pytest.mark.parametrize(
+        "video_n,video_i", [(1, [0]), (2, [0]), (2, [1]), (2, [0, 1])]
+    )
+    def test_animshow_rgb_clipping(self, pix_range, as_rgb, video_n, video_i):
+        # with RGB float images, matplotlib will always clip them to lie between 0
+        # and 1 and raise a warning. because of how we animate, this warning gets
+        # raised on each frame. that's annoying, so we do the clipping ourselves,
+        # telling the user how much was lost.
+        n_frames = 5
+        tmp = [torch.rand((1, 3, n_frames, 10, 10)) for _ in range(video_n)]
+        for i in video_i:
+            tmp[i] = po.process.rescale(tmp[i], *pix_range)
+        # no warning if all values lie between 0 and 1 or if we're animating it as
+        # grayscale
+        if pix_range == (0, 1) or not as_rgb:
+            po.plot.animshow(tmp, as_rgb=as_rgb)
+        else:
+            n_clip_min = (einops.reduce(tmp, "v b c t h w -> v t", "min") < 0).sum(1)
+            n_clip_max = (einops.reduce(tmp, "v b c t h w -> v t", "max") > 1).sum(1)
+            n_clip = torch.stack([n_clip_min, n_clip_max]).sum(0)
+            if pix_range == (0, 1):
+                assert all([n_clip[i] == n_frames for i in video_i])
+            warning_msg = [f"{n_clip[i]} frames of video {i}" for i in video_i]
+            with pytest.warns(UserWarning) as record:
+                po.plot.animshow(tmp, as_rgb=as_rgb)
+            assert len(record) == len(warning_msg)
+            for r, msg in zip(record, warning_msg):
+                assert str(r.message).startswith(msg)
+
     @pytest.mark.parametrize("zoom", [None, 0.5, 1, 3, 0, -1, 1.5, 1.1])
     @pytest.mark.parametrize("func", ["imshow", "animshow"])
     def test_zoom(self, zoom, func):
