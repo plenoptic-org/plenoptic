@@ -2065,7 +2065,6 @@ def synthesis_animate(
     as_rgb = _synth_as_rgb(saved_synth[0], channel_idx)
     if process_image is None and as_rgb:
         process_image = functools.partial(torch.clip, min=0, max=1)
-        print(saved_synth.shape)
         to_avoid = "To avoid clipping, use process_image argument."
         warning_msg = display._clip_frames_warnings_msg(
             saved_synth, 0, video_name, to_avoid

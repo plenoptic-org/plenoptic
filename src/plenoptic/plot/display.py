@@ -509,7 +509,6 @@ def _clip_frames_warnings_msg(
     dims = " ".join(dims)
     n_frames_min = einops.reduce(video, f"{dims} -> t", "min") < 0
     n_frames_max = einops.reduce(video, f"{dims} -> t", "max") > 1
-    print(n_frames_min, n_frames_max)
     n_frames = einops.pack([n_frames_min, n_frames_max], "* t")[0].any(0).sum()
     if n_frames > 0:
         warning_msg = (
