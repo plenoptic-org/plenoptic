@@ -456,7 +456,7 @@ def _get_synthesis_title(
             raise ValueError(
                 "When synthesis_object is an Eigendistortion, iteration must be None!"
             )
-        title_names = ["Eigendistortion[{batch_idx}]", "Reference"]
+        title_names = ["Eigendistortion[{batch_idx}]", "Reference"]  # noqa: RUF027
         if batch_idx is None:
             batch_idx = synthesis_object.eigenindex
     else:

@@ -19,7 +19,12 @@ from tqdm.auto import tqdm
 from .. import loss, regularize
 from ..convergence import _coarse_to_fine_enough, _loss_convergence
 from ..process import signal
-from ..validate import validate_coarse_to_fine, validate_input, validate_model
+from ..validate import (
+    validate_coarse_to_fine,
+    validate_input,
+    validate_model,
+    validate_penalty,
+)
 from .synthesis import _OptimizedSynthesis
 
 __all__ = [
@@ -108,6 +113,7 @@ class Metamer(_OptimizedSynthesis):
             image_dtype=image.dtype,
             device=image.device,
         )
+        validate_penalty(penalty_function, image.shape, image.dtype, image.device)
         self._model = model
         self._image = image
         self._image_shape = image.shape
