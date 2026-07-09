@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Raise error if we ever have a literal return annotation.
 
