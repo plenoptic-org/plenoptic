@@ -21,6 +21,7 @@ __all__ = [
     "validate_coarse_to_fine",
     "validate_metric",
     "validate_convert_tensor_dict",
+    "validate_penalty",
 ]
 
 
