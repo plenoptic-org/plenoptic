@@ -929,6 +929,9 @@ class TestMADDisplay:
         "ignore:SSIM was designed for grayscale images:UserWarning"
     )
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:. frames of saved mad image clipped:UserWarning"
+    )
     def test_custom_fig(self, synthesized_mad, func, fig_creation, tmp_path):
         # tests whether we can create our own figure and pass it to
         # MADCompetition's plotting and animating functions, specifying some or
@@ -980,6 +983,9 @@ class TestMADDisplay:
         "ignore:SSIM was designed for grayscale images:UserWarning"
     )
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:. frames of saved mad image clipped:UserWarning"
+    )
     def test_allowed_plots_exception(self, synthesized_mad, func, val, variable):
         if func == "plot":
             func = po.plot.synthesis_status
@@ -1151,6 +1157,9 @@ class TestMADDisplay:
     @pytest.mark.parametrize("variable", ["width_ratios", "axes_idx"])
     @pytest.mark.filterwarnings(
         "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:. frames of saved mad image clipped:UserWarning"
     )
     def test_plot_consistency(self, synthesized_mad, func, variable):
         if func == "plot":
@@ -1400,6 +1409,7 @@ class TestMetamerDisplay:
             "custom-preplot",
         ],
     )
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
     def test_custom_fig(self, synthesized_met, func, fig_creation, tmp_path):
         # tests whether we can create our own figure and pass it to Metamer's
         # plotting and animating functions, specifying some or all of the
@@ -1465,6 +1475,7 @@ class TestMetamerDisplay:
     @pytest.mark.parametrize(
         "variable", ["included_plots", "width_ratios", "axes_idx", "kwargs"]
     )
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
     def test_allowed_plots_exception(self, synthesized_met, func, val, variable):
         if func == "plot":
             func = po.plot.synthesis_status
@@ -1641,6 +1652,7 @@ class TestMetamerDisplay:
     @pytest.mark.parametrize(
         "rescale_ylim", [False, "rescale", "rescale10", (0, 1), "something_weird"]
     )
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
     def test_rescale_ylim_4d(self, synthesized_met, rescale_ylim):
         # these are the allowed values: rescale (default) and False (what we do:
         # nothing)
@@ -1656,6 +1668,7 @@ class TestMetamerDisplay:
     @pytest.mark.parametrize(
         "rescale_ylim", [False, "rescale", "rescale1", (0, 1), "something_weird"]
     )
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
     def test_rescale_ylim_3d(self, synthesized_met_3d, rescale_ylim):
         if rescale_ylim in [False, "rescale", "rescale1"]:
             expectation = does_not_raise()
@@ -1668,6 +1681,7 @@ class TestMetamerDisplay:
 
     @pytest.mark.parametrize("func", ["animate", "plot"])
     @pytest.mark.parametrize("variable", ["width_ratios", "axes_idx"])
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
     def test_plot_consistency(self, synthesized_met, func, variable):
         if func == "plot":
             func = po.plot.synthesis_status
