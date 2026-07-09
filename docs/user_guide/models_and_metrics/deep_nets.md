@@ -20,6 +20,7 @@ Run it in your browser: **{binder}`deep_nets.ipynb`**!
 
 :::
 
+(deep_nets)=
 # Using Deep Neural Networks with plenoptic
 
 :::{warning}
@@ -37,9 +38,8 @@ import torch
 
 import plenoptic as po
 
-# this notebook uses torchvision, which is an optional dependency.
-# if this fails, install torchvision in your plenoptic environment
-# and restart the notebook kernel.
+# this notebook uses torchvision, which is an optional dependency. if this import fails,
+# install torchvision in your plenoptic environment and restart the notebook kernel.
 try:
     import torchvision
 except ModuleNotFoundError:
@@ -59,9 +59,14 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
+# Animation-related settings
+plt.rcParams["animation.html"] = "html5"
+# use single-threaded ffmpeg for animation writer
+plt.rcParams["animation.writer"] = "ffmpeg"
+plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 
 # set seed for reproducibility
-po.set_seed(0)
+po.set_seed(1)
 ```
 
 ## Initializing the model
@@ -78,7 +83,7 @@ deepnet = torchvision.models.resnet50(weights=weights)
 Next, we ensure that our model is in evaluation mode. Many models, including ResNet50, behave differently when in training and evaluation mode. In plenoptic, models are fixed and so we want the evaluation behavior:
 
 ```{code-cell} ipython3
-deepnet.eval()
+deepnet.eval();
 ```
 
 Next, we need to specify the layer to target. If we look at the ResNet50 metamers in Figure 2e from {cite:alp}`Feather2023-model-metam`, we can see an interesting progression in layers 2 through 4: the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 is almost completely unidentifiable, looking almost completely like random RGB noise.
@@ -288,7 +293,9 @@ Now that we've set our optimization hyperparameters, we can synthesize our metam
 met.synthesize(max_iter=6000, stop_iters_to_check=6000, store_progress=100)
 ```
 
-:::{question} How many iterations?
+:::{admonition} How many iterations?
+:class: question
+
 Here we're only running optimization for 6000 iterations, which is enough to demonstrate the point, but if you were to use these metamers in an experiment, we would recommend running synthesis for longer and thinking carefully about your success criteria, see [](good-enough) and [](feather-synthesis-success) for more discussion.
 :::
 
