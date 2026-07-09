@@ -956,7 +956,7 @@ class MADCompetition(_OptimizedSynthesis):
         return self._metric_tradeoff_lambda
 
     @property
-    def minmax(self) -> Literal["min", "max"]:
+    def minmax(self) -> str:
         """Whether we are minimizing or maximizing :attr:`optimized_metric`."""
         # numpydoc ignore=RT01,ES01
         return self._minmax

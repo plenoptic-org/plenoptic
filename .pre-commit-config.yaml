@@ -98,6 +98,12 @@ repos:
       files: ^docs/
       entry: linting/fix_tutorial_semicolons.py
       additional_dependencies: ["jupytext"]
+    - id: return-literal-annotation
+      language: python
+      name: Ensure we have no Literal return annotations
+      types_or: ["python"]
+      files: ^src/
+      entry: linting/check_return_literal.py
 
 - repo: https://github.com/codespell-project/codespell
   # Configuration for codespell is in pyproject.toml
