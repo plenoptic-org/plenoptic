@@ -1999,12 +1999,13 @@ def synthesis_animate(
       >>> # simple model which convoles identical Gaussians independently on each of the
       >>> # color channels.
       >>> class ColorGaussian(torch.nn.Module):
-      >>>     def __init__(self, *args, **kwargs):
-      >>>         super().__init__()
-      >>>         self.model = po.models.Gaussian(*args, **kwargs)
-      >>>         self._forward = torch.vmap(self.model.forward, 1)
-      >>>     def forward(self, x):
-      >>>         return self._forward(x)
+      ...     def __init__(self, *args, **kwargs):
+      ...         super().__init__()
+      ...         self.model = po.models.Gaussian(*args, **kwargs)
+      ...         self._forward = torch.vmap(self.model.forward, 1)
+      ...
+      ...     def forward(self, x):
+      ...         return self._forward(x)
       >>> model = ColorGaussian(30)
       >>> po.remove_grad(model)
       >>> met = po.Metamer(img, model)
