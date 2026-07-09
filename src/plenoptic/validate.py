@@ -605,7 +605,7 @@ def validate_penalty(
     if output_dtype != allowed_dtypes:
         raise TypeError(
             "penalty_function should not change precision of the input, but got type"
-            ", {output_dtype} instead of {allowed_dtypes}"
+            f", {output_dtype} instead of {allowed_dtypes}"
         )
     if output.device != test_img.device:
         # pytorch device errors are RuntimeErrors
