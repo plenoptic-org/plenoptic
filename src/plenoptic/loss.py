@@ -20,6 +20,7 @@ __all__ = [
     "l2_norm",
     "relative_sse",
     "portilla_simoncelli_loss_factory",
+    "groupwise_relative_l2_norm_factory",
 ]
 
 

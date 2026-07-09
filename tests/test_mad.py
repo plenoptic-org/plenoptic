@@ -449,8 +449,7 @@ class TestMAD:
                 )
             mad.load(tmp_path / "test_mad_load_metric_change.pt")
 
-    @pytest.mark.parametrize("penalty_behav", ["dtype", "shape", "name"])
-    def test_load_penalty_change(self, einstein_img, penalty_behav, tmp_path):
+    def test_load_penalty_change(self, einstein_img, tmp_path):
         def base_penalty(x):
             return po.regularize.penalize_range(x)
 
@@ -467,20 +466,10 @@ class TestMAD:
         mad.save(tmp_path / "test_mad_load_penalty_change.pt")
 
         def new_penalty(x):
-            penalty = base_penalty(x)
-            if penalty_behav == "dtype":
-                return penalty.to(torch.float64)
-            if penalty_behav == "shape":
-                return torch.stack([penalty, penalty])
-            return penalty
+            return base_penalty(x)
 
-        if penalty_behav == "name":
-            expectation = "Saved and initialized penalty_function have different names"
-        else:
-            expectation = (
-                "Saved and initialized penalty_function output have different"
-                f" {penalty_behav}"
-            )
+        expectation = "Saved and initialized penalty_function have different names"
+
         mad = po.MADCompetition(
             einstein_img,
             po.metric.mse,

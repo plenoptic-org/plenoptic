@@ -22,7 +22,7 @@ from tqdm.auto import tqdm
 
 from .. import regularize
 from ..convergence import _loss_convergence
-from ..validate import validate_input, validate_metric
+from ..validate import validate_input, validate_metric, validate_penalty
 from .synthesis import _OptimizedSynthesis
 
 __all__ = [
@@ -112,6 +112,7 @@ class MADCompetition(_OptimizedSynthesis):
             image_dtype=image.dtype,
             device=image.device,
         )
+        validate_penalty(penalty_function, image.shape, image.dtype, image.device)
         self._optimized_metric = optimized_metric
         self._reference_metric = reference_metric
         self._image = image.detach()

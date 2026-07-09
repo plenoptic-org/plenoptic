@@ -21,6 +21,7 @@ __all__ = [
     "validate_coarse_to_fine",
     "validate_metric",
     "validate_convert_tensor_dict",
+    "validate_penalty",
 ]
 
 
@@ -539,9 +540,13 @@ def validate_penalty(
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
-    test_img = torch.rand(
+    # avoiding calling torch.rand, because that offsets the seed, breaking
+    # reproducibility
+    test_img = torch.ones(
         image_shape, dtype=image_dtype, requires_grad=False, device=device
     )
+    # give it some variation in values
+    test_img[..., ::2] = 0
     try:
         penalty = penalty_function(test_img)
     except TypeError:
@@ -605,7 +610,7 @@ def validate_penalty(
     if output_dtype != allowed_dtypes:
         raise TypeError(
             "penalty_function should not change precision of the input, but got type"
-            ", {output_dtype} instead of {allowed_dtypes}"
+            f", {output_dtype} instead of {allowed_dtypes}"
         )
     if output.device != test_img.device:
         # pytorch device errors are RuntimeErrors
