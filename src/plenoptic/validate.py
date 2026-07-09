@@ -540,9 +540,13 @@ def validate_penalty(
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
-    test_img = torch.rand(
+    # avoiding calling torch.rand, because that offsets the seed, breaking
+    # reproducibility
+    test_img = torch.ones(
         image_shape, dtype=image_dtype, requires_grad=False, device=device
     )
+    # give it some variation in values
+    test_img[..., ::2] = 0
     try:
         penalty = penalty_function(test_img)
     except TypeError:
