@@ -13,6 +13,7 @@ UPDATED_API.update(_api_change.SYNTH_PLOT_FUNCS)
 UPDATED_API.update(_api_change.PLOT_FUNCS)
 
 NEW_FUNCS = _api_change.NEW
+UNCHANGED = _api_change.UNCHANGED
 
 
 def test_api_nesting():
@@ -72,20 +73,34 @@ def test_new_api():
             if (
                 mod_name not in UPDATED_API.values()
                 and mod_name not in NEW_FUNCS
-                and mod_name not in OLD_API
+                and mod_name not in UNCHANGED
             ):
-                raise ValueError(f"{mod_name} not found in api change or old api!")
+                raise ValueError(f"{mod_name} not found in api change!")
         else:
             for mod2 in dir(obj):
                 mod2_name = f"plenoptic.{mod}.{mod2}"
                 if (
                     mod2_name not in UPDATED_API.values()
                     and mod2_name not in NEW_FUNCS
-                    and mod2_name not in OLD_API
+                    and mod2_name not in UNCHANGED
                 ):
-                    raise ValueError(f"{mod2_name} not found in api change or old api!")
+                    raise ValueError(f"{mod2_name} not found in api change!")
 
 
-# get old api and check:
-# - that everything in current API is either in old api or in _api_change
-# - that everything in new and not old is in _api_change
+def test_dunder_all():
+    # ensure that everything specified in _api_change is found in plenoptic's __all__ /
+    # __dir__. this is the inverse of the above, which checks that everything found in
+    # __dir__ is present in _api_change
+    all_funcs = set(UPDATED_API.values()).union(NEW_FUNCS + UNCHANGED)
+    current_public = []
+    for mod in dir(plenoptic):
+        mod_name = f"plenoptic.{mod}"
+        obj = eval(mod_name)
+        if not inspect.ismodule(obj):
+            current_public.append(mod_name)
+        else:
+            for mod2 in dir(obj):
+                current_public.append(f"plenoptic.{mod}.{mod2}")
+    extra_funcs = set(all_funcs) - set(current_public)
+    if extra_funcs:
+        raise ValueError(f"{extra_funcs} not found in any module's __dir__!")

@@ -188,8 +188,18 @@ DEPRECATED = [
 ]
 
 NEW = [
+    "plenoptic.validate.validate_penalty",
     "plenoptic.plot.histogram",
     "plenoptic.io.LoadWarning",
     "plenoptic.data.macaque",
     "plenoptic.models.DeepNetFeatures",
+]
+
+UNCHANGED = [
+    "plenoptic.__version__",
+    "plenoptic.data.curie",
+    "plenoptic.data.reptile_skin",
+    "plenoptic.data.color_wheel",
+    "plenoptic.data.einstein",
+    "plenoptic.data.parrot",
 ]
