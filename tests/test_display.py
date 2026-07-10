@@ -1,4 +1,6 @@
+import functools
 import inspect
+import logging
 from contextlib import nullcontext as does_not_raise
 
 import einops
@@ -24,6 +26,20 @@ mpl.use("agg")
 def close_figures_on_teardown():
     yield
     plt.close("all")
+
+
+# inspired by https://stackoverflow.com/a/59745629/4659293
+@pytest.fixture()
+def no_logs_warnings(caplog):
+    # want to raise an error if there's any logged warnings (or worse). this is intended
+    # to catch matplotlib warning about clipping RGB, which we handle ourselves
+    yield
+    warnings_and_more = [
+        record
+        for record in caplog.get_records("call")
+        if record.levelno >= logging.WARNING
+    ]
+    assert not warnings_and_more
 
 
 class TestDisplay:
@@ -598,6 +614,69 @@ class TestDisplay:
         with pytest.raises(ValueError, match="3 or 4 dimensional"):
             po.plot.update_plot(fig.axes[0], einstein_img.squeeze())
 
+    @pytest.mark.parametrize(
+        "pix_range",
+        [
+            "fine",
+            "all-bad-min",
+            "all-bad-max",
+            "all-bad-both",
+            "mixed-min",
+            "mixed-max",
+            "mixed-both",
+        ],
+    )
+    @pytest.mark.parametrize("as_rgb", [True, False])
+    @pytest.mark.parametrize(
+        "video_n,video_i", [(1, [0]), (2, [0]), (2, [1]), (2, [0, 1])]
+    )
+    def test_animshow_clipping(
+        self, pix_range, as_rgb, video_n, video_i, no_logs_warnings
+    ):
+        # with RGB float images, matplotlib will always clip them to lie between 0
+        # and 1 and raise a warning. because of how we animate, this warning gets
+        # raised on each frame. that's annoying, so we do the clipping ourselves,
+        # telling the user how much was lost.
+        n_frames = 5
+        tmp = [torch.rand((1, 3, n_frames, 10, 10)) for _ in range(video_n)]
+        if pix_range == "all-bad-min":
+            for i in video_i:
+                tmp[i] = po.process.rescale(tmp[i], -1, 0)
+        elif pix_range == "all-bad-max":
+            for i in video_i:
+                tmp[i] = po.process.rescale(tmp[i], 0, 2)
+        elif pix_range == "all-bad-both":
+            for i in video_i:
+                tmp[i] = po.process.rescale(tmp[i], -1, 2)
+        elif pix_range == "mixed-min":
+            for i in video_i:
+                t = tmp[i][:, :, ::2]
+                tmp[i][:, :, ::2] = po.process.rescale(t, -1, 0)
+        elif pix_range == "mixed-max":
+            for i in video_i:
+                t = tmp[i][:, :, ::2]
+                tmp[i][:, :, ::2] = po.process.rescale(t, 0, 2)
+        elif pix_range == "mixed-both":
+            for i in video_i:
+                t = tmp[i][:, :, ::2]
+                tmp[i][:, :, ::2] = po.process.rescale(t, -1, 2)
+        # no warning if all values lie between 0 and 1 or if we're animating it as
+        # grayscale
+        if pix_range == "fine" or not as_rgb:
+            po.plot.animshow(tmp, as_rgb=as_rgb)
+        else:
+            n_clip_min = einops.reduce(tmp, "v b c t h w -> v t", "min") < 0
+            n_clip_max = einops.reduce(tmp, "v b c t h w -> v t", "max") > 1
+            n_clip = torch.stack([n_clip_min, n_clip_max], axis=1).any(1).sum(-1)
+            if pix_range == "all-bad":
+                assert all([n_clip[i] == n_frames for i in video_i])
+            warning_msg = [f"{n_clip[i]} frames of video {i}" for i in video_i]
+            with pytest.warns(UserWarning) as record:
+                po.plot.animshow(tmp, as_rgb=as_rgb)
+            assert len(record) == len(warning_msg)
+            for r, msg in zip(record, warning_msg):
+                assert str(r.message).startswith(msg)
+
     @pytest.mark.parametrize("zoom", [None, 0.5, 1, 3, 0, -1, 1.5, 1.1])
     @pytest.mark.parametrize("func", ["imshow", "animshow"])
     def test_zoom(self, zoom, func):
@@ -850,6 +929,9 @@ class TestMADDisplay:
         "ignore:SSIM was designed for grayscale images:UserWarning"
     )
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:. frames of saved mad image clipped:UserWarning"
+    )
     def test_custom_fig(self, synthesized_mad, func, fig_creation, tmp_path):
         # tests whether we can create our own figure and pass it to
         # MADCompetition's plotting and animating functions, specifying some or
@@ -901,6 +983,9 @@ class TestMADDisplay:
         "ignore:SSIM was designed for grayscale images:UserWarning"
     )
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:. frames of saved mad image clipped:UserWarning"
+    )
     def test_allowed_plots_exception(self, synthesized_mad, func, val, variable):
         if func == "plot":
             func = po.plot.synthesis_status
@@ -1073,6 +1158,9 @@ class TestMADDisplay:
     @pytest.mark.filterwarnings(
         "ignore:SSIM was designed for grayscale images:UserWarning"
     )
+    @pytest.mark.filterwarnings(
+        "ignore:. frames of saved mad image clipped:UserWarning"
+    )
     def test_plot_consistency(self, synthesized_mad, func, variable):
         if func == "plot":
             func = po.plot.synthesis_status
@@ -1083,6 +1171,75 @@ class TestMADDisplay:
             kwargs[variable]["misc"] = 2
         with pytest.raises(ValueError, match=f"{variable} contains keys"):
             func(synthesized_mad, included_plots=["synthesis_imshow"], **kwargs)
+
+    @pytest.mark.parametrize(
+        "pix_range",
+        [
+            "fine",
+            "all-bad-min",
+            "all-bad-max",
+            "all-bad-both",
+            "mixed-min",
+            "mixed-max",
+            "mixed-both",
+        ],
+    )
+    @pytest.mark.parametrize("process_image", [None, "rescale"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    def test_animate_clipping(
+        self, synthesized_mad_store_progress, pix_range, process_image, no_logs_warnings
+    ):
+        # with RGB float images, matplotlib will always clip them to lie between 0
+        # and 1 and raise a warning. because of how we animate, this warning gets
+        # raised on each frame. that's annoying, so we do the clipping ourselves,
+        # telling the user how much was lost.
+        # here, we manually overwrite saved_mad_image so we know what it looks like
+        saved_mad = synthesized_mad_store_progress.saved_mad_image
+        if process_image == "rescale":
+            # this is a way to avoid the warning: pass an argument that will do the
+            # proper remapping for you
+            process_image = functools.partial(po.process.rescale, a=0, b=1)
+        if pix_range == "fine":
+            saved_mad = po.process.rescale(saved_mad, 0, 1)
+        elif pix_range == "all-bad-min":
+            saved_mad = po.process.rescale(saved_mad, -1, 0)
+        elif pix_range == "all-bad-max":
+            saved_mad = po.process.rescale(saved_mad, 0, 2)
+        elif pix_range == "all-bad-both":
+            saved_mad = po.process.rescale(saved_mad, -1, 2)
+        elif pix_range == "mixed-min":
+            saved_mad[::2] = po.process.rescale(saved_mad[::2], -1, 0)
+            saved_mad[1::2] = po.process.rescale(saved_mad[1::2], 0, 1)
+        elif pix_range == "mixed-max":
+            saved_mad[::2] = po.process.rescale(saved_mad[::2], 0, 2)
+            saved_mad[1::2] = po.process.rescale(saved_mad[1::2], 0, 1)
+        elif pix_range == "mixed-both":
+            saved_mad[::2] = po.process.rescale(saved_mad[::2], -1, 2)
+            saved_mad[1::2] = po.process.rescale(saved_mad[1::2], 0, 1)
+        as_rgb = synthesized_mad_store_progress.image.shape[1] != 1
+        if not as_rgb or pix_range == "fine" or process_image:
+            expectation = does_not_raise()
+        else:
+            n_clip_min = einops.reduce(saved_mad, "t b c h w -> t", "min") < 0
+            n_clip_max = einops.reduce(saved_mad, "t b c h w -> t", "max") > 1
+            n_clip = torch.stack([n_clip_min, n_clip_max]).any(0).sum()
+            if pix_range == "all-bad":
+                assert all(
+                    [n_clip == len(synthesized_mad_store_progress.saved_mad_image)]
+                )
+            msg = f"{n_clip} frames of saved mad image"
+            expectation = pytest.warns(UserWarning, match=msg)
+        # last index here is the metamer attribute, which we need for computing the
+        # clipped frames above, but should leave out of the _saved_mad_image attribute
+        synthesized_mad_store_progress._saved_mad_image = saved_mad[:-1]
+        synthesized_mad_store_progress._mad_image = saved_mad[-1]
+        with expectation:
+            po.plot.synthesis_animate(
+                synthesized_mad_store_progress, process_image=process_image
+            )
 
 
 class TestMetamerDisplay:
@@ -1252,6 +1409,7 @@ class TestMetamerDisplay:
             "custom-preplot",
         ],
     )
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
     def test_custom_fig(self, synthesized_met, func, fig_creation, tmp_path):
         # tests whether we can create our own figure and pass it to Metamer's
         # plotting and animating functions, specifying some or all of the
@@ -1317,6 +1475,7 @@ class TestMetamerDisplay:
     @pytest.mark.parametrize(
         "variable", ["included_plots", "width_ratios", "axes_idx", "kwargs"]
     )
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
     def test_allowed_plots_exception(self, synthesized_met, func, val, variable):
         if func == "plot":
             func = po.plot.synthesis_status
@@ -1493,6 +1652,7 @@ class TestMetamerDisplay:
     @pytest.mark.parametrize(
         "rescale_ylim", [False, "rescale", "rescale10", (0, 1), "something_weird"]
     )
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
     def test_rescale_ylim_4d(self, synthesized_met, rescale_ylim):
         # these are the allowed values: rescale (default) and False (what we do:
         # nothing)
@@ -1508,6 +1668,7 @@ class TestMetamerDisplay:
     @pytest.mark.parametrize(
         "rescale_ylim", [False, "rescale", "rescale1", (0, 1), "something_weird"]
     )
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
     def test_rescale_ylim_3d(self, synthesized_met_3d, rescale_ylim):
         if rescale_ylim in [False, "rescale", "rescale1"]:
             expectation = does_not_raise()
@@ -1520,6 +1681,7 @@ class TestMetamerDisplay:
 
     @pytest.mark.parametrize("func", ["animate", "plot"])
     @pytest.mark.parametrize("variable", ["width_ratios", "axes_idx"])
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
     def test_plot_consistency(self, synthesized_met, func, variable):
         if func == "plot":
             func = po.plot.synthesis_status
@@ -1530,6 +1692,71 @@ class TestMetamerDisplay:
             kwargs[variable]["misc"] = 2
         with pytest.raises(ValueError, match=f"{variable} contains keys"):
             func(synthesized_met, included_plots=["synthesis_imshow"], **kwargs)
+
+    @pytest.mark.parametrize(
+        "pix_range",
+        [
+            "fine",
+            "all-bad-min",
+            "all-bad-max",
+            "all-bad-both",
+            "mixed-min",
+            "mixed-max",
+            "mixed-both",
+        ],
+    )
+    @pytest.mark.parametrize("process_image", [None, "rescale"])
+    def test_animate_clipping(
+        self, synthesized_met_store_progress, pix_range, process_image, no_logs_warnings
+    ):
+        # with RGB float images, matplotlib will always clip them to lie between 0
+        # and 1 and raise a warning. because of how we animate, this warning gets
+        # raised on each frame. that's annoying, so we do the clipping ourselves,
+        # telling the user how much was lost.
+        # here, we manually overwrite saved_metamer so we know what it looks like
+        saved_met = synthesized_met_store_progress.saved_metamer
+        if process_image == "rescale":
+            # this is a way to avoid the warning: pass an argument that will do the
+            # proper remapping for you
+            process_image = functools.partial(po.process.rescale, a=0, b=1)
+        if pix_range == "fine":
+            saved_met = po.process.rescale(saved_met, 0, 1)
+        elif pix_range == "all-bad-min":
+            saved_met = po.process.rescale(saved_met, -1, 0)
+        elif pix_range == "all-bad-max":
+            saved_met = po.process.rescale(saved_met, 0, 2)
+        elif pix_range == "all-bad-both":
+            saved_met = po.process.rescale(saved_met, -1, 2)
+        elif pix_range == "mixed-min":
+            saved_met[::2] = po.process.rescale(saved_met[::2], -1, 0)
+            saved_met[1::2] = po.process.rescale(saved_met[1::2], 0, 1)
+        elif pix_range == "mixed-max":
+            saved_met[::2] = po.process.rescale(saved_met[::2], 0, 2)
+            saved_met[1::2] = po.process.rescale(saved_met[1::2], 0, 1)
+        elif pix_range == "mixed-both":
+            saved_met[::2] = po.process.rescale(saved_met[::2], -1, 2)
+            saved_met[1::2] = po.process.rescale(saved_met[1::2], 0, 1)
+        as_rgb = synthesized_met_store_progress.image.shape[1] != 1
+        if not as_rgb or pix_range == "fine" or process_image:
+            expectation = does_not_raise()
+        else:
+            n_clip_min = einops.reduce(saved_met, "t b c h w -> t", "min") < 0
+            n_clip_max = einops.reduce(saved_met, "t b c h w -> t", "max") > 1
+            n_clip = torch.stack([n_clip_min, n_clip_max]).any(0).sum()
+            if pix_range == "all-bad":
+                assert all(
+                    [n_clip == len(synthesized_met_store_progress.saved_metamer)]
+                )
+            msg = f"{n_clip} frames of saved metamer"
+            expectation = pytest.warns(UserWarning, match=msg)
+        # last index here is the metamer attribute, which we need for computing the
+        # clipped frames above, but should leave out of the _saved_metamer attribute
+        synthesized_met_store_progress._saved_metamer = saved_met[:-1]
+        synthesized_met_store_progress._metamer = saved_met[-1]
+        with expectation:
+            po.plot.synthesis_animate(
+                synthesized_met_store_progress, process_image=process_image
+            )
 
 
 class TestEigendistortionDisplay:

@@ -27,11 +27,6 @@ warnings.filterwarnings(
     message="plenoptic's methods have mostly been tested on",
     category=UserWarning,
 )
-
-warnings.filterwarnings(
-    "ignore",
-    message="Clipping input data to the valid range",
-)
 ```
 
 :::{admonition} Run this notebook yourself!

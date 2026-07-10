@@ -463,6 +463,63 @@ def imshow(
     )
 
 
+def _clip_frames_warnings_msg(
+    video: torch.Tensor,
+    time_dim: int = 2,
+    video_name: str = "video",
+    to_avoid_txt: str = "",
+) -> str:
+    """
+    Get warning message for clipped frames in RGB(A) videos.
+
+    Computes the number of frames with values outside [0, 1] and returns formatted
+    string describing how many clipped.
+
+    If no pixels would be clipped, empty string is returned.
+
+    Parameters
+    ----------
+    video
+        5d Tensor of shape to check. Note that this doesn't check ``video`` is RGB(A),
+        that must be done externally.
+    time_dim
+        Which dimension of ``video`` corresponds to the time dimension. E.g., if
+        ``time_idx==2``, then video is of shape (batch, channel, time, height, width).
+    video_name
+        For warning message, name of video.
+    to_avoid_txt
+        For warning message, extra info on how to avoid this clipping.
+
+    Returns
+    -------
+    warning_msg
+        The text to pass to ``warnings.warn``. If no frames would be clipped,
+        empty string is returned.
+    """
+    # with RGB float images, matplotlib will always clip them to lie between 0
+    # and 1 and raise a warning. because of how we animate, this warning gets
+    # raised on each frame. that's annoying, so let's do the clipping here,
+    # telling the user how much was lost.
+    mpl_warning_text = (
+        "Clipping input data to the valid range for imshow "
+        "with RGB data ([0..1] for floats)."
+    )
+    dims = ["b", "c", "h", "w"]
+    dims = dims[:time_dim] + ["t"] + dims[time_dim:]
+    dims = " ".join(dims)
+    n_frames_min = einops.reduce(video, f"{dims} -> t", "min") < 0
+    n_frames_max = einops.reduce(video, f"{dims} -> t", "max") > 1
+    n_frames = einops.pack([n_frames_min, n_frames_max], "* t")[0].any(0).sum()
+    if n_frames > 0:
+        warning_msg = (
+            f"{n_frames.item()} frames of {video_name} clipped: "
+            f"{mpl_warning_text} {to_avoid_txt}"
+        )
+    else:
+        warning_msg = ""
+    return warning_msg
+
+
 def animshow(
     video: torch.Tensor | list[torch.Tensor],
     framerate: float = 2.0,
@@ -578,7 +635,8 @@ def animshow(
         Whether to consider the channels as encoding RGB(A) values. If ``True``, we
         attempt to plot the image in color, so your tensor must have 3 (or 4 if
         you want the alpha channel) elements in the channel dimension. If ``False``,
-        we plot each channel as a separate grayscale image.
+        we plot each channel as a separate grayscale image. Note that if ``True``,
+        clipping may result, see Warns section below for details.
     **kwargs
         Passed to :func:`matplotlib.pyplot.imshow`.
 
@@ -601,6 +659,15 @@ def animshow(
         one batch and neither ``batch_idx`` nor ``channel_idx`` is set.
     Exception
         If ``plot_complex`` takes an illegal value.
+
+    Warns
+    -----
+    UserWarning
+        If ``as_rgb`` and ``video`` contains values outside of [0, 1], we will clip
+        ``video`` so all values lie within [0, 1]. (This is because of the requirements
+        of :func:`matplotlib.pyplot.imshow`.) The warning will say how many frames of
+        which video were clipped. To avoid clipping, you should remap ``video`` to
+        [0, 1] before calling this function.
 
     See Also
     --------
@@ -648,7 +715,7 @@ def animshow(
         raise ValueError("animshow only accepts videos as 5d tensors!")
     videos_to_show = []
     heights, widths = [], []
-    for vid in video:
+    for i, vid in enumerate(video):
         vid = to_numpy(vid)
         if vid.shape[0] > 1 and batch_idx is not None:
             # this preserves the number of dimensions
@@ -670,7 +737,11 @@ def animshow(
                 raise ValueError(
                     "If as_rgb is True, then channel must have 3 or 4 elements!"
                 )
-            vid = vid.transpose(0, 2, 3, 4, 1)
+            to_avoid = "To avoid clipping, modify video before calling animshow."
+            warning_msg = _clip_frames_warnings_msg(vid, 2, f"video {i}", to_avoid)
+            if warning_msg:
+                warnings.warn(warning_msg)
+            vid = vid.transpose(0, 2, 3, 4, 1).clip(min=0, max=1)
             # want to insert a fake "channel" dimension here, so our putting it
             # into a list below works as expected
             vid = vid.reshape((vid.shape[0], 1, *vid.shape[1:]))
