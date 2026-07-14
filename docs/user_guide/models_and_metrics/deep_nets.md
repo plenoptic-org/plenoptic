@@ -185,6 +185,8 @@ The syntax for `timm` is slightly different than for `torchvision`, especially w
 
 ```python
 import timm
+from timm.data import resolve_data_config
+from timm.data.transforms_factory import create_transform
 import plenoptic as po
 
 # since these two models are identical, they have the same layer names
