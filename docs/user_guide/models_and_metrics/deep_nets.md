@@ -80,7 +80,7 @@ weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
 deepnet = torchvision.models.resnet50(weights=weights)
 ```
 
-Next, we ensure that our model is in evaluation mode. Many models, including ResNet50, behave differently when in training and evaluation mode. In plenoptic, models are fixed and so we want the evaluation behavior:
+Next, we ensure that our model is in evaluation mode. Many models, including ResNet50, behave differently when in training and evaluation mode. In plenoptic, models are fixed and so we want the evaluation behavior (see [here](remove-grad-doc) for more details):
 
 ```{code-cell} ipython3
 deepnet.eval();
