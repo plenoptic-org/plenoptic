@@ -48,12 +48,29 @@ class DeepNetFeatures(torch.nn.Module):
         :external+torchvision:doc:`torchvision documentation <feature_extraction>`.
     transform
         Pre-processing transform to apply to image before passing to model. If
-        ``None``, will not apply any transform.
+        ``None``, will not apply any transform. Intended use case is for e.g., the
+        ImageNet normalization step. See :ref:`Using Deep Neural Networks with
+        plenoptic <deep_nets>` in the documentation for details.
 
     Raises
     ------
     ImportError
         If torchvision is not installed.
+
+    Warns
+    -----
+    UserWarning
+        If the input model is in training mode.
+
+    Notes
+    -----
+    Note that many deep nets have different behavior in training and evaluation mode.
+    When using them for synthesis, models are fixed and so we want the evaluation
+    behavior. Thus, it's strongly encouraged to call ``.eval()`` before initializing a
+    synthesis object using such models. That can be done either before or after
+    initializing ``DeepNetFeatures``. See :ref:`Using Deep Neural Networks with
+    plenoptic <deep_nets>` and :ref:`Model requirements <models-doc>` in the
+    documentation for details.
 
     Examples
     --------
@@ -65,6 +82,7 @@ class DeepNetFeatures(torch.nn.Module):
        >>> import plenoptic as po
        >>> import torchvision
        >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+       >>> # Many deep nets, including ResNet50, have different behavior
        >>> tv_model = torchvision.models.resnet50(weights=weights).eval()
        >>> # This model's transform consists of resizing, cropping, and normalizing.
        >>> # We recommend only including the normalizing in the transform.
@@ -79,19 +97,30 @@ class DeepNetFeatures(torch.nn.Module):
        )
        >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
        >>> model = po.models.DeepNetFeatures(tv_model, "layer2", norm)
-       >>> # this model requires a 3d input, and expects it to have a certain input
-       >>> # size.
+       >>> # this model requires an RGB input (with 3 elements in the channel
+       >>> # dimension), and expects it to have a certain height and width.
        >>> img = po.process.center_crop(
-       ...     po.data.einstein(False), tv_transform.crop_size[0]
+       ...     po.data.einstein(as_gray=False), tv_transform.crop_size[0]
        ... )
        >>> img.shape
        torch.Size([1, 3, 224, 224])
        >>> model(img).shape
        torch.Size([1, 401408])
-       >>> po.remove_grad(model)
-       >>> po.validate.validate_model(model, image_shape=img.shape)
 
-    Use with timm a model. The primary difference is in the syntax for retrieving
+    Before using the model with plenoptic's synthesis objects, we must remove the
+    gradients with respect to the model parameters, since the model is now fixed. We
+    can use the helper function :func:`plenoptic.remove_grad` to do this:
+
+    >>> po.remove_grad(model)
+
+    Plenoptic includes the :func:`plenoptic.validate.validate_model` function to
+    validate that a model is compatible with our synthesis objects. If the following
+    line passes, then the model is ready to be used with our synthesis objects! If
+    not, the error message should point out next steps.
+
+    >>> po.validate.validate_model(model, image_shape=img.shape)
+
+    Use with a timm model. The primary difference is in the syntax for retrieving
     the model and the transform:
 
     .. attention::
@@ -117,8 +146,9 @@ class DeepNetFeatures(torch.nn.Module):
     >>> timm_crop = timm_transform.transforms[1]
     >>> timm_norm = timm_transform.transforms[-1]
     >>> model = po.models.DeepNetFeatures(timm_model, "layer2", timm_norm)
-    >>> # this model requires a 3d input, and expects it to have a certain input size.
-    >>> img = timm_crop(po.data.einstein(False))
+    >>> # this model requires an RGB input (with 3 elements in the channel dimension),
+    >>> # and expects it to have a certain height and width.
+    >>> img = timm_crop(po.data.einstein(as_gray=False))
     >>> img.shape
     torch.Size([1, 3, 224, 224])
     >>> model(img).shape
@@ -216,6 +246,11 @@ class DeepNetFeatures(torch.nn.Module):
         common across layers in deep nets), while still returning only a single tensor,
         as is necessary for our synthesis methods.
 
+        Note that it is preferred to call the model (e.g., `model(img)`) rather than
+        this method directly (e.g., `model.forward(img)`), since the former will run
+        this method as well as any registered hooks. See
+        :meth:`torch documentation <torch.nn.Module.forward>` for details.
+
         Parameters
         ----------
         x
@@ -237,16 +272,16 @@ class DeepNetFeatures(torch.nn.Module):
         >>> import plenoptic as po
         >>> import torchvision
         >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
-        >>> tv_model = torchvision.models.resnet50(weights=weights)
+        >>> tv_model = torchvision.models.resnet50(weights=weights).eval()
         >>> # This model's transform consists of resizing, cropping, and normalizing.
         >>> # We recommend only including the normalizing in the transform.
         >>> tv_transform = weights.transforms()
         >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
-        >>> model = po.models.DeepNetFeatures(tv_model, "layer2", norm).eval()
-        >>> # this model requires a 3d input, and expects it to have a certain input
-        >>> # size.
+        >>> model = po.models.DeepNetFeatures(tv_model, "layer2", norm)
+        >>> # this model requires an RGB input (with 3 elements in the channel
+        >>> # dimension), and expects it to have a certain height and width.
         >>> img = po.process.center_crop(
-        ...     po.data.einstein(False), tv_transform.crop_size[0]
+        ...     po.data.einstein(as_gray=False), tv_transform.crop_size[0]
         ... )
         >>> model(img).shape
         torch.Size([1, 401408])
@@ -288,16 +323,16 @@ class DeepNetFeatures(torch.nn.Module):
         >>> import plenoptic as po
         >>> import torchvision
         >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
-        >>> tv_model = torchvision.models.resnet50(weights=weights)
+        >>> tv_model = torchvision.models.resnet50(weights=weights).eval()
         >>> # This model's transform consists of resizing, cropping, and normalizing.
         >>> # We recommend only including the normalizing in the transform.
         >>> tv_transform = weights.transforms()
         >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
         >>> model = po.models.DeepNetFeatures(tv_model, ["layer2", "layer4"], norm)
-        >>> # this model requires a 3d input, and expects it to have a certain input
-        >>> # size.
+        >>> # this model requires an RGB input (with 3 elements in the channel
+        >>> # dimension), and expects it to have a certain height and width.
         >>> img = po.process.center_crop(
-        ...     po.data.einstein(False), tv_transform.crop_size[0]
+        ...     po.data.einstein(as_gray=False), tv_transform.crop_size[0]
         ... )
         >>> representation_tensor = model(img)
         >>> representation_dict = model.convert_to_dict(representation_tensor)
@@ -353,16 +388,16 @@ class DeepNetFeatures(torch.nn.Module):
         >>> import plenoptic as po
         >>> import torchvision
         >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
-        >>> tv_model = torchvision.models.resnet50(weights=weights)
+        >>> tv_model = torchvision.models.resnet50(weights=weights).eval()
         >>> # This model's transform consists of resizing, cropping, and normalizing.
         >>> # We recommend only including the normalizing in the transform.
         >>> tv_transform = weights.transforms()
         >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
         >>> model = po.models.DeepNetFeatures(tv_model, ["layer2", "layer4"], norm)
-        >>> # this model requires a 3d input, and expects it to have a certain input
-        >>> # size.
+        >>> # this model requires an RGB input (with 3 elements in the channel
+        >>> # dimension), and expects it to have a certain height and width.
         >>> img = po.process.center_crop(
-        ...     po.data.einstein(False), tv_transform.crop_size[0]
+        ...     po.data.einstein(as_gray=False), tv_transform.crop_size[0]
         ... )
         >>> representation_dict = model.convert_to_dict(model(img))
         >>> [(k, v.shape) for k, v in representation_dict.items()]
@@ -428,7 +463,7 @@ class DeepNetFeatures(torch.nn.Module):
            >>> import plenoptic as po
            >>> import torchvision
            >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
-           >>> tv_model = torchvision.models.resnet50(weights=weights)
+           >>> tv_model = torchvision.models.resnet50(weights=weights).eval()
            >>> # This model's transform consists of resizing, cropping, and normalizing.
            >>> # We recommend only including the normalizing in the transform.
            >>> tv_transform = weights.transforms()
@@ -436,10 +471,10 @@ class DeepNetFeatures(torch.nn.Module):
            ...     tv_transform.mean, tv_transform.std
            ... )
            >>> model = po.models.DeepNetFeatures(tv_model, "layer2", norm)
-           >>> # this model requires a 3d input, and expects it to have a certain input
-           >>> # size.
+           >>> # this model requires an RGB input (with 3 elements in the channel
+           >>> # dimension), and expects it to have a certain height and width.
            >>> img = po.process.center_crop(
-           ...     po.data.einstein(False), tv_transform.crop_size[0]
+           ...     po.data.einstein(as_gray=False), tv_transform.crop_size[0]
            ... )
            >>> fig, axes = model.plot_representation(model(img))
            >>> img = po.process.center_crop(
@@ -531,7 +566,7 @@ class DeepNetFeatures(torch.nn.Module):
            >>> import plenoptic as po
            >>> import torchvision
            >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
-           >>> tv_model = torchvision.models.resnet50(weights=weights)
+           >>> tv_model = torchvision.models.resnet50(weights=weights).eval()
            >>> # This model's transform consists of resizing, cropping, and normalizing.
            >>> # We recommend only including the normalizing in the transform.
            >>> tv_transform = weights.transforms()
@@ -539,10 +574,10 @@ class DeepNetFeatures(torch.nn.Module):
            ...     tv_transform.mean, tv_transform.std
            ... )
            >>> model = po.models.DeepNetFeatures(tv_model, "layer2", norm)
-           >>> # this model requires a 3d input, and expects it to have a certain input
-           >>> # size.
+           >>> # this model requires an RGB input (with 3 elements in the channel
+           >>> # dimension), and expects it to have a certain height and width.
            >>> img = po.process.center_crop(
-           ...     po.data.einstein(False), tv_transform.crop_size[0]
+           ...     po.data.einstein(as_gray=False), tv_transform.crop_size[0]
            ... )
            >>> model.plot_representation(model(img))
            (<Figure ...>, [<Axes...>, <Axes...>])
