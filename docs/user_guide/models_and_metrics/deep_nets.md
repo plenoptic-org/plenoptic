@@ -73,7 +73,7 @@ po.set_seed(1)
 
 In this section, we walk through how to initialize a plenoptic-compatible model using the weights from {external+torchvision:ref}`TorchVision <models>`. Then, at the end of this section, we briefly show to do the same with models from {external+timm:doc}`timm <models>`. After this section, the behavior of the two models are the same.
 
-First, we download the model weights for ResNet50 trained on [ImageNet-1K](https://en.wikipedia.org/wiki/ImageNet#ImageNet-1K) and initialize the `torchvision` / `timm` model.
+First, we download the model weights for ResNet50 trained on [ImageNet-1K](https://en.wikipedia.org/wiki/ImageNet#ImageNet-1K) and initialize the `torchvision` model.
 
 ```{code-cell} ipython3
 weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
@@ -215,7 +215,7 @@ r = urllib.request.urlopen("https://raw.githubusercontent.com/pytorch/hub/master
 imagenet_categories = np.asarray(r.read().decode().split("\n"))
 ```
 
-After this, we can define `get_category` as for `torchvision`:
+After this, we can define `get_category` in the same way as for `torchvision`:
 
 ```python
 def get_category(image):
@@ -306,7 +306,7 @@ po.plot.synthesis_status(met, figsize=(15, 4.5));
 ```
 
 In the above plots, we can see the metamer in the leftmost subplot, the loss over synthesis iterations in the middle, and the representation error on the right:
-- Our metamers match the results discussed earlier in this notebook:  the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 is almost completely unidentifiable, looking almost completely like random RGB noise.
+- Our metamers match the results discussed earlier in this notebook:  the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 starts to lose much of the image structure in random RGB noise.
 - We can see that the optimization performed reasonably well: the loss decreased gradually over synthesis. If you were using these stimuli in an experiment (especially for `"layer4"`), it may be worth continuing a bit more to get the loss even lower, but these demonstrate the point.
 - The representation error plot has the same structure as the {func}`~plenoptic.models.DeepNetFeatures.plot_representation` plot above. We see that the error is fairly uniform across both space and channels.
 
