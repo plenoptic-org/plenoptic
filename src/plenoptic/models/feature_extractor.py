@@ -244,10 +244,6 @@ class DeepNetFeatures(torch.nn.Module):
             # by default, all torch modules are in training mode. make sure
             # FeatureExtractor mode matches that of the underlying model
             self.eval()
-        elif not hasattr(model, "training"):
-            # if the underlying model doesn't have a training attribute, then default to
-            # eval
-            self.eval()
         self._out_keys = None
         self._packed_shapes = None
 
