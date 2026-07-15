@@ -39,6 +39,9 @@ class DeepNetFeatures(torch.nn.Module):
        This model requires the optional dependency ``torchvision``. Make sure it is
        installed before initializing this model.
 
+    See :ref:`Using Deep Neural Networks with plenoptic <deep_nets>` in the
+    documentation for more details and an example of how to use.
+
     Parameters
     ----------
     model
@@ -49,8 +52,7 @@ class DeepNetFeatures(torch.nn.Module):
     transform
         Pre-processing transform to apply to image before passing to model. If
         ``None``, will not apply any transform. Intended use case is for e.g., the
-        ImageNet normalization step. See :ref:`Using Deep Neural Networks with
-        plenoptic <deep_nets>` in the documentation for details.
+        ImageNet normalization step.
 
     Raises
     ------
@@ -74,7 +76,8 @@ class DeepNetFeatures(torch.nn.Module):
 
     Examples
     --------
-    Use with a torchvision model:
+    Use with a torchvision model. For more details about the following steps, see
+    :ref:`Using Deep Neural Networks with plenoptic <deep_nets>` in the documentation.
 
     .. plot::
        :context: reset
@@ -82,7 +85,8 @@ class DeepNetFeatures(torch.nn.Module):
        >>> import plenoptic as po
        >>> import torchvision
        >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
-       >>> # Many deep nets, including ResNet50, have different behavior
+       >>> # Many deep nets, including ResNet50, have different behavior in training
+       >>> # and evaluation mode; we want evaluation behavior. See Notes for details.
        >>> tv_model = torchvision.models.resnet50(weights=weights).eval()
        >>> # This model's transform consists of resizing, cropping, and normalizing.
        >>> # We recommend only including the normalizing in the transform.
@@ -118,7 +122,7 @@ class DeepNetFeatures(torch.nn.Module):
     line passes, then the model is ready to be used with our synthesis objects! If
     not, the error message should point out next steps.
 
-    >>> po.validate.validate_model(model, image_shape=img.shape)
+    >>> po.validate.validate_model(model, image_shape=img.shape, device=img.device)
 
     Use with a timm model. The primary difference is in the syntax for retrieving
     the model and the transform:
@@ -173,11 +177,19 @@ class DeepNetFeatures(torch.nn.Module):
     torch.Size([1, 401408])
 
     We can even pass multiple node names, in which case all corresponding outputs are
-    concatenated together.
+    concatenated together. Thus, as can be seen below, the number of elements in the
+    representation of the model with multiple layers is the sum of the number of
+    elements in the representations of all single-layer models.
 
-    >>> model = po.models.DeepNetFeatures(tv_model, ["layer2", "layer4"], norm)
-    >>> model(img).shape
-    torch.Size([1, 501760])
+    .. plot::
+       :context: close-figs
+
+       >>> model = po.models.DeepNetFeatures(tv_model, ["layer4"], norm)
+       >>> model(img).shape
+       torch.Size([1, 100352])
+       >>> model = po.models.DeepNetFeatures(tv_model, ["layer2", "layer4"], norm)
+       >>> model(img).shape
+       torch.Size([1, 501760])
 
     The order of elements in ``return_nodes`` does not matter: the outputs are always
     returned based on their order in ``model``.
@@ -422,7 +434,9 @@ class DeepNetFeatures(torch.nn.Module):
         """
         Update representation plot (for an animation).
 
-        This is a helper function for creating an animation over time.
+        This is a helper function for creating an animation over time. The intended use
+        case is for this to be called by :func:`plenoptic.plot.synthesis_animate`;
+        users are not expected to use this directly.
 
         Parameters
         ----------
@@ -582,6 +596,14 @@ class DeepNetFeatures(torch.nn.Module):
            >>> model.plot_representation(model(img))
            (<Figure ...>, [<Axes...>, <Axes...>])
 
+        Add a colorbar for the first plot:
+
+        .. plot::
+           :context: close-figs
+
+           >>> fig, axes = model.plot_representation(model(img))
+           >>> fig.colorbar(axes[0].images[0], ax=axes[0])
+
         This function creates two axes per node, one showing the representation averaged
         across channels, one showing it per channel (averaging across any additional
         dimensions):
@@ -592,6 +614,15 @@ class DeepNetFeatures(torch.nn.Module):
            >>> model = po.models.DeepNetFeatures(tv_model, ["layer2", "layer4"], norm)
            >>> model.plot_representation(model(img))
            (<Figure ...>, [<Axes...>, <Axes...>, <Axes...>, <Axes...>])
+
+        Add a separate colorbar for the spatial plot for each node:
+
+        .. plot::
+           :context: close-figs
+
+           >>> fig, axes = model.plot_representation(model(img))
+           >>> for ax in axes[::2]:
+           ...     fig.colorbar(ax.images[0], ax=ax)
 
         Plot the dictionary representation:
 

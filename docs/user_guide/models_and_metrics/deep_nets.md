@@ -27,7 +27,7 @@ Run it in your browser: **{binder}`deep_nets.ipynb`**!
 This notebook requires the optional dependency `torchvision`, which can be installed with `pip`.
 :::
 
-plenoptic is compatible with any model written in pytorch, including deep neural networks from the model zoos {external+torchvision:ref}`TorchVision <models>` and {external+timm:doc}`timm <models>`. In this notebook, we'll show how to adapt a deep net from these two packages for use with plenoptic via {class}`plenoptic.models.DeepNetFeatures`.
+Plenoptic is compatible with any model written in pytorch, including deep neural networks from the model zoos {external+torchvision:ref}`TorchVision <models>` and {external+timm:doc}`timm <models>`. In this notebook, we'll show how to adapt a deep net from these two packages for use with plenoptic via {class}`plenoptic.models.DeepNetFeatures`.
 
 You may also be interested in [](feather2023), where we create model metamers for several ResNet50 intermediate layers, reproducing some of the results from {cite:alp}`Feather2023-model-metam`.
 
@@ -127,6 +127,15 @@ Instead, we create a separate normalization transform, using the specified `mean
 norm = torchvision.transforms.Normalize(transform.mean, transform.std)
 ```
 
+:::{admonition} What happens if the image resizing is included in the plenoptic model?
+:class: dropdown question
+
+If you include the image resizing in the plenoptic model when synthesizing a model metamer, you will clearly see the effect: since the transform crops out the center of the image, the model is completely insensitive to the border, and so it will be unchanged from initialization.
+
+If you're curious, try it out and see! (Just pass `transform` instead of `norm` to {class}`~plenoptic.models.DeepNetFeatures` model in the block below.)
+
+:::
+
 Finally, we'll pass our neural network, target layer, and preprocessing transform to plenoptic's {class}`~plenoptic.models.DeepNetFeatures`
 
 ```{code-cell} ipython3
@@ -159,9 +168,11 @@ imagenet_categories = np.asarray(weights.meta["categories"])
 
 
 def get_category(image):
-    image_cat = po.to_numpy(
-        torch.nn.functional.softmax(deepnet(norm(image)), dim=1).squeeze()
-    )
+    # Get probabilities of each image category
+    image_cat = torch.nn.functional.softmax(deepnet(norm(image)), dim=1)
+    # Convert to 1d numpy array, so we can use as index in
+    # imagenet_categories above.
+    image_cat = po.to_numpy(image_cat.squeeze())
     return imagenet_categories[image_cat.argmax()]
 
 
@@ -310,7 +321,7 @@ po.plot.synthesis_status(met, figsize=(15, 4.5));
 In the above plots, we can see the metamer in the leftmost subplot, the loss over synthesis iterations in the middle, and the representation error on the right:
 - Our metamers match the results discussed earlier in this notebook:  the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 starts to lose much of the image structure in random RGB noise.
 - We can see that the optimization performed reasonably well: the loss decreased gradually over synthesis. If you were using these stimuli in an experiment (especially for `"layer4"`), it may be worth continuing a bit more to get the loss even lower, but these demonstrate the point.
-- The representation error plot has the same structure as the {func}`~plenoptic.models.DeepNetFeatures.plot_representation` plot above. We see that the error is fairly uniform across both space and channels.
+- The representation error plot has the same structure as the {func}`~plenoptic.models.DeepNetFeatures.plot_representation` plot above. We can see that, while there's variation across both channels and space, there's not an obvious outlier whose error we have been unable to constrain.
 
 And we can animate the above figure over synthesis iterations as well, to see the metamer take shape:
 

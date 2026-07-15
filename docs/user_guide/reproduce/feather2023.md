@@ -14,11 +14,20 @@ kernelspec:
 ```{code-cell} ipython3
 :tags: [hide-input]
 
+import warnings
+
 import pooch
 
 # don't have pooch output messages about downloading or untarring
 logger = pooch.get_logger()
 logger.setLevel("WARNING")
+
+# don't need to show warning about setting up optimizer and scheduler
+warnings.filterwarnings(
+    "ignore",
+    message="You will need to call setup",
+    category=UserWarning,
+)
 ```
 
 :::{admonition} Run this notebook yourself!
@@ -204,9 +213,11 @@ imagenet_categories = np.asarray(weights.meta["categories"])
 
 
 def get_category(image):
-    image_cat = po.to_numpy(
-        torch.nn.functional.softmax(deepnet(norm(image)), dim=1).squeeze()
-    )
+    # Get probabilities of each image category
+    image_cat = torch.nn.functional.softmax(deepnet(norm(image)), dim=1)
+    # Convert to 1d numpy array, so we can use as index in
+    # imagenet_categories above.
+    image_cat = po.to_numpy(image_cat.squeeze())
     return imagenet_categories[image_cat.argmax()]
 
 
