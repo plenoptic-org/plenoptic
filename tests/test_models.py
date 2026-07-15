@@ -1536,6 +1536,7 @@ class TestDeepNetFeatures:
         weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
         tv_model = torchvision.models.resnet50(weights=weights).eval()
         new_model = po.models.DeepNetFeatures(tv_model, "layer2")
+        new_model.to(DEVICE)
         with pytest.raises(ValueError, match="Call forward or convert_to_tensor"):
             new_model.convert_to_dict(rep)
         new_model(torchvision_img)
