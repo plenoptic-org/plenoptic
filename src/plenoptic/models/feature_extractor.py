@@ -635,7 +635,7 @@ class DeepNetFeatures(torch.nn.Module):
         .. plot::
            :context: close-figs
 
-           >>> fig, axes = plt.subplots(1, 2)
+           >>> fig, axes = plt.subplots(2, 1, figsize=(10, 10))
            >>> model.plot_representation(model.convert_to_dict(model(img)), ax=axes[1])
            (<Figure ...>, [<Axes...>, <Axes...>, <Axes...>, <Axes...>])
         """

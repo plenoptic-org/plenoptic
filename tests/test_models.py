@@ -1454,7 +1454,7 @@ class TestFilters:
         assert torch.allclose(test, output)
 
 
-class TestFeatureExtractor:
+class TestDeepNetFeatures:
     @pytest.fixture
     def torchvision_img(self):
         transform = torchvision.models.ResNet50_Weights.IMAGENET1K_V1.transforms()
@@ -1487,11 +1487,59 @@ class TestFeatureExtractor:
         indirect=True,
     )
     def test_valid(self, model, torchvision_img):
-        # importantly, this shouldn't raise warning about dimensionality of output, even
-        # though the output is 2d, which normally does raise that warning
         po.validate.validate_model(
             model, torchvision_img.shape, device=torchvision_img.device
         )
+
+    def test_training_warning(self):
+        # if input model is in training mode, DeepNetFeatures should warn and stay in
+        # training mode
+        weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        tv_model = torchvision.models.resnet50(weights=weights)
+        with pytest.warns(UserWarning, match="model is in training mode"):
+            model = po.models.DeepNetFeatures(tv_model, "layer2")
+        assert model.training, "mode should match that of model"
+        # should be able to switch to eval
+        model.eval()
+        assert not model.training, "mode should switch"
+        assert not model.extractor.training, "mode should switch underlying model"
+
+    def test_eval(self):
+        # if input model is in eval mode, DeepNetFeatures should stay in eval mode
+        weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        tv_model = torchvision.models.resnet50(weights=weights).eval()
+        model = po.models.DeepNetFeatures(tv_model, "layer2")
+        assert not model.training, "mode should match that of model"
+
+    def test_notraining(self):
+        # if model doesn't have training attribute, feature extraction will raise an
+        # error
+        weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        tv_model = torchvision.models.resnet50(weights=weights)
+        # remove training attribute from this instance
+        tv_model.__dict__.pop("training")
+        with pytest.raises(
+            AttributeError, match=".*object has no attribute 'training'"
+        ):
+            po.models.DeepNetFeatures(tv_model, "layer2")
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+            "timm_resnet50-layer2",
+        ],
+        indirect=True,
+    )
+    def test_convert_to_dict_error(self, model, torchvision_img):
+        rep = model(torchvision_img)
+        weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        tv_model = torchvision.models.resnet50(weights=weights).eval()
+        new_model = po.models.DeepNetFeatures(tv_model, "layer2")
+        with pytest.raises(ValueError, match="Call forward or convert_to_tensor"):
+            new_model.convert_to_dict(rep)
+        new_model(torchvision_img)
+        new_model.convert_to_dict(rep)
 
     @pytest.mark.parametrize(
         ["model", "model2"],
@@ -1606,6 +1654,22 @@ class TestFeatureExtractor:
                     # in this case ymin and ymax are set explicitly
                     assert ax_ylim[0] == ylim[0]
                     assert ax_ylim[1] == ylim[1]
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+            "timm_resnet50-layer2",
+            "torchvision_resnet50-layer2,layer4",
+            "timm_resnet50-layer2,layer4",
+        ],
+        indirect=True,
+    )
+    def test_plot_representation_3d(self, model, torchvision_img):
+        rep = model.convert_to_dict(model(torchvision_img))
+        # change this from 4d to 3d, so we can test this case.
+        rep["layer2"] = rep["layer2"].mean(-1)
+        model.plot_representation(rep)
 
     @pytest.mark.parametrize(
         "model",
