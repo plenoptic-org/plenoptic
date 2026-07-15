@@ -191,7 +191,7 @@ In the above figure, we can see that our metamers look similar to those in {cite
 (feather-synthesis-success)=
 ## Synthesis success?
 
-As indicated in the table above, the examples shown in the notebook only ran for 12,000 iterations of synthesis, whereas the metamers in {cite:alp}`Feather2023-model-metam` ran for twice that. Due to differences in the optimization procedure, it's not easy to directly interpret what this means. What we would like to know is whether synthesis has succeeded in these examples. The metamer loss (as stored in {attr}`plenoptic.Metamer.losses`) measures the difference between the target image and the model metamer, but is difficult to interpret. Is $10^-6$ small enough?
+As indicated in the table above, the examples shown in the notebook only ran for 12,000 iterations of synthesis, whereas the metamers in {cite:alp}`Feather2023-model-metam` ran for twice that. Due to differences in the optimization procedure, it's not easy to directly interpret what this means. What we would like to know is whether synthesis has succeeded in these examples. The metamer loss (as stored in {attr}`plenoptic.Metamer.losses`) measures the difference between the target image and the model metamer, but is difficult to interpret. Is $10^{-6}$ small enough?
 
 :::{seealso}
 
@@ -204,12 +204,14 @@ The authors of {cite:alp}`Feather2023-model-metam` define two criteria for synth
 - First, "the activations for the model metamer had to be matched to those for the signal better than would be expected by chance". To do this, they compared the activity at the target layer for the model metamer and the target image using three metrics: Spearman $\rho$, Pearson $R^2$, and the signal-to-noise ratio. They then used these same metrics to generate a null distribution between 1,000,000 randomly chosen image pairs from the training dataset, and ensured that the model metamer fell outside this distribution.
 - Second, "the models had to produce the same class label for the model metamer and the natural signal".
 
-Without the null distributions of these three metrics, we cannot check the first criterion in this notebook. We note this criterion to point out that you should use a similar check when synthesizing model metamers.
+Without the null distributions of these three metrics, we cannot check the first criterion in this notebook. We note this criterion to point out that you should use a similar check when synthesizing your own model metamers for an experiment.
 
 We can check the second one. Let's define a little helper function to return ResNet50's classification of an image. Fortunately for us, `torchvision` stores the image category labels along with the model weights:
 
 ```{code-cell} ipython3
 imagenet_categories = np.asarray(weights.meta["categories"])
+# Move deepnet to float64 since we know our images are all float64
+deepnet.to(torch.float64)
 
 
 def get_category(image):

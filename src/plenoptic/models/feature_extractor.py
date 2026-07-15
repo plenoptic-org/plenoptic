@@ -3,6 +3,7 @@
 
 import warnings
 from collections import OrderedDict
+from collections.abc import Callable
 from typing import Literal
 
 import einops
@@ -10,6 +11,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from torch import Tensor
 
 try:
     from torchvision.models import feature_extraction
@@ -21,15 +23,16 @@ from ..plot import display
 
 class DeepNetFeatures(torch.nn.Module):
     """
-    Return features from model.
+    Return features from deep neural network layers.
 
-    This adapter combines a torch model with a feature extractor and optional transform,
-    allowing us to target the output of one or more particular layers in a deep neural
-    network for use with synthesis objects.
+    This adapter takes a torch model, such as a deep neural network, and returns the
+    activations of the specified layer(s). It also takes an optional preprocessing
+    transform to apply before passing the input to the model.
 
-    This adapter is intended to work with :external+torchvision:ref:`TorchVision
-    <models>` and :external+timm:doc:`timm <models>`, two model zoos from the deep
-    learning community that contain a large number of models.
+    This adapter is intended to work with deep neural networks from
+    :external+torchvision:ref:`TorchVision <models>` and :external+timm:doc:`timm
+    <models>`, two model zoos from the deep learning community that contain a large
+    number of models.
 
     For more details on the node naming conventions used here, please see the
     :external+torchvision:ref:`About Node Names <about-node-names>` heading in the
@@ -52,7 +55,7 @@ class DeepNetFeatures(torch.nn.Module):
     transform
         Pre-processing transform to apply to image before passing to model. If
         ``None``, will not apply any transform. Intended use case is for e.g., the
-        ImageNet normalization step.
+        ImageNet color normalization step.
 
     Raises
     ------
@@ -218,7 +221,7 @@ class DeepNetFeatures(torch.nn.Module):
         self,
         model: torch.nn.Module,
         return_nodes: str | list[str] | dict[str, str],
-        transform: torch.nn.Module | None = None,
+        transform: torch.nn.Module | Callable[[Tensor], Tensor] | None = None,
     ):
         super().__init__()
         self.transform = transform
@@ -232,7 +235,6 @@ class DeepNetFeatures(torch.nn.Module):
         self.extractor = feature_extraction.create_feature_extractor(
             model, return_nodes
         )
-        self.model = model
         if hasattr(model, "training") and model.training:
             warnings.warn(
                 "model is in training mode, you probably want to call eval()"
@@ -249,7 +251,7 @@ class DeepNetFeatures(torch.nn.Module):
         self._out_keys = None
         self._packed_shapes = None
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         """
         Compute feature activity of an input.
 
@@ -304,8 +306,8 @@ class DeepNetFeatures(torch.nn.Module):
         return self.convert_to_tensor(original_out)
 
     def convert_to_tensor(
-        self, representation_dict: OrderedDict[str, torch.Tensor]
-    ) -> torch.Tensor:
+        self, representation_dict: OrderedDict[str, Tensor]
+    ) -> Tensor:
         """
         Convert dictionary of statistics to a tensor.
 
@@ -359,8 +361,8 @@ class DeepNetFeatures(torch.nn.Module):
         return packed_out
 
     def convert_to_dict(
-        self, representation_tensor: torch.Tensor
-    ) -> OrderedDict[str, torch.Tensor]:
+        self, representation_tensor: Tensor
+    ) -> OrderedDict[str, Tensor]:
         """
         Convert tensor of statistics to a dictionary.
 
@@ -427,7 +429,7 @@ class DeepNetFeatures(torch.nn.Module):
     def update_plot(
         self,
         axes: mpl.axes.Axes | list[mpl.axes.Axes],
-        data: torch.Tensor | dict,
+        data: Tensor | dict,
         batch_idx: int = 0,
         rescale_ylim: bool = False,
     ) -> list:
@@ -497,7 +499,7 @@ class DeepNetFeatures(torch.nn.Module):
            >>> model.update_plot(axes, model(img))
            [<matplotlib...>]
         """
-        if isinstance(data, torch.Tensor):
+        if isinstance(data, Tensor):
             data = self.convert_to_dict(data)
 
         artists = []
@@ -522,7 +524,7 @@ class DeepNetFeatures(torch.nn.Module):
 
     def plot_representation(
         self,
-        data: torch.Tensor | dict[str, torch.Tensor],
+        data: Tensor | dict[str, Tensor],
         ax: plt.Axes | None = None,
         figsize: tuple[float, float] | None = None,
         ylim: tuple[float, float] | Literal[False] | None = False,
@@ -646,7 +648,7 @@ class DeepNetFeatures(torch.nn.Module):
         elif ax is not None and figsize is not None:
             raise ValueError("figsize can't be set if ax is not None")
 
-        if isinstance(data, torch.Tensor):
+        if isinstance(data, Tensor):
             data = self.convert_to_dict(data)
 
         # Determine figure layout
