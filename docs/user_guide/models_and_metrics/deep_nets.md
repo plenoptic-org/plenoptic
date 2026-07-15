@@ -220,8 +220,8 @@ ResNet50 is trained to classify images into one of [1000 categories](https://dee
 
 ```{code-cell} ipython3
 imagenet_categories = np.asarray(weights.meta["categories"])
-# Move deepnet to float64 since we know our images are all float64
-deepnet.to(torch.float64)
+# Move deepnet to float64, device since we know our images are all float64
+deepnet.to(torch.float64).to(DEVICE)
 
 
 def get_category(image):

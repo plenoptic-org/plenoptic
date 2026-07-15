@@ -211,7 +211,7 @@ We can check the second one. Let's define a little helper function to return Res
 ```{code-cell} ipython3
 imagenet_categories = np.asarray(weights.meta["categories"])
 # Move deepnet to float64 since we know our images are all float64
-deepnet.to(torch.float64)
+deepnet.to(torch.float64).to(DEVICE)
 
 
 def get_category(image):
