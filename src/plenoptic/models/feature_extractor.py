@@ -601,6 +601,7 @@ class DeepNetFeatures(torch.nn.Module):
 
            >>> fig, axes = model.plot_representation(model(img))
            >>> fig.colorbar(axes[0].images[0], ax=axes[0])
+           <matplotlib.colorbar.Colorbar object ...>
 
         This function creates two axes per node, one showing the representation averaged
         across channels, one showing it per channel (averaging across any additional
@@ -621,6 +622,8 @@ class DeepNetFeatures(torch.nn.Module):
            >>> fig, axes = model.plot_representation(model(img))
            >>> for ax in axes[::2]:
            ...     fig.colorbar(ax.images[0], ax=ax)
+           <matplotlib.colorbar.Colorbar object ...>
+           <matplotlib.colorbar.Colorbar object ...>
 
         Plot the dictionary representation:
 
