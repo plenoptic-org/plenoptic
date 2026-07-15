@@ -1665,7 +1665,9 @@ class TestDeepNetFeatures:
         ],
         indirect=True,
     )
-    def test_plot_representation_3d(self, model, torchvision_img):
+    def test_plot_representation_3d(
+        self, model, torchvision_img, close_figures_on_teardown
+    ):
         rep = model.convert_to_dict(model(torchvision_img))
         # change this from 4d to 3d, so we can test this case.
         rep["layer2"] = rep["layer2"].mean(-1)
