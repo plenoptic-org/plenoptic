@@ -214,7 +214,7 @@ img = crop(img)
 
 ## Understand the model
 
-### Metamer classification
+### Image classification
 
 ResNet50 is trained to classify images into one of [1000 categories](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). Any metamer of an intermediate layer should preserve this classification, which is the output of the final layer; this is one of the criteria that {cite:alp}`Feather2023-model-metam` check for synthesis success. Let's examine that classification now, creating a little helper function:
 
@@ -257,7 +257,7 @@ The category, [guenon](https://en.wikipedia.org/wiki/Guenon), is an Old World mo
 
 After we synthesize the metamer, we will ensure that our model correctly classifies it as a guenon as well.
 
-### Visualizing the output
+### Output visualization
 
 Our `model` <!-- skip-lint --> object now returns only the activations from our specified layer as a single 2d vector (with the first dimension corresponding to the batch dimension of our input):
 
@@ -320,7 +320,7 @@ Now that we've set our optimization hyperparameters, we can synthesize our metam
 ```{code-cell} ipython3
 # by setting stop_iters_to_check=max_iter, we ensure it keeps going through
 # all iterations
-met.synthesize(max_iter=10, stop_iters_to_check=6000, store_progress=10)
+met.synthesize(max_iter=6000, stop_iters_to_check=6000, store_progress=6000)
 ```
 
 :::{admonition} How many iterations?

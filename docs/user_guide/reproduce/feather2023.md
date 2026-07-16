@@ -94,7 +94,7 @@ The example metamers shown in this notebook takes about 15 minutes to synthesize
 
 :::
 
-## Preparing the deep net and image
+## Prepare model and image for synthesis
 
 In the following block, we create a separate {class}`~plenoptic.models.DeepNetFeatures` model for each of layers 2, 3, and 4. We then prepare the image. Finally, we ensure that the model and image have the proper device and dtype, and remove the gradient from all model parameters. To learn more about any of these steps and why we take them, read [](deep_nets).
 
