@@ -335,9 +335,9 @@ Let's call {func}`~plenoptic.plot.synthesis_status` to visualize the synthesis s
 po.plot.synthesis_status(met, figsize=(15, 4.5));
 ```
 
-In the above plots, we can see the metamer in the leftmost subplot, the loss over synthesis iterations in the middle, and the representation error on the right:
-- Our metamers match the results discussed earlier in this notebook:  the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 starts to lose much of the image structure in random RGB noise.
-- We can see that the optimization performed reasonably well: the loss decreased gradually over synthesis. If you were using these stimuli in an experiment (especially for `"layer4"`), it may be worth continuing a bit more to get the loss even lower, but these demonstrate the point.
+In the above plot, we can see the metamer in the leftmost subplot, the loss over synthesis iterations in the middle, and the representation error on the right:
+- Our metamer matches the result discussed earlier in this notebook: as a layer 3 metamer, it looks similar to the original image with some RGB noise added.
+- We can see that the optimization performed reasonably well: the loss decreased gradually over synthesis. If you were using these stimuli in an experiment, it would be worth continuing a bit more to get the loss even lower, but this demonstrates the point.
 - The representation error plot has the same structure as the {func}`~plenoptic.models.DeepNetFeatures.plot_representation` plot above. We can see that, while there's variation across both channels and space, there's not an obvious outlier whose error we have been unable to constrain.
 
 And we can animate the above figure over synthesis iterations as well, to see the metamer take shape:
