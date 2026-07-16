@@ -320,7 +320,7 @@ Now that we've set our optimization hyperparameters, we can synthesize our metam
 ```{code-cell} ipython3
 # by setting stop_iters_to_check=max_iter, we ensure it keeps going through
 # all iterations
-met.synthesize(max_iter=6000, stop_iters_to_check=6000, store_progress=6000)
+met.synthesize(max_iter=6000, stop_iters_to_check=6000, store_progress=100)
 ```
 
 :::{admonition} How many iterations?
