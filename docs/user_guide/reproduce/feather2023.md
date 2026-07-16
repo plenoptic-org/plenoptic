@@ -74,11 +74,7 @@ except ModuleNotFoundError:
     )
 
 
-dtype = torch.float32
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-%load_ext autoreload
-%autoreload 2
 
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
