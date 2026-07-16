@@ -54,12 +54,7 @@ except ModuleNotFoundError:
     )
 import torchvision.transforms as transforms
 
-dtype = torch.float32
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-%load_ext autoreload
-
-%autoreload 2
 
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
@@ -91,7 +86,7 @@ imsize = 64
 pyr = po.process.SteerablePyramidFreq(
     height=3, image_shape=[imsize, imsize], order=order
 ).to(DEVICE)
-empty_image = torch.zeros((1, 1, imsize, imsize), dtype=dtype).to(DEVICE)
+empty_image = torch.zeros((1, 1, imsize, imsize)).to(DEVICE)
 pyr_coeffs = pyr.forward(empty_image)
 
 # insert a 1 in the center of each coefficient...

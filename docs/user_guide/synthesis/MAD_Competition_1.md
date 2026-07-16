@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.19.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -46,9 +46,6 @@ plt.rcParams["figure.dpi"] = 72
 warnings.filterwarnings(
     "ignore", message="plenoptic's methods have mostly", category=UserWarning
 )
-
-%load_ext autoreload
-%autoreload 2
 ```
 
 First we pick our metrics and run our synthesis. We create four different {class}`~plenoptic.MADCompetition` instances, in order to create the full set of images.
