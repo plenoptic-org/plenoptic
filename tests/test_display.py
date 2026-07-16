@@ -1044,6 +1044,9 @@ class TestMADDisplay:
     @pytest.mark.filterwarnings(
         "ignore:. frames of saved mad image clipped:UserWarning"
     )
+    # Warning from matplotlib about creating legend with loc=best can be slow with lot
+    # of data, only shows up on GPU for one of the animate variants. unsure why
+    @pytest.mark.filterwarnings("ignore:Creating legend with loc:UserWarning")
     def test_custom_fig(self, synthesized_mad, func, fig_creation, tmp_path):
         # tests whether we can create our own figure and pass it to
         # MADCompetition's plotting and animating functions, specifying some or
