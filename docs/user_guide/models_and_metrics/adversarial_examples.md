@@ -30,7 +30,7 @@ Run it in your browser: **{binder}`adversarial_examples.ipynb`**!
 This notebook requires the optional dependency `torchvision`, which can be installed with `pip`.
 :::
 
-Adversarial examples are tiny perturbations to an image that makes Deep Neural Networks misclasify an image to a different class. In this notebook we demonstrate how we can use the {class}`~plenoptic.MADCompetition` class to synthesize adversarial examples.
+In this notebook we demonstrate how we can use the {class}`~plenoptic.MADCompetition` class to synthesize adversarial examples. Adversarial examples are tiny perturbations to an image that makes Deep Neural Networks misclasify an image to a different class. In MAD competition, the goal is to generate a pair of images that have the same value for the reference metric but extremal values (highest and lowest) for the optimized metric. While the goal of MAD competition is falsifying metrics/models of human perception, its concept can be readily used to generate adversarial examples. This is achieved by defining a reference metric in pixel space (the value of which we want to be low) an optimized metric in model response space (the value of which we want to be high).
 
 ```python
 import matplotlib.pyplot as plt
@@ -65,12 +65,7 @@ po.set_seed(2)
 
 ## Prepare model and image for synthesis
 
-In this section, we walk through how to initialize a plenoptic-compatible model using the weights from {external+torchvision:ref}`TorchVision <models>`. Then, at the end of this section, we briefly show to do the same with models from {external+timm:doc}`timm <models>`.
-
-To use one of these deep nets in `plenoptic`, we have to specify three things:
-1. The deep net model.
-2. The layer(s) to extract.
-3. The image pre-processing to use.
+In this section, we initialize a plenoptic-compatible model using the weights from {external+torchvision:ref}`TorchVision <models>`. You may be also interested in checking out [](deep_nets) for details of choosing layer and preprocessing of the input image, and using models from {external+timm:doc}`timm <models>`.
 
 ### Initialize deep neural network and pre-trained weights
 
@@ -79,15 +74,35 @@ First, we download the model weights for ResNet50 trained on [ImageNet-1K](https
 ```python
 weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
 deepnet = torchvision.models.resnet50(weights=weights)
+```
+
+Next, we ensure that our model is in evaluation mode. Many models, including ResNet50, behave differently when in training and evaluation mode. In plenoptic, models are fixed and so we want the evaluation behavior (see [here](remove-grad-doc) for more details):
+
+```python
 deepnet.eval()
+```
+
+### Specify preprocessing
+
+
+We create a separate preprocessing transform, using the specified `mean` and `std` to normalize the input image
+
+```python
 transform = weights.transforms()
 norm = torchvision.transforms.Normalize(transform.mean, transform.std)
 ```
 
+### Select layer
+
+Next, we specify the layer to target. Because we want the network to misclassify the image, the most direct way to do this is by choosing final output layer.
+
 ```python
 target_layer = "fc"
-model = po.models.DeepNetFeatures(deepnet, target_layer, norm)
 ```
+
+### Prepare the image
+
+Now, let's prepare the image. The input image needs to be an RGB image with a height and width of 224 pixels. It should probably also be like those found in ImageNet: a single object in the center of the frame that belongs to one of the [image classes](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). We'll use one of the famous [monkey selfies](https://en.wikipedia.org/wiki/Monkey_selfie_copyright_dispute), and resize it appropriately:
 
 ```python
 img = po.data.macaque()
@@ -98,6 +113,15 @@ img = po.process.blur_downsample(img, 2)[..., :-59, :]
 img = po.process.center_crop(img, transform.crop_size[0])
 po.plot.imshow(img, as_rgb=True);
 ```
+
+## Last steps
+Now we create our model by passing the neural network, target layer, and preprocessing transform to plenoptic's {class}`~plenoptic.models.DeepNetFeatures`
+
+```python
+model = po.models.DeepNetFeatures(deepnet, target_layer, norm)
+```
+
+Finally, let's remove the gradient from all model parameters (as models in plenoptic [are fixed](remove-grad-doc)), convert everything to float64, for [reproducibility](float64-doc), and move everything to `DEVICE`:
 
 ```python
 img = img.to(DEVICE).to(torch.float64)
