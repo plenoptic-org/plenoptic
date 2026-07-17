@@ -53,9 +53,6 @@ import torch
 
 import plenoptic as po
 
-%load_ext autoreload
-%autoreload 2
-
 # We need to download some additional images for this notebook.
 IMG_PATH = po.data.fetch_data("portilla_simoncelli_images.tar.gz")
 CACHE_DIR = po.data.fetch_data("ps_regression.tar.gz")
