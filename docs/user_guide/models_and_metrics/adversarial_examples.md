@@ -14,87 +14,102 @@ jupyter:
     name: python3
 ---
 
+:::{admonition} Run this notebook yourself!
+:class: important
+
+Download the executed notebook: **{nb-download}`adversarial_examples.ipynb`**!
+
+Run it in your browser: **{binder}`adversarial_examples.ipynb`**!
+
+:::
+
+(adversarial_examples)=
+# Using MAD to generate adversarial examples
+
+:::{warning}
+This notebook requires the optional dependency `torchvision`, which can be installed with `pip`.
+:::
+
+Adversarial examples are tiny perturbations to an image that makes Deep Neural Networks misclasify an image to a different class. In this notebook we demonstrate how we can use the {class}`~plenoptic.MADCompetition` class to synthesize adversarial examples.
+
 ```python
-import plenoptic as po
-import torch
-import numpy as np
-# needed for the plotting/animating:
 import matplotlib.pyplot as plt
-plt.rcParams['animation.html'] = 'html5'
-# use single-threaded ffmpeg for animation writer
-plt.rcParams['animation.writer'] = 'ffmpeg'
-plt.rcParams['animation.ffmpeg_args'] = ['-threads', '1']
-from torchvision.models.feature_extraction import get_graph_node_names
-import torchvision
-import einops
-import os
-import os
+import numpy as np
+import torch
+
+import plenoptic as po
+
+# this notebook uses torchvision, which is an optional dependency. if this import fails,
+# install torchvision in your plenoptic environment and restart the notebook kernel.
+try:
+    import torchvision
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        "optional dependency torchvision not found!"
+        " please install it in your plenoptic environment "
+        "and restart the notebook kernel"
+    )
+
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+%load_ext autoreload
+%autoreload 2
+
+# so that relative sizes of axes created by po.plot.imshow and others look right
+plt.rcParams["figure.dpi"] = 72
+
+# set seed for reproducibility
+po.set_seed(2)
 ```
 
-```python
-seed = 2
-```
+## Prepare model and image for synthesis
 
-```python
-if seed is not None:
-    po.set_seed(seed)
-```
+In this section, we walk through how to initialize a plenoptic-compatible model using the weights from {external+torchvision:ref}`TorchVision <models>`. Then, at the end of this section, we briefly show to do the same with models from {external+timm:doc}`timm <models>`.
 
-```python
-os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-```
+To use one of these deep nets in `plenoptic`, we have to specify three things:
+1. The deep net model.
+2. The layer(s) to extract.
+3. The image pre-processing to use.
 
-```python
-cpu_or_gpu = 'cpu' # 'cpu' or 0
-```
+### Initialize deep neural network and pre-trained weights
+
+First, we download the model weights for ResNet50 trained on [ImageNet-1K](https://en.wikipedia.org/wiki/ImageNet#ImageNet-1K) and initialize the `torchvision` model.
 
 ```python
 weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
-tv_model = torchvision.models.resnet50(weights=weights).eval()
-tv_transform = weights.transforms()
-norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
+deepnet = torchvision.models.resnet50(weights=weights)
+deepnet.eval()
+transform = weights.transforms()
+norm = torchvision.transforms.Normalize(transform.mean, transform.std)
 ```
 
 ```python
-tv_transform
-```
-
-```python
-norm
-```
-
-```python
-train_nodes, eval_nodes = get_graph_node_names(tv_model)
-```
-
-```python
-eval_nodes[-10:]
-```
-
-```python
-model = po.models.DeepNetFeatures(tv_model, 'fc', norm)
-```
-
-```python
-po.remove_grad(model)
-model.to(cpu_or_gpu).to(torch.float64)
-```
-
-```python
-imagenet_categories = np.asarray(weights.meta['categories'])
+target_layer = "fc"
+model = po.models.DeepNetFeatures(deepnet, target_layer, norm)
 ```
 
 ```python
 img = po.data.macaque()
-print(img.shape)
-img = po.process.blur_downsample(img, 2)[...,:-60,:]
-print(img.shape)
-img = po.process.center_crop(img, tv_transform.crop_size[0])
-img = img.to(cpu_or_gpu).to(torch.float64)
-print(img.shape)
-print(f"Min pixel value: {img.min().item()}, Max pixel value: {img.max().item()}")
-img_label = 'selfie_monkey'
-po.plot.imshow(img, as_rgb=True, title=img_label)
+# here we downsample the original image by a factor of 4 and then lop off the bottom.
+# that way, when we take the central 224 pixels in the following block, we end up with a
+# decent image.
+img = po.process.blur_downsample(img, 2)[..., :-59, :]
+img = po.process.center_crop(img, transform.crop_size[0])
+po.plot.imshow(img, as_rgb=True);
+```
+
+```python
+img = img.to(DEVICE).to(torch.float64)
+model.to(DEVICE).to(torch.float64)
+deepnet.to(DEVICE).to(torch.float64)
+po.remove_grad(model)
+```
+
+## Visualizing classification of the clean image
+
+```python
+imagenet_categories = np.asarray(weights.meta['categories'])
 ```
 
 ```python
@@ -102,7 +117,7 @@ def convert_logits_to_probs(logits):
     return torch.nn.functional.softmax(logits, dim=1).squeeze()
 
 def get_category(image):
-    img_cat = convert_logits_to_probs(tv_model(norm(image))).detach().cpu()
+    img_cat = convert_logits_to_probs(deepnet(norm(image))).detach().cpu()
     category = imagenet_categories[img_cat.argmax()]
     return img_cat, category
 ```
@@ -115,13 +130,7 @@ img_cat, category  = get_category(img)
 po.plot.stem_plot(img_cat)
 ```
 
-```python
-category
-```
-
-```python
-img_cat[img_cat>.1]
-```
+## Define optimized and reference metric
 
 ```python
 logit_distance = lambda x, y: torch.sqrt(torch.sum((model(x)-model(y))**2))
@@ -132,13 +141,15 @@ l2_penalty_x = lambda x, y: torch.pow(convert_logits_to_probs(model(x)), exponen
 metric = lambda x,y: logit_distance(x,y) + penalty_factor*(l2_penalty_y(x,y) - l2_penalty_x(x,y))
 ```
 
+## Synthesize the adversarial image
+
 ```python
 mad = po.MADCompetition(img, metric, lambda x,y: po.metric.mse(x,y).mean(), "max", metric_tradeoff_lambda=1e10)
-mad.setup(initial_noise=0.001,optimizer_kwargs={"lr": 0.01})
+mad.setup(initial_noise=0.001)
 ```
 
 ```python
-mad.synthesize(1000)
+mad.synthesize(50)
 ```
 
 ```python
