@@ -225,7 +225,7 @@ using the argument {attr}`~plenoptic.MADCompetition.penalty_function`. The code
 below shows an example where a custom penalty function is used to to constrain
 the synthesized images to be in the `[0, 255]` range.
 
-For more details, see the [Metamer regularization section](metamer-regularization).
+For more details, see [](how-to-penalty).
 :::
 
 ```{code-cell} ipython3
