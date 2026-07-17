@@ -283,5 +283,3 @@ axes[2].set_title("Lambda too large")
 ## Concluding thoughts
 
 When trying out a new penalty function, you are encouraged to first ensure it complies to best practices, and then try out different values for `penalty_lambda` to find which one allows you to minimize both the penalty *and* the metamer (or MAD Competition) loss.
-
-To see a more complex penalty function in action, see [](visual-diversity-penalty). For a fun example showing how to use {class}`~plenoptic.Metamer` and `penalty_function` to find examples from the [datasaurus dozen](https://en.wikipedia.org/wiki/Datasaurus_dozen), see [](datasaurus-penalty)
