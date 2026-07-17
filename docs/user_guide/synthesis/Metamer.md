@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -61,10 +61,6 @@ plt.rcParams["animation.html"] = "html5"
 # use single-threaded ffmpeg for animation writer
 plt.rcParams["animation.writer"] = "ffmpeg"
 plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
-
-
-%load_ext autoreload
-%autoreload 2
 ```
 
 (metamer-basic-usage)=
