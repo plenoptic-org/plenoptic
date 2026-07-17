@@ -32,7 +32,16 @@ models_and_metrics/*
 models_and_metrics/portilla_simoncelli/ps_index.md
 :::
 
+::::{card}
+:::{toctree}
+:maxdepth: 2
+:caption: Intermediate synthesis
+:glob:
+
+intermediate_synthesis/*
+:::
 ::::
+
 ::::{card}
 
 (reproduce-index)=
