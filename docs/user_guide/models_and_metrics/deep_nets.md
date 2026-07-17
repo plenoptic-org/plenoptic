@@ -113,7 +113,7 @@ feature_extraction.get_graph_node_names(deepnet)[1]
 
 ### Specify preprocessing
 
-Finally, it is important to specify the preprocessing transform of the model. During neural network training, images are transformed before being passed to the network, and the same transformation needs to be applied when using the trained network. As the [torchvision docs](https://docs.pytorch.org/vision/stable/models.html#using-the-pre-trained-models) explain it (quoting version `0.27`):
+Finally, it is important to specify the preprocessing transform of the model. During neural network training, images are transformed before being passed to the network, and the same transformation needs to be applied when using the trained network. As the [torchvision docs](https://docs.pytorch.org/vision/0.27/models.html#using-the-pre-trained-models) explain it (quoting version `0.27`):
 
 > Before using the pre-trained models, one must preprocess the image (resize with right resolution/interpolation, apply inference transforms, rescale the values etc). There is no standard way to do this as it depends on how a given model was trained. It can vary across model families, variants or even weight versions. Using the correct preprocessing method is critical and failing to do so may lead to decreased accuracy or incorrect outputs.
 
@@ -349,4 +349,4 @@ print(f"Target image category: {get_category(met.image)}")
 print(f"Metamer category: {get_category(met.metamer)}")
 ```
 
-In this notebook, we have demonstrated how to use deep neural networks from external models zoos with  {class}`plenoptic.models.DeepNetFeatures`, and shown how to generate metamers for several intermediate layers.
+In this notebook, we have demonstrated how to use deep neural networks from external models zoos with  {class}`plenoptic.models.DeepNetFeatures`, and shown how to generate metamers for an intermediate layer.
