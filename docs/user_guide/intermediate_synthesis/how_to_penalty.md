@@ -4,9 +4,9 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.3
+    jupytext_version: 1.17.2
 kernelspec:
-  display_name: plenoptic
+  display_name: Python 3 (ipykernel)
   language: python
   name: python3
 ---
@@ -95,16 +95,16 @@ By looking at the histogram (and the "range" section in the title of the images 
 All penalty functions in plenoptic must be callables that take the synthesized image as input and return some scalar penalty. We can write a custom penalty that makes use of the {func}`~plenoptic.regularize.penalize_range` function to penalize pixel values that fall outside some narrower range instead:
 
 ```{code-cell} ipython3
-# Create custom_penalty function, that penalizes pixels outside of [0.3, 0.7] range
+# Create custom_penalty function, that penalizes pixels outside of [0.1, 0.9] range
 def custom_penalty(image):
-    penalty = po.regularize.penalize_range(image, allowed_range=(0.3, 0.7))
+    penalty = po.regularize.penalize_range(image, allowed_range=(0.1, 0.9))
     return penalty
 ```
 
-In the following, we can see that our `custom_penalty` accepts a single tensor and returns a scalar, quadratic penalty on any values it contains outside of 0.3 to 0.7:
+In the following, we can see that our `custom_penalty` accepts a single tensor and returns a scalar, quadratic penalty on any values it contains outside of 0.1 to 0.9:
 
 ```{code-cell} ipython3
-print(f"All ones -- high penalty: {custom_penalty(torch.ones(10))}")
+print(f"All twos -- high penalty: {custom_penalty(2 * torch.ones(10))}")
 print(f"All 0.5 -- no penalty: {custom_penalty(0.5 * torch.ones(10))}")
 print(f"Random between 0 and 1 -- medium penalty: {custom_penalty(torch.rand(10))}")
 ```
@@ -113,12 +113,12 @@ Now we can pass this `custom_penalty` to the {class}`~plenoptic.Metamer` class a
 
 ```{code-cell} ipython3
 met = po.Metamer(img, model, penalty_function=custom_penalty)
-met.synthesize(MAX_ITER, store_progress=1e-16)
+met.synthesize(MAX_ITER, stop_criterion=1e-16)
 
 create_metamer_figure(met)
 ```
 
-The figure above has the same structure as earlier, and we can see that the new metamer's pixel values all fall within this narrower range of $[0.3, 0.7]$. By looking at the second row, we can see that this image is still a metamer: the representation still looks identical to that of the target image.
+The figure above has the same structure as earlier, and we can see that the new metamer's pixel values all fall within this narrower range of $[0.1, 0.9]$. By looking at the second row, we can see that this image is still a metamer: the representation still looks identical to that of the target image.
 
 ## Best practices
 
@@ -130,11 +130,11 @@ Furthermore, it is generally convenient to have this minimum value be zero.
 
 If the conditions above are violated, then the penalty can overwhelm the loss in the objective function, preventing a metamer (or MAD image) from being found.
 
-To see why, let's say that we wanted to encourage all pixel values to lie *outside* the range $[0.3, 0.7]$. That is, we want to maximize the value from `custom_penalty` above. The standard way to maximize a function in optimization frameworks is to minimize its negative value, so we can return the negative of the output from {func}`~plenoptic.regularize.penalize_range` instead:
+To see why, let's say that we wanted to encourage all pixel values to lie *outside* the range $[0.4, 0.6]$. That is, we want to maximize the value from {func}`~po.regularize.penalize_range(image, allowed_range=(0.4, 0.6))` above. The standard way to maximize a function in optimization frameworks is to minimize its negative value, so we can return the negative of the output from {func}`~plenoptic.regularize.penalize_range` instead:
 
 ```{code-cell} ipython3
 def custom_penalty(image):
-    penalty = po.regularize.penalize_range(image, allowed_range=(0.3, 0.7))
+    penalty = po.regularize.penalize_range(image, allowed_range=(0.4, 0.6))
     return -penalty
 
 
@@ -148,7 +148,7 @@ We are trying to minimize the value of `custom_penalty`. Thus, a large negative 
 
 ```{code-cell} ipython3
 met = po.Metamer(img, model, penalty_function=custom_penalty)
-met.synthesize(MAX_ITER, store_progress=1e-16)
+met.synthesize(MAX_ITER, stop_criterion=1e-16)
 
 create_metamer_figure(met)
 ```
@@ -163,48 +163,49 @@ ax = po.plot.synthesis_loss(met, plot_penalties=True)
 ax["loss"].set_yscale("symlog")
 ```
 
-The penalty value is a large negative value and still going lower, whereas our loss has stalled. Since our optimization problem is minimizing the weighted sum of these two numbers, and loss is bounded below by 0, the penalty has become much more important to the optimization problem.
+The penalty value is a large negative value and still going lower, whereas our loss has actually increased. Since our optimization problem is minimizing the weighted sum of these two numbers, and loss is bounded below by 0, the penalty has become much more important to the optimization problem, and it can effectively ignore the metamer loss.
 
 In situations like this, the solution is to apply some function to the penalty so that its range is remapped from $(-\infty, 0]$ to $[0, \infty)$ (or $[0, x]$, for some finite $x$). Fortunately, the [exponential function](https://en.wikipedia.org/wiki/Exponential_function) will do this for us, remapping $(-\infty, 0]$ to $[0, 1]$:
 
 ```{code-cell} ipython3
 def custom_penalty(image):
-    penalty = po.regularize.penalize_range(image, allowed_range=(0.3, 0.7))
+    penalty = po.regularize.penalize_range(image, allowed_range=(0.4, 0.6))
     return torch.exp(-penalty)
 ```
 
 There's one addition subtlety here: if `penalty` in our function definition above gets too large, `torch.exp` becomes effectively zero and so the penalty has no effect:
 
 ```{code-cell} ipython3
-penalty = po.regularize.penalize_range(torch.rand_like(img), allowed_range=(0.3, 0.7))
-print(penalty, torch.exp(-penalty))
+penalty = po.regularize.penalize_range(torch.rand_like(img), allowed_range=(0.4, 0.6))
+print(penalty.item())
+print(torch.exp(-penalty).item())
 ```
 
 To avoid this, let's approximately rescale the input to `torch.exp` so that it never gets too large:
 
 ```{code-cell} ipython3
 def custom_penalty(image):
-    penalty = po.regularize.penalize_range(image, allowed_range=(0.3, 0.7))
+    penalty = po.regularize.penalize_range(image, allowed_range=(0.4, 0.6))
     return torch.exp(-penalty / 1000)
 ```
 
 With this modification, our custom penalty returns more reasonable values for the types of inputs it is likely to see:
 
 ```{code-cell} ipython3
-print(custom_penalty(img))
-print(custom_penalty(torch.rand_like(img)))
+print(custom_penalty(img).item())
+print(custom_penalty(torch.rand_like(img)).item())
 ```
 
 One final modification: when synthesizing images, it is generally desirable for all pixel values to lie within $[0, 1]$, so they can be displayed (which is why this is plenoptic's default behavior). To ensure that, let's modify our penalty one last time, summing together the two penalties before returning them.
 
 ```{code-cell} ipython3
 def custom_penalty(image):
-    outside_penalty = po.regularize.penalize_range(image, allowed_range=(0.3, 0.7))
+    outside_penalty = po.regularize.penalize_range(image, allowed_range=(0.4, 0.6))
     inside_penalty = po.regularize.penalize_range(image, allowed_range=(0, 1))
     return torch.exp(-outside_penalty / 1000) + inside_penalty
 ```
 
-Now we can see that we get a zero value when the input satisfies both of our constraints above (that is, all pixel values lie within either $[0, 0.3]$ or $[0.7, 1]$) and gradually increases otherwise:
+Now we can see that we get a zero value when the input satisfies both of our constraints above (that is, all pixel values lie within either $[0, 0.4]$ or $[0.6, 1]$) and gradually increases otherwise:
 
 ```{code-cell} ipython3
 print(f"All ones -- low penalty: {custom_penalty(torch.ones_like(img))}")
@@ -219,14 +220,14 @@ Now let's use the function for metamer synthesis:
 
 ```{code-cell} ipython3
 met = po.Metamer(img, model, penalty_function=custom_penalty)
-met.synthesize(MAX_ITER, store_progress=1e-16)
+met.synthesize(MAX_ITER, stop_criterion=1e-16)
 
 create_metamer_figure(met)
 ```
 
-And now we can see that the model metamer pixel values all lie outside the range $[0.3, 0.7]$ and within $[0, 1]$.
+And now we can see that the model metamer pixel values mostly lie outside the range $[0.4, 0.6]$ and within $[0, 1]$.
 
-However, if you look at the metamer representation image on the second row, you can see that it is not identical to the target representation just next to it. We'll address that in the next section.
+However, if you look at the metamer representation image on the second row, you can see that it is not identical to the target representation just next to it (there are faint circles scattered across the image) -- that is, we've failed to find a metamer. We'll address that in the next section.
 
 ## How to choose lambda
 
@@ -234,43 +235,43 @@ In the previous example, we synthesized an image that satisfied the penalty func
 
 In order to increase the relative importance of the metamer loss (over the penalty) in the objective function, we can use the {attr}`~plenoptic.Metamer.penalty_lambda` argument at initialization. This argument operates similarly to {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` from {class}`~plenoptic.MADCompetition`, and allows us to control the balance of these components in the objective function.
 
-This value defaults to 0.1. Let's try reducing it by an order of magnitude:
+This value defaults to 0.1, which you can see by looking at the docstring. Let's try decreasing it:
 
 ```{code-cell} ipython3
-met = po.Metamer(img, model, penalty_function=custom_penalty, penalty_lambda=0.01)
-met.synthesize(MAX_ITER, store_progress=1e-16)
+met = po.Metamer(img, model, penalty_function=custom_penalty, penalty_lambda=0.025)
+met.synthesize(MAX_ITER, stop_criterion=1e-16)
 
 create_metamer_figure(met)
 ```
 
-In the above plots, we can see that the metamer is of good quality (the two bottom images match), and that we have also managed to satisfy the constraints from our penalty (all pixel values lie outside the range $[0.3, 0.7]$ and within $[0, 1]$.)
+In the above plots, we can see that the metamer is of good quality (the two bottom images match), and that we have mostly managed to satisfy the constraints from our penalty (most pixel values lie outside the range $[0.4, 0.6]$ and within $[0, 1]$.)
 
-If we had continued to decrease this value, eventually we'd reach a point where the penalty was having no effect at all:
+If we continued to decrease `penalty_lambda`, eventually we'd reach a point where the penalty was having no effect at all:
 
 ```{code-cell} ipython3
 met_small = po.Metamer(img, model, penalty_function=custom_penalty, penalty_lambda=1e-6)
-met_small.synthesize(MAX_ITER, store_progress=1e-16)
+met_small.synthesize(MAX_ITER, stop_criterion=1e-16)
 
 create_metamer_figure(met_small)
 ```
 
-While we have a good metamer, we can see that many pixel values in our metamer lie between 0.3 and 0.7.
+While we have a good metamer, we can see that many pixel values in our metamer lie between 0.4 and 0.6.
 
 Conversely, for a very large lambda, the objective function will focus exclusively on minimizing the penalty, ignoring the metamer loss entirely:
 
 ```{code-cell} ipython3
 met_large = po.Metamer(img, model, penalty_function=custom_penalty, penalty_lambda=1e6)
-met_large.synthesize(MAX_ITER, store_progress=1e-16)
+met_large.synthesize(MAX_ITER, stop_criterion=1e-16)
 
 create_metamer_figure(met_large)
 ```
 
-While we have satisfied our constraint (all pixel values lie within $[0, 0.3]$ or $[0.7, 1]$), we have not successfully found a model metamer.
+While we have satisfied our constraint (all pixel values lie within $[0, 0.4]$ or $[0.6, 1]$), we have not successfully found a model metamer.
 
-In all cases, the actual penalty values lie within approximately the same range, but their contribution to the overall objective function has been scaled:
+In all cases, the actual penalty values start at approximately the same value. Because of their relative importance in the objective function, their final value will vary: the larger lambda is, the lower the penalty will become, but at the potential cost of the loss remaining high.
 
 ```{code-cell} ipython3
-fig, axes = plt.subplots(1, 3, figsize=(6, 3))
+fig, axes = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
 po.plot.synthesis_loss(met, plot_penalties=True, ax=axes[0])
 axes[0].set_title("Lambda just right")
 po.plot.synthesis_loss(met_small, plot_penalties=True, ax=axes[1])
