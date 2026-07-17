@@ -130,7 +130,7 @@ Furthermore, it is generally convenient to have this minimum value be zero.
 
 If the conditions above are violated, then the penalty can overwhelm the loss in the objective function, preventing a metamer (or MAD image) from being found.
 
-To see why, let's say that we wanted to encourage all pixel values to lie *outside* the range $[0.4, 0.6]$. That is, we want to maximize the value from {func}`~po.regularize.penalize_range(image, allowed_range=(0.4, 0.6))` above. The standard way to maximize a function in optimization frameworks is to minimize its negative value, so we can return the negative of the output from {func}`~plenoptic.regularize.penalize_range` instead:
+To see why, let's say that we wanted to encourage all pixel values to lie *outside* the range $[0.4, 0.6]$. That is, we want to maximize the value from `po.regularize.penalize_range(image, allowed_range=(0.4, 0.6))`. The standard way to maximize a function in optimization frameworks is to minimize its negative value, so we can return the negative of the output from {func}`~plenoptic.regularize.penalize_range` instead:
 
 ```{code-cell} ipython3
 def custom_penalty(image):
