@@ -164,13 +164,13 @@ met.synthesize(max_iter=12000, stop_iters_to_check=12000)
 ```
 :::
 
-Note that the synthesis procedure we used differs somewhat with that of {cite:alp}`Feather2023-model-metam`. The following table summarizes these differences:
+Note that the synthesis procedure we used differs somewhat with that of {cite:alp}`Feather2023-model-metam`. Our goal was to reproduce the ResNet50 metamers shown in the paper, not their exact procedure. Furthermore, we erred on the side of simplicity and so preferred plenoptic's defaults where possible. The following table summarizes these differences:
 
-|                      | Our example                                 | Feather et al., 2023                                                       |
-|----------------------|---------------------------------------------|----------------------------------------------------------------------------|
-| Loss function        | Mean-squared error                          | Euclidean distance, normalized by L2-norm of target representation         |
-| Initial image        | Uniformly-distributed noise between 0 and 1 | Normally-distributed noise with mean of 0.5 and standard deviation of 0.05 |
-| Number of iterations | 12,000                                      | 24,000                                                                     |
+|                      | Our example                                                     | Feather et al., 2023                                                       |
+|----------------------|-----------------------------------------------------------------|----------------------------------------------------------------------------|
+| Loss function        | Mean-squared error (plenoptic default)                          | Euclidean distance, normalized by L2-norm of target representation         |
+| Initial image        | Uniformly-distributed noise between 0 and 1 (plenoptic default) | Normally-distributed noise with mean of 0.5 and standard deviation of 0.05 |
+| Number of iterations | 12,000                                                          | 24,000                                                                     |
 
 Like the paper, we do find better results when we use a learning-rate scheduler to halve the optimizer's learning rate regularly, using {class}`~torch.optim.lr_scheduler.StepLR`, as described in the dropdown above.
 

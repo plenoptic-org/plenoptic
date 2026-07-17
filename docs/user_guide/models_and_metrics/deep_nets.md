@@ -38,8 +38,9 @@ import torch
 
 import plenoptic as po
 
-# this notebook uses torchvision, which is an optional dependency. if this import fails,
-# install torchvision in your plenoptic environment and restart the notebook kernel.
+# this notebook uses torchvision, which is an optional dependency.
+# if this import fails, install torchvision in your plenoptic
+# environment and restart the notebook kernel.
 try:
     import torchvision
 except ModuleNotFoundError:
