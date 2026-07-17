@@ -87,10 +87,10 @@ repos:
       pass_filenames: false
     - id: check-inline
       language: python
-      name: Check for matplotlib inline directive in md notebooks
+      name: Check for ipython magic functions in md notebooks
       types_or: ["markdown"]
       files: ^docs/
-      entry: linting/check_mpl_inline.py
+      entry: linting/check_magic_functions.py
     - id: check-semicolons
       language: python
       name: Fix semicolons after plotting functions

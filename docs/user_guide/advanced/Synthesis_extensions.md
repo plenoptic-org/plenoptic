@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -50,9 +50,6 @@ import plenoptic as po
 
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
-
-%load_ext autoreload
-%autoreload 2
 ```
 
 ```{code-cell} ipython3
