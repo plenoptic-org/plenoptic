@@ -37,11 +37,6 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
-# Animation-related settings
-plt.rcParams["animation.html"] = "html5"
-# use single-threaded ffmpeg for animation writer
-plt.rcParams["animation.writer"] = "ffmpeg"
-plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 
 # On a cpu, we won't run this to completion (takes too long). If you would like to run
 # it to completion on a local CPU-only device, increase the value from 100 below
