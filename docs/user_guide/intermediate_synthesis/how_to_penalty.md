@@ -23,7 +23,7 @@ Run it in your browser: **{binder}`how_to_penalty.ipynb`**!
 (how-to-penalty)=
 # How to use custom penalty functions
 
-Plenoptic's {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` objects allow users to specify a `penalty_function` at initialization. This penalty function is multiplied by `penalty_lambda` (also set at initialization) and added to the objective function of the object.
+Plenoptic's {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` objects allow users to specify a {attr}`~plenoptic.Metamer.penalty_function` at initialization. This penalty function is multiplied by {attr}`~plenoptic.Metamer.penalty_lambda` (also set at initialization) and added to the objective function of the object.
 
 The default penalty function is {func}`~plenoptic.regularize.penalize_range`, which places a quadratic penalty on any pixel values outside of the range $[0, 1]$. In this notebook, we'll show how to change this penalty to use a different range of allowed values, and in so doing, talk about some general principles for using custom penalty functions.
 
@@ -43,7 +43,9 @@ plt.rcParams["animation.html"] = "html5"
 plt.rcParams["animation.writer"] = "ffmpeg"
 plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 
-MAX_ITER = 4000
+# On a cpu, we won't run this to completion (takes too long). If you would like to run
+# it to completion on a local CPU-only device, increase the value from 100 below
+MAX_ITER = 100 if DEVICE.type == "cpu" else 4000
 ```
 
 ## Prepare model and image for synthesis
@@ -109,7 +111,7 @@ print(f"All 0.5 -- no penalty: {custom_penalty(0.5 * torch.ones(10))}")
 print(f"Random between 0 and 1 -- medium penalty: {custom_penalty(torch.rand(10))}")
 ```
 
-Now we can pass this `custom_penalty` to the {class}`~plenoptic.Metamer` class at initialization and call the `synthesize` method in the same manner as before:
+Now we can pass this `custom_penalty` to the {class}`~plenoptic.Metamer` class at initialization and call the {meth}`~plenoptic.Metamer.synthesize` method in the same manner as before:
 
 ```{code-cell} ipython3
 met = po.Metamer(img, model, penalty_function=custom_penalty)
@@ -246,7 +248,7 @@ create_metamer_figure(met)
 
 In the above plots, we can see that the metamer is of good quality (the two bottom images match), and that we have mostly managed to satisfy the constraints from our penalty (most pixel values lie outside the range $[0.4, 0.6]$ and within $[0, 1]$.)
 
-If we continued to decrease `penalty_lambda`, eventually we'd reach a point where the penalty was having no effect at all:
+If we continued to decrease {attr}`~plenoptic.Metamer.penalty_lambda`, eventually we'd reach a point where the penalty was having no effect at all:
 
 ```{code-cell} ipython3
 met_small = po.Metamer(img, model, penalty_function=custom_penalty, penalty_lambda=1e-6)
@@ -282,4 +284,4 @@ axes[2].set_title("Lambda too large")
 
 ## Concluding thoughts
 
-When trying out a new penalty function, you are encouraged to first ensure it complies to best practices, and then try out different values for `penalty_lambda` to find which one allows you to minimize both the penalty *and* the metamer (or MAD Competition) loss.
+When trying out a new penalty function, you are encouraged to first ensure it complies to best practices, and then try out different values for {attr}`~plenoptic.Metamer.penalty_lambda` to find which one allows you to minimize both the penalty *and* the metamer (or MAD Competition) loss.
