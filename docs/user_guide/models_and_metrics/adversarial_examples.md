@@ -167,33 +167,7 @@ reference_metric = lambda x,y: po.metric.mse(x,y).mean() #.mean() averages acros
 For the optimized metric, we use the MSE of output logits in the last layer of the network.
 
 ```python
-logit_mse = lambda x, y: po.metric.mse(model(x),model(y))
-```
-
-To encourage "one-hot" behaviour (model being highly confident in the class it chooses), we add an additional "penalty" term to the metric. It computes the sum of MAD image category probabilities raised to the power of 10. Note that in MAD competition, for a metric (x, y), x is the original image, y is the MAD image.
-
-```python
-exponent = 10
-penalty_y = lambda y: torch.pow(convert_logits_to_probs(model(y)), exponent).sum()
-```
-
-To illustrate why this penalty term will encourage one-hot behaviour, we consider two probability vectors, one one-hot vector and another with random probabilities. We see the one-hot vector has higher value than the random vector.
-
-```python
-one_hot_vec = torch.zeros(1000)
-one_hot_vec[200] = 1 # set the 200th element to 1 to create a one-hot vector
-print(f"The penalty value for the one hot vector is {torch.pow(one_hot_vec, exponent).sum()}")
-random_vec = torch.rand(1000)
-random_vec = random_vec/random_vec.sum() # normalizing probabilities
-print(f"The penalty value for the random vector is {torch.pow(random_vec, exponent).sum()}")
-```
-
-We can scale the strength of the penalty through `penalty_one_hot_lambda`. In Plenoptic, a metric needs to satisfy the requirement of returning 0 for two identical inputs. To meet this requirement, we add `penalty_x`, which is the penalty calculated on the original image category probabilities, a fixed number in the optimization. Putting everything together, we finally have the optimized metric.
-
-```python
-penalty_one_hot_lambda = 0.1
-penalty_x = lambda x: torch.pow(convert_logits_to_probs(model(x)), exponent).sum()
-optimized_metric = lambda x,y: logit_mse(x,y) + penalty_one_hot_lambda*(penalty_y(y) - penalty_x(x))
+optimized_metric = lambda x, y: po.metric.mse(model(x),model(y))
 ```
 
 ## Synthesize the adversarial image
@@ -207,7 +181,7 @@ mad = po.MADCompetition(img, optimized_metric, reference_metric, "max", metric_t
 We set the initial noise to be a small value so the initial image is closer to the solution that we want: an image with close pixel values as the original but produces large changes in the representation
 
 ```python
-mad.setup(initial_noise=0.001)
+mad.setup(initial_noise=0.001, optimizer_kwargs={"lr": 0.001})
 ```
 
 Running the synthesis generates an image that looks just like the original image but we see the optimized metric loss has increased significantly. Even though the reference metric loss measured in pixel space has also increased a little bit, it is not nearly as big as the change in the representation space.
@@ -238,7 +212,7 @@ channelwise_diffs = [mad.initial_image-img, mad.mad_image-img]
 po.plot.imshow(channelwise_diffs, col_wrap=3);
 ```
 
-Finally let us visualize the category probabilities of the original, initial, and advesarial images using stem plots. In addition to the most likely category, we also show any category that has probability higher than 0.05. We see that the network thinks the synthesized image contains a cheeseburger with almost 100% certainty!
+Finally let us visualize the category probabilities of the original, initial, and advesarial images using stem plots. In addition to the most likely category, we also show any category that has probability higher than 0.05. We see that the network thinks the synthesized image is a burrito with almost 100% certainty!
 
 ```python
 fig, axes = plt.subplots(3, 2, figsize=(12, 20))
