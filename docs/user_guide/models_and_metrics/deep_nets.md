@@ -229,7 +229,7 @@ def get_category(image):
     return imagenet_categories[image_cat.argmax()]
 
 
-print(get_category(img))
+print(f"ResNet50 predicted class: {get_category(img)}")
 ```
 
 :::{admonition} How to do this with `timm`?
