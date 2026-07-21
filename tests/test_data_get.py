@@ -32,6 +32,7 @@ def test_data_module(item_name):
         ("curie", (1, 1, 256, 256)),
         ("einstein", (1, 1, 256, 256)),
         ("reptile_skin", (1, 1, 256, 256)),
+        ("macaque", (1, 3, 1500, 1085)),
     ],
 )
 def test_data_get_shape(item_name, img_shape):

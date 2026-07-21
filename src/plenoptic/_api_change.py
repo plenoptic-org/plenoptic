@@ -191,6 +191,8 @@ NEW = [
     "plenoptic.validate.validate_penalty",
     "plenoptic.plot.histogram",
     "plenoptic.io.LoadWarning",
+    "plenoptic.data.macaque",
+    "plenoptic.models.DeepNetFeatures",
 ]
 
 UNCHANGED = [

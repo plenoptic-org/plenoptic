@@ -8,8 +8,10 @@ __all__ = [
     "Gaussian",
     "CenterSurround",
     "PortillaSimoncelli",
+    "DeepNetFeatures",
 ]
 
+from .feature_extractor import DeepNetFeatures
 from .frontend import (
     LinearNonlinear,
     LuminanceContrastGainControl,

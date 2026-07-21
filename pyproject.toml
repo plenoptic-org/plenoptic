@@ -50,6 +50,7 @@ docs = [
      "myst-nb",
      "ipywidgets",
      "torchvision",
+     "timm",
      "jupytext",
      "sphobjinv",
      "sphinx-togglebutton",
@@ -62,6 +63,7 @@ test = [
     'pytest-xdist',
     'pytest-order',
     "torchvision",
+    "timm",
 ]
 
 lint = [
