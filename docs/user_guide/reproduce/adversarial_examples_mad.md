@@ -17,9 +17,9 @@ jupyter:
 :::{admonition} Run this notebook yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`adversarial_examples.ipynb`**!
+Download the executed notebook: **{nb-download}`adversarial_examples_mad.ipynb`**!
 
-Run it in your browser: **{binder}`adversarial_examples.ipynb`**!
+Run it in your browser: **{binder}`adversarial_examples_mad.ipynb`**!
 
 :::
 
