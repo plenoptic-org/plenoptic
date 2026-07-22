@@ -9,7 +9,7 @@ jupyter:
       format_version: '1.3'
       jupytext_version: 1.19.3
   kernelspec:
-    display_name: plenoptic (3.13.12.final.0)
+    display_name: plenoptic (3.13.12)
     language: python
     name: python3
 ---
@@ -24,7 +24,7 @@ Run it in your browser: **{binder}`adversarial_examples.ipynb`**!
 :::
 
 (adversarial_examples)=
-# Using MAD to generate adversarial examples
+# Generate adversarial examples using MAD Competition
 
 :::{warning}
 This notebook requires the optional dependency `torchvision`, which can be installed with `pip`.
