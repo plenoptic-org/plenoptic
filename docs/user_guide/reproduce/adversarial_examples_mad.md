@@ -1,19 +1,17 @@
 ---
-jupyter:
-  jupytext:
-    custom_cell_magics: kql
-    formats: ipynb,md
-    text_representation:
-      extension: .md
-      format_name: markdown
-      format_version: '1.3'
-      jupytext_version: 1.19.3
-  kernelspec:
-    display_name: plenoptic (3.13.12)
-    language: python
-    name: python3
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.19.3
+kernelspec:
+  display_name: plenoptic (3.13.12)
+  language: python
+  name: python3
 ---
 
+<!-- #region -->
 :::{admonition} Run this notebook yourself!
 :class: important
 
@@ -236,3 +234,4 @@ for i, img in enumerate([mad.image, mad.initial_image, mad.mad_image]):
 ```
 
 This notebook demonstrates how to generate adversarial examples using the {class}`~plenoptic.MADCompetition` class. We encourage you to experiment with different images and hyperparameters to generate other adversarial examples yourself!
+<!-- #endregion -->
