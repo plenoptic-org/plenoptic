@@ -30,7 +30,7 @@ Run it in your browser: **{binder}`adversarial_examples.ipynb`**!
 This notebook requires the optional dependency `torchvision`, which can be installed with `pip`.
 :::
 
-In this notebook we demonstrate how we can use the {class}`~plenoptic.MADCompetition` class to synthesize adversarial examples. Adversarial examples are tiny perturbations to an image that causes Deep Neural Networks to misclasify ([Goodfellow et al., 2015](https://arxiv.org/abs/1412.6572)). In MAD competition, we falsify metrics/models of human perception by generating a pair of images that have the same value for the reference metric but extremal values (highest and lowest) for the optimized metric. While these seem like distant concepts, the underlying machinery of {class}`~plenoptic.MADCompetition` can be readily used to generate adversarial examples. This is achieved by defining a reference metric in pixel space (the value of which we want to be low) an optimized metric in model representation space (the value of which we want to be high).
+In this notebook we demonstrate how we can use the {class}`~plenoptic.MADCompetition` class to synthesize adversarial examples. Adversarial examples are tiny perturbations to an image that causes Deep Neural Networks to misclasify ([Goodfellow et al., 2015](https://arxiv.org/abs/1412.6572)). MAD competition is used to falsify metrics/models of human perception by generating a pair of images that have the same value for the reference metric but extremal values (highest and lowest) for the optimized metric and testing human sensitivity to this pair of images. In this notebook we demonstrate a different use of the {class}`~plenoptic.MADCompetition` class and show how its underlying machinery can be readily used to generate adversarial examples of Deep Neural Networks. At a high level, this is achieved by defining a reference metric in pixel space (the value of which we want to be low) an optimized metric in model representation space (the value of which we want to be high).
 
 ```python
 import matplotlib.pyplot as plt
@@ -65,7 +65,7 @@ po.set_seed(0)
 
 ## Prepare model and image for synthesis
 
-In this section, we initialize a plenoptic-compatible model using the weights from {external+torchvision:ref}`TorchVision <models>`. You may be also interested in checking out [](deep_nets) for details of choosing layer and preprocessing of the input image, and using models from {external+timm:doc}`timm <models>`.
+In this section, we initialize a plenoptic-compatible model using the weights from {external+torchvision:ref}`TorchVision <models>`. We use the standard ImageNet-trained ResNet50 as our network to attack. You may be also interested in checking out [](deep_nets) for details of choosing layer and preprocessing of the input image, and using models from {external+timm:doc}`timm <models>`.
 
 ### Initialize deep neural network and pre-trained weights
 
@@ -158,7 +158,7 @@ po.plot.stem_plot(category_probs, title=category);
 
 ## Define optimized and reference metric
 
-To qualify as an adversarial example, the image must satisfy two requirements: (1) the perturbation in image space is small and (2) the model outputting an incorrect classification with high confidence ([Goodfellow et al., 2015](https://arxiv.org/abs/1412.6572)). Conveniently, we already have these two ingredients built into the MAD competition framework. More concretely, if we define the reference metric in pixel space and ask it to not change or minimally change, and define the optimized metric in representation space, which we make as far away from the original as possible, we would be able to meet the two requirements and accomplish our goal. For the reference metric, we use the the simple mean-squared-error (MSE).
+To qualify as an adversarial example, the image must satisfy two requirements: (1) the perturbation in image space is small and (2) the model outputting an incorrect classification with high confidence ([Goodfellow et al., 2015](https://arxiv.org/abs/1412.6572)). Conveniently, we already have these two ingredients built into the MAD competition framework. More concretely, if we define the reference metric in pixel space and ask it to not change or minimally change, and define the optimized metric in representation space, in which we make the image representation as far away from the original as possible, we would be able to meet the two requirements and accomplish our goal. For the reference metric, we use the the simple mean-squared-error (MSE).
 
 ```python
 reference_metric = lambda x,y: po.metric.mse(x,y).mean() #.mean() averages across the RGB channels
@@ -172,7 +172,7 @@ optimized_metric = lambda x, y: po.metric.mse(model(x),model(y))
 
 ## Synthesize the adversarial image
 
-We want to maximize {attr}`~plenoptic.MADCompetition.optimized_metric` while holding {attr}`~plenoptic.MADCompetition.reference_metric` fixed. {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` controls the relative weight of {attr}`~plenoptic.MADCompetition.optimized_metric_loss` and {attr}`~plenoptic.MADCompetition.reference_metric_loss` in the objective function. We found a {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` value of 1e10 generally produced good adversarial examples for the monkey image.
+We want to maximize {attr}`~plenoptic.MADCompetition.optimized_metric` while holding {attr}`~plenoptic.MADCompetition.reference_metric` fixed. Therefore we set {attr}`~plenoptic.MADCompetition.minmax` to "max". {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` controls the relative weight of {attr}`~plenoptic.MADCompetition.optimized_metric_loss` and {attr}`~plenoptic.MADCompetition.reference_metric_loss` in the objective function. We found a {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` value of 1e10 generally produced good adversarial examples for the monkey image.
 
 ```python
 mad = po.MADCompetition(img, optimized_metric, reference_metric, "max", metric_tradeoff_lambda=1e10)
@@ -185,7 +185,7 @@ We conducted a hyperparameter search and found increasing {attr}`~plenoptic.MADC
 
 :::
 
-We set the initial noise to be a small value so the initial image is closer to the solution that we want: an image similar in pixel values as the original but produces large changes in the representation. We also set a custom learning rate value of 0.001 even though you should generally obtain good results with higher or lower learning rates provided the synthesis runs for long enough.
+We set the initial noise to be a small value so the initial image is closer to the solution that we want: an image with small deviations in the pixel values from the original but produces large changes in the representation. We also set a custom learning rate value of 0.001 even though you should generally obtain good results with higher or lower learning rates provided the synthesis runs for long enough.
 
 ```python
 mad.setup(initial_noise=0.001, optimizer_kwargs={"lr": 0.001})
@@ -200,7 +200,7 @@ po.plot.synthesis_status(mad);
 
 ## Visualizing the adversarial image
 
-Let us compare how the synthesized image compares to the original and initial images. In the bottow row the original image is subtracted to visualize the changes in pixels. There is no change in the left image. In the middle image we see some barely visible noise. In the last image we see a low amount of pixel noise.
+Let us compare how the synthesized image compares to the original and initial images. In the bottow row the original image is subtracted to visualize the changes in pixels. There is no change in the left image. In the middle image we see some hardly noticeable noise. In the last image we see a low amount of pixel noise.
 
 ```python
 imgs = [img, mad.initial_image, mad.mad_image]
@@ -219,7 +219,7 @@ channelwise_diffs = [mad.initial_image-img, mad.mad_image-img]
 po.plot.imshow(channelwise_diffs, col_wrap=3);
 ```
 
-Finally let us visualize the category probabilities of the original, initial, and advesarial images using stem plots. We see that the network thinks the synthesized image is a burrito with almost 100% certainty!
+Finally let us visualize the category probabilities of the original, initial, and advesarial images using stem plots. We see that the network thinks the synthesized image is a burrito with almost 100% certainty! We have successfully generated an adversarial example of the network.
 
 ```python
 fig, axes = plt.subplots(3, 2, figsize=(10, 20))
