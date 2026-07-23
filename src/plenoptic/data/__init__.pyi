@@ -9,8 +9,9 @@ __all__ = [
     "polar_radius",
     "polar_angle",
     "disk",
+    "macaque",
 ]
 
 from ._fetch import DOWNLOADABLE_FILES, fetch_data
-from .images import color_wheel, curie, einstein, parrot, reptile_skin
+from .images import color_wheel, curie, einstein, macaque, parrot, reptile_skin
 from .synthetic_images import disk, polar_angle, polar_radius

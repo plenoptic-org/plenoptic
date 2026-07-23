@@ -61,7 +61,7 @@ for p in paths:
                 cell["source"][-1] = cell["source"][-1][:-1]
                 updated_file = True
                 updated_any_file = True
-            # add semicolon from plotting functions
+            # add semicolon to plotting functions
             elif not is_animate and not last_expr.endswith(";"):
                 cell["source"][-1] += ";"
                 updated_file = True

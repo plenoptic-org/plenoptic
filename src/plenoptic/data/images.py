@@ -14,6 +14,7 @@ __all__ = [
     "parrot",
     "reptile_skin",
     "color_wheel",
+    "macaque",
 ]
 
 
@@ -38,6 +39,7 @@ def einstein(as_gray: bool = True) -> torch.Tensor:
     Examples
     --------
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> einstein = po.data.einstein()
@@ -71,6 +73,7 @@ def curie(as_gray: bool = True) -> torch.Tensor:
     Examples
     --------
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> curie = po.data.curie()
@@ -104,6 +107,7 @@ def parrot(as_gray: bool = True) -> torch.Tensor:
     Examples
     --------
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> parrot = po.data.parrot()
@@ -137,6 +141,7 @@ def reptile_skin(as_gray: bool = True) -> torch.Tensor:
     Examples
     --------
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> reptile_skin = po.data.reptile_skin()
@@ -170,6 +175,7 @@ def color_wheel(as_gray: bool = False) -> torch.Tensor:
     Examples
     --------
     .. plot::
+      :context: reset
 
       >>> import plenoptic as po
       >>> color_wheel = po.data.color_wheel()
@@ -179,6 +185,7 @@ def color_wheel(as_gray: bool = False) -> torch.Tensor:
       <PyrFigure size ...>
 
     .. plot::
+      :context: close-figs
 
       >>> import plenoptic as po
       >>> color_wheel_gray = po.data.color_wheel(as_gray=True)
@@ -188,3 +195,54 @@ def color_wheel(as_gray: bool = False) -> torch.Tensor:
       <PyrFigure size ...>
     """  # numpydoc ignore=ES01
     return load_images(FILES / "color_wheel.jpg", as_gray=as_gray)
+
+
+def macaque(as_gray: bool = False) -> torch.Tensor:
+    """
+    Return an example image of a macaque.
+
+    Parameters
+    ----------
+    as_gray :
+        Whether to load a single grayscale channel or 3 RGB channels.
+
+    Returns
+    -------
+    image :
+        4d tensor of the image.
+
+    Notes
+    -----
+    This is one of the `monkey selfies
+    <https://en.wikipedia.org/wiki/Monkey_selfie_copyright_dispute>`_ and is in the
+    public domain.
+
+    It was originally downloaded from `wikimedia
+    <https://commons.wikimedia.org/wiki/Category:Monkey_selfie>`_
+
+    Examples
+    --------
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> macaque = po.data.macaque()
+      >>> macaque.shape
+      torch.Size([1, 3, 1500, 1085])
+      >>> po.plot.imshow(macaque[..., :-1], as_rgb=True)
+      <PyrFigure size ...>
+
+    To resize this image for use with an ImageNet-trained model, centering
+    the monkey's face:
+
+    .. plot::
+      :context: close-figs
+
+      >>> macaque = po.process.blur_downsample(macaque, 2)[..., :-59, :]
+      >>> macaque = po.process.center_crop(macaque, 224)
+      >>> macaque.shape
+      torch.Size([1, 3, 224, 224])
+      >>> po.plot.imshow(macaque, as_rgb=True)
+      <PyrFigure size ...>
+    """  # numpydoc ignore=ES01
+    return load_images(FILES / "macaca_nigra_self-portrait.jpg", as_gray=as_gray)
