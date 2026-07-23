@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.19.3
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -44,9 +44,6 @@ plt.rcParams["animation.writer"] = "ffmpeg"
 plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-%load_ext autoreload
-%autoreload 2
 ```
 
 ```{code-cell} ipython3

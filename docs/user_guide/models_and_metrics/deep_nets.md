@@ -38,8 +38,9 @@ import torch
 
 import plenoptic as po
 
-# this notebook uses torchvision, which is an optional dependency. if this import fails,
-# install torchvision in your plenoptic environment and restart the notebook kernel.
+# this notebook uses torchvision, which is an optional dependency.
+# if this import fails, install torchvision in your plenoptic
+# environment and restart the notebook kernel.
 try:
     import torchvision
 except ModuleNotFoundError:
@@ -50,12 +51,7 @@ except ModuleNotFoundError:
     )
 
 
-dtype = torch.float32
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-%load_ext autoreload
-
-%autoreload 2
 
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
@@ -117,7 +113,7 @@ feature_extraction.get_graph_node_names(deepnet)[1]
 
 ### Specify preprocessing
 
-Finally, it is important to specify the preprocessing transform of the model. During neural network training, images are transformed before being passed to the network, and the same transformation needs to be applied when using the trained network. As the [torchvision docs](https://docs.pytorch.org/vision/stable/models.html#using-the-pre-trained-models) explain it (quoting version `0.27`):
+Finally, it is important to specify the preprocessing transform of the model. During neural network training, images are transformed before being passed to the network, and the same transformation needs to be applied when using the trained network. As the [torchvision docs](https://docs.pytorch.org/vision/0.27/models.html#using-the-pre-trained-models) explain it (quoting version `0.27`):
 
 > Before using the pre-trained models, one must preprocess the image (resize with right resolution/interpolation, apply inference transforms, rescale the values etc). There is no standard way to do this as it depends on how a given model was trained. It can vary across model families, variants or even weight versions. Using the correct preprocessing method is critical and failing to do so may lead to decreased accuracy or incorrect outputs.
 
@@ -233,7 +229,7 @@ def get_category(image):
     return imagenet_categories[image_cat.argmax()]
 
 
-print(get_category(img))
+print(f"ResNet50 predicted class: {get_category(img)}")
 ```
 
 :::{admonition} How to do this with `timm`?
@@ -335,9 +331,9 @@ Let's call {func}`~plenoptic.plot.synthesis_status` to visualize the synthesis s
 po.plot.synthesis_status(met, figsize=(15, 4.5));
 ```
 
-In the above plots, we can see the metamer in the leftmost subplot, the loss over synthesis iterations in the middle, and the representation error on the right:
-- Our metamers match the results discussed earlier in this notebook:  the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 starts to lose much of the image structure in random RGB noise.
-- We can see that the optimization performed reasonably well: the loss decreased gradually over synthesis. If you were using these stimuli in an experiment (especially for `"layer4"`), it may be worth continuing a bit more to get the loss even lower, but these demonstrate the point.
+In the above plot, we can see the metamer in the leftmost subplot, the loss over synthesis iterations in the middle, and the representation error on the right:
+- Our metamer matches the result discussed earlier in this notebook: as a layer 3 metamer, it looks similar to the original image with some RGB noise added.
+- We can see that the optimization performed reasonably well: the loss decreased gradually over synthesis. If you were using these stimuli in an experiment, it would be worth continuing a bit more to get the loss even lower, but this demonstrates the point.
 - The representation error plot has the same structure as the {func}`~plenoptic.models.DeepNetFeatures.plot_representation` plot above. We can see that, while there's variation across both channels and space, there's not an obvious outlier whose error we have been unable to constrain.
 
 And we can animate the above figure over synthesis iterations as well, to see the metamer take shape:
@@ -353,4 +349,4 @@ print(f"Target image category: {get_category(met.image)}")
 print(f"Metamer category: {get_category(met.metamer)}")
 ```
 
-In this notebook, we have demonstrated how to use deep neural networks from external models zoos with  {class}`plenoptic.models.DeepNetFeatures`, and shown how to generate metamers for several intermediate layers.
+In this notebook, we have demonstrated how to use deep neural networks from external models zoos with  {class}`plenoptic.models.DeepNetFeatures`, and shown how to generate metamers for an intermediate layer.

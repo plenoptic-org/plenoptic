@@ -74,11 +74,7 @@ except ModuleNotFoundError:
     )
 
 
-dtype = torch.float32
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-%load_ext autoreload
-%autoreload 2
 
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
@@ -86,13 +82,6 @@ plt.rcParams["figure.dpi"] = 72
 # set seed for reproducibility
 po.set_seed(1)
 ```
-
-:::{admonition} This notebook retrieves cached synthesis results
-:class: warning dropdown
-
-The example metamers shown in this notebook takes about 15 minutes to synthesize on a GPU. Thus, instead of performing synthesis in this notebook, we have cached the result of it online and download them for investigation.
-
-:::
 
 ## Prepare model and image for synthesis
 
@@ -125,6 +114,13 @@ for model in models:
 ```
 
 ## Initialize and load Metamer objects
+
+:::{admonition} This notebook retrieves cached synthesis results
+:class: warning dropdown
+
+The example metamers shown in this notebook takes about 15 minutes to synthesize on a GPU. Thus, instead of performing synthesis in this notebook, we have cached the result of it online and download them for investigation.
+
+:::
 
 Now that our models and images are prepared, we can initialize our {class}`~plenoptic.Metamer` objects. We'll then load in the cached output so we can examine the resulting metamers.
 
@@ -168,13 +164,13 @@ met.synthesize(max_iter=12000, stop_iters_to_check=12000)
 ```
 :::
 
-Note that the synthesis procedure we used differs somewhat with that of {cite:alp}`Feather2023-model-metam`. The following table summarizes these differences:
+Note that the synthesis procedure we used differs somewhat with that of {cite:alp}`Feather2023-model-metam`. Our goal was to reproduce the ResNet50 metamers shown in the paper, not their exact procedure. Furthermore, we erred on the side of simplicity and so preferred plenoptic's defaults where possible. The following table summarizes these differences:
 
-|                      | Our example                                 | Feather et al., 2023                                                       |
-|----------------------|---------------------------------------------|----------------------------------------------------------------------------|
-| Loss function        | Mean-squared error                          | Euclidean distance, normalized by L2-norm of target representation         |
-| Initial image        | Uniformly-distributed noise between 0 and 1 | Normally-distributed noise with mean of 0.5 and standard deviation of 0.05 |
-| Number of iterations | 12,000                                      | 24,000                                                                     |
+|                      | Our example                                                     | Feather et al., 2023                                                       |
+|----------------------|-----------------------------------------------------------------|----------------------------------------------------------------------------|
+| Loss function        | Mean-squared error (plenoptic default)                          | Euclidean distance, normalized by L2-norm of target representation         |
+| Initial image        | Uniformly-distributed noise between 0 and 1 (plenoptic default) | Normally-distributed noise with mean of 0.5 and standard deviation of 0.05 |
+| Number of iterations | 12,000                                                          | 24,000                                                                     |
 
 Like the paper, we do find better results when we use a learning-rate scheduler to halve the optimizer's learning rate regularly, using {class}`~torch.optim.lr_scheduler.StepLR`, as described in the dropdown above.
 
