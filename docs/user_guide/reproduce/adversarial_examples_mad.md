@@ -218,13 +218,35 @@ po.plot.synthesis_status(mad);
 Let us compare how the synthesized image compares to the original and initial images. In the bottow row the original image is subtracted to visualize the changes in pixels. There is no change in the left image. In the middle image we see some hardly noticeable noise. In the last image we see a small amount of random pixel noise, distributed across the image.
 
 ```{code-cell} ipython3
-imgs = [img, mad.initial_image, mad.mad_image]
-mse = [po.metric.mse(img, i) for i in imgs]
-titles = ["Original image", "Initial image", "Adversarial image"]
-diffs = [(i + 1) / 2 for i in [img - img, mad.initial_image - img, mad.mad_image - img]]
-titles.extend([f"MSE={m.mean().item():.2e}" for m in mse])
-imgs.extend(diffs)
-po.plot.imshow(imgs, as_rgb=True, title=titles, col_wrap=3, vrange="auto0");
+images = {"Original": img, "Initial": mad.initial_image, "Adversarial": mad.mad_image}
+fig, axes = plt.subplots(2, 3, figsize=(12, 12))
+axes[0, 0].axis("off")
+
+po.plot.imshow(images["Initial"], ax=axes[0, 1], as_rgb=True, title="Initial image")
+po.plot.imshow(
+    images["Adversarial"], ax=axes[0, 2], as_rgb=True, title="Adversarial image"
+)
+
+po.plot.imshow(images["Original"], ax=axes[1, 0], as_rgb=True, title="Original image")
+
+for j, col_name in enumerate(["Initial", "Adversarial"], start=1):
+    diff = (images[col_name] - images["Original"] + 1) / 2
+    mse_val = po.metric.mse(images["Original"], images[col_name]).mean().item()
+    po.plot.imshow(
+        diff,
+        ax=axes[1, j],
+        as_rgb=True,
+        title=f"{col_name} - Original\nMSE={mse_val:.2e}",
+    )
+
+for ax in [axes[0, 1], axes[0, 2], axes[1, 0], axes[1, 1], axes[1, 2]]:
+    ax.set_title(ax.get_title(), fontsize=14)
+
+for ax in axes.flat:
+    ax.xaxis.set_visible(False)
+    ax.yaxis.set_visible(False)
+
+fig.tight_layout();
 ```
 
 We can also visualize the difference in each color channel (RGB, or red, green, and blue) for the initial image (top row) and adversarial image (bottom row).
