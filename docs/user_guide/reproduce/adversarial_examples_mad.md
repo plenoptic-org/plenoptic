@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.19.3
+    jupytext_version: 1.19.4
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -61,7 +61,10 @@ po.set_seed(0)
 
 ## Prepare model and image for synthesis
 
-In this section, we initialize a plenoptic-compatible model using the weights from {external+torchvision:ref}`TorchVision <models>`. We use the standard ImageNet-trained ResNet50 as our network to attack. You may be also interested in checking out [](deep_nets) for details of choosing layer and preprocessing of the input image, and using models from {external+timm:doc}`timm <models>`.
+In this section, we initialize a plenoptic-compatible model using the weights from {external+torchvision:ref}`TorchVision <models>`. We use the standard ImageNet-trained ResNet50 as our network to attack.
+
+:::{seealso} Deep Nets in plenoptic
+Check out [](deep_nets) for more information, including how to choose different layers and preprocessing details, as well as how to use models from {external+timm:doc}`timm <models>`.
 
 ### Initialize deep neural network and pre-trained weights
 
@@ -133,10 +136,12 @@ First let us extract all the ImageNet categories:
 imagenet_categories = np.asarray(weights.meta["categories"])
 ```
 
-Let us define two helper functions. `convert_logits_to_probs` converts logits to probabilities that sum to 1. For an input image, `get_category` returns the vector containing the category probabilities and name of the category with the highest probability.
+Let us define two helper functions:
+- `convert_to_probs` converts the activation in the final fully-connected layer to probabilities that sum to 1. It gets used in the `get_category`, below.
+- `get_category` accepts a single image and returns both a vector containing the category probabilities and name of the category with the highest probability.
 
 ```{code-cell} ipython3
-def convert_logits_to_probs(logits):
+def convert_to_probs(logits):
     return torch.nn.functional.softmax(logits, dim=1).squeeze()
 
 
