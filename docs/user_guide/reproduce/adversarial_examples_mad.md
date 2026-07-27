@@ -215,7 +215,7 @@ po.plot.synthesis_status(mad);
 
 ## Visualizing the adversarial image
 
-Let us compare how the synthesized image compares to the original and initial images. In the bottow row the original image is subtracted to visualize the changes in pixels. There is no change in the left image. In the middle image we see some hardly noticeable noise. In the last image we see a low amount of pixel noise.
+Let us compare how the synthesized image compares to the original and initial images. In the bottow row the original image is subtracted to visualize the changes in pixels. There is no change in the left image. In the middle image we see some hardly noticeable noise. In the last image we see a small amount of random pixel noise, distributed across the image.
 
 ```{code-cell} ipython3
 imgs = [img, mad.initial_image, mad.mad_image]
