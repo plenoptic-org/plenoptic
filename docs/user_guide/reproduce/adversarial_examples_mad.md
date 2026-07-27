@@ -141,7 +141,7 @@ Let us define two helper functions:
 - `get_category` accepts a single image and returns both a vector containing the category probabilities and name of the category with the highest probability.
 
 ```{code-cell} ipython3
-def convert_logits_to_probs(logits):
+def convert_to_probs(logits):
     return torch.nn.functional.softmax(logits, dim=1).squeeze()
 
 
