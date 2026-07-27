@@ -27,7 +27,7 @@ Run it in your browser: **{binder}`adversarial_examples_mad.ipynb`**!
 This notebook requires the optional dependency `torchvision`, which can be installed with `pip`.
 :::
 
-In this notebook we demonstrate how we can use the {class}`~plenoptic.MADCompetition` class to synthesize adversarial examples. Adversarial examples are tiny perturbations to an image that causes Deep Neural Networks to misclassify ([Goodfellow et al., 2015](https://arxiv.org/abs/1412.6572)). MAD competition was developed to compare image quality metrics by generating a pair of images that have the same value for the reference metric but extremal values (highest and lowest) for the optimized metric {cite:alp}`Wang2008-maxim-differ`. These images were then used as stimuli in psychophysics experiments, to demonstrate which metric best aligned with human perception.
+In this notebook we demonstrate how we can use the {class}`~plenoptic.MADCompetition` class to synthesize adversarial examples. Adversarial examples are tiny perturbations to an image that causes Deep Neural Networks to misclassify ({cite:alp}`Szegedy2013`, {cite:alp}`goodfellow_explaining_2015`). MAD competition was developed to compare image quality metrics by generating a pair of images that have the same value for the reference metric but extremal values (highest and lowest) for the optimized metric {cite:alp}`Wang2008-maxim-differ`. These images were then used as stimuli in psychophysics experiments, to demonstrate which metric best aligned with human perception.
 
 Here, we demonstrate a different use of the {class}`~plenoptic.MADCompetition` class and show how its underlying machinery can be readily used to generate adversarial examples of Deep Neural Networks. At a high level, this is achieved by defining a reference metric in pixel space (the value of which we want to be low) and an optimized metric on distance of model classification (the value of which we want to be high).
 
@@ -68,27 +68,10 @@ In this section, we initialize a plenoptic-compatible model using the weights fr
 Check out [](deep_nets) for more information, including how to choose different layers and preprocessing details, as well as how to use models from {external+timm:doc}`timm <models>`.
 :::
 
-### Initialize deep neural network and pre-trained weights
-
-First, we download the model weights for ResNet50 trained on [ImageNet-1K](https://en.wikipedia.org/wiki/ImageNet#ImageNet-1K) and initialize the `torchvision` model.
-
 ```{code-cell} ipython3
 weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
 deepnet = torchvision.models.resnet50(weights=weights)
-```
-
-Next, we ensure that our model is in evaluation mode. Many models, including ResNet50, behave differently when in training and evaluation mode. In plenoptic, models are fixed and so we want the evaluation behavior (see [here](remove-grad-doc) for more details):
-
-```{code-cell} ipython3
-deepnet.eval();
-```
-
-### Specify preprocessing
-
-
-We create a separate preprocessing transform, using the specified `mean` and `std` to normalize the input image.
-
-```{code-cell} ipython3
+deepnet.eval()
 transform = weights.transforms()
 norm = torchvision.transforms.Normalize(transform.mean, transform.std)
 ```
@@ -103,7 +86,7 @@ target_layer = "fc"
 
 ### Prepare the image
 
-Now, let's prepare the image. The input image needs to be an RGB image with a height and width of 224 pixels. It should probably also be like those found in ImageNet: a single object in the center of the frame that belongs to one of the [image classes](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). We'll use one of the famous [monkey selfies](https://en.wikipedia.org/wiki/Monkey_selfie_copyright_dispute), and resize it appropriately:
+Now, let's prepare the image. We'll use one of the famous [monkey selfies](https://en.wikipedia.org/wiki/Monkey_selfie_copyright_dispute), and resize it appropriately:
 
 ```{code-cell} ipython3
 img = po.data.macaque()
@@ -162,7 +145,7 @@ po.plot.stem_plot(category_probs, title=category);
 
 ## Define optimized and reference metric
 
-To qualify as an adversarial example, the image must satisfy two requirements: (1) the perturbation in image space is small and (2) the model outputs an incorrect classification with high confidence ([Goodfellow et al., 2015](https://arxiv.org/abs/1412.6572)). Conveniently, we already have these two ingredients built into the MAD competition framework. More concretely, we should be able to meet these two requirements if we define:
+To qualify as an adversarial example, the image must satisfy two requirements: (1) the perturbation in image space is small and (2) the model outputs an incorrect classification with high confidence ({cite:alp}`goodfellow_explaining_2015`). Conveniently, we already have these two ingredients built into the MAD competition framework. More concretely, we should be able to meet these two requirements if we define:
 
 1. The reference metric as a distance in pixel space and set it to a low value.
 2. The optimized metric as a distance in representation space, so that we synthesize an image whose representation is as far away from the original as possible.
