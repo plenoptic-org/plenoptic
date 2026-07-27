@@ -11,7 +11,6 @@ kernelspec:
   name: python3
 ---
 
-<!-- #region -->
 :::{admonition} Run this notebook yourself!
 :class: important
 
