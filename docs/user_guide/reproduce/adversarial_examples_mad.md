@@ -136,7 +136,9 @@ First let us extract all the ImageNet categories:
 imagenet_categories = np.asarray(weights.meta["categories"])
 ```
 
-Let us define two helper functions. `convert_logits_to_probs` converts logits to probabilities that sum to 1. For an input image, `get_category` returns the vector containing the category probabilities and name of the category with the highest probability.
+Let us define two helper functions:
+- `convert_to_probs` converts the activation in the final fully-connected layer to probabilities that sum to 1. It gets used in the `get_category`, below.
+- `get_category` accepts a single image and returns both a vector containing the category probabilities and name of the category with the highest probability.
 
 ```{code-cell} ipython3
 def convert_logits_to_probs(logits):
