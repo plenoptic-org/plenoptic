@@ -237,4 +237,3 @@ for i, img in enumerate([mad.image, mad.initial_image, mad.mad_image]):
 ```
 
 This notebook demonstrates how to generate adversarial examples using the {class}`~plenoptic.MADCompetition` class. We encourage you to experiment with different images and hyperparameters to generate other adversarial examples yourself!
-<!-- #endregion -->
