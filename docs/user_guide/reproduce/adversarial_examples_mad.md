@@ -159,6 +159,12 @@ def reference_metric(x, y):
 
 For the optimized metric, we use the MSE on the output of the last layer of the network.
 
+:::{admonition} Why not define the optimized metric on probabilities?
+:class: dropdown hint
+
+While a vector of probabilities is the more natural way to think about the output of the network, logits provide smooth and differentiable gradients necessary for training neural networks via gradient descent.
+:::
+
 ```{code-cell} ipython3
 def optimized_metric(x, y):
     return po.metric.mse(model(x), model(y))
