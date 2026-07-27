@@ -29,7 +29,7 @@ This notebook requires the optional dependency `torchvision`, which can be insta
 
 In this notebook we demonstrate how we can use the {class}`~plenoptic.MADCompetition` class to synthesize adversarial examples. Adversarial examples are tiny perturbations to an image that causes Deep Neural Networks to misclassify ([Goodfellow et al., 2015](https://arxiv.org/abs/1412.6572)). MAD competition was developed to compare image quality metrics by generating a pair of images that have the same value for the reference metric but extremal values (highest and lowest) for the optimized metric {cite:alp}`Wang2008-maxim-differ`. These images were then used as stimuli in psychophysics experiments, to demonstrate which metric best aligned with human perception.
 
-Here, we demonstrate a different use of the {class}`~plenoptic.MADCompetition` class and show how its underlying machinery can be readily used to generate adversarial examples of Deep Neural Networks. At a high level, this is achieved by defining a reference metric in pixel space (the value of which we want to be low) and an optimized metric in model representation space (the value of which we want to be high).
+Here, we demonstrate a different use of the {class}`~plenoptic.MADCompetition` class and show how its underlying machinery can be readily used to generate adversarial examples of Deep Neural Networks. At a high level, this is achieved by defining a reference metric in pixel space (the value of which we want to be low) and an optimized metric on distance of model classification (the value of which we want to be high).
 
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
