@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.19.4
+    jupytext_version: 1.19.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -35,6 +35,7 @@ Here, we demonstrate a different use of the {class}`~plenoptic.MADCompetition` c
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from myst_nb import glue
 
 import plenoptic as po
 
@@ -65,6 +66,7 @@ In this section, we initialize a plenoptic-compatible model using the weights fr
 
 :::{seealso} Deep Nets in plenoptic
 Check out [](deep_nets) for more information, including how to choose different layers and preprocessing details, as well as how to use models from {external+timm:doc}`timm <models>`.
+:::
 
 ### Initialize deep neural network and pre-trained weights
 
@@ -146,7 +148,7 @@ def convert_to_probs(logits):
 
 
 def get_category(image):
-    category_probs = convert_logits_to_probs(deepnet(norm(image))).detach().cpu()
+    category_probs = convert_to_probs(deepnet(norm(image))).detach().cpu()
     category = imagenet_categories[category_probs.argmax()]
     return category_probs, category
 ```
@@ -205,7 +207,7 @@ mad.setup(initial_noise=0.001, optimizer_kwargs={"lr": 0.001})
 Running the synthesis generates an image that looks just like the original image but we see the optimized metric loss has increased significantly. Even though the reference metric loss measured in pixel space has also increased a little bit, it is not nearly as big as the change in the representation space.
 
 ```{code-cell} ipython3
-mad.synthesize(1000)
+mad.synthesize(50)
 po.plot.synthesis_status(mad);
 ```
 
@@ -220,25 +222,39 @@ titles = ["Original image", "Initial image", "Adversarial image"]
 diffs = [(i + 1) / 2 for i in [img - img, mad.initial_image - img, mad.mad_image - img]]
 titles.extend([f"MSE={m.mean().item():.2e}" for m in mse])
 imgs.extend(diffs)
-po.plot.imshow(imgs, as_rgb=True, title=titles, col_wrap=3);
+po.plot.imshow(imgs, as_rgb=True, title=titles, col_wrap=3, vrange="auto0");
 ```
 
-We can also visualize the difference in each color channel for the initial image (top row) and adversarial image (bottom row).
+We can also visualize the difference in each color channel (RGB, or red, green, and blue) for the initial image (top row) and adversarial image (bottom row).
 
 ```{code-cell} ipython3
 channelwise_diffs = [mad.initial_image - img, mad.mad_image - img]
-po.plot.imshow(channelwise_diffs, col_wrap=3);
+titles = [
+    "Initial (R)",
+    "Initial (G)",
+    "Initial (B)",
+    "Adversarial (R)",
+    "Adversarial (G)",
+    "Adversarial (B)",
+]
+po.plot.imshow(channelwise_diffs, col_wrap=3, title=titles, vrange="auto0");
 ```
 
-Finally let us visualize the category probabilities of the original, initial, and advesarial images using stem plots. We see that the network thinks the synthesized image is a burrito with almost 100% certainty! We have successfully generated an adversarial example of the network.
+Finally let us visualize the category probabilities of the original, initial, and advesarial images using stem plots.
 
 ```{code-cell} ipython3
-fig, axes = plt.subplots(3, 2, figsize=(10, 20))
+fig, axes = plt.subplots(3, 2, figsize=(10, 14))
 for i, img in enumerate([mad.image, mad.initial_image, mad.mad_image]):
     category_probs, category = get_category(img)
+    glue("category", category, display=False)
     likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.05]))
     most_likely_cat = imagenet_categories[category_probs.argmax()]
-    po.plot.imshow(img, ax=axes[i, 0], as_rgb=True, title=most_likely_cat)
+    po.plot.imshow(
+        img,
+        ax=axes[i, 0],
+        as_rgb=True,
+        title=f"{most_likely_cat}(p={category_probs.max():.2f})",
+    )
     po.plot.stem_plot(category_probs, ax=axes[i, 1], ylim=False)
     axes[i, 1].set_title("Categories")
     axes[i, 0].xaxis.set_visible(False)
@@ -248,4 +264,8 @@ for i, img in enumerate([mad.image, mad.initial_image, mad.mad_image]):
     )
 ```
 
-This notebook demonstrates how to generate adversarial examples using the {class}`~plenoptic.MADCompetition` class. We encourage you to experiment with different images and hyperparameters to generate other adversarial examples yourself!
+We see that the network thinks the synthesized image is a {glue:}`category` with almost 100% certainty! We have successfully generated an adversarial example of the network.
+
++++
+
+This notebook demonstrates how to generate adversarial examples using the {class}`~plenoptic.MADCompetition` class. We encourage you to experiment with different image classification networks, images, and hyperparameters to generate other adversarial examples yourself!
