@@ -61,7 +61,7 @@ po.set_seed(0)
 
 ## Prepare model and image for synthesis
 
-In this section, we initialize a plenoptic-compatible model using the weights from {external+torchvision:ref}`TorchVision <models>`. We use the standard ImageNet-trained ResNet50 as our network to attack. 
+In this section, we initialize a plenoptic-compatible model using the weights from {external+torchvision:ref}`TorchVision <models>`. We use the standard ImageNet-trained ResNet50 as our network to attack.
 
 :::{seealso} Deep Nets in plenoptic
 Check out [](deep_nets) for more information, including how to choose different layers and preprocessing details, as well as how to use models from {external+timm:doc}`timm <models>`.
