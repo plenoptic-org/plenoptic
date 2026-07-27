@@ -194,7 +194,7 @@ mad = po.MADCompetition(
 :::{admonition} How does {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` affect the adversarial image
 :class: dropdown hint
 
-We conducted a hyperparameter search and found increasing {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` led to decrease in both {attr}`~plenoptic.MADCompetition.optimized_metric_loss` and {attr}`~plenoptic.MADCompetition.reference_metric_loss`. This makes intuitive sense as a larger penalty value increases the importance of keeping the reference metric constant, which inevitably prevents the optimized metric from increasing. 
+We conducted a hyperparameter search and found increasing {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` led to decrease in both {attr}`~plenoptic.MADCompetition.optimized_metric_loss` and {attr}`~plenoptic.MADCompetition.reference_metric_loss`. This makes intuitive sense as a larger penalty value increases the importance of keeping the reference metric constant, which inevitably prevents the optimized metric from increasing.
 
 If you are applying this procedure to new images or new image classification models, you will almost certainly need to experiment to find the appropriate {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda`
 
