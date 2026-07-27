@@ -206,7 +206,7 @@ We set the initial noise to be a small value so that our synthesized image also 
 mad.setup(initial_noise=0.001, optimizer_kwargs={"lr": 0.001})
 ```
 
-Running the synthesis generates an image that looks just like the original image but we see the optimized metric loss has increased significantly. Even though the reference metric loss measured in pixel space has also increased a little bit, it is not nearly as big as the change in the representation space.
+Running the synthesis generates an image that looks just like the original image but we see the optimized metric loss has increased significantly. Even though the reference metric loss measured in pixel space has also increased, it remains a small value.
 
 ```{code-cell} ipython3
 mad.synthesize(50)
