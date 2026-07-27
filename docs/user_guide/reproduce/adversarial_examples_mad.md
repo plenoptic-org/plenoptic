@@ -200,7 +200,7 @@ If you are applying this procedure to new images or new image classification mod
 
 :::
 
-We set the initial noise to be a small value so the initial image is closer to the solution that we want: an image with small deviations in the pixel values from the original but produces large changes in the representation. We also set a custom learning rate value of 0.001 even though you should generally obtain good results with higher or lower learning rates provided the synthesis runs for long enough.
+We set the initial noise to be a small value so that our synthesized image also has small deviations in the pixel values from the original. We also decreased the learning rate from the default, as this resulted in better solutions in our experiments.
 
 ```{code-cell} ipython3
 mad.setup(initial_noise=0.001, optimizer_kwargs={"lr": 0.001})
