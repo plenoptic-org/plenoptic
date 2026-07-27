@@ -160,7 +160,12 @@ po.plot.stem_plot(category_probs, title=category);
 
 ## Define optimized and reference metric
 
-To qualify as an adversarial example, the image must satisfy two requirements: (1) the perturbation in image space is small and (2) the model outputting an incorrect classification with high confidence ([Goodfellow et al., 2015](https://arxiv.org/abs/1412.6572)). Conveniently, we already have these two ingredients built into the MAD competition framework. More concretely, if we define the reference metric in pixel space and ask it to not change or minimally change, and define the optimized metric in representation space, in which we make the image representation as far away from the original as possible, we would be able to meet the two requirements and accomplish our goal. For the reference metric, we use the the simple mean-squared-error (MSE).
+To qualify as an adversarial example, the image must satisfy two requirements: (1) the perturbation in image space is small and (2) the model outputs an incorrect classification with high confidence ([Goodfellow et al., 2015](https://arxiv.org/abs/1412.6572)). Conveniently, we already have these two ingredients built into the MAD competition framework. More concretely, we should be able to meet these two requirements if we define:
+
+1. The reference metric as a distance in pixel space and set it to a low value.
+2. The optimized metric as a distance in representation space, so that we synthesize an image whose representation is as far away from the original as possible.
+
+For the reference metric, we use mean-squared-error (MSE):
 
 ```{code-cell} ipython3
 def reference_metric(x, y):
