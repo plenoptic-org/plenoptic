@@ -189,7 +189,7 @@ We set the initial noise to be a small value so that our synthesized image also 
 mad.setup(initial_noise=0.001, optimizer_kwargs={"lr": 0.001})
 ```
 
-Running the synthesis generates an image that looks just like the original image but we see the optimized metric loss has increased significantly. Even though the reference metric loss measured in pixel space has also increased, it remains a small value.
+Running the synthesis generates an image that looks just like the original image but we see the optimized metric loss has increased significantly. Even though the reference metric loss measured in pixel space has also increased, it remains a small value. The fact that the optimized metric has significantly increased shows that the model thinks this is a very different category than our initial image, which we'll show in a later section.
 
 ```{code-cell} ipython3
 mad.synthesize(50)
@@ -220,6 +220,7 @@ for j, col_name in enumerate(["Initial", "Adversarial"], start=1):
         ax=axes[1, j],
         as_rgb=True,
         title=f"{col_name} - Original\nMSE={mse_val:.2e}",
+        vrange="auto0",
     )
 
 for ax in [axes[0, 1], axes[0, 2], axes[1, 0], axes[1, 1], axes[1, 2]]:
