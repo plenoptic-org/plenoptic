@@ -172,7 +172,7 @@ def reference_metric(x, y):
     return po.metric.mse(x, y).mean()  # .mean() averages across the RGB channels
 ```
 
-For the optimized metric, we use the MSE of output logits in the last layer of the network.
+For the optimized metric, we use the MSE on the output of the last layer of the network.
 
 ```{code-cell} ipython3
 def optimized_metric(x, y):
