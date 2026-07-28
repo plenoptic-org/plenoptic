@@ -198,7 +198,7 @@ mad.setup(initial_noise=0.001, optimizer_kwargs={"lr": 0.001})
 Running the synthesis generates an image that looks just like the original image but we see the optimized metric loss has increased significantly. Even though the reference metric loss measured in pixel space has also increased, it remains a small value. The fact that the optimized metric has significantly increased shows that the model thinks this is a very different category than our initial image, which we'll show in a later section.
 
 ```{code-cell} ipython3
-mad.synthesize(50)
+mad.synthesize(1000)
 po.plot.synthesis_status(mad);
 ```
 
