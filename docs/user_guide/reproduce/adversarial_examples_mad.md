@@ -276,7 +276,7 @@ for i, img in enumerate([mad.image, mad.initial_image, mad.mad_image]):
         1, 0.5, f"Likely categories:\n- {likely_cats}", transform=axes[i, 1].transAxes
     )
 category_probs, category = get_category(mad.mad_image)
-glue("category_name", category, display=False)
+glue("category_name", str(category), display=False)
 ```
 
 We see that the network thinks the synthesized image is a {glue}`category_name` with almost 100% certainty! We have successfully generated an adversarial example of the network.
