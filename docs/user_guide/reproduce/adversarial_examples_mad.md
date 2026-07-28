@@ -260,7 +260,7 @@ Finally let us visualize the category probabilities of the original, initial, an
 fig, axes = plt.subplots(3, 2, figsize=(10, 14))
 for i, img in enumerate([mad.image, mad.initial_image, mad.mad_image]):
     category_probs, category = get_category(img)
-    glue("category", category, display=False)
+    glue("category_name", category, display=False)
     likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.05]))
     most_likely_cat = imagenet_categories[category_probs.argmax()]
     po.plot.imshow(
@@ -278,7 +278,7 @@ for i, img in enumerate([mad.image, mad.initial_image, mad.mad_image]):
     )
 ```
 
-We see that the network thinks the synthesized image is a {glue:}`category` with almost 100% certainty! We have successfully generated an adversarial example of the network.
+We see that the network thinks the synthesized image is a {glue}`category_name` with almost 100% certainty! We have successfully generated an adversarial example of the network.
 
 +++
 
