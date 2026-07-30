@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.3
+    jupytext_version: 1.18.1
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -35,6 +35,7 @@ This notebook uses an additional package, [seaborn](https://seaborn.pydata.org/)
 ```{code-cell} ipython3
 import itertools
 
+import einops
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -102,15 +103,60 @@ def create_metamer_figure(met):
 
 ```{code-cell} ipython3
 model = po.models.LuminanceGainControl(
-    31, pretrained=True, pad_mode="reflect", cache_filt=True
+    31, pretrained=True, pad_mode="circular", cache_filt=True
 ).eval()
 po.remove_grad(model)
 model.to(DEVICE).to(torch.float64)
 img = po.data.einstein().to(DEVICE).to(torch.float64)
-met = po.Metamer(img.repeat(N_IMGS, 1, 1, 1), model)
+img = img.repeat(N_IMGS, 1, 1, 1)
+met = po.Metamer(img, model)
 met.synthesize(MAX_ITER, stop_criterion=1e-16)
 ```
 
 ```{code-cell} ipython3
+create_metamer_figure(met);
+```
 
+```{code-cell} ipython3
+pyr = po.process.SteerablePyramidFreq(img.shape[-2:])
+pyr.to(DEVICE).to(img.dtype)
+def spyr_power(x):
+    if not isinstance(x, dict):
+        x = pyr(x)
+    power_list = torch.cat([v.abs().mean(dim=(-2, -1)).flatten(1, -1) for k, v in x.items()], 1)
+    return power_list
+def construct_mask(x, include):
+    mask = pyr(x)
+    if "low" in include:
+        # zero out high frequencies, all orientations
+        for scale in ["residual_highpass", 0, 1, 2, 3]:
+            mask[scale] = torch.zeros_like(mask[scale])
+    elif "vertical" in include:
+        # zero out all non-vertical orientations, all frequencies
+        for scale in mask.keys():
+            if scale in ["residual_highpass", 0, 2, 3, 4, "residual_lowpass"]:
+                mask[scale] = torch.zeros_like(mask[scale])
+            else:
+                mask[scale][:, :, 1:] = 0
+    return spyr_power(mask).to(bool)
+mask = construct_mask(img, "vertical")
+if mask.sum() == 0 or (~mask).sum() == 0:
+    raise ValueError()
+original_coeffs = spyr_power(img)
+def penalty(x):
+    penalty = spyr_power(x)
+    penalty = mask * (penalty / original_coeffs)
+    return po.regularize.penalize_range(x) + torch.exp(1 - penalty.diff(dim=0).pow(2).mean())
+```
+
+```{code-cell} ipython3
+met_penalty = po.Metamer(img, model, penalty_function=penalty, penalty_lambda=1e-6)
+```
+
+```{code-cell} ipython3
+met_penalty.synthesize(1000, stop_criterion=1e-16)
+```
+
+```{code-cell} ipython3
+create_metamer_figure(met_penalty);
 ```

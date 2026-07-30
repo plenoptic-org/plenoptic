@@ -81,6 +81,7 @@ nb = [
     "nbclient>=0.5.5",
     "torchvision>=0.3",
     "jupytext",
+    "seaborn",
 ]
 
 [project.urls]
