@@ -219,7 +219,9 @@ po.plot.imshow(
 po.plot.imshow(images["Original"], ax=axes[1, 0], as_rgb=True, title="Original image")
 
 for j, col_name in enumerate(["Initial", "Adversarial"], start=1):
-    diff = (images[col_name] - images["Original"] + 1) / 2
+    diff = (
+        images[col_name] - images["Original"] + 1
+    ) / 2  # convert the range from [-1,1] to [0,1] for RGB images
     mse_val = po.metric.mse(images["Original"], images[col_name]).mean().item()
     po.plot.imshow(
         diff,
@@ -239,31 +241,27 @@ for ax in axes.flat:
 fig.tight_layout();
 ```
 
-We can also visualize the difference in each color channel (RGB, or red, green, and blue) for the initial image (top row) and adversarial image (bottom row).
+The noise is too faint to discern any structures. Let us visualize the difference in each color channel separately (RGB, or red, green, and blue) for the initial image (top row) and adversarial image (bottom row). Note the pixel value range is different between the top and bottom rows.
 
 ```{code-cell} ipython3
-channelwise_diffs = [mad.initial_image - img, mad.mad_image - img]
-titles = [
-    "Initial (R)",
-    "Initial (G)",
-    "Initial (B)",
-    "Adversarial (R)",
-    "Adversarial (G)",
-    "Adversarial (B)",
-]
-po.plot.imshow(channelwise_diffs, col_wrap=3, title=titles, vrange="auto0");
+channelwise_diffs_initial = mad.initial_image - img
+titles = ["Initial (R)", "Initial (G)", "Initial (B)"]
+po.plot.imshow(channelwise_diffs_initial, col_wrap=3, title=titles, vrange="auto0")
+channelwise_diffs_mad = mad.mad_image - img
+titles = ["Adversarial (R)", "Adversarial (G)", "Adversarial (B)"]
+po.plot.imshow(channelwise_diffs_mad, col_wrap=3, title=titles, vrange="auto0");
 ```
 
 Finally let us visualize the category probabilities of the original, initial, and advesarial images using stem plots.
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(3, 2, figsize=(10, 14))
-for i, img in enumerate([mad.image, mad.initial_image, mad.mad_image]):
-    category_probs, category = get_category(img)
+for i, image in enumerate([mad.image, mad.initial_image, mad.mad_image]):
+    category_probs, category = get_category(image)
     likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.05]))
     most_likely_cat = imagenet_categories[category_probs.argmax()]
     po.plot.imshow(
-        img,
+        image,
         ax=axes[i, 0],
         as_rgb=True,
         title=f"{most_likely_cat}(p={category_probs.max():.2f})",
