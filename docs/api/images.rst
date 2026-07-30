@@ -18,6 +18,7 @@ Plenoptic includes a small number of example images, which are used throughout t
    ~parrot
    ~reptile_skin
    ~color_wheel
+   ~macaque
 
 Plenoptic includes a helper function for downloading additional data, which includes example synthesis objects and additional images.
 
