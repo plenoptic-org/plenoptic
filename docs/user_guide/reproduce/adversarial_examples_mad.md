@@ -57,7 +57,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 plt.rcParams["figure.dpi"] = 72
 
 # set seed for reproducibility
-po.set_seed(1)
+po.set_seed(2)
 ```
 
 ## Prepare model and image for synthesis
