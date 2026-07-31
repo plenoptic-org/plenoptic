@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.19.3
+    jupytext_version: 1.19.5
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -250,7 +250,11 @@ channelwise_diffs_initial = mad.initial_image - img
 titles = ["Initial - Original (R)", "Initial - Original (G)", "Initial - Original (B)"]
 po.plot.imshow(channelwise_diffs_initial, col_wrap=3, title=titles, vrange="auto0")
 channelwise_diffs_mad = mad.mad_image - img
-titles = ["Adversarial - Original (R)", "Adversarial - Original (G)", "Adversarial - Original (B)"]
+titles = [
+    "Adversarial - Original (R)",
+    "Adversarial - Original (G)",
+    "Adversarial - Original (B)",
+]
 po.plot.imshow(channelwise_diffs_mad, col_wrap=3, title=titles, vrange="auto0");
 ```
 
