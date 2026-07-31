@@ -62,12 +62,7 @@ po.set_seed(3)
 
 ## Prepare model and image for synthesis
 
-In this section, we initialize a plenoptic-compatible model using the weights from {external+torchvision:ref}`TorchVision <models>`. We use the standard ImageNet-trained ResNet50 as our network to attack.
-
-:::{admonition} Deep Nets in plenoptic
-:class: seealso
-Check out [](deep_nets) for more information, including how to choose different layers and preprocessing details, as well as how to use models from {external+timm:doc}`timm <models>`.
-:::
+In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of the final fully connected layer of ResNet50. We chose the final layer because the goal of adversarial attack is misclassification and the final layer contains probabilities for the 1000 categories. After creating the model, we then prepare the image. Finally, we ensure that the model and image have the proper device and dtype, and remove the gradient from all model parameters. To learn more about any of these steps and why we take them, read [](deep_nets).
 
 ```{code-cell} ipython3
 weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
@@ -75,44 +70,21 @@ deepnet = torchvision.models.resnet50(weights=weights)
 deepnet.eval()
 transform = weights.transforms()
 norm = torchvision.transforms.Normalize(transform.mean, transform.std)
-```
-
-### Select layer
-
-Next, we specify the layer to target. Because the goal of adversarial examples is misclassification, the simplest choice is the final fully connected layer, containing probabilities for the 1000 categories.
-
-```{code-cell} ipython3
 target_layer = "fc"
-```
+model = po.models.DeepNetFeatures(deepnet, target_layer, norm)
 
-### Prepare the image
-
-Now, let's prepare the image. We'll use one of the famous [monkey selfies](https://en.wikipedia.org/wiki/Monkey_selfie_copyright_dispute), and resize it appropriately:
-
-```{code-cell} ipython3
 img = po.data.macaque()
-# here we downsample the original image by a factor of 4 and then lop off the bottom.
-# that way, when we take the central 224 pixels in the following block, we end up with a
-# decent image.
 img = po.process.blur_downsample(img, 2)[..., :-59, :]
 img = po.process.center_crop(img, transform.crop_size[0])
-po.plot.imshow(img, as_rgb=True);
-```
-
-###  Last steps
-Now we create our model by passing the neural network, target layer, and preprocessing transform to plenoptic's {class}`~plenoptic.models.DeepNetFeatures`:
-
-```{code-cell} ipython3
-model = po.models.DeepNetFeatures(deepnet, target_layer, norm)
-```
-
-Finally, let's remove the gradient from all model parameters (as models in plenoptic [are fixed](remove-grad-doc)), convert everything to float64, for [reproducibility](float64-doc), and move everything to `DEVICE`:
-
-```{code-cell} ipython3
+po.plot.imshow(img, as_rgb=True)
 img = img.to(DEVICE).to(torch.float64)
 model.to(DEVICE).to(torch.float64)
 deepnet.to(DEVICE).to(torch.float64)
 po.remove_grad(model)
+```
+
+```{code-cell} ipython3
+target_layer = "fc"
 ```
 
 ## Visualizing classification of the clean image
