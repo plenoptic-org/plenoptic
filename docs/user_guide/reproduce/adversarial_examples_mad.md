@@ -165,18 +165,20 @@ def reference_metric(x, y):
     return po.metric.mse(x, y).mean()
 ```
 
-For the optimized metric, we use the MSE on the output of the last layer of the network.
-
-:::{admonition} Why not define the optimized metric on probabilities?
-:class: dropdown hint
-
-While a vector of probabilities (`convert_to_probs(model(x))` instead of `model(x)`) is the more natural way to think about the output of the network, [logits](https://en.wikipedia.org/wiki/Logit) (the representation before calling `softmax`) provide the smooth and differentiable gradients necessary for well-behaved optimization.
-:::
+For the optimized metric, we use MSE on the output of the last layer of the network.
 
 ```{code-cell} ipython3
 def optimized_metric(x, y):
     return po.metric.mse(model(x), model(y))
 ```
+
+:::{admonition} Why not define the optimized metric on probabilities?
+:class: dropdown hint
+
+While a vector of probabilities (`convert_to_probs(model(x))` instead of `model(x)`) is the more natural way to think about the output of the network, [logits](https://en.wikipedia.org/wiki/Logit) (the representation before calling `softmax`) provide the smooth and differentiable gradients necessary for well-behaved optimization. In particular, since many of the initial image's classification probabilities are exactly zero, optimizing on the probabilities means the resulting adversarial example will never be classified as one of those classes (since the gradients are zero).
+:::
+
++++
 
 ## Synthesize the adversarial image
 
