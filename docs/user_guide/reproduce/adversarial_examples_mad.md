@@ -64,7 +64,8 @@ po.set_seed(2)
 
 In this section, we initialize a plenoptic-compatible model using the weights from {external+torchvision:ref}`TorchVision <models>`. We use the standard ImageNet-trained ResNet50 as our network to attack.
 
-:::{seealso} Deep Nets in plenoptic
+:::{admonition} Deep Nets in plenoptic
+:class: seealso
 Check out [](deep_nets) for more information, including how to choose different layers and preprocessing details, as well as how to use models from {external+timm:doc}`timm <models>`.
 :::
 
