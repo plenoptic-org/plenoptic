@@ -170,7 +170,7 @@ For the optimized metric, we use the MSE on the output of the last layer of the 
 :::{admonition} Why not define the optimized metric on probabilities?
 :class: dropdown hint
 
-While a vector of probabilities is the more natural way to think about the output of the network, logits provide smooth and differentiable gradients necessary for training neural networks via gradient descent.
+While a vector of probabilities (`convert_to_probs(model(x))` instead of `model(x)`) is the more natural way to think about the output of the network, [logits](https://en.wikipedia.org/wiki/Logit) (the representation before calling `softmax`) provide the smooth and differentiable gradients necessary for well-behaved optimization.
 :::
 
 ```{code-cell} ipython3
