@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.19.5
+    jupytext_version: 1.19.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -137,12 +137,18 @@ def get_category(image):
     return category_probs, category
 ```
 
-ResNet50 is trained to classify images into one of [1000 categories](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). The category of our initial image, [guenon](https://en.wikipedia.org/wiki/Guenon), is an Old World monkey. Though it isn't the actual species of the monkey in question (a [Celebes crested macaque](https://en.wikipedia.org/wiki/Celebes_crested_macaque)), it's a reasonable category for it. Notice the model is also highly confident in its classification (probability of ~0.8)
+ResNet50 is trained to classify images into one of [1000 categories](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). The following plot shows the classification probabilities for our initial image as a stem plot. Each of the 1000 categories is represented by a line, whose y-value gives the model's probability that the image belongs to the corresponding category (the x-value is arbitrary). The title shows the label of the most likely category.
 
 ```{code-cell} ipython3
 category_probs, category = get_category(img)
-po.plot.stem_plot(category_probs, title=category);
+po.plot.stem_plot(category_probs, title=category)
+likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.01]))
+plt.text(700, 0.5, f"Likely categories:\n- {likely_cats}")
 ```
+
+The category of our initial image, [guenon](https://en.wikipedia.org/wiki/Guenon), is an Old World monkey. Though it isn't the actual species of the monkey in question (a [Celebes crested macaque](https://en.wikipedia.org/wiki/Celebes_crested_macaque)), it's a reasonable category for it. Notice the model is highly confident in its classification, with a probability of about 0.8 and no other category exceeding a probability of 0.1. We also show any categories the model predicts with a probability higher than 0.01 and they are all non-human primates.
+
++++
 
 ## Define optimized and reference metric
 
