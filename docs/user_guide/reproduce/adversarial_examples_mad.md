@@ -83,10 +83,6 @@ deepnet.to(DEVICE).to(torch.float64)
 po.remove_grad(model)
 ```
 
-```{code-cell} ipython3
-target_layer = "fc"
-```
-
 ## Visualizing classification of the clean image
 First let us extract all the ImageNet categories:
 
@@ -177,7 +173,7 @@ We set the initial noise to be a small value so that our synthesized image also 
 mad.setup(initial_noise=0.001, optimizer_kwargs={"lr": 0.001})
 ```
 
-Running the synthesis generates an image that looks just like the original image but we see the optimized metric loss has increased significantly. Even though the reference metric loss measured in pixel space has also increased, it remains a small value. The fact that the optimized metric has significantly increased shows that the model thinks this is a very different category than our initial image, which we'll show in a later section.
+Running the synthesis generates an image that looks just like the original image but we see the optimized metric loss has increased significantly. Even though the reference metric loss measured in pixel space has also increased, it remains a small value. The fact that the optimized metric has significantly increased shows that the model thinks this is a very different category than our initial image, which we'll show in the next section.
 
 ```{code-cell} ipython3
 mad.synthesize(1000)
@@ -216,7 +212,7 @@ We see our initial noise has not changed the original category. At the end of sy
 
 +++
 
-While the synthesized image looks similar to the original image (also note the low MSE reference metric loss), let us verify more rigorously. In the bottow row,  the original image is subtracted from the initial image and synthesized image to visualize the changes in pixel values. Between initial and original images, the difference is hardly noticeable (middle panel, bottom row). The difference between synthesized and original images looks like random pixel noise distributed across the image (right panel, bottom row). However, the noise is too faint for us to reliably discern any structures in both cases.
+While the synthesized image is visually similar to the original image (also note the low MSE reference metric loss), let us verify more rigorously. In the bottow row,  the original image is subtracted from the initial image and synthesized image to visualize the changes in pixel values. Between initial and original images, the difference is hardly noticeable (middle panel, bottom row). The difference between synthesized and original images looks like random pixel noise distributed across the image (right panel, bottom row). However, the noise is too faint for us to reliably discern any structures in both cases.
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 3, figsize=(12, 12))
