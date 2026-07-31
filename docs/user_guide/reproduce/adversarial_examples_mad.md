@@ -155,7 +155,8 @@ For the reference metric, we use mean-squared-error (MSE):
 
 ```{code-cell} ipython3
 def reference_metric(x, y):
-    return po.metric.mse(x, y).mean()  # .mean() averages across the RGB channels
+    # compute MSE independently per RGB channel and then average.
+    return po.metric.mse(x, y).mean()
 ```
 
 For the optimized metric, we use the MSE on the output of the last layer of the network.
