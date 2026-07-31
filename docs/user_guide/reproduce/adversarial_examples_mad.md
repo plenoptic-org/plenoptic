@@ -57,7 +57,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 plt.rcParams["figure.dpi"] = 72
 
 # set seed for reproducibility
-po.set_seed(2)
+po.set_seed(3)
 ```
 
 ## Prepare model and image for synthesis
@@ -214,10 +214,39 @@ po.plot.synthesis_status(mad);
 
 ## Visualizing the adversarial image
 
-Let us compare how the synthesized image compares to the original and initial images. In the bottow row the original image is subtracted to visualize the changes in pixels. There is no change in the left image. In the middle image we see some hardly noticeable noise. In the last image we see a small amount of random pixel noise, distributed across the image.
+First let us visualize the category probabilities of the original, initial, and advesarial images using stem plots.
 
 ```{code-cell} ipython3
 images = {"Original": img, "Initial": mad.initial_image, "Adversarial": mad.mad_image}
+fig, axes = plt.subplots(3, 2, figsize=(10, 14))
+for i, name in enumerate(["Original", "Initial", "Adversarial"]):
+    category_probs, category = get_category(images[name])
+    likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.05]))
+    most_likely_cat = imagenet_categories[category_probs.argmax()]
+    po.plot.imshow(
+        images[name],
+        ax=axes[i, 0],
+        as_rgb=True,
+        title=f"{name}: {most_likely_cat} (p={category_probs.max():.2f})",
+    )
+    po.plot.stem_plot(category_probs, ax=axes[i, 1], ylim=False)
+    axes[i, 1].set_title("Categories")
+    axes[i, 0].xaxis.set_visible(False)
+    axes[i, 0].yaxis.set_visible(False)
+    axes[i, 1].text(
+        1, 0.5, f"Likely categories:\n- {likely_cats}", transform=axes[i, 1].transAxes
+    )
+category_probs, category = get_category(mad.mad_image)
+glue("category_name", str(category), display=False)
+```
+
+We see our initial noise has not changed the original category. At the end of synthesis the network is highly confident that the synthesized image is a {glue}`category_name`!
+
++++
+
+While the synthesized image looks similar to the original image (also note the low MSE reference metric loss), let us verify more rigorously. In the bottow row,  the original image is subtracted from the initial image and synthesized image to visualize the changes in pixel values. Between initial and original images, the difference is hardly noticeable (middle panel, bottom row). The difference between synthesized and original images looks like random pixel noise distributed across the image (right panel, bottom row). However, the noise is too faint for us to reliably discern any structures in both cases.
+
+```{code-cell} ipython3
 fig, axes = plt.subplots(2, 3, figsize=(12, 12))
 axes[0, 0].axis("off")
 
@@ -251,7 +280,7 @@ for ax in axes.flat:
 fig.tight_layout();
 ```
 
-In the above plot, the noise is too faint to discern any structures. Let us visualize the difference in each color channel (red, green, and blue) separately for the initial image (top row) and adversarial image (bottom row). Note the pixel value range is different between the top and bottom rows.
+Instead, let us try visualizing the difference in each color channel (red, green, and blue) separately for the initial image (top row) and adversarial image (bottom row). Note the pixel value range is different between the top and bottom rows.
 
 ```{code-cell} ipython3
 channelwise_diffs_initial = mad.initial_image - img
@@ -266,32 +295,7 @@ titles = [
 po.plot.imshow(channelwise_diffs_mad, col_wrap=3, title=titles, vrange="auto0");
 ```
 
-Finally let us visualize the category probabilities of the original, initial, and advesarial images using stem plots.
-
-```{code-cell} ipython3
-fig, axes = plt.subplots(3, 2, figsize=(10, 14))
-for i, image in enumerate([mad.image, mad.initial_image, mad.mad_image]):
-    category_probs, category = get_category(image)
-    likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.05]))
-    most_likely_cat = imagenet_categories[category_probs.argmax()]
-    po.plot.imshow(
-        image,
-        ax=axes[i, 0],
-        as_rgb=True,
-        title=f"{most_likely_cat}(p={category_probs.max():.2f})",
-    )
-    po.plot.stem_plot(category_probs, ax=axes[i, 1], ylim=False)
-    axes[i, 1].set_title("Categories")
-    axes[i, 0].xaxis.set_visible(False)
-    axes[i, 0].yaxis.set_visible(False)
-    axes[i, 1].text(
-        1, 0.5, f"Likely categories:\n- {likely_cats}", transform=axes[i, 1].transAxes
-    )
-category_probs, category = get_category(mad.mad_image)
-glue("category_name", str(category), display=False)
-```
-
-We see that the network thinks the synthesized image is a {glue}`category_name` with almost 100% certainty! We have successfully generated an adversarial example of the network.
+In the top row, we can see that the difference between the initial and original images is noise, randomly distributed across the image, with no structure. Given that the initial image is the original plus normally-distributed noise, that must be true. In the bottom row, the pattern has shifted, with the differences grouping together somewhat. However, this difference does not look like a {glue}`category_name`, or similar. At this point we can safely conclude the synthesized image is an adversarial example of the network.
 
 +++
 
