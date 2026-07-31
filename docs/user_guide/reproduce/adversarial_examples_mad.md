@@ -247,7 +247,7 @@ The noise is too faint to discern any structures. Let us visualize the differenc
 
 ```{code-cell} ipython3
 channelwise_diffs_initial = mad.initial_image - img
-titles = ["Initial (R)", "Initial (G)", "Initial (B)"]
+titles = ["Initial - Original (R)", "Initial - Original (G)", "Initial - Original (B)"]
 po.plot.imshow(channelwise_diffs_initial, col_wrap=3, title=titles, vrange="auto0")
 channelwise_diffs_mad = mad.mad_image - img
 titles = ["Adversarial (R)", "Adversarial (G)", "Adversarial (B)"]
