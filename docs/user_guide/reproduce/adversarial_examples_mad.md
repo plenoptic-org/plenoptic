@@ -250,7 +250,7 @@ channelwise_diffs_initial = mad.initial_image - img
 titles = ["Initial - Original (R)", "Initial - Original (G)", "Initial - Original (B)"]
 po.plot.imshow(channelwise_diffs_initial, col_wrap=3, title=titles, vrange="auto0")
 channelwise_diffs_mad = mad.mad_image - img
-titles = ["Adversarial (R)", "Adversarial (G)", "Adversarial (B)"]
+titles = ["Adversarial - Original (R)", "Adversarial - Original (G)", "Adversarial - Original (B)"]
 po.plot.imshow(channelwise_diffs_mad, col_wrap=3, title=titles, vrange="auto0");
 ```
 
