@@ -243,7 +243,7 @@ for ax in axes.flat:
 fig.tight_layout();
 ```
 
-The noise is too faint to discern any structures. Let us visualize the difference in each color channel separately (RGB, or red, green, and blue) for the initial image (top row) and adversarial image (bottom row). Note the pixel value range is different between the top and bottom rows.
+In the above plot, the noise is too faint to discern any structures. Let us visualize the difference in each color channel (red, green, and blue) separately for the initial image (top row) and adversarial image (bottom row). Note the pixel value range is different between the top and bottom rows.
 
 ```{code-cell} ipython3
 channelwise_diffs_initial = mad.initial_image - img
