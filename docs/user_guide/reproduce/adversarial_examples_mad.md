@@ -214,7 +214,9 @@ We see our initial noise has not changed the original category. At the end of sy
 
 +++
 
-While the synthesized image is visually similar to the original image (also note the low MSE reference metric loss), let us verify more rigorously. In the bottow row,  the original image is subtracted from the initial image and synthesized image to visualize the changes in pixel values. Between initial and original images, the difference is hardly noticeable (middle panel, bottom row). The difference between synthesized and original images looks like random pixel noise distributed across the image (right panel, bottom row). However, the noise is too faint for us to reliably discern any structures in both cases.
+While the synthesized image is visually similar to the original image (also note the low MSE reference metric loss), let us verify more rigorously. In the bottow row,  the original image is subtracted from the initial image and synthesized image to visualize the changes in pixel values. 
+
+Between initial and original images, the difference is hardly noticeable (middle panel, bottom row). The difference between synthesized and original images looks like random pixel noise distributed across the image (right panel, bottom row). However, the noise is too faint for us to tell if there's any structure.
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 3, figsize=(12, 12))
