@@ -62,7 +62,9 @@ po.set_seed(3)
 
 ## Prepare model and image for synthesis
 
-In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of the final fully connected layer of ResNet50. We chose the final layer because the goal of adversarial attack is misclassification and the final layer contains probabilities for the 1000 categories. After creating the model, we then prepare the image. Finally, we ensure that the model and image have the proper device and dtype, and remove the gradient from all model parameters. To learn more about any of these steps and why we take them, read [](deep_nets).
+In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of the final fully connected layer of ResNet50. We chose the final layer because the goal of adversarial attack is misclassification and the final layer corresponds to the probabilities for the 1000 categories. After creating the model, we then prepare the image. Finally, we ensure that the model and image have the proper device and dtype, and remove the gradient from all model parameters. 
+
+To learn more about any of these steps and why we take them, read [](deep_nets).
 
 ```{code-cell} ipython3
 weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
