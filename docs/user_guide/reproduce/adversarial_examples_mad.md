@@ -29,7 +29,7 @@ This notebook requires the optional dependency `torchvision`, which can be insta
 
 In this notebook we demonstrate how we can use the {class}`~plenoptic.MADCompetition` class to synthesize adversarial examples. Adversarial examples are tiny perturbations to an image that causes Deep Neural Networks to misclassify ({cite:alp}`Szegedy2013`, {cite:alp}`goodfellow_explaining_2015`). MAD competition was developed to compare image quality metrics by generating a pair of images that have the same value for the reference metric but extremal values (highest and lowest) for the optimized metric ({cite:alp}`Wang2008-maxim-differ`). These images were then used as stimuli in psychophysics experiments, to demonstrate which metric best aligned with human perception.
 
-Here, we demonstrate a different use of the {class}`~plenoptic.MADCompetition` class and show how its underlying machinery can be readily used to generate adversarial examples of Deep Neural Networks. At a high level, this is achieved by defining a reference metric in pixel space (the value of which we want to be low) and an optimized metric on distance in model classification space (the value of which we want to be high).
+Here, we demonstrate a different use of the {class}`~plenoptic.MADCompetition` class and show how its underlying machinery can be readily used to generate adversarial examples of Deep Neural Networks. At a high level, this is achieved by defining a reference metric in pixel space (the value of which we want to be low) and an optimized metric in model output space (the value of which we want to be high).
 
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
@@ -57,7 +57,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 plt.rcParams["figure.dpi"] = 72
 
 # set seed for reproducibility
-po.set_seed(3)
+po.set_seed(4)
 ```
 
 ## Prepare model and image for synthesis
@@ -188,16 +188,20 @@ First let us visualize the category probabilities of the original, initial, and 
 
 ```{code-cell} ipython3
 images = {"Original": img, "Initial": mad.initial_image, "Adversarial": mad.mad_image}
-fig, axes = plt.subplots(3, 2, figsize=(10, 14))
+fig, axes = plt.subplots(3, 2, figsize=(10, 15))
 for i, name in enumerate(["Original", "Initial", "Adversarial"]):
     category_probs, category = get_category(images[name])
     likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.05]))
     most_likely_cat = imagenet_categories[category_probs.argmax()]
+    mse_val = po.metric.mse(images["Original"], images[name]).mean().item()
+    title = (
+        f"{name}: {most_likely_cat} (p={category_probs.max():.2f})\nMSE={mse_val:.2e}"
+    )
     po.plot.imshow(
         images[name],
         ax=axes[i, 0],
         as_rgb=True,
-        title=f"{name}: {most_likely_cat} (p={category_probs.max():.2f})",
+        title=title,
     )
     po.plot.stem_plot(category_probs, ax=axes[i, 1], ylim=False)
     axes[i, 1].set_title("Categories")
@@ -215,8 +219,6 @@ We see our initial noise has not changed the original category. At the end of sy
 +++
 
 While the synthesized image is visually similar to the original image (also note the low MSE reference metric loss), let us verify more rigorously. In the bottow row,  the original image is subtracted from the initial image and synthesized image to visualize the changes in pixel values.
-
-Between initial and original images, the difference is hardly noticeable (middle panel, bottom row). The difference between synthesized and original images looks like random pixel noise distributed across the image (right panel, bottom row). However, the noise is too faint for us to tell if there's any structure.
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 3, figsize=(12, 12))
@@ -252,7 +254,7 @@ for ax in axes.flat:
 fig.tight_layout();
 ```
 
-Instead, let us try visualizing the difference in each color channel (red, green, and blue) separately for the initial image (top row) and adversarial image (bottom row). Note the pixel value range is different between the top and bottom rows.
+Between initial and original images, the difference is hardly noticeable (middle panel, bottom row). The difference between synthesized and original images looks like random pixel noise distributed across the image (right panel, bottom row). However, the noise is too faint for us to tell if there's any structure. Instead, let us try visualizing the difference in each color channel (red, green, and blue) separately for the initial image (top row) and adversarial image (bottom row). Note the pixel value range is different between the top and bottom rows.
 
 ```{code-cell} ipython3
 channelwise_diffs_initial = mad.initial_image - img
