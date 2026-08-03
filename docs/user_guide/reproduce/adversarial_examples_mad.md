@@ -113,7 +113,7 @@ ResNet50 is trained to classify images into one of [1000 categories](https://dee
 category_probs, category = get_category(img)
 po.plot.stem_plot(category_probs, title=category)
 likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.01]))
-plt.text(700, 0.5, f"Likely categories:\n- {likely_cats}")
+plt.text(700, 0.5, f"Likely categories:\n- {likely_cats}");
 ```
 
 The category of our initial image, [guenon](https://en.wikipedia.org/wiki/Guenon), is an Old World monkey. Though it isn't the actual species of the monkey in question (a [Celebes crested macaque](https://en.wikipedia.org/wiki/Celebes_crested_macaque)), it's a reasonable category for it. Notice the model is highly confident in its classification, with a probability of about 0.8 and no other category exceeding a probability of 0.1. We also show any categories the model predicts with a probability higher than 0.01 and they are all non-human primates.
