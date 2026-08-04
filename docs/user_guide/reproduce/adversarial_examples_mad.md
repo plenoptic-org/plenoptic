@@ -27,9 +27,7 @@ Run it in your browser: **{binder}`adversarial_examples_mad.ipynb`**!
 This notebook requires the optional dependency `torchvision`, which can be installed with `pip`.
 :::
 
-In this notebook we demonstrate how we can use the {class}`~plenoptic.MADCompetition` class to synthesize adversarial examples. Adversarial examples are tiny perturbations to an image that causes Deep Neural Networks to misclassify ({cite:alp}`Szegedy2013`, {cite:alp}`goodfellow_explaining_2015`). MAD competition was developed to compare image quality metrics by generating a pair of images that have the same value for the reference metric but extremal values (highest and lowest) for the optimized metric ({cite:alp}`Wang2008-maxim-differ`). These images were then used as stimuli in psychophysics experiments, to demonstrate which metric best aligned with human perception.
-
-Here, we demonstrate a different use of the {class}`~plenoptic.MADCompetition` class and show how its underlying machinery can be readily used to generate adversarial examples of Deep Neural Networks. At a high level, this is achieved by defining a reference metric in pixel space (the value of which we want to be low) and an optimized metric in model output space (the value of which we want to be high).
+In this notebook we demonstrate how we can use the {class}`~plenoptic.MADCompetition` class to synthesize adversarial examples. Adversarial examples are tiny perturbations to an image that causes Deep Neural Networks to misclassify ({cite:alp}`Szegedy2013`, {cite:alp}`goodfellow_explaining_2015`). MAD competition was developed to compare image quality metrics by generating a pair of images that have the same value for the reference metric but extremal values (highest and lowest) for the optimized metric ({cite:alp}`Wang2008-maxim-differ`). These images were then used as stimuli in psychophysics experiments, to demonstrate which metric best aligned with human perception. Here, we demonstrate a different use of the {class}`~plenoptic.MADCompetition` class and show how its underlying machinery can be readily used to generate adversarial examples of Deep Neural Networks.
 
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
@@ -62,7 +60,7 @@ po.set_seed(4)
 
 ## Prepare model and image for synthesis
 
-In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of the final fully connected layer of ResNet50. We chose the final layer because the goal of adversarial attack is misclassification and the final layer corresponds to the probabilities for the 1000 categories. After creating the model, we then prepare the image. Finally, we ensure that the model and image have the proper device and dtype, and remove the gradient from all model parameters.
+In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of the final fully connected layer of a classic image recognition network, [ResNet50](https://en.wikipedia.org/wiki/Residual_neural_network) . We chose the final layer because the goal of adversarial attack is misclassification and the final layer corresponds to the probabilities for the 1000 categories. After creating the model, we then prepare the image. Finally, we ensure that the model and image have the proper device and dtype, and remove the gradient from all model parameters.
 
 To learn more about any of these steps and why we take them, read [](deep_nets).
 
@@ -86,7 +84,7 @@ po.remove_grad(model)
 ```
 
 ## Visualizing classification of the clean image
-First let us extract all the ImageNet categories:
+First let us extract all the [ImageNet-1K](https://en.wikipedia.org/wiki/ImageNet#ImageNet-1K) categories:
 
 ```{code-cell} ipython3
 imagenet_categories = np.asarray(weights.meta["categories"])
@@ -152,20 +150,20 @@ While a vector of probabilities (`convert_to_probs(model(x))` instead of `model(
 
 ## Synthesize the adversarial image
 
-We want to maximize {attr}`~plenoptic.MADCompetition.optimized_metric` while holding {attr}`~plenoptic.MADCompetition.reference_metric` fixed. Therefore we set {attr}`~plenoptic.MADCompetition.minmax` to "max". {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` controls the relative weight of {attr}`~plenoptic.MADCompetition.optimized_metric_loss` and {attr}`~plenoptic.MADCompetition.reference_metric_loss` in the objective function. We found a {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` value of 1e10 generally produced good adversarial examples for the monkey image.
+We want to maximize {attr}`~plenoptic.MADCompetition.optimized_metric` while holding {attr}`~plenoptic.MADCompetition.reference_metric` small. Therefore we set {attr}`~plenoptic.MADCompetition.minmax` to "max". {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` controls the relative weight of {attr}`~plenoptic.MADCompetition.optimized_metric_loss` and {attr}`~plenoptic.MADCompetition.reference_metric_loss` in the objective function. We found a {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` value of 1e10 generally produced good adversarial examples for the monkey image.
 
 ```{code-cell} ipython3
 mad = po.MADCompetition(
-    img, optimized_metric, reference_metric, "max", metric_tradeoff_lambda=1e10
+    img, optimized_metric, reference_metric, minmax="max", metric_tradeoff_lambda=1e10
 )
 ```
 
-:::{admonition} How does {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` affect the adversarial image
+:::{admonition} How does {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` affect the adversarial image and how do I find a good one?
 :class: dropdown hint
 
 We conducted a hyperparameter search and found increasing {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` led to decrease in both {attr}`~plenoptic.MADCompetition.optimized_metric_loss` and {attr}`~plenoptic.MADCompetition.reference_metric_loss`. This makes intuitive sense as a larger penalty value increases the importance of keeping the reference metric constant, which inevitably prevents the optimized metric from increasing.
 
-If you are applying this procedure to new images or new image classification models, you will almost certainly need to experiment to find the appropriate {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda`
+If you are applying this procedure to new images or new image classification models, you will almost certainly need to experiment to find the appropriate {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda`. Specifically, choose a {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` that maximizes {attr}`~plenoptic.MADCompetition.optimized_metric_loss` while minimizing {attr}`~plenoptic.MADCompetition.reference_metric_loss`.
 
 :::
 
@@ -178,7 +176,7 @@ mad.setup(initial_noise=0.001, optimizer_kwargs={"lr": 0.001})
 Running the synthesis generates an image that looks just like the original image but we see the optimized metric loss has increased significantly. Even though the reference metric loss measured in pixel space has also increased, it remains a small value. The fact that the optimized metric has significantly increased shows that the model thinks this is a very different category than our initial image, which we'll show in the next section.
 
 ```{code-cell} ipython3
-mad.synthesize(1000)
+mad.synthesize(10)
 po.plot.synthesis_status(mad);
 ```
 
@@ -202,6 +200,7 @@ for i, name in enumerate(["Original", "Initial", "Adversarial"]):
         ax=axes[i, 0],
         as_rgb=True,
         title=title,
+        vrange=(0, 1),
     )
     po.plot.stem_plot(category_probs, ax=axes[i, 1], ylim=False)
     axes[i, 1].set_title("Categories")
@@ -229,7 +228,13 @@ po.plot.imshow(
     images["Adversarial"], ax=axes[0, 2], as_rgb=True, title="Adversarial image"
 )
 
-po.plot.imshow(images["Original"], ax=axes[1, 0], as_rgb=True, title="Original image")
+po.plot.imshow(
+    images["Original"],
+    ax=axes[1, 0],
+    as_rgb=True,
+    title="Original image",
+    vrange=(0, 1),
+)
 
 for j, col_name in enumerate(["Initial", "Adversarial"], start=1):
     diff = (
@@ -241,7 +246,7 @@ for j, col_name in enumerate(["Initial", "Adversarial"], start=1):
         ax=axes[1, j],
         as_rgb=True,
         title=f"{col_name} - Original\nMSE={mse_val:.2e}",
-        vrange="auto0",
+        vrange=(0, 1),
     )
 
 for ax in [axes[0, 1], axes[0, 2], axes[1, 0], axes[1, 1], axes[1, 2]]:
