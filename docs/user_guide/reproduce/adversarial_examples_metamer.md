@@ -95,6 +95,7 @@ target_img = torchvision.transforms.functional.resize(
     target_img, [img.shape[-2], img.shape[-1]], antialias=True
 )
 target_img = target_img.unsqueeze(0)
+po.plot.imshow(target_img, as_rgb=True)
 target_img = target_img.to(DEVICE).to(torch.float64)
 ```
 
@@ -170,7 +171,7 @@ met.setup(initial_image=img, optimizer_kwargs={"lr": 0.001})
 ```
 
 ```{code-cell} ipython3
-met.synthesize(store_progress=True, max_iter=1000)
+met.synthesize(store_progress=True, max_iter=10)
 po.plot.synthesis_status(met);
 ```
 
@@ -204,6 +205,25 @@ for i, name in enumerate(["Original", "Target", "Adversarial"]):
     )
 category_probs, category = get_category(met.metamer)
 glue("category_name", str(category), display=False)
+```
+
+```{code-cell} ipython3
+mse = po.metric.mse(img, met.metamer)
+title = f"Adversarial - Original \nMSE={mse_val:.2e}"
+diff = (
+    met.metamer - img + 1
+) / 2  # convert the range from [-1,1] to [0,1] for RGB images
+po.plot.imshow(diff, as_rgb=True, title=title, col_wrap=2, vrange="auto0");
+```
+
+```{code-cell} ipython3
+channelwise_diffs_met = met.metamer - img
+titles = [
+    "Adversarial - Original (R)",
+    "Adversarial - Original (G)",
+    "Adversarial - Original (B)",
+]
+po.plot.imshow(channelwise_diffs_met, col_wrap=3, title=titles, vrange="auto0");
 ```
 
 This notebook demonstrates how to generate adversarial examples using the {class}`~plenoptic.Metamer` class. We encourage you to experiment with different image classification networks, images, and hyperparameters to generate other adversarial examples yourself!
