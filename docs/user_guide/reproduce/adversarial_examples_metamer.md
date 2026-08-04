@@ -27,7 +27,7 @@ Run it in your browser: **{binder}`adversarial_examples_metamer.ipynb`**!
 This notebook requires the optional dependency `torchvision`, which can be installed with `pip`.
 :::
 
-In this notebook we demonstrate how we can use the {class}`~plenoptic.Metamer` class to synthesize adversarial examples. Adversarial examples are tiny perturbations to an image that causes Deep Neural Networks to misclassify ({cite:alp}`Szegedy2013`, {cite:alp}`goodfellow_explaining_2015`).
+In this notebook we demonstrate how we can use the {class}`~plenoptic.Metamer` class to synthesize adversarial examples. Adversarial examples are images with tiny perturbations that causes Deep Neural Networks to misclassify ({cite:alp}`Szegedy2013`, {cite:alp}`goodfellow_explaining_2015`). In a non-strict sense, an adversarial example is a metamer of the the new (misclassified) class because the model has the same classification behaviour for the adversarial image and other images in the class. On this basis, we can use {class}`~plenoptic.Metamer` to generate adversarial examples by matching model output representation of the synthesized image to that of any other image we choose in that class. For an in-depth dive of creating metamers of Deep Neural Networks, read [](feather2023) and [](deep_nets).
 
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
@@ -58,9 +58,9 @@ plt.rcParams["figure.dpi"] = 72
 po.set_seed(4)
 ```
 
-## Prepare model and image for synthesis
+## Prepare model and images for synthesis
 
-In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of the final fully connected layer of ResNet50. After creating the model, we then prepare the image. Finally, we ensure that the model and image have the proper device and dtype, and remove the gradient from all model parameters.
+In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of "layer4" of ResNet50. After creating the model, we then prepare the original image and an image of a different class whose represetnation we try to match. For this example let us try to fool the network into thinking a macaque is a cheeseburger! Finally, we ensure that the model and images have the proper device and dtype, and remove the gradient from all model parameters.
 
 To learn more about any of these steps and why we take them, read [](deep_nets).
 
@@ -77,15 +77,7 @@ img = po.data.macaque()
 img = po.process.blur_downsample(img, 2)[..., :-59, :]
 img = po.process.center_crop(img, transform.crop_size[0])
 po.plot.imshow(img, as_rgb=True)
-img = img.to(DEVICE).to(torch.float64)
-model.to(DEVICE).to(torch.float64)
-deepnet.to(DEVICE).to(torch.float64)
-po.remove_grad(model)
-```
 
-## Prepare the target image
-
-```{code-cell} ipython3
 full_dataset = torchvision.datasets.Caltech256(
     root="/Users/raffleszhu/Documents/GitHub/notebooks_plenoptic/data", download=True
 )
@@ -96,7 +88,12 @@ target_img = torchvision.transforms.functional.resize(
 )
 target_img = target_img.unsqueeze(0)
 po.plot.imshow(target_img, as_rgb=True)
+
+img = img.to(DEVICE).to(torch.float64)
 target_img = target_img.to(DEVICE).to(torch.float64)
+model.to(DEVICE).to(torch.float64)
+deepnet.to(DEVICE).to(torch.float64)
+po.remove_grad(model)
 ```
 
 ## Visualizing classification of the clean image and target image
@@ -139,39 +136,49 @@ likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.01]))
 plt.text(700, 0.5, f"Likely categories:\n- {likely_cats}");
 ```
 
-## Define a penalty
+The category of the target image is cheeseburger. This is the desired category of our adversarial example.
 
-To qualify as an adversarial example, the image must satisfy two requirements: (1) the perturbation in image space is small and (2) the model outputs an incorrect classification with high confidence ({cite:alp}`goodfellow_explaining_2015`).
++++
+
+## Synthesize the adversarial image
+
+To qualify as an adversarial example, the image must satisfy two requirements: (1) the perturbation in image space is small and (2) the model outputs an incorrect classification with high confidence ({cite:alp}`goodfellow_explaining_2015`). By starting with the original image and changing pixel values until the model output representation is matched between the synthesized and target images, we can satisfy the second requirement. However, we also need to constrain the synthesized image to be close to the original image in pixel space. To do this we define a penalty function that calculates the Mean Squared Error (MSE) between the original and synthesized images. In the penalty function we also add another term that penalizes the range of the synthesized image pixel values being outside 0 and 1.
 
 ```{code-cell} ipython3
 def custom_penalty(image):
+    # compute MSE independently per RGB channel and then average.
     epsilon_penalty = po.metric.mse(image, img).mean()
     inside_penalty = po.regularize.penalize_range(image, allowed_range=(0, 1))
     return epsilon_penalty + inside_penalty
 ```
 
-## Synthesize the adversarial image
+The relative weight of the penalty in the objective function is controlled by the {attr}`~plenoptic.Metamer.penalty_lambda`. We found a value of 1000 generally worked well in our experiments.
 
 ```{code-cell} ipython3
-penalty_lambda = 1000
 met = po.Metamer(
-    target_img, model, penalty_function=custom_penalty, penalty_lambda=penalty_lambda
+    target_img, model, penalty_function=custom_penalty, penalty_lambda=1000
 )
 ```
 
-:::{admonition} How does {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` affect the adversarial image
+:::{admonition} How does {attr}`~plenoptic.Metamer.penalty_lambda` affect the adversarial image
 :class: dropdown hint
 
-If you are applying this procedure to new images or new image classification models, you will almost certainly need to experiment to find the appropriate {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda`
+The objective function for metamer synthesis is made of two parts: the synthesis loss that measures the difference in representation between synthesized and target images, and the penalty. As {attr}`~plenoptic.Metamer.penalty_lambda` increases, the relative weight of the penalty in the objevtive increases. This helps ensure the synthesized and original images are close to each other in pixel space, at the cost of making representation matching more difficult. If you are applying this procedure to new images or new image classification models, you will almost certainly need to experiment to find the appropriate {attr}`~plenoptic.Metamer.penalty_lambda`.
 
 :::
+
++++
+
+We also decreased the learning rate from the default, as this resulted in better solutions in our experiments.
 
 ```{code-cell} ipython3
 met.setup(initial_image=img, optimizer_kwargs={"lr": 0.001})
 ```
 
+We let the optimization run until loss converges by setting `max_iter` to a large value.
+
 ```{code-cell} ipython3
-met.synthesize(store_progress=True, max_iter=10)
+met.synthesize(store_progress=True, max_iter=10000)
 po.plot.synthesis_status(met);
 ```
 
@@ -207,6 +214,12 @@ category_probs, category = get_category(met.metamer)
 glue("category_name", str(category), display=False)
 ```
 
+We see the network is highly confident that the synthesized image is a {glue}`category_name`!
+
++++
+
+While the synthesized image is visually similar to the original image (also note the low MSE reference metric loss), let us verify more rigorously. To do this we subtract the the original image from the synthesized image to visualize the changes in pixel values.
+
 ```{code-cell} ipython3
 mse = po.metric.mse(img, met.metamer)
 title = f"Adversarial - Original \nMSE={mse_val:.2e}"
@@ -215,6 +228,8 @@ diff = (
 ) / 2  # convert the range from [-1,1] to [0,1] for RGB images
 po.plot.imshow(diff, as_rgb=True, title=title, col_wrap=2, vrange="auto0");
 ```
+
+The difference between synthesized and original images looks like random pixel noise distributed across the image. However, the noise is too faint for us to tell if there's any structure. Instead, let us try visualizing the difference in each color channel (red, green, and blue) separately.
 
 ```{code-cell} ipython3
 channelwise_diffs_met = met.metamer - img
@@ -225,5 +240,9 @@ titles = [
 ]
 po.plot.imshow(channelwise_diffs_met, col_wrap=3, title=titles, vrange="auto0");
 ```
+
+We see the difference does not look like a {glue}`category_name`, or similar. At this point we can safely conclude the synthesized image is an adversarial example of the network.
+
++++
 
 This notebook demonstrates how to generate adversarial examples using the {class}`~plenoptic.Metamer` class. We encourage you to experiment with different image classification networks, images, and hyperparameters to generate other adversarial examples yourself!
