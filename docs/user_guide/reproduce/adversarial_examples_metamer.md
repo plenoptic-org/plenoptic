@@ -27,7 +27,7 @@ Run it in your browser: **{binder}`adversarial_examples_metamer.ipynb`**!
 This notebook requires the optional dependency `torchvision`, which can be installed with `pip`.
 :::
 
-In this notebook we demonstrate how we can use the {class}`~plenoptic.Metamer` class to synthesize adversarial examples. Adversarial examples are images with tiny perturbations that causes Deep Neural Networks to misclassify ({cite:alp}`Szegedy2013`, {cite:alp}`goodfellow_explaining_2015`). In a non-strict sense, an adversarial example is a metamer of the the new (misclassified) class because the model has the same classification behaviour for the adversarial image and other images in the class. On this basis, we can use {class}`~plenoptic.Metamer` to generate adversarial examples by matching model output representation of the synthesized image to that of any other image we choose in that class. For an in-depth dive of creating metamers of Deep Neural Networks, read [](feather2023) and [](deep_nets).
+In this notebook we demonstrate how we can use the {class}`~plenoptic.Metamer` class to synthesize adversarial examples. Adversarial examples are images with subtle, imperceptible perturbations designed to deceive a Deep Neural Networks into making an incorrect classification ({cite:alp}`Szegedy2013`, {cite:alp}`goodfellow_explaining_2015`). In a non-strict sense, an adversarial example is a metamer of the new (misclassified) class because the model has the same classification behaviour for the adversarial image and other images in the class. On this basis, we can use {class}`~plenoptic.Metamer` to generate adversarial examples by matching the model output representation between the synthesized image and another image in that class. For an in-depth dive of creating metamers of Deep Neural Networks, read [](feather2023) and [](deep_nets).
 
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
@@ -60,7 +60,7 @@ po.set_seed(4)
 
 ## Prepare model and images for synthesis
 
-In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of "layer4" of ResNet50. After creating the model, we then prepare the original image and an image of a different class whose represetnation we try to match. For this example let us try to fool the network into thinking a macaque is a cheeseburger! Finally, we ensure that the model and images have the proper device and dtype, and remove the gradient from all model parameters.
+In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of "layer4" of a classic image recognition network, [ResNet50](https://en.wikipedia.org/wiki/Residual_neural_network), trained to classify images into one of [1000 categories](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/).. After creating the model, we then prepare the original image and an image of a different class whose represetnation we try to match. For this example let us try to fool the network into thinking a macaque is a cheeseburger! Finally, we ensure that the model and images have the proper device and dtype, and remove the gradient from all model parameters.
 
 To learn more about any of these steps and why we take them, read [](deep_nets).
 
@@ -89,15 +89,17 @@ target_img = torchvision.transforms.functional.resize(
 target_img = target_img.unsqueeze(0)
 po.plot.imshow(target_img, as_rgb=True)
 
-img = img.to(DEVICE).to(torch.float64)
+img = img.to(DEVICE).to(torch.float64)  # convert to float64 for reproducibility
 target_img = target_img.to(DEVICE).to(torch.float64)
 model.to(DEVICE).to(torch.float64)
 deepnet.to(DEVICE).to(torch.float64)
+
+# remove the gradient from all model parameters
 po.remove_grad(model)
 ```
 
 ## Visualizing classification of the clean image and target image
-First let us extract all the ImageNet categories:
+First let us extract all the [ImageNet-1K](https://en.wikipedia.org/wiki/ImageNet#ImageNet-1K) categories:
 
 ```{code-cell} ipython3
 imagenet_categories = np.asarray(weights.meta["categories"])
@@ -118,7 +120,7 @@ def get_category(image):
     return category_probs, category
 ```
 
-ResNet50 is trained to classify images into one of [1000 categories](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). The following plot shows the classification probabilities for our initial image as a stem plot. Each of the 1000 categories is represented by a line, whose y-value gives the model's probability that the image belongs to the corresponding category (the x-value is arbitrary). The title shows the label of the most likely category, and the text on the plot shows the other categories with probability higher than 0.01.
+ResNet50 is trained to classify images into one of [1000 categories](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). The following plot shows the classification probabilities for the original image as a stem plot. Each of the 1000 categories is represented by a line, whose y-value gives the model's probability that the image belongs to the corresponding category (the x-value is arbitrary). The title shows the label of the most likely category, and the text on the plot shows the other categories with probability higher than 0.01.
 
 ```{code-cell} ipython3
 category_probs, category = get_category(img)
@@ -127,7 +129,7 @@ likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.01]))
 plt.text(700, 0.5, f"Likely categories:\n- {likely_cats}");
 ```
 
-The category of our initial image, [guenon](https://en.wikipedia.org/wiki/Guenon), is an Old World monkey. Though it isn't the actual species of the monkey in question (a [Celebes crested macaque](https://en.wikipedia.org/wiki/Celebes_crested_macaque)), it's a reasonable category for it. Notice the model is highly confident in its classification, with a probability of about 0.8 and no other category exceeding a probability of 0.1. The other predicted categories are all [Old World monkeys](https://en.wikipedia.org/wiki/Old_World_monkey).
+The category of our initial image, [guenon](https://en.wikipedia.org/wiki/Guenon), is an Old World monkey. Though it isn't the actual species of the monkey in question (a [Celebes crested macaque](https://en.wikipedia.org/wiki/Celebes_crested_macaque)), it's a reasonable category for it. Notice the model is highly confident in its classification, with a probability of about 0.8 and no other category exceeding a probability of 0.1. The other predicted categories are all [Old World monkeys](https://en.wikipedia.org/wiki/Old_World_monkey). Now let us make the same plot for the target image.
 
 ```{code-cell} ipython3
 category_probs, category = get_category(target_img)
@@ -142,7 +144,7 @@ The category of the target image is cheeseburger. This is the desired category o
 
 ## Synthesize the adversarial image
 
-To qualify as an adversarial example, the image must satisfy two requirements: (1) the perturbation in image space is small and (2) the model outputs an incorrect classification with high confidence ({cite:alp}`goodfellow_explaining_2015`). By starting with the original image and changing pixel values until the model output representation is matched between the synthesized and target images, we can satisfy the second requirement. However, we also need to constrain the synthesized image to be close to the original image in pixel space. To do this we define a penalty function that calculates the Mean Squared Error (MSE) between the original and synthesized images. In the penalty function we also add another term that penalizes the range of the synthesized image pixel values being outside 0 and 1.
+To qualify as an adversarial example, the image must satisfy two requirements: (1) the perturbation in image space is small and (2) the model outputs an incorrect classification with high confidence ({cite:alp}`goodfellow_explaining_2015`). By starting with the original image and changing pixel values until the model output representation is matched between the synthesized and target images, the model should misclasify the synthesized image. However, we also need to constrain the synthesized image to be close to the original image in pixel space. To do this we define a penalty function that calculates the Mean Squared Error (MSE) between the original and synthesized images. In the penalty function we also add another term that penalizes the range of the synthesized image pixel values being outside 0 and 1.
 
 ```{code-cell} ipython3
 def custom_penalty(image):
