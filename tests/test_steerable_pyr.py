@@ -166,7 +166,7 @@ class TestSteerablePyramid:
     def multichannel_img(cls, request):
         shape = request.param
         # use fixture for img and use color_wheel instead.
-        img = po.load_images(IMG_DIR / "mixed" / "flowers.jpg", as_gray=False).to(
+        img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", as_gray=False).to(
             DEVICE
         )
         if shape == "224":
