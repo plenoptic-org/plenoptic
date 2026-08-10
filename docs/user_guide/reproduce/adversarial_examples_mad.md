@@ -27,9 +27,7 @@ Run it in your browser: **{binder}`adversarial_examples_mad.ipynb`**!
 This notebook requires the optional dependency `torchvision`, which can be installed with `pip`.
 :::
 
-In this notebook we demonstrate how we can use the {class}`~plenoptic.MADCompetition` class to synthesize adversarial examples. Adversarial examples are tiny perturbations to an image that causes Deep Neural Networks to misclassify ({cite:alp}`Szegedy2013`, {cite:alp}`goodfellow_explaining_2015`). MAD competition was developed to compare image quality metrics by generating a pair of images that have the same value for the reference metric but extremal values (highest and lowest) for the optimized metric ({cite:alp}`Wang2008-maxim-differ`). These images were then used as stimuli in psychophysics experiments, to demonstrate which metric best aligned with human perception.
-
-Here, we demonstrate a different use of the {class}`~plenoptic.MADCompetition` class and show how its underlying machinery can be readily used to generate adversarial examples of Deep Neural Networks. At a high level, this is achieved by defining a reference metric in pixel space (the value of which we want to be low) and an optimized metric in model output space (the value of which we want to be high).
+In this notebook we demonstrate how we can use the {class}`~plenoptic.MADCompetition` class to synthesize adversarial examples. Adversarial examples are images with subtle, imperceptible perturbations designed to deceive a Deep Neural Networks into making an incorrect classification ({cite:alp}`Szegedy2013`, {cite:alp}`goodfellow_explaining_2015`). MAD competition was developed to compare image quality metrics by generating a pair of images that have the same value for a reference metric but extremal values (highest and lowest) for an optimized metric ({cite:alp}`Wang2008-maxim-differ`). These images were then used as stimuli in psychophysics experiments, to demonstrate which metric best aligned with human perception. Here, we demonstrate a different use of the {class}`~plenoptic.MADCompetition` class and show how its underlying machinery can be readily used to generate adversarial examples of Deep Neural Networks.
 
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
@@ -62,7 +60,7 @@ po.set_seed(4)
 
 ## Prepare model and image for synthesis
 
-In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of the final fully connected layer of ResNet50. We chose the final layer because the goal of adversarial attack is misclassification and the final layer corresponds to the probabilities for the 1000 categories. After creating the model, we then prepare the image. Finally, we ensure that the model and image have the proper device and dtype, and remove the gradient from all model parameters.
+In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of the final fully connected layer of a classic image recognition network, [ResNet50](https://en.wikipedia.org/wiki/Residual_neural_network), trained to classify images into one of [1000 categories](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). We chose the final layer to attack because the goal is misclassification and the final fully-connected layer corresponds to the probabilities of the categories. After creating the model, we then prepare the image. Finally, we ensure that the model and image have the proper device and dtype, and remove the gradient from all model parameters.
 
 To learn more about any of these steps and why we take them, read [](deep_nets).
 
@@ -79,14 +77,17 @@ img = po.data.macaque()
 img = po.process.blur_downsample(img, 2)[..., :-59, :]
 img = po.process.center_crop(img, transform.crop_size[0])
 po.plot.imshow(img, as_rgb=True)
-img = img.to(DEVICE).to(torch.float64)
+
+img = img.to(DEVICE).to(torch.float64)  # convert to float64 for reproducibility
 model.to(DEVICE).to(torch.float64)
 deepnet.to(DEVICE).to(torch.float64)
+
+# remove the gradient from all model parameters
 po.remove_grad(model)
 ```
 
 ## Visualizing classification of the clean image
-First let us extract all the ImageNet categories:
+First let us extract all the [ImageNet-1K](https://en.wikipedia.org/wiki/ImageNet#ImageNet-1K) categories:
 
 ```{code-cell} ipython3
 imagenet_categories = np.asarray(weights.meta["categories"])
@@ -107,7 +108,7 @@ def get_category(image):
     return category_probs, category
 ```
 
-ResNet50 is trained to classify images into one of [1000 categories](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). The following plot shows the classification probabilities for our initial image as a stem plot. Each of the 1000 categories is represented by a line, whose y-value gives the model's probability that the image belongs to the corresponding category (the x-value is arbitrary). The title shows the label of the most likely category, and the text on the plot shows the other categories with probability higher than 0.01.
+The following plot shows the classification probabilities for the original image as a stem plot. Each of the 1000 categories is represented by a line, whose y-value gives the model's probability that the image belongs to the corresponding category (the x-value is arbitrary). The title shows the label of the most likely category, and the text on the plot shows the other categories with probability higher than 0.01.
 
 ```{code-cell} ipython3
 category_probs, category = get_category(img)
@@ -135,7 +136,7 @@ def reference_metric(x, y):
     return po.metric.mse(x, y).mean()
 ```
 
-For the optimized metric, we use MSE on the output of the last layer of the network.
+For the optimized metric, we use MSE on the activations of the last fully-connected layer of the network.
 
 ```{code-cell} ipython3
 def optimized_metric(x, y):
@@ -152,30 +153,29 @@ While a vector of probabilities (`convert_to_probs(model(x))` instead of `model(
 
 ## Synthesize the adversarial image
 
-We want to maximize {attr}`~plenoptic.MADCompetition.optimized_metric` while holding {attr}`~plenoptic.MADCompetition.reference_metric` fixed. Therefore we set {attr}`~plenoptic.MADCompetition.minmax` to "max". {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` controls the relative weight of {attr}`~plenoptic.MADCompetition.optimized_metric_loss` and {attr}`~plenoptic.MADCompetition.reference_metric_loss` in the objective function. We found a {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` value of 1e10 generally produced good adversarial examples for the monkey image.
+We want to maximize {attr}`~plenoptic.MADCompetition.optimized_metric` while holding {attr}`~plenoptic.MADCompetition.reference_metric` small. Therefore we set {attr}`~plenoptic.MADCompetition.minmax` to "max". {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` controls the relative weight of {attr}`~plenoptic.MADCompetition.optimized_metric_loss` and {attr}`~plenoptic.MADCompetition.reference_metric_loss` in the objective function. We found a {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` value of 1e10 generally produced good adversarial examples for the monkey image.
 
 ```{code-cell} ipython3
 mad = po.MADCompetition(
-    img, optimized_metric, reference_metric, "max", metric_tradeoff_lambda=1e10
+    img, optimized_metric, reference_metric, minmax="max", metric_tradeoff_lambda=1e10
 )
 ```
 
-:::{admonition} How does {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` affect the adversarial image
+:::{admonition} How does {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` affect the adversarial image and how do I find a good one?
 :class: dropdown hint
 
 We conducted a hyperparameter search and found increasing {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` led to decrease in both {attr}`~plenoptic.MADCompetition.optimized_metric_loss` and {attr}`~plenoptic.MADCompetition.reference_metric_loss`. This makes intuitive sense as a larger penalty value increases the importance of keeping the reference metric constant, which inevitably prevents the optimized metric from increasing.
 
-If you are applying this procedure to new images or new image classification models, you will almost certainly need to experiment to find the appropriate {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda`
+If you are applying this procedure to new images or new image classification models, you will almost certainly need to experiment to find the appropriate {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda`. Specifically, choose a {attr}`~plenoptic.MADCompetition.metric_tradeoff_lambda` that maximizes {attr}`~plenoptic.MADCompetition.optimized_metric_loss` while minimizing {attr}`~plenoptic.MADCompetition.reference_metric_loss`.
 
 :::
-
-We set the initial noise to be a small value so that our synthesized image also has small deviations in the pixel values from the original. We also decreased the learning rate from the default, as this resulted in better solutions in our experiments.
+MAD competition synthesis begins by adding some Gaussian pixel noise to the original image and this is the initial image. Between the initial image and the original image, the reference metric is first calculated, whose value the optimization will try to keep constant over the course of the synthesis. We set the initial noise to be a small value so that our final synthesized image also has small deviations in the pixel values from the original. We also decreased the learning rate from the default, as this resulted in better solutions in our experiments.
 
 ```{code-cell} ipython3
 mad.setup(initial_noise=0.001, optimizer_kwargs={"lr": 0.001})
 ```
 
-Running the synthesis generates an image that looks just like the original image but we see the optimized metric loss has increased significantly. Even though the reference metric loss measured in pixel space has also increased, it remains a small value. The fact that the optimized metric has significantly increased shows that the model thinks this is a very different category than our initial image, which we'll show in the next section.
+Running the synthesis generates an image that looks just like the original image but we see the optimized metric loss has increased significantly (by two orders of magnitude). Even though the reference metric loss measured in pixel space has also increased, it remains a small value. The fact that the optimized metric has significantly increased shows that the model thinks this is a very different category than our initial image, which we'll show in the next section.
 
 ```{code-cell} ipython3
 mad.synthesize(1000)
@@ -184,7 +184,7 @@ po.plot.synthesis_status(mad);
 
 ## Visualizing the adversarial image
 
-First let us visualize the category probabilities of the original, initial, and advesarial images using stem plots.
+First let us visualize the category probabilities of the original, initial, and adversarial images using stem plots.
 
 ```{code-cell} ipython3
 images = {"Original": img, "Initial": mad.initial_image, "Adversarial": mad.mad_image}
@@ -202,6 +202,7 @@ for i, name in enumerate(["Original", "Initial", "Adversarial"]):
         ax=axes[i, 0],
         as_rgb=True,
         title=title,
+        vrange=(0, 1),
     )
     po.plot.stem_plot(category_probs, ax=axes[i, 1], ylim=False)
     axes[i, 1].set_title("Categories")
@@ -229,7 +230,13 @@ po.plot.imshow(
     images["Adversarial"], ax=axes[0, 2], as_rgb=True, title="Adversarial image"
 )
 
-po.plot.imshow(images["Original"], ax=axes[1, 0], as_rgb=True, title="Original image")
+po.plot.imshow(
+    images["Original"],
+    ax=axes[1, 0],
+    as_rgb=True,
+    title="Original image",
+    vrange=(0, 1),
+)
 
 for j, col_name in enumerate(["Initial", "Adversarial"], start=1):
     diff = (
@@ -241,7 +248,7 @@ for j, col_name in enumerate(["Initial", "Adversarial"], start=1):
         ax=axes[1, j],
         as_rgb=True,
         title=f"{col_name} - Original\nMSE={mse_val:.2e}",
-        vrange="auto0",
+        vrange=(0, 1),
     )
 
 for ax in [axes[0, 1], axes[0, 2], axes[1, 0], axes[1, 1], axes[1, 2]]:
@@ -254,7 +261,7 @@ for ax in axes.flat:
 fig.tight_layout();
 ```
 
-Between initial and original images, the difference is hardly noticeable (middle panel, bottom row). The difference between synthesized and original images looks like random pixel noise distributed across the image (right panel, bottom row). However, the noise is too faint for us to tell if there's any structure. Instead, let us try visualizing the difference in each color channel (red, green, and blue) separately for the initial image (top row) and adversarial image (bottom row). Note the pixel value range is different between the top and bottom rows.
+Between initial and original images, the difference is hardly noticeable (middle panel, bottom row). The difference between synthesized and original images looks like random pixel noise distributed across the image (right panel, bottom row). However, the noise is too faint for us to tell if there's any structure. Instead, let us try visualizing the difference in each color channel (red, green, and blue) separately for the initial image and adversarial image.
 
 ```{code-cell} ipython3
 channelwise_diffs_initial = mad.initial_image - img
@@ -269,7 +276,7 @@ titles = [
 po.plot.imshow(channelwise_diffs_mad, col_wrap=3, title=titles, vrange="auto0");
 ```
 
-In the top row, we can see that the difference between the initial and original images is noise, randomly distributed across the image, with no structure. Given that the initial image is the original plus normally-distributed noise, that must be true. In the bottom row, the pattern has shifted, with the differences grouping together somewhat. However, this difference does not look like a {glue}`category_name`, or similar. At this point we can safely conclude the synthesized image is an adversarial example of the network.
+In the top row, we can see that the difference between the initial and original images is noise, randomly distributed across the image, with no structure. Given that the initial image is the original plus normally-distributed noise, that must be true. In the bottom row, the pattern has shifted, with the differences grouping together somewhat (also note the pixel value range is different between the top and bottom rows). However, this difference does not look like a {glue}`category_name`, or similar. At this point we can safely conclude the synthesized image is an adversarial example of the network.
 
 +++
 
