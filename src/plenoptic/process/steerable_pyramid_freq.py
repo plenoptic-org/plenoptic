@@ -1019,7 +1019,7 @@ class SteerablePyramidFreq(nn.Module):
                     dim=(-2, -1),
                     norm=self.fft_norm,
                 )
-                lodft = fft.fftshift(lodft)
+                lodft = fft.fftshift(lodft, dim=(-2, -1))
             else:
                 lodft = fft.fft2(
                     torch.zeros_like(pyr_coeffs["residual_lowpass"]),
