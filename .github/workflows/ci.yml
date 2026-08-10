@@ -184,8 +184,8 @@ jobs:
       with:
         file_types: .md,.py,.rst
         print_all: false
-        timeout: 25
-        retry_count: 5
+        timeout: 5
+        retry_count: 3
         exclude_urls: https://github.com/github-username/plenoptic.git
   validate_switcher_json:
     runs-on: ubuntu-latest
