@@ -139,8 +139,10 @@ jobs:
         pip install --upgrade --upgrade-strategy eager .[docs] --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Build docs (no notebooks)
       run: |
-        # this is needed to create the sphinx obj.inv file
-        make -C docs html O="-T"
+        # this is needed to create the sphinx obj.inv file. suppress warning
+        # from mystnb glue (because the notebooks aren't running, none of the
+        # glue'd variables have values)
+        make -C docs html O="-D suppress_warnings='mystnb.glue'"
         python linting/check_markdown.py docs/
   tests:
     runs-on: ubuntu-latest
