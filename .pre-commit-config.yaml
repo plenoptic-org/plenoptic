@@ -110,6 +110,12 @@ repos:
       entry: python linting/check_apidocs.py
       always_run: true
       pass_filenames: false
+    - id: check-myst-frontmatter
+      language: system
+      name: Ensure all text notebooks are in mys tformat
+      entry: python linting/check_myst-nb.py
+      types_or: ["markdown"]
+      files: ^docs/
 
 - repo: https://github.com/codespell-project/codespell
   # Configuration for codespell is in pyproject.toml
