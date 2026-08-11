@@ -20,7 +20,7 @@ Run it in your browser: **{binder}`adversarial_examples_metamer.ipynb`**!
 
 :::
 
-(adversarial_examples)=
+(adversarial_examples_metamer)=
 # Generate adversarial examples using Metamer
 
 :::{warning}

@@ -20,7 +20,7 @@ Run it in your browser: **{binder}`adversarial_examples_mad.ipynb`**!
 
 :::
 
-(adversarial_examples)=
+(adversarial_examples_mad)=
 # Generate adversarial examples using MAD Competition
 
 :::{warning}
