@@ -60,7 +60,7 @@ po.set_seed(4)
 
 ## Prepare model and images for synthesis
 
-In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of "layer4" of a classic image recognition network, [ResNet50](https://en.wikipedia.org/wiki/Residual_neural_network), trained to classify images into one of [1000 categories](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/).. After creating the model, we then prepare the original image and an image of a different class whose represetnation we try to match. For this example let us try to fool the network into thinking a macaque is a cheeseburger! Finally, we ensure that the model and images have the proper device and dtype, and remove the gradient from all model parameters.
+In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of "layer4" of a classic image recognition network, [ResNet50](https://en.wikipedia.org/wiki/Residual_neural_network), trained to classify images into one of [1000 categories](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/).. After creating the model, we then prepare the original image and an image of a different class whose represetnation we try to match. For this example let us fool the network into thinking a macaque is a cheeseburger (image taken from the Caltech256 dataset {cite:alp}`griffin_caltech_2022`)! Finally, we ensure that the model and images have the proper device and dtype, and remove the gradient from all model parameters.
 
 To learn more about any of these steps and why we take them, read [](deep_nets).
 
@@ -78,15 +78,10 @@ img = po.process.blur_downsample(img, 2)[..., :-59, :]
 img = po.process.center_crop(img, transform.crop_size[0])
 po.plot.imshow(img, as_rgb=True)
 
-full_dataset = torchvision.datasets.Caltech256(
-    root="/Users/raffleszhu/Documents/GitHub/notebooks_plenoptic/data", download=True
-)
-target_img, _ = full_dataset[10262]
-target_img = torchvision.transforms.ToTensor()(target_img)
+target_img = po.load_images(po.data.fetch_data("caltech256_burger.jpg"), as_gray=False)
 target_img = torchvision.transforms.functional.resize(
     target_img, [img.shape[-2], img.shape[-1]], antialias=True
 )
-target_img = target_img.unsqueeze(0)
 po.plot.imshow(target_img, as_rgb=True)
 
 img = img.to(DEVICE).to(torch.float64)  # convert to float64 for reproducibility
