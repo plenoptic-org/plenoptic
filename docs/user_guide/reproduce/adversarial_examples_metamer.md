@@ -139,7 +139,11 @@ The category of the target image is cheeseburger. This is the desired category o
 
 ## Synthesize the adversarial image
 
-To qualify as an adversarial example, the image must satisfy two requirements: (1) the perturbation in image space is small and (2) the model outputs an incorrect classification with high confidence ({cite:alp}`goodfellow_explaining_2015`). By starting with the original image and changing pixel values until the model output representation is matched between the synthesized and target images, the model should misclasify the synthesized image. However, we also need to constrain the synthesized image to be close to the original image in pixel space. To do this we define a penalty function that calculates the Mean Squared Error (MSE) between the original and synthesized images. In the penalty function we also add another term that penalizes the range of the synthesized image pixel values being outside 0 and 1.
+To qualify as an adversarial example, the image must satisfy two requirements ({cite:alp}`goodfellow_explaining_2015`): 
+1. The perturbation in image space is small.
+2. The model outputs an incorrect classification with high confidence.
+
+By starting with the original image and changing pixel values until the model output representation is matched between the synthesized and target images, the model should misclassify the synthesized image. However, we also need to constrain the synthesized image to be close to the original image in pixel space. To do this we define a penalty function that calculates the Mean Squared Error (MSE) between the original and synthesized images. In the penalty function we also add another term that penalizes pixels in the synthesized image whose values values outside $[0, 1]$.
 
 ```{code-cell} ipython3
 def custom_penalty(image):
