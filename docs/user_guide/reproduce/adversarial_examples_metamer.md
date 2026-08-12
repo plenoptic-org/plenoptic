@@ -227,7 +227,7 @@ title = f"Adversarial - Original \nMSE={mse_val:.2e}"
 diff = (
     met.metamer - img + 1
 ) / 2  # convert the range from [-1,1] to [0,1] for RGB images
-po.plot.imshow(diff, as_rgb=True, title=title, col_wrap=2, vrange="auto0");
+po.plot.imshow(diff, as_rgb=True, title=title);
 ```
 
 The difference between synthesized and original images looks like random pixel noise distributed across the image. However, the noise is too faint for us to tell if there's any structure. Instead, let us try visualizing the difference in each color channel (red, green, and blue) separately.
