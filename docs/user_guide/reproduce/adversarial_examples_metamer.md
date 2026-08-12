@@ -81,9 +81,7 @@ img = po.process.center_crop(img, transform.crop_size[0])
 po.plot.imshow(img, as_rgb=True)
 
 target_img = po.load_images(po.data.fetch_data("caltech256_burger.jpg"), as_gray=False)
-target_img = torchvision.transforms.functional.resize(
-    target_img, [img.shape[-2], img.shape[-1]], antialias=True
-)
+target_img = po.process.center_crop(target_img, img.shape[-1])
 po.plot.imshow(target_img, as_rgb=True)
 
 img = img.to(DEVICE).to(torch.float64)  # convert to float64 for reproducibility
