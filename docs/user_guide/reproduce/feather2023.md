@@ -39,7 +39,7 @@ Run it in your browser: **{binder}`feather2023.ipynb`**!
 
 :::
 
-(feather_2023)=
+(feather2023-resnet50)=
 # Reproducing ResNet50 Image Metamers from Feather et al., 2023
 
 :::{warning}
