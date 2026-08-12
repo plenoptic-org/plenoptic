@@ -139,7 +139,7 @@ The category of the target image is cheeseburger. This is the desired category o
 
 ## Synthesize the adversarial image
 
-To qualify as an adversarial example, the image must satisfy two requirements ({cite:alp}`goodfellow_explaining_2015`): 
+To qualify as an adversarial example, the image must satisfy two requirements ({cite:alp}`goodfellow_explaining_2015`):
 1. The perturbation in image space is small.
 2. The model outputs an incorrect classification with high confidence.
 
