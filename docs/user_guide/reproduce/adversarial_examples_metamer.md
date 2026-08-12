@@ -157,7 +157,7 @@ met = po.Metamer(
 )
 ```
 
-:::{admonition} How does {attr}`~plenoptic.Metamer.penalty_lambda` affect the adversarial image
+:::{admonition} How does {attr}`~plenoptic.Metamer.penalty_lambda` affect the adversarial image?
 :class: dropdown hint
 
 The objective function for metamer synthesis is made of two parts: the synthesis loss that measures the difference in representation between synthesized and target images, and the penalty. As {attr}`~plenoptic.Metamer.penalty_lambda` increases, the relative weight of the penalty in the objevtive increases. This helps ensure the synthesized and original images are close to each other in pixel space, at the cost of making representation matching more difficult. If you are applying this procedure to new images or new image classification models, you will almost certainly need to experiment to find the appropriate {attr}`~plenoptic.Metamer.penalty_lambda`.
