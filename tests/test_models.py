@@ -685,6 +685,17 @@ def remove_redundant_and_normalize(
 
 
 class TestPortillaSimoncelli:
+    @staticmethod
+    def _small_ps(image, **kwargs):
+        """Helper to easily generate lightweight PS model"""
+        return po.models.PortillaSimoncelli(
+            image.shape[-2:],
+            n_scales=2,
+            n_orientations=4,
+            spatial_corr_width=3,
+            **kwargs,
+        ).to(DEVICE)
+
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
@@ -986,6 +997,88 @@ class TestPortillaSimoncelli:
             raise ValueError(
                 "Output doesn't have same number of batch/channel dims as input!"
             )
+
+    def test_explicit_color_statistics(self):
+        image = torch.rand(2, 3, 32, 32, device=DEVICE)
+        # PCA is fitted to a single target image
+        transform = po.process.PCA(image[0]).to(DEVICE)
+        model = self._small_ps(image, color_statistics=True, transform=transform)
+        representation_tensor = model(image)
+
+        # Batch dimension preserved, channels reduced to 1
+        assert representation_tensor.shape[:2] == (2, 1)
+
+        # Convert to dict and back to tensor, should match the original tensor
+        representation_dict = model.convert_to_dict(representation_tensor)
+        representation_tensor_new = model.convert_to_tensor(representation_dict)
+        torch.testing.assert_close(representation_tensor, representation_tensor_new)
+
+        # Test that removing a scale works and maintains batch and channel dims
+        assert model.remove_scales(representation_tensor, [0]).shape[:2] == (2, 1)
+
+        # Test that all grayscale statistics families are in the color statistics model
+        grayscale_image = image[:, :1]
+        grayscale_model = self._small_ps(grayscale_image)
+        grayscale_representation_dict = grayscale_model.convert_to_dict(
+            grayscale_model(grayscale_image)
+        )
+
+        missing_keys = set(grayscale_representation_dict) - set(representation_dict)
+        assert not missing_keys, (
+            f"Color representation is missing grayscale statistics: {missing_keys}"
+        )
+
+    def test_default_color_transform(self):
+        # The color PS model should run out of the box with the OPC transform
+        image = torch.rand(1, 3, 32, 32, device=DEVICE)
+        default_model = self._small_ps(image, color_statistics=True)
+        explicit_model = self._small_ps(
+            image, color_statistics=True, transform=po.process.OPC()
+        )
+        torch.testing.assert_close(default_model(image), explicit_model(image))
+
+    def test_none_color_transform(self):
+        # The transform=None parameter is the identity color transform
+        # Test that the object initializes, it can compute statistics,
+        # and they are different from default OPC color
+        image = torch.rand(1, 3, 32, 32, device=DEVICE)
+        color_model_id = self._small_ps(image, color_statistics=True, transform=None)
+        color_model_opc = self._small_ps(image, color_statistics=True)
+
+        representation_id = color_model_id(image)
+        representation_opc = color_model_opc(image)
+        assert not torch.allclose(representation_id, representation_opc)
+
+    def test_transform_ignored_without_color_statistics(self):
+        def transform(image):
+            raise RuntimeError("Non-color model shouldn't call this transform")
+
+        image = torch.rand(1, 3, 32, 32, device=DEVICE)
+        model = self._small_ps(image, transform=transform)
+        assert model(image).shape[:2] == image.shape[:2]
+
+    @pytest.mark.parametrize("n_channels", [1, 2])
+    def test_color_statistics_requires_rgb(self, n_channels):
+        image = torch.rand(1, n_channels, 32, 32, device=DEVICE)
+        model = self._small_ps(image, color_statistics=True)
+        with pytest.raises(ValueError, match="three channels"):
+            model(image)
+
+    def test_portilla_simoncelli_requires_4d(self):
+        image = torch.rand(1, 32, 32, device=DEVICE)
+        model = self._small_ps(image)
+        with pytest.raises(ValueError, match="expects a 4d image"):
+            model(image)
+
+    def test_color_statistics_plot_not_implemented(self):
+        image = torch.rand(1, 3, 32, 32, device=DEVICE)
+        model = self._small_ps(image, color_statistics=True)
+        representation = model(image)
+
+        with pytest.raises(NotImplementedError, match="Plotting is not implem"):
+            model.plot_representation(representation)
+        with pytest.raises(NotImplementedError, match="Plotting is not implem"):
+            model.update_plot([], representation)
 
     @pytest.mark.parametrize("input_type", ["tensor", "dict"])
     @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])

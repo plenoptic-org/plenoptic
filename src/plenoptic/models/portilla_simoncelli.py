@@ -17,6 +17,7 @@ References
 """  # numpydoc ignore=EX01
 
 from collections import OrderedDict
+from collections.abc import Callable
 from typing import Literal
 
 import einops
@@ -29,6 +30,7 @@ from torch import Tensor
 
 from ..plot.display import _clean_up_axes, _rescale_ylim, _update_stem, stem_plot
 from ..process import signal, stats
+from ..process.color import OPC
 from ..process.steerable_pyramid_freq import (
     SCALES_TYPE as PYR_SCALES_TYPE,
 )
@@ -67,6 +69,12 @@ class PortillaSimoncelli(nn.Module):
     variance, skew, and kurtosis) of the image and down-sampled versions of that image.
     See the paper and notebook for more description.
 
+    By default, channels are analyzed independently with the original set of
+    Portilla Simoncelli statistics. Setting ``color_statistics=True``
+    enables an extended set of joint color statistics for RGB images that produces
+    better color metamers, as originally implemented in
+    https://www.cns.nyu.edu/~lcv/texture/, and as described by Vacher & Briand [4]_.
+
     .. versionchanged:: 2.0.0
        Default ``spatial_corr_width`` value changed from 9 to 7, in order to match
        the value used to generate the figures in the Portilla and Simoncelli, 2000
@@ -82,6 +90,14 @@ class PortillaSimoncelli(nn.Module):
         The number of orientations used to measure the statistics.
     spatial_corr_width
         The width of the spatial cross- and auto-correlation statistics.
+    color_statistics
+        Whether to compute the joint color representation. If ``False``, all channels
+        are analyzed independently and ``transform`` is ignored.
+    transform
+        Callable color transform applied before computing pyramid statistics when
+        ``color_statistics=True``. The default, ``"opc"``, creates a fresh
+        :class:`~plenoptic.process.OPC` transform. If ``None``, no transform is
+        applied.
 
     Attributes
     ----------
@@ -106,6 +122,9 @@ class PortillaSimoncelli(nn.Module):
     .. [3] E P Simoncelli and W T Freeman, "The Steerable Pyramid: A Flexible
        Architecture for Multi-Scale Derivative Computation," Second Int'l Conf
        on Image Processing, Washington, DC, Oct 1995.
+    .. [4] Vacher, J., & Briand, T. (2021). "The Portilla-Simoncelli texture
+       model: towards understanding the early visual cortex". Image Processing
+       On Line, 11, 170-211.
 
     Examples
     --------
@@ -171,10 +190,24 @@ class PortillaSimoncelli(nn.Module):
         n_scales: int = 4,
         n_orientations: int = 4,
         spatial_corr_width: int = 7,
+        color_statistics: bool = False,
+        transform: nn.Module
+        | Callable[[Tensor], Tensor]
+        | Literal["opc"]
+        | None = "opc",
     ):
         super().__init__()
 
         self.image_shape = image_shape
+        self.color_statistics = color_statistics
+        if isinstance(transform, str):
+            if transform != "opc":
+                raise ValueError(
+                  "The only recognized string transform is 'opc'."
+                  f" Received '{transform}' instead."
+                )
+            transform = OPC()
+        self.transform = transform
         if any([(image_shape[-1] / 2**i) % 2 for i in range(n_scales)]) or any(
             [(image_shape[-2] / 2**i) % 2 for i in range(n_scales)]
         ):
@@ -206,9 +239,13 @@ class PortillaSimoncelli(nn.Module):
 
         # Dictionary defining necessary statistics, that is, those that are not
         # redundant
-        self._necessary_stats_dict = self._create_necessary_stats_dict(
-            scales_shape_dict
-        )
+        necessary_stats_dict = self._create_necessary_stats_dict(scales_shape_dict)
+        if self.color_statistics:
+            scales_shape_dict = self._create_color_scales_shape_dict(scales_shape_dict)
+            necessary_stats_dict = self._create_color_necessary_stats_dict(
+                necessary_stats_dict
+            )
+        self._necessary_stats_dict = necessary_stats_dict
         # turn this into tensor we can use in forward pass. first into a
         # boolean mask...
         _necessary_stats_mask = einops.pack(
@@ -351,6 +388,30 @@ class PortillaSimoncelli(nn.Module):
 
         return shape_dict
 
+    @staticmethod
+    def _create_color_scales_shape_dict(
+        scales_shape_dict: OrderedDict,
+    ) -> OrderedDict:
+        """
+        Create dictionary defining scales and shape of each stat for the
+        joint color statistics.
+
+        Parameters
+        ----------
+        scales_shape_dict
+            Scale metadata dictionary for the grayscale statistics.
+            Generated via `_create_scales_shape_dict()`.
+
+        Returns
+        -------
+        color_scales_shape_dict
+            Scale metadata dictionary for the joint color statistics.
+        """
+        return OrderedDict(
+            (key, np.repeat(value[None], 3, axis=0))
+            for key, value in scales_shape_dict.items()
+        )
+
     def _create_necessary_stats_dict(
         self, scales_shape_dict: OrderedDict
     ) -> OrderedDict:
@@ -420,11 +481,37 @@ class PortillaSimoncelli(nn.Module):
             mask_dict[k] = mask
         return mask_dict
 
+    @staticmethod
+    def _create_color_necessary_stats_dict(
+        necessary_stats_dict: OrderedDict,
+    ) -> OrderedDict:
+        """
+        Create mask specifying the necessary statistics for the joint
+        color statistics.
+
+        Parameters
+        ----------
+        necessary_stats_dict
+            Necessary statistics masks for the channel-independent representation.
+            Generated via `_create_necessary_stats_dict()`.
+
+        Returns
+        -------
+        color_necessary_stats_dict
+            Necessary statistics masks for the joint color statistics.
+        """
+        return OrderedDict(
+            (key, value.unsqueeze(0).repeat(3, *([1] * value.ndim)))
+            for key, value in necessary_stats_dict.items()
+        )
+
     def forward(self, image: Tensor, scales: list[SCALES_TYPE] | None = None) -> Tensor:
         r"""
         Generate Texture Statistics representation of an image.
 
-        Note that separate batches and channels are analyzed in parallel.
+        By default, separate batches and channels are analyzed in parallel. If
+        ``color_statistics=True``, the input must have three channels and is analyzed
+        as one joint color image.
 
         For any representation that contains info across scales, the scales always run
         from fine to coarse, representing all orientations at a given scale before
@@ -444,13 +531,16 @@ class PortillaSimoncelli(nn.Module):
         Returns
         -------
         representation_tensor
-            3d tensor of shape (batch, channel, stats) containing the measured
-            texture statistics.
+            3d tensor containing the measured texture statistics. Its shape is
+            ``(batch, channel, stats)`` when ``color_statistics=False`` and
+            ``(batch, 1, stats)`` when ``color_statistics=True``.
 
         Raises
         ------
         ValueError
             If ``image`` is not 4d or has a dtype other than float or complex.
+        ValueError
+            If ``color_statistics=True`` but ``image`` does not have three channels.
 
         Examples
         --------
@@ -461,6 +551,30 @@ class PortillaSimoncelli(nn.Module):
         >>> representation_tensor.shape
         torch.Size([1, 1, 710])
         """
+        if image.ndim != 4:
+            raise ValueError(
+                "PortillaSimoncelli expects a 4d image with shape "
+                "(batch, channel, height, width), but image has "
+                f"dimension {image.ndim} and shape {image.shape} instead."
+                
+            )
+        if self.color_statistics and image.shape[1] != 3:
+            raise ValueError(
+                "PortillaSimoncelli with color_statistics=True expects an RGB image "
+                f"with three channels, but image has shape {image.shape} instead."
+            )
+
+        # Pixel statistics are always computed in the original image space.
+        pixel_stats = self._compute_pixel_stats(image)
+        if self.color_statistics:
+            image_for_pyramid = (
+                image if self.transform is None else self.transform(image)
+            )
+            image_var = torch.var(image_for_pyramid, dim=(-2, -1))
+        else:
+            image_for_pyramid = image
+            image_var = pixel_stats[..., 1]
+
         # pyr_dict is the dictionary of complex-valued tensors returned by the
         # steerable pyramid. pyr_coeffs is a list (length n_scales) of 5d
         # tensors, each of shape (batch, channel, scales, n_orientations,
@@ -469,7 +583,7 @@ class PortillaSimoncelli(nn.Module):
         # width). Note that the residual lowpass in pyr_dict has been demeaned.
         # We keep both the dict and list of pyramid coefficients because we
         # need the dictionary for reconstructing the image done later on.
-        pyr_dict, pyr_coeffs, highpass, _ = self._compute_pyr_coeffs(image)
+        pyr_dict, pyr_coeffs, highpass, _ = self._compute_pyr_coeffs(image_for_pyramid)
 
         # Now, we create several intermediate representations that we'll use to
         # compute the texture statistics later.
@@ -494,10 +608,6 @@ class PortillaSimoncelli(nn.Module):
 
         # Now, start calculating the PS texture stats.
 
-        # Calculate pixel statistics (mean, variance, skew, kurtosis, min,
-        # max).
-        pixel_stats = self._compute_pixel_stats(image)
-
         # Compute the central autocorrelation of the coefficient magnitudes. This is a
         # tensor of shape: (batch, channel, spatial_corr_width, spatial_corr_width,
         # n_orientations, n_scales). var_mags is a tensor of shape (batch, channel,
@@ -520,7 +630,7 @@ class PortillaSimoncelli(nn.Module):
         # n_scales+1)
         std_recon = var_recon.sqrt()
         skew_recon, kurtosis_recon = self._compute_skew_kurtosis_recon(
-            reconstructed_images, var_recon, pixel_stats[..., 1]
+            reconstructed_images, var_recon, image_var
         )
 
         # Compute the cross-orientation correlations between the magnitude
@@ -572,7 +682,13 @@ class PortillaSimoncelli(nn.Module):
             all_stats += [cross_scale_corr_mags, cross_scale_corr_real]
         all_stats += [var_highpass_residual]
         # And then pack them into a 3d tensor
-        representation_tensor, pack_info = einops.pack(all_stats, "b c *")
+        if self.color_statistics:
+            # When using joint color statistics we don't keep the separate
+            # channels, since some statistics don't correspond to a single channel
+            representation_tensor, pack_info = einops.pack(all_stats, "b *")
+            representation_tensor = representation_tensor.unsqueeze(1)
+        else:
+            representation_tensor, pack_info = einops.pack(all_stats, "b c *")
 
         # the only time when this is None is during testing, when we make sure
         # that our assumptions are all valid.
@@ -1376,7 +1492,13 @@ class PortillaSimoncelli(nn.Module):
             If ``rep`` contains additional keys.
         KeyError
             If ``rep`` is missing any keys.
+        NotImplementedError
+            If ``color_statistics=True``.
         """  # numpydoc ignore=EX01
+        if self.color_statistics:
+            raise NotImplementedError(
+              "Plotting is not implemented for `color_statistics=True`."
+            )
         if set(rep.keys()) > set(self._necessary_stats_dict.keys()):
             raise ValueError("representation contains additional keys!")
         elif set(rep.keys()) < set(self._necessary_stats_dict.keys()):
