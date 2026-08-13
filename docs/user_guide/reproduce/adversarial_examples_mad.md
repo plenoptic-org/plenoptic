@@ -93,9 +93,10 @@ First let us extract all the [ImageNet-1K](https://en.wikipedia.org/wiki/ImageNe
 imagenet_categories = np.asarray(weights.meta["categories"])
 ```
 
-Let us define two helper functions:
+Let us define three helper functions:
 - `convert_to_probs` converts the activation in the final fully-connected layer to probabilities that sum to 1. It gets used in `get_category`, below.
 - `get_category` accepts a single image and returns both a vector containing the category probabilities and name of the category with the highest probability.
+- `get_likely_categories` accepts the category probabilities and returns all categories with probability higher than 0.01.
 
 ```{code-cell} ipython3
 def convert_to_probs(logits):
@@ -106,6 +107,13 @@ def get_category(image):
     category_probs = convert_to_probs(deepnet(norm(image))).detach().cpu()
     category = imagenet_categories[category_probs.argmax()]
     return category_probs, category
+
+
+def get_likely_categories(category_probs):
+    likely_idx = torch.where(category_probs > 0.01)[0]
+    likely_idx = likely_idx[torch.argsort(category_probs[likely_idx], descending=True)]
+    likely_cats = "\n- ".join(imagenet_categories[likely_idx].tolist())
+    return likely_cats
 ```
 
 The following plot shows the classification probabilities for the original image as a stem plot. Each of the 1000 categories is represented by a line, whose y-value gives the model's probability that the image belongs to the corresponding category (the x-value is arbitrary). The title shows the label of the most likely category, and the text on the plot shows the other categories with probability higher than 0.01.
@@ -113,7 +121,7 @@ The following plot shows the classification probabilities for the original image
 ```{code-cell} ipython3
 category_probs, category = get_category(img)
 po.plot.stem_plot(category_probs, title=category)
-likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.01]))
+likely_cats = get_likely_categories(category_probs)
 plt.text(700, 0.5, f"Likely categories:\n- {likely_cats}");
 ```
 
@@ -191,7 +199,7 @@ images = {"Original": img, "Initial": mad.initial_image, "Adversarial": mad.mad_
 fig, axes = plt.subplots(3, 2, figsize=(10, 15))
 for i, name in enumerate(["Original", "Initial", "Adversarial"]):
     category_probs, category = get_category(images[name])
-    likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.05]))
+    likely_cats = get_likely_categories(category_probs)
     most_likely_cat = imagenet_categories[category_probs.argmax()]
     mse_val = po.metric.mse(images["Original"], images[name]).mean().item()
     title = (

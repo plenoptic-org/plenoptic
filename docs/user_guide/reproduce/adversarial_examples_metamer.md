@@ -66,6 +66,14 @@ To learn more about any of these steps and why we take them, read [](deep_nets).
 
 As part of this procedure, we must choose an image whose `layer4` representation (and thus, categorization) we would like to match. For this example let us fool the network into thinking a macaque is a cheeseburger (image taken from the Caltech256 dataset {cite:alp}`griffin_caltech_2022`).
 
++++
+
+:::{admonition} Why choose "layer4"?
+:class: dropdown hint
+
+Ideally, metamers of an early layer should also be metamers of all subsequent layers. However this is not the case in practise because of the additional constraint on the metamer image we put in pixel space (explained in the following sections). Even when the loss has converged, there will still be some residual error between the original representation and the synthesized representation at the matched layer that can propagate through the network and cause later representation to diverge. By choosing the last convolutional layer of the network ("layer 4"), we minimize this divergence in reprensetation, which gives the network more consistent classification behaviour of the metamer image.
+:::
+
 ```{code-cell} ipython3
 weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
 deepnet = torchvision.models.resnet50(weights=weights)
@@ -78,11 +86,11 @@ model = po.models.DeepNetFeatures(deepnet, target_layer, norm)
 img = po.data.macaque()
 img = po.process.blur_downsample(img, 2)[..., :-59, :]
 img = po.process.center_crop(img, transform.crop_size[0])
-po.plot.imshow(img, as_rgb=True)
 
 target_img = po.load_images(po.data.fetch_data("caltech256_burger.jpg"), as_gray=False)
 target_img = po.process.center_crop(target_img, img.shape[-1])
-po.plot.imshow(target_img, as_rgb=True)
+
+po.plot.imshow([img, target_img], title=["Initial image", "Target image"], as_rgb=True)
 
 img = img.to(DEVICE).to(torch.float64)  # convert to float64 for reproducibility
 target_img = target_img.to(DEVICE).to(torch.float64)
@@ -100,9 +108,10 @@ First let us extract all the [ImageNet-1K](https://en.wikipedia.org/wiki/ImageNe
 imagenet_categories = np.asarray(weights.meta["categories"])
 ```
 
-Let us define two helper functions:
+Let us define three helper functions:
 - `convert_to_probs` converts the activation in the final fully-connected layer to probabilities that sum to 1. It gets used in `get_category`, below.
 - `get_category` accepts a single image and returns both a vector containing the category probabilities and name of the category with the highest probability.
+- `get_likely_categories` accepts the category probabilities and returns all categories with probability higher than 0.01.
 
 ```{code-cell} ipython3
 def convert_to_probs(logits):
@@ -113,6 +122,13 @@ def get_category(image):
     category_probs = convert_to_probs(deepnet(norm(image))).detach().cpu()
     category = imagenet_categories[category_probs.argmax()]
     return category_probs, category
+
+
+def get_likely_categories(category_probs):
+    likely_idx = torch.where(category_probs > 0.01)[0]
+    likely_idx = likely_idx[torch.argsort(category_probs[likely_idx], descending=True)]
+    likely_cats = "\n- ".join(imagenet_categories[likely_idx].tolist())
+    return likely_cats
 ```
 
 ResNet50 is trained to classify images into one of [1000 categories](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/). The following plot shows the classification probabilities for the original image as a stem plot. Each of the 1000 categories is represented by a line, whose y-value gives the model's probability that the image belongs to the corresponding category (the x-value is arbitrary). The title shows the label of the most likely category, and the text on the plot shows the other categories with probability higher than 0.01.
@@ -120,7 +136,7 @@ ResNet50 is trained to classify images into one of [1000 categories](https://dee
 ```{code-cell} ipython3
 category_probs, category = get_category(img)
 po.plot.stem_plot(category_probs, title=category)
-likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.01]))
+likely_cats = get_likely_categories(category_probs)
 plt.text(700, 0.5, f"Likely categories:\n- {likely_cats}");
 ```
 
@@ -129,7 +145,7 @@ The category of our initial image, [guenon](https://en.wikipedia.org/wiki/Guenon
 ```{code-cell} ipython3
 category_probs, category = get_category(target_img)
 po.plot.stem_plot(category_probs, title=category)
-likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.01]))
+likely_cats = get_likely_categories(category_probs)
 plt.text(700, 0.5, f"Likely categories:\n- {likely_cats}");
 ```
 
@@ -164,7 +180,7 @@ met = po.Metamer(
 :::{admonition} How does {attr}`~plenoptic.Metamer.penalty_lambda` affect the adversarial image?
 :class: dropdown hint
 
-The objective function for metamer synthesis is made of two parts: the synthesis loss that measures the difference in representation between synthesized and target images, and the penalty. As {attr}`~plenoptic.Metamer.penalty_lambda` increases, the relative weight of the penalty in the objevtive increases. This helps ensure the synthesized and original images are close to each other in pixel space, at the cost of making representation matching more difficult. If you are applying this procedure to new images or new image classification models, you will almost certainly need to experiment to find the appropriate {attr}`~plenoptic.Metamer.penalty_lambda`.
+The objective function for metamer synthesis is made of two parts: the synthesis loss that measures the difference in representation between synthesized and target images, and the penalty. As {attr}`~plenoptic.Metamer.penalty_lambda` increases, the relative weight of the penalty in the objevtive increases. This helps ensure the synthesized and original images are close to each other in pixel space, at the cost of making representation matching more difficult. From our experiments, if you set {attr}`~plenoptic.Metamer.penalty_lambda` to a small value (e.g. 1), the penalty was essentially ignored and the resulting image was very distant from the original in pixel space, breaking the first requirement of an adversarial example. If you are applying this procedure to new images or new image classification models, you will almost certainly need to experiment to find the appropriate {attr}`~plenoptic.Metamer.penalty_lambda`.
 
 :::
 
@@ -192,7 +208,7 @@ images = {"Original": img, "Target": target_img, "Adversarial": met.metamer}
 fig, axes = plt.subplots(3, 2, figsize=(10, 15))
 for i, name in enumerate(["Original", "Target", "Adversarial"]):
     category_probs, category = get_category(images[name])
-    likely_cats = "\n- ".join(list(imagenet_categories[category_probs > 0.05]))
+    likely_cats = get_likely_categories(category_probs)
     most_likely_cat = imagenet_categories[category_probs.argmax()]
     mse_val = po.metric.mse(images["Original"], images[name]).mean().item()
     title = (
@@ -224,22 +240,21 @@ While the synthesized image is visually similar to the original image (also note
 ```{code-cell} ipython3
 mse = po.metric.mse(img, met.metamer)
 title = f"Adversarial - Original \nMSE={mse_val:.2e}"
-diff = (
-    met.metamer - img + 1
-) / 2  # convert the range from [-1,1] to [0,1] for RGB images
-po.plot.imshow(diff, as_rgb=True, title=title);
+diff = met.metamer - img
+diff_rescaled = po.process.rescale(diff)  # rescale to values between 0 and 1
+po.plot.imshow(diff_rescaled, as_rgb=True, title=title);
 ```
 
-The difference between synthesized and original images looks like random pixel noise distributed across the image. However, the noise is too faint for us to tell if there's any structure. Instead, let us try visualizing the difference in each color channel (red, green, and blue) separately.
+The difference between synthesized and original images looks like random pixel noise distributed across the image. Let us try visualizing the difference in each color channel (red, green, and blue) separately.
 
 ```{code-cell} ipython3
-channelwise_diffs_met = met.metamer - img
+diff = met.metamer - img
 titles = [
     "Adversarial - Original (R)",
     "Adversarial - Original (G)",
     "Adversarial - Original (B)",
 ]
-po.plot.imshow(channelwise_diffs_met, col_wrap=3, title=titles, vrange="auto0");
+po.plot.imshow(diff, col_wrap=3, title=titles, vrange="auto0");
 ```
 
 We see the difference does not look like a {glue}`category_name`, or similar. At this point we can safely conclude the synthesized image is an adversarial example of the network.
