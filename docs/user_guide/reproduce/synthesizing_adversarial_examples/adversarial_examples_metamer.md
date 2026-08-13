@@ -21,7 +21,7 @@ Run it in your browser: **{binder}`adversarial_examples_metamer.ipynb`**!
 :::
 
 (adversarial_examples_metamer)=
-# Generate adversarial examples using Metamer
+# Synthesize adversarial examples using Metamer
 
 :::{warning}
 This notebook requires the optional dependency `torchvision`, which can be installed with `pip`.

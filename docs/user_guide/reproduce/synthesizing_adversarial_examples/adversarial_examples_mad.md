@@ -21,7 +21,7 @@ Run it in your browser: **{binder}`adversarial_examples_mad.ipynb`**!
 :::
 
 (adversarial_examples_mad)=
-# Generate adversarial examples using MAD Competition
+# Synthesize adversarial examples using MAD Competition
 
 :::{warning}
 This notebook requires the optional dependency `torchvision`, which can be installed with `pip`.
