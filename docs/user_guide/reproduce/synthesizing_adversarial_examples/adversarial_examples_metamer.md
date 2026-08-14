@@ -30,6 +30,7 @@ This notebook requires the optional dependency `torchvision`, which can be insta
 In this notebook we demonstrate how we can use the {class}`~plenoptic.Metamer` class to synthesize adversarial examples. Adversarial examples are images with subtle, imperceptible perturbations designed to deceive a Deep Neural Networks into making an incorrect classification ({cite:alp}`Szegedy2013`, {cite:alp}`goodfellow_explaining_2015`). In a non-strict sense, an adversarial example is a metamer of the new (misclassified) class because the model has the same classification behaviour for the adversarial image and other images in the class. On this basis, we can use {class}`~plenoptic.Metamer` to generate adversarial examples by matching the model output representation between the synthesized image and another image in that class. For an in-depth dive of creating metamers of Deep Neural Networks, read [](feather2023-resnet50) and [](deep_nets).
 
 See [](adversarial-examples-mad) for an alternate approach to synthesizing adversarial examples using {class}`~plenoptic.MADCompetition`.
+
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
 import numpy as np
@@ -149,7 +150,7 @@ Now let us make the same plot for the target image.
 category_probs, category = get_category(target_img)
 po.plot.stem_plot(category_probs, title=category)
 likely_cats = get_likely_categories(category_probs)
-plt.text(700, 0.5, f"Likely categories:\n- {likely_cats}");
+plt.text(500, 0.5, f"Likely categories:\n- {likely_cats}");
 ```
 
 Putting it all together, the goal of the synthesis procedure in this notebook is to create an image that looks like our original macaque image while being classified as a cheeseburger.
@@ -204,6 +205,10 @@ met.synthesize(store_progress=True, max_iter=1000)
 po.plot.synthesis_status(met);
 ```
 
+It looks like the representation error has converged and yet the synthesized metamer still looks similar to the original image. It doesn't look like there are any hotspots in the error, either spatially or in a specific channel. However, we can't tell what the classification is from this plot. We will investigate that in the next section.
+
++++
+
 ## Visualizing the adversarial image
 
 First let us visualize the category probabilities of the original, target, and adversarial images using the same stem plots of categorization probability that we used above.
@@ -236,17 +241,17 @@ category_probs, category = get_category(met.metamer)
 glue("category_name", str(category), display=False)
 ```
 
-We see the network is highly confident that the synthesized image is a {glue}`category_name`!
+In the top row, we have the original image on the left and the stem plot on the right. The middle and bottom rows correspond to the target image and the adversarial example, togeher with their stem plots. On top of each image, we show the MSE from the original image. The texts next to the stem plots show the most likely categories. We see the network is highly confident that the synthesized image is a {glue}`category_name`! We also see the MSE of the synthesized image is much smaller than the MSE of the target image, despite both being classified as a {glue}`category_name`.
 
 +++
 
-While the synthesized image is visually similar to the original image (also note the low MSE reference metric loss), let us verify more rigorously. To do this we subtract the the original image from the synthesized image to visualize the changes in pixel values.
+While the synthesized image is visually similar to the original image (note the low MSE with the original), let us subtract the the original image from the synthesized image to visualize the changes in pixel values. Since individual synthesized image pixel values could have either increased or decreased, the difference image contains negative values. To better visualize the difference image, we therefore rescale the pixel values to be between 0 and 1, which correspond to the min and max of the original difference image.
 
 ```{code-cell} ipython3
 mse = po.metric.mse(img, met.metamer)
 title = f"Adversarial - Original \nMSE={mse_val:.2e}"
 diff = met.metamer - img
-diff_rescaled = po.process.rescale(diff)  # rescale to values between 0 and 1
+diff_rescaled = po.process.rescale(diff)
 po.plot.imshow(diff_rescaled, as_rgb=True, title=title);
 ```
 
