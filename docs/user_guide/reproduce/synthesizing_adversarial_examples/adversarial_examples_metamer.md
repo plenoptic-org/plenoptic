@@ -152,7 +152,7 @@ likely_cats = get_likely_categories(category_probs)
 plt.text(700, 0.5, f"Likely categories:\n- {likely_cats}");
 ```
 
-The category of the target image is cheeseburger. This is the desired category of our adversarial example.
+Putting it all together, the goal of the synthesis procedure in this notebook is to create an image that looks like our original macaque image while being classified as a cheeseburger.
 
 +++
 
