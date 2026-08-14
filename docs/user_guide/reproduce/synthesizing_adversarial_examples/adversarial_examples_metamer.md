@@ -250,7 +250,7 @@ diff_rescaled = po.process.rescale(diff)  # rescale to values between 0 and 1
 po.plot.imshow(diff_rescaled, as_rgb=True, title=title);
 ```
 
-The difference between synthesized and original images looks like random pixel noise distributed across the image. Let us try visualizing the difference in each color channel (red, green, and blue) separately.
+The difference between synthesized and original images looks like random pixel noise distributed across the image. Let us try visualizing the difference in each color channel (red, green, and blue) separately, to see if there's any structure hiding there.
 
 ```{code-cell} ipython3
 diff = met.metamer - img
