@@ -69,7 +69,7 @@ As part of this procedure, we must choose an image whose `layer4` representation
 
 +++
 
-:::{admonition} Why choose "layer4"?
+:::{admonition} Why choose `"layer4"`?
 :class: dropdown hint
 
 Ideally, metamers of an early layer should also be metamers of all subsequent layers. However this is not the case in practise because of the additional constraint on the metamer image we put in pixel space (explained in the following sections). Even when the loss has converged, there will still be some residual error between the original representation and the synthesized representation at the matched layer that can propagate through the network and cause later representation to diverge. By choosing the last convolutional layer of the network ("layer 4"), we minimize this divergence in reprensetation, which gives the network more consistent classification behaviour of the metamer image.
