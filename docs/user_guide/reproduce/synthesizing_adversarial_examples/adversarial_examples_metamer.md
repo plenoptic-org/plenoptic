@@ -200,7 +200,7 @@ met.setup(initial_image=img, optimizer_kwargs={"lr": 0.001})
 We let the optimization run until loss converges by setting `max_iter` to a large value.
 
 ```{code-cell} ipython3
-met.synthesize(store_progress=True, max_iter=10000)
+met.synthesize(store_progress=True, max_iter=1000)
 po.plot.synthesis_status(met);
 ```
 
