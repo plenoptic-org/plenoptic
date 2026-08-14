@@ -65,7 +65,7 @@ In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` m
 
 To learn more about any of these steps and why we take them, read [](deep_nets).
 
-As part of this procedure, we must choose an image whose `layer4` representation (and thus, categorization) we would like to match. For this example let us fool the network into thinking a macaque is a cheeseburger (image taken from the Caltech256 dataset {cite:alp}`griffin_caltech_2022`).
+As part of this procedure, we must choose an image whose `"layer4"` representation (and thus, categorization) we would like to match. For this example let us fool the network into thinking a macaque is a cheeseburger (image taken from the Caltech256 dataset {cite:alp}`griffin_caltech_2022`).
 
 +++
 
