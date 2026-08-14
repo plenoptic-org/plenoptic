@@ -206,7 +206,7 @@ po.plot.synthesis_status(met);
 
 ## Visualizing the adversarial image
 
-First let us visualize the category probabilities of the original, target, and advesarial images using stem plots.
+First let us visualize the category probabilities of the original, target, and adversarial images using the same stem plots of categorization probability that we used above.
 
 ```{code-cell} ipython3
 images = {"Original": img, "Target": target_img, "Adversarial": met.metamer}
