@@ -245,7 +245,12 @@ In the top row, we have the original image on the left and the stem plot on the 
 
 +++
 
-While the synthesized image is visually similar to the original image (note the low MSE with the original), let us subtract the the original image from the synthesized image to visualize the changes in pixel values. Since individual synthesized image pixel values could have either increased or decreased, the difference image contains negative values. To better visualize the difference image, we therefore rescale the pixel values to be between 0 and 1, which correspond to the min and max of the original difference image.
+While the synthesized image is visually similar to the original image (note the low MSE with the original), let us subtract the the original image from the synthesized image to visualize the changes in pixel values. 
+
+:::{admonition} Why are we rescaling the difference image?
+:class: dropdown question
+Since the individual image pixel values could have either increased or decreased over synthesis, the difference image contains both positive and negative values. However, visualizing RGB images requires all pixel values to lie between 0 and 1 (see {external+matplotlib:func}`matplotlib.pyplot.imshow` for more details). Therefore, we must rescale the pixel values' to lie between 0 and 1; we additionally use {func}`~plenoptic.process.rescale` to remap the minimum and maximum to be 0 and 1, respectively, to make the structure of the difference image more visible.
+:::
 
 ```{code-cell} ipython3
 mse = po.metric.mse(img, met.metamer)
