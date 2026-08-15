@@ -245,7 +245,7 @@ In the top row, we have the original image on the left and the stem plot on the 
 
 +++
 
-While the synthesized image is visually similar to the original image (note the low MSE with the original), let us subtract the the original image from the synthesized image to visualize the changes in pixel values. 
+While the synthesized image is visually similar to the original image (note the low MSE with the original), let us subtract the the original image from the synthesized image to visualize the changes in pixel values.
 
 :::{admonition} Why are we rescaling the difference image?
 :class: dropdown question
