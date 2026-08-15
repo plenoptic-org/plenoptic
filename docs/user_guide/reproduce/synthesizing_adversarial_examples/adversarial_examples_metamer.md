@@ -241,7 +241,7 @@ category_probs, category = get_category(met.metamer)
 glue("category_name", str(category), display=False)
 ```
 
-In the top row, we have the original image on the left and the stem plot on the right. The middle and bottom rows correspond to the target image and the adversarial example, togeher with their stem plots. On top of each image, we show the MSE from the original image. The texts next to the stem plots show the most likely categories. We see the network is highly confident that the synthesized image is a {glue}`category_name`! We also see the MSE of the synthesized image is much smaller than the MSE of the target image, despite both being classified as a {glue}`category_name`.
+In the top row, we have the original image on the left and the stem plot on the right. The middle and bottom rows correspond to the target image and the adversarial example, together with their stem plots. On top of each image, we show the MSE from the original image. The texts next to the stem plots show the most likely categories. We see the network is highly confident that the synthesized image is a {glue}`category_name`! We also see the MSE between the original and adversarial images is quite small, much smaller than that of the target image, despite both being classified as a {glue}`category_name`.
 
 +++
 
