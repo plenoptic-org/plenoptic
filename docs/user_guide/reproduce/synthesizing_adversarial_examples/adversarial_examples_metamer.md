@@ -205,7 +205,7 @@ met.synthesize(store_progress=True, max_iter=1000)
 po.plot.synthesis_status(met);
 ```
 
-It looks like the representation error has converged and yet the synthesized metamer still looks similar to the original image. It doesn't look like there are any hotspots in the error, either spatially or in a specific channel. However, we can't tell what the classification is from this plot. We will investigate that in the next section.
+From the middle axis in the above plot, we can see that the loss has converged. The right-most plot shows the difference in the model's `"layer4"` representation between the metamer and the target cheeseburger image; it doesn't look like there are any hotspots in the error, either spatially or in a specific channel. The synthesized metamer, shown on the left, still looks like our initial macaque image. However, we can't tell what the classification is from this plot. We will investigate that in the next section.
 
 +++
 
