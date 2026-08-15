@@ -225,11 +225,16 @@ category_probs, category = get_category(mad.mad_image)
 glue("category_name", str(category), display=False)
 ```
 
-We see our initial noise has not changed the original category. At the end of synthesis the network is highly confident that the synthesized image is a {glue}`category_name`!
+In the top row, we have the original image on the left and the stem plot on the right. The middle and bottom rows correspond to the initial image and the adversarial example, together with their stem plots. On top of each image, we show the MSE from the original image. The texts next to the stem plots show the most likely categories. We see the network is highly confident that the synthesized image is a {glue}`category_name`! We also see the MSE between the original and the synthesized images is still quite small, even though it increased compared to the initial image.
 
 +++
 
-While the synthesized image is visually similar to the original image (also note the low MSE reference metric loss), let us verify more rigorously. In the bottow row,  the original image is subtracted from the initial image and synthesized image to visualize the changes in pixel values.
+While the synthesized image is visually similar to the original image (note the low MSE with the original), let us verify more rigorously. In the bottow row,  the original image is subtracted from the initial image and synthesized image to visualize the changes in pixel values.
+
+:::{admonition} Why are we rescaling the difference image?
+:class: dropdown question
+Since the individual image pixel values could have either increased or decreased over synthesis, the difference image contains both positive and negative values. However, visualizing RGB images requires all pixel values to lie between 0 and 1 (see {external+matplotlib:func}`matplotlib.pyplot.imshow` for more details). Therefore, we must rescale the pixel values' to lie between 0 and 1; we additionally use {func}`~plenoptic.process.rescale` to remap the minimum and maximum to be 0 and 1, respectively, to make the structure of the difference image more visible.
+:::
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(2, 3, figsize=(12, 12))
@@ -249,16 +254,14 @@ po.plot.imshow(
 )
 
 for j, col_name in enumerate(["Initial", "Adversarial"], start=1):
-    diff = (
-        images[col_name] - images["Original"] + 1
-    ) / 2  # convert the range from [-1,1] to [0,1] for RGB images
+    diff = images[col_name] - images["Original"]
+    diff_rescaled = po.process.rescale(diff)
     mse_val = po.metric.mse(images["Original"], images[col_name]).mean().item()
     po.plot.imshow(
-        diff,
+        diff_rescaled,
         ax=axes[1, j],
         as_rgb=True,
         title=f"{col_name} - Original\nMSE={mse_val:.2e}",
-        vrange=(0, 1),
     )
 
 for ax in [axes[0, 1], axes[0, 2], axes[1, 0], axes[1, 1], axes[1, 2]]:
@@ -271,7 +274,7 @@ for ax in axes.flat:
 fig.tight_layout();
 ```
 
-Between initial and original images, the difference is hardly noticeable (middle panel, bottom row). The difference between synthesized and original images looks like random pixel noise distributed across the image (right panel, bottom row). However, the noise is too faint for us to tell if there's any structure. Instead, let us try visualizing the difference in each color channel (red, green, and blue) separately for the initial image and adversarial image.
+Between initial and original images, the difference looks like random pixel noise (middle panel, bottom row). Given that the initial image is the original plus normally-distributed noise, that must be true. The difference between synthesized and original images has more structure (right panel, bottom row) but it does not look like a {glue}`category_name`, or similar. Let us also visualize the difference in each color channel (red, green, and blue) separately, to see if there's any structure hiding there.
 
 ```{code-cell} ipython3
 channelwise_diffs_initial = mad.initial_image - img
@@ -286,7 +289,7 @@ titles = [
 po.plot.imshow(channelwise_diffs_mad, col_wrap=3, title=titles, vrange="auto0");
 ```
 
-In the top row, we can see that the difference between the initial and original images is noise, randomly distributed across the image, with no structure. Given that the initial image is the original plus normally-distributed noise, that must be true. In the bottom row, the pattern has shifted, with the differences grouping together somewhat (also note the pixel value range is different between the top and bottom rows). However, this difference does not look like a {glue}`category_name`, or similar. At this point we can safely conclude the synthesized image is an adversarial example of the network.
+In the top row, we can see that the difference between the initial and original images is noise, randomly distributed across the image, with no structure like before. In the bottom row, the pattern has shifted, with the differences grouping together somewhat (also note the pixel value range is different between the top and bottom rows). However, this difference does not look like a {glue}`category_name` either in any of the channels. At this point we can safely conclude the synthesized image is an adversarial example of the network.
 
 +++
 

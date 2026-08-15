@@ -260,7 +260,7 @@ diff_rescaled = po.process.rescale(diff)
 po.plot.imshow(diff_rescaled, as_rgb=True, title=title);
 ```
 
-The difference between synthesized and original images looks like random pixel noise distributed across the image. Let us try visualizing the difference in each color channel (red, green, and blue) separately, to see if there's any structure hiding there.
+The difference between synthesized and original images has some structure but it does not look like a {glue}`category_name`, or similar. Let us also visualize the difference in each color channel (red, green, and blue) separately, to see if there's any structure hiding there.
 
 ```{code-cell} ipython3
 diff = met.metamer - img
@@ -272,7 +272,7 @@ titles = [
 po.plot.imshow(diff, col_wrap=3, title=titles, vrange="auto0");
 ```
 
-We see the difference does not look like a {glue}`category_name` or similar, either in any of the individual channels or when combined. At this point we can safely conclude the synthesized image is an adversarial example of the network.
+We see the difference does not look like a {glue}`category_name` either in any of the individual channels or when combined. At this point we can safely conclude the synthesized image is an adversarial example of the network.
 
 +++
 
