@@ -272,7 +272,7 @@ titles = [
 po.plot.imshow(diff, col_wrap=3, title=titles, vrange="auto0");
 ```
 
-We see the difference does not look like a {glue}`category_name` or similar, either in any of the individual channels are when combined. At this point we can safely conclude the synthesized image is an adversarial example of the network.
+We see the difference does not look like a {glue}`category_name` or similar, either in any of the individual channels or when combined. At this point we can safely conclude the synthesized image is an adversarial example of the network.
 
 +++
 
