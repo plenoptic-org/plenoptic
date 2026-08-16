@@ -40,6 +40,7 @@ from ..process.steerable_pyramid_freq import (
 from ..tensors import to_numpy
 
 SCALES_TYPE = Literal["pixel_statistics"] | PYR_SCALES_TYPE
+N_RGB_CHANNELS = 3
 
 __all__ = [
     "PortillaSimoncelli",
@@ -388,9 +389,8 @@ class PortillaSimoncelli(nn.Module):
 
         return shape_dict
 
-    @staticmethod
     def _create_color_scales_shape_dict(
-        scales_shape_dict: OrderedDict,
+        self, scales_shape_dict: OrderedDict
     ) -> OrderedDict:
         """
         Create dictionary defining scales and shape of each stat for the
@@ -407,10 +407,32 @@ class PortillaSimoncelli(nn.Module):
         color_scales_shape_dict
             Scale metadata dictionary for the joint color statistics.
         """
-        return OrderedDict(
-            (key, np.repeat(value[None], 3, axis=0))
-            for key, value in scales_shape_dict.items()
-        )
+        color_shape_dict = OrderedDict()
+        for key, value in scales_shape_dict.items():
+            color_shape_dict[key] = np.repeat(value[None], N_RGB_CHANNELS, axis=0)
+            if key == "pixel_statistics":
+                # Add color pixel stats here due to dict ordering
+                color_shape_dict["color_covariance"] = np.full(
+                    (N_RGB_CHANNELS, N_RGB_CHANNELS),
+                    "pixel_statistics",
+                    dtype=object,
+                )
+                color_shape_dict["auto_correlation_transformed"] = np.full(
+                    (
+                        N_RGB_CHANNELS,
+                        self.spatial_corr_width,
+                        self.spatial_corr_width,
+                    ),
+                    "pixel_statistics",
+                    dtype=object,
+                )
+                color_shape_dict["skew_transformed"] = np.full(
+                    N_RGB_CHANNELS, "pixel_statistics", dtype=object
+                )
+                color_shape_dict["kurtosis_transformed"] = np.full(
+                    N_RGB_CHANNELS, "pixel_statistics", dtype=object
+                )
+        return color_shape_dict
 
     def _create_necessary_stats_dict(
         self, scales_shape_dict: OrderedDict
@@ -500,10 +522,49 @@ class PortillaSimoncelli(nn.Module):
         color_necessary_stats_dict
             Necessary statistics masks for the joint color statistics.
         """
-        return OrderedDict(
-            (key, value.unsqueeze(0).repeat(3, *([1] * value.ndim)))
-            for key, value in necessary_stats_dict.items()
-        )
+        color_mask_dict = OrderedDict()
+        for key, value in necessary_stats_dict.items():
+            color_mask_dict[key] = value.unsqueeze(0).repeat(
+                N_RGB_CHANNELS, *([1] * value.ndim)
+            )
+            if key == "pixel_statistics":
+                # Add color pixel stats here due to dict ordering
+                # The diagonal variances are already included in pixel_statistics,
+                # so they redundant.
+                color_mask_dict["color_covariance"] = torch.ones(
+                    N_RGB_CHANNELS, N_RGB_CHANNELS, dtype=torch.bool
+                ).tril(-1)
+                autocorr_mask = necessary_stats_dict["auto_correlation_reconstructed"][
+                    ..., 0
+                ]
+                color_mask_dict["auto_correlation_transformed"] = (
+                    autocorr_mask.unsqueeze(0).repeat(N_RGB_CHANNELS, 1, 1)
+                )
+                color_mask_dict["skew_transformed"] = torch.ones(
+                    N_RGB_CHANNELS, dtype=torch.bool
+                )
+                color_mask_dict["kurtosis_transformed"] = torch.ones(
+                    N_RGB_CHANNELS, dtype=torch.bool
+                )
+        return color_mask_dict
+
+    @staticmethod
+    def _compute_color_covariance(image: Tensor) -> Tensor:
+        """Compute the covariance between RGB channels.
+
+        Parameters
+        ----------
+        image
+            A 4d tensor with shape ``(batch, RGB, height, width)``.
+
+        Returns
+        -------
+        covariance
+            A tensor with shape ``(batch, RGB, RGB)``.
+        """
+        centered = image - image.mean(dim=(-2, -1), keepdim=True)
+        centered = centered.flatten(2)
+        return centered @ centered.mT / centered.shape[-1]
 
     def forward(self, image: Tensor, scales: list[SCALES_TYPE] | None = None) -> Tensor:
         r"""
@@ -556,9 +617,8 @@ class PortillaSimoncelli(nn.Module):
                 "PortillaSimoncelli expects a 4d image with shape "
                 "(batch, channel, height, width), but image has "
                 f"dimension {image.ndim} and shape {image.shape} instead."
-                
             )
-        if self.color_statistics and image.shape[1] != 3:
+        if self.color_statistics and image.shape[1] != N_RGB_CHANNELS:
             raise ValueError(
                 "PortillaSimoncelli with color_statistics=True expects an RGB image "
                 f"with three channels, but image has shape {image.shape} instead."
@@ -570,7 +630,17 @@ class PortillaSimoncelli(nn.Module):
             image_for_pyramid = (
                 image if self.transform is None else self.transform(image)
             )
-            image_var = torch.var(image_for_pyramid, dim=(-2, -1))
+            color_covariance = self._compute_color_covariance(image)
+            transformed_pixel_stats = self._compute_pixel_stats(image_for_pyramid)
+            image_var = transformed_pixel_stats[..., 1]
+            skew_transformed = transformed_pixel_stats[..., 2]
+            kurtosis_transformed = transformed_pixel_stats[..., 3]
+            centered_transformed = image_for_pyramid - image_for_pyramid.mean(
+                dim=(-2, -1), keepdim=True
+            )
+            autocorr_transformed = self._compute_autocorr([centered_transformed])[
+                0
+            ].squeeze(-1)
         else:
             image_for_pyramid = image
             image_var = pixel_stats[..., 1]
@@ -668,8 +738,16 @@ class PortillaSimoncelli(nn.Module):
         var_highpass_residual = highpass.pow(2).mean(dim=(-2, -1))
 
         # Now, combine all these stats together, first into a list
-        all_stats = [
-            pixel_stats,
+        # Statistics families should be ordered as in self._necessary_stats_dict
+        all_stats = [pixel_stats]
+        if self.color_statistics:
+            all_stats += [
+                color_covariance,
+                autocorr_transformed,
+                skew_transformed,
+                kurtosis_transformed,
+            ]
+        all_stats += [
             autocorr_mags,
             skew_recon,
             kurtosis_recon,
@@ -763,9 +841,10 @@ class PortillaSimoncelli(nn.Module):
         r"""
         Convert dictionary of statistics to a tensor.
 
-        The output has shape (batch, channel, n_statistics), flattening and
-        concatenating across all statistic classes. The dictionary representation
-        may be easier to make sense of.
+        The output has shape ``(batch, channel, n_statistics)`` when
+        ``color_statistics=False`` and ``(batch, 1, n_statistics)`` when
+        ``color_statistics=True``, flattening and concatenating across all statistic
+        classes. The dictionary representation may be easier to make sense of.
 
         Parameters
         ----------
@@ -798,7 +877,13 @@ class PortillaSimoncelli(nn.Module):
         >>> torch.equal(representation_tensor, representation_tensor_new)
         True
         """
-        rep = einops.pack(list(representation_dict.values()), "b c *")[0]
+        if self.color_statistics:
+            # Color statistics tensor does not preserve channel dimension
+            # because some statistics don't belong to a single channel
+            rep = einops.pack(list(representation_dict.values()), "b *")[0]
+            rep = rep.unsqueeze(1)
+        else:
+            rep = einops.pack(list(representation_dict.values()), "b c *")[0]
         # then get rid of all the nans / unnecessary stats
         return rep.index_select(-1, self._necessary_stats_mask)
 
@@ -811,6 +896,11 @@ class PortillaSimoncelli(nn.Module):
 
         This dictionary will contain NaNs in its values: these are placeholders
         for the redundant statistics.
+
+        When ``color_statistics=False``, dictionary values have a batch and a channel
+        dimension, over which statistics are computed independently. When
+        ``color_statistics=True``, the channel dimension is no longer meaningful for
+        some families of statistics that are computed jointly across channels.
 
         Parameters
         ----------
@@ -895,19 +985,28 @@ class PortillaSimoncelli(nn.Module):
             )
 
         rep = self._necessary_stats_dict.copy()
+        # Remove the color representation's singleton channel dimension, because the
+        # dictionary values shapes don't have this dimension
+        if self.color_statistics:
+            representation_values = representation_tensor[:, 0]
+        else:
+            representation_values = representation_tensor
         n_filled = 0
         for k, v in rep.items():
-            # each statistic is a tensor with batch and channel dimensions as
-            # found in representation_tensor and all the other dimensions
-            # determined by the values in necessary_stats_dict.
-            shape = (*representation_tensor.shape[:2], *v.shape)
+            if self.color_statistics:
+                shape = (representation_tensor.shape[0], *v.shape)
+            else:
+                # each statistic is a tensor with batch and channel dimensions as
+                # found in representation_tensor and all the other dimensions
+                # determined by the values in necessary_stats_dict.
+                shape = (*representation_tensor.shape[:2], *v.shape)
             new_v = torch.nan * torch.ones(
                 shape,
                 dtype=representation_tensor.dtype,
                 device=representation_tensor.device,
             )
             # v.sum() gives the number of necessary elements from this stat
-            this_stat_vec = representation_tensor[..., n_filled : n_filled + v.sum()]
+            this_stat_vec = representation_values[..., n_filled : n_filled + v.sum()]
             # use boolean indexing to put the values from new_stat_vec in the
             # appropriate place
             new_v[..., v] = this_stat_vec
