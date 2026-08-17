@@ -420,7 +420,7 @@ class PortillaSimoncelli(nn.Module):
             else:
                 color_shape_dict[key] = np.repeat(value[None], N_RGB_CHANNELS, axis=0)
 
-        # Statistics that only exist for the color representation
+        # Add statistics that only exist for the color representation
         color_shape_dict["color_covariance"] = np.full(
             (N_RGB_CHANNELS, N_RGB_CHANNELS),
             "pixel_statistics",
@@ -441,6 +441,9 @@ class PortillaSimoncelli(nn.Module):
         color_shape_dict["kurtosis_transformed"] = np.full(
             N_RGB_CHANNELS, "pixel_statistics", dtype=object
         )
+        color_shape_dict["cross_orientation_correlation_real"] = color_shape_dict[
+            "cross_orientation_correlation_magnitude"
+        ].copy()
         return color_shape_dict
 
     def _create_necessary_stats_dict(
@@ -559,7 +562,7 @@ class PortillaSimoncelli(nn.Module):
                 N_RGB_CHANNELS, N_RGB_CHANNELS, 1
             )
 
-        # Statistics that only exist for the color representation
+        # Add statistics that only exist for the color representation
         # The diagonal variances are already included in pixel_statistics,
         # so they are redundant.
         color_mask_dict["color_covariance"] = torch.ones(
@@ -575,6 +578,7 @@ class PortillaSimoncelli(nn.Module):
         color_mask_dict["kurtosis_transformed"] = torch.ones(
             N_RGB_CHANNELS, dtype=torch.bool
         )
+        color_mask_dict["cross_orientation_correlation_real"] = same_scale_mask.clone()
         return color_mask_dict
 
     @staticmethod
@@ -738,6 +742,9 @@ class PortillaSimoncelli(nn.Module):
             cross_ori_corr_mags = self._compute_joint_cross_correlation(
                 mag_pyr_coeffs, mag_pyr_coeffs, mags_var, mags_var
             )
+            cross_ori_corr_real = self._compute_joint_cross_correlation(
+                real_pyr_coeffs, real_pyr_coeffs
+            )
         else:
             cross_ori_corr_mags = self._compute_cross_correlation(
                 mag_pyr_coeffs, mag_pyr_coeffs, mags_var, mags_var
@@ -800,6 +807,7 @@ class PortillaSimoncelli(nn.Module):
                 autocorr_transformed,
                 skew_transformed,
                 kurtosis_transformed,
+                cross_ori_corr_real,
             ]
         # And then pack them into a 3d tensor
         if self.color_statistics:
