@@ -1076,6 +1076,18 @@ class TestPortillaSimoncelli:
             model.n_scales - 1,
         )
 
+    def test_color_cross_scale_correlation_real_shape(self, color_img_small):
+        model = self._small_ps(color_img_small, color_statistics=True)
+        representation = model.convert_to_dict(model(color_img_small))
+        n_signals = color_img_small.shape[1] * model.n_orientations
+
+        assert representation["cross_scale_correlation_real"].shape == (
+            color_img_small.shape[0],
+            n_signals,
+            2 * n_signals,
+            model.n_scales - 1,
+        )
+
     def test_default_color_transform(self):
         # The color PS model should run out of the box with the OPC transform
         image = torch.rand(1, 3, 32, 32, device=DEVICE)

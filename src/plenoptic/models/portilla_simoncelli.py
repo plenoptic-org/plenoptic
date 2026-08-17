@@ -410,6 +410,7 @@ class PortillaSimoncelli(nn.Module):
             if key in [
                 "cross_orientation_correlation_magnitude",
                 "cross_scale_correlation_magnitude",
+                "cross_scale_correlation_real",
             ]:
                 # Add the joint-channel statistics scales
                 color_shape_dict[key] = np.tile(
@@ -537,7 +538,10 @@ class PortillaSimoncelli(nn.Module):
                 )
                 mask[triu_inds[0], triu_inds[1]] = False
                 color_mask_dict[key] = mask
-            elif key == "cross_scale_correlation_magnitude":
+            elif key in [
+                "cross_scale_correlation_magnitude",
+                "cross_scale_correlation_real",
+            ]:
                 # Cross-scale correlations are not symmetric, so keep all entries.
                 color_mask_dict[key] = value.repeat(N_RGB_CHANNELS, N_RGB_CHANNELS, 1)
             else:
@@ -768,11 +772,24 @@ class PortillaSimoncelli(nn.Module):
                 )
             # Compute the cross-scale correlations between the real
             # coefficients and the real and imaginary coefficients at the next
-            # coarsest scale. this will be a tensor of shape (batch, channel,
-            # n_orientations, 2*n_orientations, n_scales-1)
-            cross_scale_corr_real = self._compute_cross_correlation(
-                real_pyr_coeffs[:-1], phase_doubled_sep
-            )
+            # coarsest scale.
+            if self.color_statistics:
+                # combine channel and ori so correlations are jointly across both.
+                joint_real_pyr_coeffs = [
+                    einops.rearrange(r, "b c o h w -> b 1 (c o) h w")
+                    for r in real_pyr_coeffs
+                ]
+                joint_phase_doubled_sep = [
+                    einops.rearrange(r, "b c o h w -> b 1 (c o) h w")
+                    for r in phase_doubled_sep
+                ]
+                cross_scale_corr_real = self._compute_cross_correlation(
+                    joint_real_pyr_coeffs[:-1], joint_phase_doubled_sep
+                ).squeeze(1)
+            else:
+                cross_scale_corr_real = self._compute_cross_correlation(
+                    real_pyr_coeffs[:-1], phase_doubled_sep
+                )
 
         # Compute the variance of the highpass residual
         var_highpass_residual = highpass.pow(2).mean(dim=(-2, -1))
