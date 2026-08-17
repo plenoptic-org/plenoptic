@@ -129,6 +129,7 @@ If you are curious about `plenoptic`, these other packages may also be of intere
 
 getting_started/index
 user_guide/index
+tutorials/index
 api/index
 reference/index
 Changelog <https://github.com/plenoptic-org/plenoptic/releases>
