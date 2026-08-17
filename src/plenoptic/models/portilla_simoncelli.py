@@ -406,40 +406,41 @@ class PortillaSimoncelli(nn.Module):
             Scale metadata dictionary for the joint color statistics.
         """
         color_shape_dict = OrderedDict()
+        joint_correlation_keys = [
+            "cross_orientation_correlation_magnitude",
+            "cross_scale_correlation_magnitude",
+            "cross_scale_correlation_real",
+        ]
         for key, value in scales_shape_dict.items():
-            if key in [
-                "cross_orientation_correlation_magnitude",
-                "cross_scale_correlation_magnitude",
-                "cross_scale_correlation_real",
-            ]:
+            if key in joint_correlation_keys:
                 # Add the joint-channel statistics scales
                 color_shape_dict[key] = np.tile(
                     value, (N_RGB_CHANNELS, N_RGB_CHANNELS, 1)
                 )
             else:
                 color_shape_dict[key] = np.repeat(value[None], N_RGB_CHANNELS, axis=0)
-            if key == "pixel_statistics":
-                # Add color pixel stats here due to dict ordering
-                color_shape_dict["color_covariance"] = np.full(
-                    (N_RGB_CHANNELS, N_RGB_CHANNELS),
-                    "pixel_statistics",
-                    dtype=object,
-                )
-                color_shape_dict["auto_correlation_transformed"] = np.full(
-                    (
-                        N_RGB_CHANNELS,
-                        self.spatial_corr_width,
-                        self.spatial_corr_width,
-                    ),
-                    "pixel_statistics",
-                    dtype=object,
-                )
-                color_shape_dict["skew_transformed"] = np.full(
-                    N_RGB_CHANNELS, "pixel_statistics", dtype=object
-                )
-                color_shape_dict["kurtosis_transformed"] = np.full(
-                    N_RGB_CHANNELS, "pixel_statistics", dtype=object
-                )
+
+        # Statistics that only exist for the color representation
+        color_shape_dict["color_covariance"] = np.full(
+            (N_RGB_CHANNELS, N_RGB_CHANNELS),
+            "pixel_statistics",
+            dtype=object,
+        )
+        color_shape_dict["auto_correlation_transformed"] = np.full(
+            (
+                N_RGB_CHANNELS,
+                self.spatial_corr_width,
+                self.spatial_corr_width,
+            ),
+            "pixel_statistics",
+            dtype=object,
+        )
+        color_shape_dict["skew_transformed"] = np.full(
+            N_RGB_CHANNELS, "pixel_statistics", dtype=object
+        )
+        color_shape_dict["kurtosis_transformed"] = np.full(
+            N_RGB_CHANNELS, "pixel_statistics", dtype=object
+        )
         return color_shape_dict
 
     def _create_necessary_stats_dict(
@@ -528,45 +529,52 @@ class PortillaSimoncelli(nn.Module):
         color_necessary_stats_dict
             Necessary statistics masks for the joint color statistics.
         """
-        color_mask_dict = OrderedDict()
-        for key, value in necessary_stats_dict.items():
-            if key == "cross_orientation_correlation_magnitude":
-                n_signals = N_RGB_CHANNELS * value.shape[0]
-                triu_inds = torch.triu_indices(n_signals, n_signals)
-                mask = torch.ones(
-                    n_signals, n_signals, value.shape[-1], dtype=torch.bool
-                )
-                mask[triu_inds[0], triu_inds[1]] = False
-                color_mask_dict[key] = mask
-            elif key in [
-                "cross_scale_correlation_magnitude",
-                "cross_scale_correlation_real",
-            ]:
-                # Cross-scale correlations are not symmetric, so keep all entries.
-                color_mask_dict[key] = value.repeat(N_RGB_CHANNELS, N_RGB_CHANNELS, 1)
-            else:
-                color_mask_dict[key] = value.unsqueeze(0).repeat(
-                    N_RGB_CHANNELS, *([1] * value.ndim)
-                )
-            if key == "pixel_statistics":
-                # Add color pixel stats here due to dict ordering
-                # The diagonal variances are already included in pixel_statistics,
-                # so they redundant.
-                color_mask_dict["color_covariance"] = torch.ones(
-                    N_RGB_CHANNELS, N_RGB_CHANNELS, dtype=torch.bool
-                ).tril(-1)
-                autocorr_mask = necessary_stats_dict["auto_correlation_reconstructed"][
-                    ..., 0
-                ]
-                color_mask_dict["auto_correlation_transformed"] = (
-                    autocorr_mask.unsqueeze(0).repeat(N_RGB_CHANNELS, 1, 1)
-                )
-                color_mask_dict["skew_transformed"] = torch.ones(
-                    N_RGB_CHANNELS, dtype=torch.bool
-                )
-                color_mask_dict["kurtosis_transformed"] = torch.ones(
-                    N_RGB_CHANNELS, dtype=torch.bool
-                )
+        # Apply generic treatment to all stats, some get overriden after
+        color_mask_dict = OrderedDict(
+            (
+                key,
+                value.unsqueeze(0).repeat(N_RGB_CHANNELS, *([1] * value.ndim)),
+            )
+            for key, value in necessary_stats_dict.items()
+        )
+
+        # Same-scale correlations are symmetric, keep only the strictly-lower triangle
+        same_scale_source = necessary_stats_dict[
+            "cross_orientation_correlation_magnitude"
+        ]
+        n_signals = N_RGB_CHANNELS * same_scale_source.shape[0]
+        triu_inds = torch.triu_indices(n_signals, n_signals)
+        same_scale_mask = torch.ones(
+            n_signals, n_signals, same_scale_source.shape[-1], dtype=torch.bool
+        )
+        same_scale_mask[triu_inds[0], triu_inds[1]] = False
+        color_mask_dict["cross_orientation_correlation_magnitude"] = same_scale_mask
+
+        # Cross-scale correlations are not symmetric, so keep all entries.
+        for key in [
+            "cross_scale_correlation_magnitude",
+            "cross_scale_correlation_real",
+        ]:
+            color_mask_dict[key] = necessary_stats_dict[key].repeat(
+                N_RGB_CHANNELS, N_RGB_CHANNELS, 1
+            )
+
+        # Statistics that only exist for the color representation
+        # The diagonal variances are already included in pixel_statistics,
+        # so they are redundant.
+        color_mask_dict["color_covariance"] = torch.ones(
+            N_RGB_CHANNELS, N_RGB_CHANNELS, dtype=torch.bool
+        ).tril(-1)
+        autocorr_mask = necessary_stats_dict["auto_correlation_reconstructed"][..., 0]
+        color_mask_dict["auto_correlation_transformed"] = autocorr_mask.unsqueeze(
+            0
+        ).repeat(N_RGB_CHANNELS, 1, 1)
+        color_mask_dict["skew_transformed"] = torch.ones(
+            N_RGB_CHANNELS, dtype=torch.bool
+        )
+        color_mask_dict["kurtosis_transformed"] = torch.ones(
+            N_RGB_CHANNELS, dtype=torch.bool
+        )
         return color_mask_dict
 
     @staticmethod
@@ -773,15 +781,8 @@ class PortillaSimoncelli(nn.Module):
 
         # Now, combine all these stats together, first into a list
         # Statistics families should be ordered as in self._necessary_stats_dict
-        all_stats = [pixel_stats]
-        if self.color_statistics:
-            all_stats += [
-                color_covariance,
-                autocorr_transformed,
-                skew_transformed,
-                kurtosis_transformed,
-            ]
-        all_stats += [
+        all_stats = [
+            pixel_stats,
             autocorr_mags,
             skew_recon,
             kurtosis_recon,
@@ -793,6 +794,13 @@ class PortillaSimoncelli(nn.Module):
         if self.n_scales != 1:
             all_stats += [cross_scale_corr_mags, cross_scale_corr_real]
         all_stats += [var_highpass_residual]
+        if self.color_statistics:
+            all_stats += [
+                color_covariance,
+                autocorr_transformed,
+                skew_transformed,
+                kurtosis_transformed,
+            ]
         # And then pack them into a 3d tensor
         if self.color_statistics:
             # When using joint color statistics we don't keep the separate
