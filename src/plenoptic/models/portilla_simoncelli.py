@@ -727,18 +727,9 @@ class PortillaSimoncelli(nn.Module):
         # Compute the cross-orientation correlations between the magnitude
         # coefficients at each scale.
         if self.color_statistics:
-            # combine channel and ori so correlations are jointly across both.
-            joint_mag_pyr_coeffs = [
-                einops.rearrange(m, "b c o h w -> b 1 (c o) h w")
-                for m in mag_pyr_coeffs
-            ]
-            joint_mags_var = einops.rearrange(mags_var, "b c o s -> b 1 (c o) s")
-            cross_ori_corr_mags = self._compute_cross_correlation(
-                joint_mag_pyr_coeffs,
-                joint_mag_pyr_coeffs,
-                joint_mags_var,
-                joint_mags_var,
-            ).squeeze(1)
+            cross_ori_corr_mags = self._compute_joint_cross_correlation(
+                mag_pyr_coeffs, mag_pyr_coeffs, mags_var, mags_var
+            )
         else:
             cross_ori_corr_mags = self._compute_cross_correlation(
                 mag_pyr_coeffs, mag_pyr_coeffs, mags_var, mags_var
@@ -756,16 +747,11 @@ class PortillaSimoncelli(nn.Module):
             # coefficients. For each coefficient, we're correlating it with the
             # coefficients at the next-coarsest scale.
             if self.color_statistics:
-                # combine channel and ori so correlations are jointly across both.
-                joint_phase_doubled_mags = [
-                    einops.rearrange(m, "b c o h w -> b 1 (c o) h w")
-                    for m in phase_doubled_mags
-                ]
-                cross_scale_corr_mags = self._compute_cross_correlation(
-                    joint_mag_pyr_coeffs[:-1],
-                    joint_phase_doubled_mags,
-                    joint_mags_var[..., :-1],
-                ).squeeze(1)
+                cross_scale_corr_mags = self._compute_joint_cross_correlation(
+                    mag_pyr_coeffs[:-1],
+                    phase_doubled_mags,
+                    mags_var[..., :-1],
+                )
             else:
                 cross_scale_corr_mags = self._compute_cross_correlation(
                     mag_pyr_coeffs[:-1], phase_doubled_mags, mags_var[..., :-1]
@@ -774,18 +760,9 @@ class PortillaSimoncelli(nn.Module):
             # coefficients and the real and imaginary coefficients at the next
             # coarsest scale.
             if self.color_statistics:
-                # combine channel and ori so correlations are jointly across both.
-                joint_real_pyr_coeffs = [
-                    einops.rearrange(r, "b c o h w -> b 1 (c o) h w")
-                    for r in real_pyr_coeffs
-                ]
-                joint_phase_doubled_sep = [
-                    einops.rearrange(r, "b c o h w -> b 1 (c o) h w")
-                    for r in phase_doubled_sep
-                ]
-                cross_scale_corr_real = self._compute_cross_correlation(
-                    joint_real_pyr_coeffs[:-1], joint_phase_doubled_sep
-                ).squeeze(1)
+                cross_scale_corr_real = self._compute_joint_cross_correlation(
+                    real_pyr_coeffs[:-1], phase_doubled_sep
+                )
             else:
                 cross_scale_corr_real = self._compute_cross_correlation(
                     real_pyr_coeffs[:-1], phase_doubled_sep
@@ -1405,6 +1382,39 @@ class PortillaSimoncelli(nn.Module):
             # into the cross-correlation
             covars.append(covar / var_outer_prod.sqrt())
         return torch.stack(covars, -1)
+
+    def _compute_joint_cross_correlation(
+        self,
+        coeffs_tensor: list[Tensor],
+        coeffs_tensor_other: list[Tensor],
+        coeffs_var: None | Tensor = None,
+        coeffs_other_var: None | Tensor = None,
+    ) -> Tensor:
+        """Compute cross-correlations jointly across channel and orientation.
+
+        Returns
+        -------
+        joint_cross_correlations
+            Cross-correlations with channel and orientation combined into each
+            signal dimension.
+        """
+        # Combine channel and orientation into one dimension to compute correlations
+        coeffs_tensor = [
+            einops.rearrange(c, "b c o h w -> b 1 (c o) h w") for c in coeffs_tensor
+        ]
+        coeffs_tensor_other = [
+            einops.rearrange(c, "b c o h w -> b 1 (c o) h w")
+            for c in coeffs_tensor_other
+        ]
+        if coeffs_var is not None:
+            coeffs_var = einops.rearrange(coeffs_var, "b c o s -> b 1 (c o) s")
+        if coeffs_other_var is not None:
+            coeffs_other_var = einops.rearrange(
+                coeffs_other_var, "b c o s -> b 1 (c o) s"
+            )
+        return self._compute_cross_correlation(
+            coeffs_tensor, coeffs_tensor_other, coeffs_var, coeffs_other_var
+        ).squeeze(1)
 
     @staticmethod
     def _double_phase_pyr_coeffs(
