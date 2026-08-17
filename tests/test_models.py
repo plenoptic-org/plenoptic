@@ -699,20 +699,27 @@ class TestPortillaSimoncelli:
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
+    @pytest.mark.parametrize("color_statistics", [False, True])
     def test_portilla_simoncelli(
         self,
         n_scales,
         n_orientations,
         spatial_corr_width,
+        color_statistics,
         einstein_img,
+        color_img,
     ):
+        image = color_img if color_statistics else einstein_img
+        transform = po.process.OPC()
         ps = po.models.PortillaSimoncelli(
-            einstein_img.shape[-2:],
+            image.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
+            color_statistics=color_statistics,
+            transform=transform,
         ).to(DEVICE)
-        ps(einstein_img)
+        ps(image)
 
     # tests for whether output matches the original matlab output.  This implicitly
     # tests that Portilla_simoncelli.forward() returns an object of the correct size.
@@ -1028,6 +1035,23 @@ class TestPortillaSimoncelli:
             f"Color representation is missing grayscale statistics: {missing_keys}"
         )
 
+    def test_color_statistics_dict_mask(self, color_img_small):
+        model = self._small_ps(color_img_small, color_statistics=True)
+        representation = model.convert_to_dict(model(color_img_small))
+
+        color_statistics = {
+            "color_covariance",
+            "auto_correlation_transformed",
+            "skew_transformed",
+            "kurtosis_transformed",
+        }
+        assert color_statistics <= representation.keys()
+
+        for key, value in representation.items():
+            mask = model._necessary_stats_dict[key].to(value.device)
+            assert torch.isfinite(value[..., mask]).all()
+            assert torch.isnan(value[..., ~mask]).all()
+
     def test_default_color_transform(self):
         # The color PS model should run out of the box with the OPC transform
         image = torch.rand(1, 3, 32, 32, device=DEVICE)
@@ -1202,41 +1226,74 @@ class TestPortillaSimoncelli:
 
     # fft doesn't support float16, so we can't support it
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-    def test_dtypes(self, dtype, einstein_img):
-        model = po.models.PortillaSimoncelli(einstein_img.shape[-2:]).to(DEVICE)
-        model(einstein_img.to(dtype))
+    @pytest.mark.parametrize("color_statistics", [False, True])
+    def test_dtypes(self, dtype, color_statistics, einstein_img, color_img):
+        image = color_img if color_statistics else einstein_img
+        image = image.to(dtype)
+        transform = po.process.OPC()
+        model = po.models.PortillaSimoncelli(
+            image.shape[-2:], color_statistics=color_statistics, transform=transform,
+        ).to(device=DEVICE, dtype=dtype)
+        representation = model(image)
+        assert representation.dtype == dtype
+
+    def test_validate_color_model(self):
+        image_shape = (1, 3, 32, 32)
+        transform = po.process.OPC()
+        model = po.models.PortillaSimoncelli(
+            image_shape[-2:],
+            n_scales=2,
+            spatial_corr_width=3,
+            color_statistics=True,
+            transform=transform,
+        ).to(DEVICE)
+        po.validate.validate_model(model, image_shape=image_shape, device=DEVICE)
 
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
+    @pytest.mark.parametrize("color_statistics", [False, True])
     def test_scales_shapes(
-        self, n_scales, n_orientations, spatial_corr_width, einstein_img
+        self,
+        n_scales,
+        n_orientations,
+        spatial_corr_width,
+        color_statistics,
+        einstein_img,
+        color_img,
     ):
         # test that the shapes we use to assign scale labels to each statistic
         # and determine redundant stats are accurate
+        image = color_img if color_statistics else einstein_img
+        transform = po.process.OPC()
         model = po.models.PortillaSimoncelli(
-            einstein_img.shape[-2:],
+            image.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
+            color_statistics=color_statistics,
+            transform=transform,
         ).to(DEVICE)
         # this hack is to prevent model from removing redundant stats
         model._necessary_stats_mask = None
-        rep = model(einstein_img)
+        rep = model(image)
         # and then we get them back into their original shapes
         unpacked_rep = einops.unpack(rep, model._pack_info, "b c *")
+        # Discard empty statistics families (cros-corrs when scales=1)
+        # Matches keys of unpacked_rep and necessary_stats in zip below
+        necessary_stats = [
+            (key, value)
+            for key, value in model._necessary_stats_dict.items()
+            if value.nelement() > 0
+        ]
+        assert len(unpacked_rep) == len(necessary_stats)
         # because _necessary_stats_dict is an ordered dictionary, its elements
         # will be in the same order as in unpackaged_rep
-        for unp_v, dict_v in zip(unpacked_rep, model._necessary_stats_dict.values()):
-            # when we have a single scale, _necessary_stats_dict will contain
-            # keys for the cross_scale correlations, but there are no
-            # corresponding values. Thus, skip.
-            if dict_v.nelement() == 0:
-                continue
+        for unp_v, (key, dict_v) in zip(unpacked_rep, necessary_stats):
             # ignore batch and channel
             unp_v = unp_v[0, 0]
-            if not unp_v.shape:
-                # then this is var_residual_highpass, which has a single element
+            if key == "var_highpass_residual":
+                # this statistic has no explicit singleton statistic dimension
                 np.testing.assert_equal(unp_v.nelement(), dict_v.nelement())
             else:
                 np.testing.assert_equal(unp_v.shape, dict_v.shape)
