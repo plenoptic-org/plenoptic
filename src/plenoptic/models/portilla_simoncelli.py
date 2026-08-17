@@ -392,7 +392,7 @@ class PortillaSimoncelli(nn.Module):
     def _create_color_scales_shape_dict(
         self, scales_shape_dict: OrderedDict
     ) -> OrderedDict:
-        """Create dictionary of scales and shape for stats for the joint color statistics.
+        """Create dictionary of scales and shape for joint color statistics.
 
         Parameters
         ----------
@@ -407,7 +407,10 @@ class PortillaSimoncelli(nn.Module):
         """
         color_shape_dict = OrderedDict()
         for key, value in scales_shape_dict.items():
-            if key == "cross_orientation_correlation_magnitude":
+            if key in [
+                "cross_orientation_correlation_magnitude",
+                "cross_scale_correlation_magnitude",
+            ]:
                 # Add the joint-channel statistics scales
                 color_shape_dict[key] = np.tile(
                     value, (N_RGB_CHANNELS, N_RGB_CHANNELS, 1)
@@ -534,6 +537,9 @@ class PortillaSimoncelli(nn.Module):
                 )
                 mask[triu_inds[0], triu_inds[1]] = False
                 color_mask_dict[key] = mask
+            elif key == "cross_scale_correlation_magnitude":
+                # Cross-scale correlations are not symmetric, so keep all entries.
+                color_mask_dict[key] = value.repeat(N_RGB_CHANNELS, N_RGB_CHANNELS, 1)
             else:
                 color_mask_dict[key] = value.unsqueeze(0).repeat(
                     N_RGB_CHANNELS, *([1] * value.ndim)
@@ -744,12 +750,22 @@ class PortillaSimoncelli(nn.Module):
             ) = self._double_phase_pyr_coeffs(pyr_coeffs)
             # Compute the cross-scale correlations between the magnitude
             # coefficients. For each coefficient, we're correlating it with the
-            # coefficients at the next-coarsest scale. this will be a tensor of
-            # shape (batch, channel, n_orientations, n_orientations,
-            # n_scales-1)
-            cross_scale_corr_mags = self._compute_cross_correlation(
-                mag_pyr_coeffs[:-1], phase_doubled_mags, mags_var[..., :-1]
-            )
+            # coefficients at the next-coarsest scale.
+            if self.color_statistics:
+                # combine channel and ori so correlations are jointly across both.
+                joint_phase_doubled_mags = [
+                    einops.rearrange(m, "b c o h w -> b 1 (c o) h w")
+                    for m in phase_doubled_mags
+                ]
+                cross_scale_corr_mags = self._compute_cross_correlation(
+                    joint_mag_pyr_coeffs[:-1],
+                    joint_phase_doubled_mags,
+                    joint_mags_var[..., :-1],
+                ).squeeze(1)
+            else:
+                cross_scale_corr_mags = self._compute_cross_correlation(
+                    mag_pyr_coeffs[:-1], phase_doubled_mags, mags_var[..., :-1]
+                )
             # Compute the cross-scale correlations between the real
             # coefficients and the real and imaginary coefficients at the next
             # coarsest scale. this will be a tensor of shape (batch, channel,
