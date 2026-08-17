@@ -204,8 +204,8 @@ class PortillaSimoncelli(nn.Module):
         if isinstance(transform, str):
             if transform != "opc":
                 raise ValueError(
-                  "The only recognized string transform is 'opc'."
-                  f" Received '{transform}' instead."
+                    "The only recognized string transform is 'opc'."
+                    f" Received '{transform}' instead."
                 )
             transform = OPC()
         self.transform = transform
@@ -392,9 +392,7 @@ class PortillaSimoncelli(nn.Module):
     def _create_color_scales_shape_dict(
         self, scales_shape_dict: OrderedDict
     ) -> OrderedDict:
-        """
-        Create dictionary defining scales and shape of each stat for the
-        joint color statistics.
+        """Create dictionary of scales and shape for stats for the joint color statistics.
 
         Parameters
         ----------
@@ -409,7 +407,13 @@ class PortillaSimoncelli(nn.Module):
         """
         color_shape_dict = OrderedDict()
         for key, value in scales_shape_dict.items():
-            color_shape_dict[key] = np.repeat(value[None], N_RGB_CHANNELS, axis=0)
+            if key == "cross_orientation_correlation_magnitude":
+                # Add the joint-channel statistics scales
+                color_shape_dict[key] = np.tile(
+                    value, (N_RGB_CHANNELS, N_RGB_CHANNELS, 1)
+                )
+            else:
+                color_shape_dict[key] = np.repeat(value[None], N_RGB_CHANNELS, axis=0)
             if key == "pixel_statistics":
                 # Add color pixel stats here due to dict ordering
                 color_shape_dict["color_covariance"] = np.full(
@@ -507,9 +511,7 @@ class PortillaSimoncelli(nn.Module):
     def _create_color_necessary_stats_dict(
         necessary_stats_dict: OrderedDict,
     ) -> OrderedDict:
-        """
-        Create mask specifying the necessary statistics for the joint
-        color statistics.
+        """Create the necessary-statistics mask for joint color statistics.
 
         Parameters
         ----------
@@ -524,9 +526,18 @@ class PortillaSimoncelli(nn.Module):
         """
         color_mask_dict = OrderedDict()
         for key, value in necessary_stats_dict.items():
-            color_mask_dict[key] = value.unsqueeze(0).repeat(
-                N_RGB_CHANNELS, *([1] * value.ndim)
-            )
+            if key == "cross_orientation_correlation_magnitude":
+                n_signals = N_RGB_CHANNELS * value.shape[0]
+                triu_inds = torch.triu_indices(n_signals, n_signals)
+                mask = torch.ones(
+                    n_signals, n_signals, value.shape[-1], dtype=torch.bool
+                )
+                mask[triu_inds[0], triu_inds[1]] = False
+                color_mask_dict[key] = mask
+            else:
+                color_mask_dict[key] = value.unsqueeze(0).repeat(
+                    N_RGB_CHANNELS, *([1] * value.ndim)
+                )
             if key == "pixel_statistics":
                 # Add color pixel stats here due to dict ordering
                 # The diagonal variances are already included in pixel_statistics,
@@ -704,11 +715,24 @@ class PortillaSimoncelli(nn.Module):
         )
 
         # Compute the cross-orientation correlations between the magnitude
-        # coefficients at each scale. this will be a tensor of shape (batch,
-        # channel, n_orientations, n_orientations, n_scales)
-        cross_ori_corr_mags = self._compute_cross_correlation(
-            mag_pyr_coeffs, mag_pyr_coeffs, mags_var, mags_var
-        )
+        # coefficients at each scale.
+        if self.color_statistics:
+            # combine channel and ori so correlations are jointly across both.
+            joint_mag_pyr_coeffs = [
+                einops.rearrange(m, "b c o h w -> b 1 (c o) h w")
+                for m in mag_pyr_coeffs
+            ]
+            joint_mags_var = einops.rearrange(mags_var, "b c o s -> b 1 (c o) s")
+            cross_ori_corr_mags = self._compute_cross_correlation(
+                joint_mag_pyr_coeffs,
+                joint_mag_pyr_coeffs,
+                joint_mags_var,
+                joint_mags_var,
+            ).squeeze(1)
+        else:
+            cross_ori_corr_mags = self._compute_cross_correlation(
+                mag_pyr_coeffs, mag_pyr_coeffs, mags_var, mags_var
+            )
 
         # If we have more than one scale, compute the cross-scale correlations
         if self.n_scales != 1:
@@ -1596,7 +1620,7 @@ class PortillaSimoncelli(nn.Module):
         """  # numpydoc ignore=EX01
         if self.color_statistics:
             raise NotImplementedError(
-              "Plotting is not implemented for `color_statistics=True`."
+                "Plotting is not implemented for `color_statistics=True`."
             )
         if set(rep.keys()) > set(self._necessary_stats_dict.keys()):
             raise ValueError("representation contains additional keys!")

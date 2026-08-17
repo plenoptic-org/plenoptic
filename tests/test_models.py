@@ -1052,6 +1052,18 @@ class TestPortillaSimoncelli:
             assert torch.isfinite(value[..., mask]).all()
             assert torch.isnan(value[..., ~mask]).all()
 
+    def test_color_cross_orientation_correlation_magnitude_shape(self, color_img_small):
+        model = self._small_ps(color_img_small, color_statistics=True)
+        representation = model.convert_to_dict(model(color_img_small))
+        n_signals = color_img_small.shape[1] * model.n_orientations
+
+        assert representation["cross_orientation_correlation_magnitude"].shape == (
+            color_img_small.shape[0],
+            n_signals,
+            n_signals,
+            model.n_scales,
+        )
+
     def test_default_color_transform(self):
         # The color PS model should run out of the box with the OPC transform
         image = torch.rand(1, 3, 32, 32, device=DEVICE)
@@ -1232,7 +1244,9 @@ class TestPortillaSimoncelli:
         image = image.to(dtype)
         transform = po.process.OPC()
         model = po.models.PortillaSimoncelli(
-            image.shape[-2:], color_statistics=color_statistics, transform=transform,
+            image.shape[-2:],
+            color_statistics=color_statistics,
+            transform=transform,
         ).to(device=DEVICE, dtype=dtype)
         representation = model(image)
         assert representation.dtype == dtype
