@@ -38,7 +38,7 @@ In order to use plenoptic, we need some models! Normally, this will depend on yo
 
 <div class='render-all'>
 
-<img src="../_static/models.png">
+<img src="../_static/lgn-models.png">
 
 For the purposes of this notebook, we'll use some very simple convolutional models that are inspired by the processing done in the lateral geniculate nucleus (LGN) of the visual system[^models]. We're going to build up in complexity, starting with the Gaussian model at the top and gradually adding features[^notallmodels]. We'll describe the components of these models in more detail as we get to them, but briefly:
 
@@ -332,7 +332,7 @@ pink = po.process.rescale(pink).to(torch.float32).to(DEVICE)
 po.plot.imshow([curie, pink]);
 ```
 
-We run synthesis in the same way as before, just setting the optional argument {attr}`~plenoptic.Metamer.initial_image`:
+We run synthesis in the same way as before, just passing the optional argument `initial_image` <!-- skip-lint --> to {func}`~plenoptic.Metamer.setup`:
 
 ```{code-cell} ipython3
 metamer_curie = po.Metamer(img, model)
