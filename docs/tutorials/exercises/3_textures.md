@@ -11,16 +11,22 @@ kernelspec:
   name: plenoptic_venv
 ---
 
-:::{admonition} Run this notebook yourself!
+:::{admonition} Do this exercise yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`3_textures.ipynb`**! See the button at the top right to download as markdown or pdf.
+This notebook is an exercise for practicing using plenoptic. You should work through it on your own, either by clicking on one of the following buttons or opening up a new notebook on your own machine and following along.
+
+Regardless of which you choose, you should keep this page open for reference, as the links to other pages in the documentation are broken in the downloaded and binder notebooks.
+
+Download the executed notebook: **{nb-download}`3_textures.ipynb`**!
+
+Run it in your browser: **{binder}`3_textures.ipynb`**!
 
 :::
 
 # Texture synthesis
 
-See {external+plenoptic:doc}`user_guide/models_and_metrics/portilla_simoncelli/ps_index` for more details.
+See [](ps-index) page for more details on using the {class}`~plenoptic.models.PortillaSimoncelli` model.
 
 :::{attention}
 It is recommended that you first work through the [](simple-metamer) exercise before this one! The optimization procedure here is a bit more complex.
@@ -42,7 +48,7 @@ plt.rcParams["figure.dpi"] = 72
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ```
 
-The texture model requires a little more configuring to find reliably good metamers. In the [original paper](https://www.cns.nyu.edu/pub/eero/portilla99-reprint.pdf), the authors use coarse-to-fine synthesis, which starts with coarsest scales (i.e., lowest spatial frequencies) of the model representation and moves to finer and finer scales. In plenoptic, we have found that this is unnecessary for finding good metamers (though it is possible, using {external+plenoptic:class}`plenoptic.MetamerCTF`; see an example at that link), as long as one uses the {external+torch:class}`torch.optim.LBFGS` optimizer and a custom loss function, {external+plenoptic:func}`plenoptic.loss.portilla_simoncelli_loss_factory`. (See [this issue](https://github.com/plenoptic-org/plenoptic/issues/365) if you are interested in how we came to this suggestion.)
+The texture model requires a little more configuring to find reliably good metamers. In the [original paper](https://www.cns.nyu.edu/pub/eero/portilla99-reprint.pdf), the authors use coarse-to-fine synthesis, which starts with coarsest scales (i.e., lowest spatial frequencies) of the model representation and moves to finer and finer scales. In plenoptic, we have found that this is unnecessary for finding good metamers (though it is possible, using {class}`~plenoptic.MetamerCTF`; see example at that link), as long as one uses the {class}`torch.optim.LBFGS` optimizer and a custom loss function, {func}`plenoptic.loss.portilla_simoncelli_loss_factory`. (See [this issue](https://github.com/plenoptic-org/plenoptic/issues/365) if you are interested in how we came to this suggestion.)
 
 The following block synthesizes a texture metamer using our suggested setup:
 
@@ -67,6 +73,8 @@ met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
 met.synthesize(max_iter=100, store_progress=True)
 ```
 
+Visualize what synthesis looks like:
+
 ```{code-cell} ipython3
 po.plot.synthesis_status(met);
 ```
@@ -80,7 +88,7 @@ po.plot.synthesis_animate(met)
 
 ## Different target image
 
-As we practiced earlier, we can change the target image for metamer synthesis straightforwardly. What does it look like to use a different texture? A non-texture image? Are any of these results surprising?
+As we [practiced earlier](simple-metamer-diff-target), we can change the target image for metamer synthesis straightforwardly. What does it look like to use a different texture? A non-texture image? Are any of these results surprising?
 
 :::{admonition} More texture images
 :class: hint
@@ -120,6 +128,28 @@ fig = po.plot.imshow(hand_drawn, col_wrap=4, title=None)
 fig.suptitle("Hand-drawn textures", y=1.05);
 ```
 
+Now let's try picking a different target image and running synthesis:
+
+```{code-cell} ipython3
+:tags: [skip-execution]
+
+img = ...  # SPECIFY AN IMAGE HERE
+met = po.Metamer(
+    img,
+    ps,
+    loss_function=loss,
+)
+opt_kwargs = {
+    "max_iter": 10,
+    "max_eval": 10,
+    "history_size": 100,
+    "line_search_fn": "strong_wolfe",
+    "lr": 1,
+}
+met.setup(optimizer=torch.optim.LBFGS, optimizer_kwargs=opt_kwargs)
+met.synthesize(max_iter=100, store_progress=True)
+```
+
 ## Different initial image
 
-We can also change the initial image and run metamer synthesis. What does it look like if our target is a texture, but our initial image is a face?
+We also know how to [change the initial image](simple-metamer-diff-initial) and run metamer synthesis. What does it look like if our target is a texture, but our initial image is a face?

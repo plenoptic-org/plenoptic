@@ -79,6 +79,7 @@ po.plot.synthesis_animate(met)
 
 We can see that the representation error decreases relatively uniformly across the image.
 
+(simple-metamer-diff-target)=
 ## Different target image
 
 Try using a different target image than the one of Einstein above and running metamer synthesis until completion:
@@ -107,6 +108,7 @@ And maybe animate to see what synthesis looks like?
 po.plot.synthesis_animate(met)
 ```
 
+(simple-metamer-diff-initial)=
 ## Different initial image
 
 While we often initialize from a patch of white noise, it can be interesting to start from a different image as well. Using one of the same tools as above for loading another image, initialize metamer synthesis from another starting point and run it to completion:
