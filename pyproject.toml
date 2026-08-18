@@ -180,6 +180,8 @@ suppress-none-returning = true
 "!src/**.py" = ["D", "DOC", "ANN"]
 # this file has very long lines
 "src/plenoptic/_api_change.py" = ["E501"]
+# exercise notebooks sometimes will have undefined names in the skipped cells
+"exercises*ipynb" = ["F821"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"

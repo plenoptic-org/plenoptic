@@ -11,23 +11,25 @@ kernelspec:
   name: plenoptic_venv
 ---
 
-```{code-cell} ipython3
-:tags: [hide-input]
-
-import warnings
-```
-
-:::{admonition} Run this notebook yourself!
+:::{admonition} Do this exercise yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`4_torchvision.ipynb`**! See the button at the top right to download as markdown or pdf.
+This notebook is an exercise for practicing using plenoptic. You should work through it on your own, either by clicking on one of the following buttons or opening up a new notebook on your own machine and following along.
+
+Regardless of which you choose, you should keep this page open for reference, as the links to other pages in the documentation are broken in the downloaded and binder notebooks.
+
+Download the executed notebook: **{nb-download}`4_torchvision.ipynb`**!
+
+Run it in your browser: **{binder}`4_torchvision.ipynb`**!
 
 :::
 
 
 # Synthesizing Deep Net Model Metamers
 
-plenoptic is compatible with any model written in pytorch, including deep neural networks from the model zoos [timm](https://huggingface.co/timm) and [torchvision](https://docs.pytorch.org/vision/main/models.html). In this exercise, we'll grab ResNet50 from torchvision and show how to generate metamers for several of its intermediate representations, as done in [Feather et al. 2023](https://mcdermottlab.mit.edu/papers/Feather_etal_2023_deep_metamers.pdf).
+plenoptic is compatible with any model written in pytorch, including deep neural networks from the model zoos {external+torchvision:ref}`TorchVision <models>` and {external+timm:doc}`timm <models>`. In this exercise, we'll grab ResNet50 from torchvision and show how to generate metamers for one of its intermediate representations, as done in {cite:alp}`Feather2023-model-metam`.
+
+This tutorial covers similar ground as [](feather2023), but goes into a little less detail. View that page and [](deep_nets) for more details.
 
 :::{attention}
 It is recommended that you first work through the [](simple-metamer) exercise before this one! The optimization procedure here is a bit more complex and takes longer.
@@ -36,8 +38,11 @@ It is recommended that you first work through the [](simple-metamer) exercise be
 ```{code-cell} ipython3
 # needed for the plotting/animating:
 import matplotlib.pyplot as plt
-import plenoptic as po
+import numpy as np
 import torch
+import torchvision
+
+import plenoptic as po
 
 plt.rcParams["animation.html"] = "html5"
 # use single-threaded ffmpeg for animation writer
@@ -46,8 +51,6 @@ plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-import numpy as np
-import torchvision
 ```
 
 When synthesizing model metamers for convolutional neural networks, researchers often pick a specific layer whose output they want to match. If we look at [Feather et al. 2023](https://mcdermottlab.mit.edu/papers/Feather_etal_2023_deep_metamers.pdf) Figure 2e, we can see an interesting progression in layers 2 through 4: the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 is almost completely unidentifiable, looking almost completely like random RGB noise. We'll pick layer 3 from now, and you're encouraged to try the other layers!
@@ -84,7 +87,7 @@ norm = torchvision.transforms.Normalize(transform.mean, transform.std)
 
 If you include the image resizing in the plenoptic model when synthesizing a model metamer, you will clearly see the effect: since the transform crops out the center of the image, the model is completely insensitive to the border, and so it will be unchanged from initialization.
 
-If you're curious, try it out and see! (Just pass `transform` instead of `norm` to `DeepNetFeatures` model in the block below.)
+If you're curious, try it out and see! (Just pass `transform` instead of `norm` to {class}`~plenoptic.models.DeepNetFeatures` model in the block below.)
 
 :::
 
@@ -109,7 +112,7 @@ img = po.data.macaque().to(DEVICE)
 img = po.process.blur_downsample(img, 2)[..., :-59, :]
 ```
 
-As discussed above, models trained on ImageNet should be passed an image of size 224 by 224. We'll use plenoptic's {external+plenoptic:func}`plenoptic.process.center_crop` to do so, grabbing the required size directly from the model's associated `transform`;
+As discussed above, models trained on ImageNet should be passed an image of size 224 by 224. We'll use plenoptic's {func}`plenoptic.process.center_crop` to do so, grabbing the required size directly from the model's associated `transform`;
 
 ```{code-cell} ipython3
 img = po.process.center_crop(img, transform.crop_size[0])
@@ -127,7 +130,7 @@ scheduler_kwargs = {"step_size": 3000, "gamma": 0.5}
 met.setup(
     optimizer_kwargs={"amsgrad": False},
     scheduler=scheduler,
-    scheduler_kwargs=scheduler_kwargs
+    scheduler_kwargs=scheduler_kwargs,
 )
 # by setting stop_iters_to_check=max_iter, we ensure it keeps going through
 # all iterations
@@ -162,11 +165,14 @@ The following cell shows how to compute the image categories:
 
 ```{code-cell} ipython3
 imagenet_categories = np.asarray(weights.meta["categories"])
+
+
 def get_category(image):
     image_cat = po.to_numpy(
         torch.nn.functional.softmax(deepnet(norm(image)), dim=1).squeeze()
     )
     return imagenet_categories[image_cat.argmax()]
+
 
 print(f"Original image category: {get_category(met.image)}")
 print(f"Model metamer category: {get_category(met.metamer)}")
@@ -174,7 +180,7 @@ print(f"Model metamer category: {get_category(met.metamer)}")
 
 ## Different layer
 
-Look at figure 2e in [Feather et al. 2023](https://mcdermottlab.mit.edu/papers/Feather_etal_2023_deep_metamers.pdf) and pick another layer to target. The hyperparameters we picked should work reasonably well for layers 2 and 4, but others have not been tested. Look at the output of {external+plenoptic:func}`~plenoptic.plot.synthesis_status` and tweak the hyperparameters as necessary to get the loss as low as possible!
+Look at figure 2e in {cite:alp}`Feather2023-model-metam` and pick another layer to target. The hyperparameters we picked should work reasonably well for layers 2 and 4, but others have not been tested. Look at the output of {func}`~plenoptic.plot.synthesis_status` and tweak the hyperparameters as necessary to get the loss as low as possible!
 
 :::{admonition} How do I know what layers I can use?
 :class: dropdown question
@@ -191,7 +197,7 @@ feature_extraction.get_graph_node_names(deepnet)[1]
 ```{code-cell} ipython3
 :tags: [skip-execution]
 
-target_layer = # WRITE SOMETHING HERE
+target_layer = ...  # WRITE SOMETHING HERE
 model = po.models.DeepNetFeatures(deepnet, target_layer, norm)
 model.to(DEVICE)
 
@@ -199,7 +205,7 @@ met = po.Metamer(img, model)
 met.setup(
     optimizer_kwargs={"amsgrad": False},
     scheduler=scheduler,
-    scheduler_kwargs=scheduler_kwargs
+    scheduler_kwargs=scheduler_kwargs,
 )
 # by setting stop_iters_to_check=max_iter, we ensure it keeps going through
 # all iterations
@@ -216,7 +222,7 @@ Try using a different target image than the one of macaque above and running met
 :::{admonition} Loading other images
 :class: hint
 
-Try one of the other {external+plenoptic:ref}`included images <images-api>` or use {external+plenoptic:func}`plenoptic.load_images` to load one from disk.
+Try one of the other {ref}`included images <images-api>` or use {func}`plenoptic.load_images` to load one from disk.
 
 :::
 
@@ -225,7 +231,7 @@ Don't forget to ensure the image has a height and width of 224! There are many w
 ```{code-cell} ipython3
 :tags: [skip-execution]
 
-new_img = # WRITE SOMETHING NEW HERE
+new_img = ...  # WRITE SOMETHING NEW HERE
 # USE SOME COMBINATION OF DOWNSAMPLING AND/OR CROPPING TO CHANGE THE HEIGHT TO 224 x 224
 assert new_image.shape[-2:] == (224, 224), "Image is the wrong shape!"
 new_img = new_img.to(DEVICE)
@@ -233,7 +239,7 @@ met = po.Metamer(img, model)
 met.setup(
     optimizer_kwargs={"amsgrad": False},
     scheduler=scheduler,
-    scheduler_kwargs=scheduler_kwargs
+    scheduler_kwargs=scheduler_kwargs,
 )
 # by setting stop_iters_to_check=max_iter, we ensure it keeps going through
 # all iterations
@@ -260,10 +266,10 @@ As in the previous section, don't forget to ensure this image has a height and w
 
 met = po.Metamer(img, model)
 met.setup(
-    initial_image=, # WRITE SOMETHING HERE
+    initial_image=...,  # WRITE SOMETHING HERE
     optimizer_kwargs={"amsgrad": False},
     scheduler=scheduler,
-    scheduler_kwargs=scheduler_kwargs
+    scheduler_kwargs=scheduler_kwargs,
 )
 assert met.metamer.shape == met.image.shape, "Initial image is the wrong shape!"
 met.synthesize(max_iter=6000, stop_iters_to_check=6000, store_progress=120)
@@ -285,8 +291,8 @@ This setup works for any torchvision model! Pick another [model with pre-trained
 ```{code-cell} ipython3
 :tags: [skip-execution]
 
-weights = torchvision.models. # WRITE SOMETHING HERE!
-deepnet = torchvision.models. # WRITE SOMETHING HERE!
+weights = ...  # WRITE SOMETHING HERE!
+deepnet = ...  # WRITE SOMETHING HERE!
 deepnet.eval()
 ```
 
@@ -307,12 +313,12 @@ Now, specify the intermediate layer you want to match and initialize the plenopt
 ```{code-cell} ipython3
 :tags: [skip-execution]
 
-target_layer = # WRITE SOMETHING HERE
+target_layer = ...  # WRITE SOMETHING HERE
 model = po.models.DeepNetFeatures(deepnet, target_layer, norm)
 model.to(DEVICE)
 ```
 
-And finally, instantiate the metamer and run synthesis. Note that the arguments to {external+plenoptic:meth}`~plenoptic.Metamer.setup` will almost certainly need to be changed, but we've repeated the ones used for ResNet50 as a starting point. You may also need to change the loss function, see [](3_textures) for an example of changing this, and {external+plenoptic:class}`~plenoptic.Metamer` documentation for more details.
+And finally, instantiate the metamer and run synthesis. Note that the arguments to {meth}`~plenoptic.Metamer.setup` will almost certainly need to be changed, but we've repeated the ones used for ResNet50 as a starting point. You may also need to change the loss function, see [](3_textures) for an example of changing this, and {class}`~plenoptic.Metamer` documentation for more details.
 
 ```{code-cell} ipython3
 :tags: [skip-execution]
@@ -323,7 +329,7 @@ scheduler_kwargs = {"step_size": 3000, "gamma": 0.5}
 met.setup(
     optimizer_kwargs={"amsgrad": False},
     scheduler=scheduler,
-    scheduler_kwargs=scheduler_kwargs
+    scheduler_kwargs=scheduler_kwargs,
 )
 met.synthesize(max_iter=6000, stop_iters_to_check=6000, store_progress=120)
 po.plot.synthesis_status(met, figsize=(15, 4.5));
