@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.18.1
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: plenoptic_venv
   language: python
@@ -257,7 +257,7 @@ These arguments are passed to {class}`~plenoptic.Metamer` at initialization or t
 metamer = po.Metamer(img, model)
 
 matched_im = metamer.synthesize(store_progress=10, max_iter=20)
-# if we call synthesize again, we resume where we left off. We'll also 
+# if we call synthesize again, we resume where we left off. We'll also
 # reduce stop_criterion, so synthesis runs for longer.
 matched_im = metamer.synthesize(store_progress=10, max_iter=480, stop_criterion=1e-7)
 ```
@@ -468,7 +468,8 @@ Now we feel pretty confident that we understand how a simple Gaussian works, wha
 # These values come from Berardino et al., 2017.
 center_surround = po.models.CenterSurround(
     (31, 31), center_std=1.962, surround_std=4.235, pad_mode="circular"
-).to(DEVICE).to(img.dtype)
+)
+center_surround = center_surround.to(DEVICE).to(img.dtype)
 po.remove_grad(center_surround)
 center_surround.eval()
 center_surround(img).shape
@@ -574,7 +575,8 @@ So far, our models have all been linear. That means that they're relatively easy
 ```{code-cell} ipython3
 lg = po.models.LuminanceGainControl(
     (31, 31), pad_mode="circular", pretrained=True, cache_filt=True
-).to(DEVICE).to(img.dtype)
+)
+lg = lg.to(DEVICE).to(img.dtype)
 po.remove_grad(lg)
 lg.eval()
 ```
