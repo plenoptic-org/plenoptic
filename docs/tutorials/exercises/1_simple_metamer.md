@@ -11,30 +11,38 @@ kernelspec:
   name: plenoptic_venv
 ---
 
-:::{admonition} Run this notebook yourself!
+:::{admonition} Do this exercise yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`1_simple_metamer.ipynb`**! See the button at the top right to download as markdown or pdf.
+This notebook is an exercise for practicing using plenoptic. You should work through it on your own, either by clicking on one of the following buttons or opening up a new notebook on your own machine and following along.
+
+Regardless of which you choose, you should keep this page open for reference, as the links to other pages in the documentation are broken in the downloaded and binder notebooks.
+
+Download the executed notebook: **{nb-download}`1_simple_metamer.ipynb`**!
+
+Run it in your browser: **{binder}`1_simple_metamer.ipynb`**!
 
 :::
 
 (simple-metamer)=
 # Minimal metamer synthesis example
 
-See {external+plenoptic:doc}`plenoptic User Guide <user_guide/index>` for more details.
+See [](metamer-nb) page for more details about using the {class}`~plenoptic.Metamer` object.
 
 ```{code-cell} ipython3
-import plenoptic as po
-import torch
 # needed for the plotting/animating:
 import matplotlib.pyplot as plt
-plt.rcParams['animation.html'] = 'html5'
+import torch
+
+import plenoptic as po
+
+plt.rcParams["animation.html"] = "html5"
 # use single-threaded ffmpeg for animation writer
-plt.rcParams['animation.writer'] = 'ffmpeg'
-plt.rcParams['animation.ffmpeg_args'] = ['-threads', '1']
+plt.rcParams["animation.writer"] = "ffmpeg"
+plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ```
 
 The following code block:
@@ -44,8 +52,7 @@ The following code block:
 ```{code-cell} ipython3
 img = po.data.einstein().to(DEVICE)
 model = po.models.LuminanceGainControl(
-    kernel_size=(31, 31), pad_mode="circular",
-    pretrained=True, cache_filt=True
+    kernel_size=(31, 31), pad_mode="circular", pretrained=True, cache_filt=True
 )
 model.to(DEVICE)
 po.remove_grad(model)
@@ -79,14 +86,13 @@ Try using a different target image than the one of Einstein above and running me
 :::{admonition} Loading other images
 :class: hint
 
-Try one of the other {external+plenoptic:ref}`included images <images-api>` or use {external+plenoptic:func}`plenoptic.load_images` to load one from disk.
+Try one of the other {ref}`included images <images-api>` or use {func}`plenoptic.load_images` to load one from disk.
 
 :::
 
-```{code-cell} ipython3
-:tags: [skip-execution]
+```python
 
-img = # WRITE SOMETHING NEW HERE
+img = ... # WRITE SOMETHING NEW HERE
 img = img.to(DEVICE)
 met = po.Metamer(img, model)
 met.synthesize(max_iter=1300, stop_criterion=1e-11, store_progress=10)
@@ -109,7 +115,7 @@ While we often initialize from a patch of white noise, it can be interesting to 
 :tags: [skip-execution]
 
 met = po.Metamer(img, model)
-met.setup(initial_image=) # FINISH THE CALL TO setup
+met.setup(initial_image=...)  # FINISH THE CALL TO setup
 met.synthesize(max_iter=1300, stop_criterion=1e-11, store_progress=10)
 po.plot.synthesis_status(met);
 ```
@@ -124,6 +130,6 @@ po.plot.synthesis_animate(met)
 
 ## Other models
 
-Try any of the above with a different model! Try one of the other {external+plenoptic:ref}`LGN-inspired models <models-api>`.
+Try any of the above with a different model! Try one of the other {ref}`LGN-inspired models <models-api>`.
 
 If you want a more complex model, see the [](3_textures) or [](4_torchvision) exercises.
