@@ -451,6 +451,11 @@ class PortillaSimoncelli(nn.Module):
             "residual_lowpass",
             dtype=object,
         )
+        color_shape_dict["cross_correlation_coarsest_scale_lowpass"] = np.full(
+            (N_RGB_CHANNELS * self.n_orientations, n_lowpass_signals),
+            self.n_scales - 1,
+            dtype=int,
+        )
         return color_shape_dict
 
     def _create_necessary_stats_dict(
@@ -617,6 +622,9 @@ class PortillaSimoncelli(nn.Module):
                     lowpass_mask[row, column] = True
                     seen_correlations.add(correlation)
         color_mask_dict["cross_correlation_lowpass"] = lowpass_mask
+        color_mask_dict["cross_correlation_coarsest_scale_lowpass"] = torch.ones(
+            n_signals, n_lowpass_signals, dtype=torch.bool
+        )
         return color_mask_dict
 
     @staticmethod
@@ -798,6 +806,11 @@ class PortillaSimoncelli(nn.Module):
             cross_corr_lowpass = self._compute_joint_cross_correlation(
                 [lowpass_signals], [lowpass_signals]
             ).squeeze(-1)
+            cross_corr_coarsest_scale_lowpass = (
+                self._compute_joint_cross_correlation(
+                    [real_pyr_coeffs[-1]], [lowpass_signals]
+                ).squeeze(-1)
+            )
         else:
             cross_ori_corr_mags = self._compute_cross_correlation(
                 mag_pyr_coeffs, mag_pyr_coeffs, mags_var, mags_var
@@ -862,6 +875,7 @@ class PortillaSimoncelli(nn.Module):
                 kurtosis_transformed,
                 cross_ori_corr_real,
                 cross_corr_lowpass,
+                cross_corr_coarsest_scale_lowpass,
             ]
         # And then pack them into a 3d tensor
         if self.color_statistics:

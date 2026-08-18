@@ -1055,24 +1055,26 @@ class TestPortillaSimoncelli:
     def test_color_cross_orientation_correlation_magnitude_shape(self, color_img_small):
         model = self._small_ps(color_img_small, color_statistics=True)
         representation = model.convert_to_dict(model(color_img_small))
-        n_signals = color_img_small.shape[1] * model.n_orientations
+        n_channels = color_img_small.shape[1]
+        n_oriented_signals = n_channels * model.n_orientations
 
         assert representation["cross_orientation_correlation_magnitude"].shape == (
             color_img_small.shape[0],
-            n_signals,
-            n_signals,
+            n_oriented_signals,
+            n_oriented_signals,
             model.n_scales,
         )
 
     def test_color_cross_orientation_correlation_real_shape(self, color_img_small):
         model = self._small_ps(color_img_small, color_statistics=True)
         representation = model.convert_to_dict(model(color_img_small))
-        n_signals = color_img_small.shape[1] * model.n_orientations
+        n_channels = color_img_small.shape[1]
+        n_oriented_signals = n_channels * model.n_orientations
 
         assert representation["cross_orientation_correlation_real"].shape == (
             color_img_small.shape[0],
-            n_signals,
-            n_signals,
+            n_oriented_signals,
+            n_oriented_signals,
             model.n_scales,
         )
 
@@ -1090,27 +1092,43 @@ class TestPortillaSimoncelli:
         assert necessary_mask.sum() == 57
         assert lowpass_correlations[..., necessary_mask].unique().numel() == 57
 
+    def test_color_cross_correlation_coarsest_scale_lowpass_shape(
+        self, color_img_small
+    ):
+        model = self._small_ps(color_img_small, color_statistics=True)
+        representation = model.convert_to_dict(model(color_img_small))
+        n_channels = color_img_small.shape[1]
+        n_oriented_signals = n_channels * model.n_orientations
+
+        assert representation["cross_correlation_coarsest_scale_lowpass"].shape == (
+            color_img_small.shape[0],
+            n_oriented_signals,
+            15,
+        )
+
     def test_color_cross_scale_correlation_magnitude_shape(self, color_img_small):
         model = self._small_ps(color_img_small, color_statistics=True)
         representation = model.convert_to_dict(model(color_img_small))
-        n_signals = color_img_small.shape[1] * model.n_orientations
+        n_channels = color_img_small.shape[1]
+        n_oriented_signals = n_channels * model.n_orientations
 
         assert representation["cross_scale_correlation_magnitude"].shape == (
             color_img_small.shape[0],
-            n_signals,
-            n_signals,
+            n_oriented_signals,
+            n_oriented_signals,
             model.n_scales - 1,
         )
 
     def test_color_cross_scale_correlation_real_shape(self, color_img_small):
         model = self._small_ps(color_img_small, color_statistics=True)
         representation = model.convert_to_dict(model(color_img_small))
-        n_signals = color_img_small.shape[1] * model.n_orientations
+        n_channels = color_img_small.shape[1]
+        n_oriented_signals = n_channels * model.n_orientations
 
         assert representation["cross_scale_correlation_real"].shape == (
             color_img_small.shape[0],
-            n_signals,
-            2 * n_signals,
+            n_oriented_signals,
+            2 * n_oriented_signals,
             model.n_scales - 1,
         )
 
