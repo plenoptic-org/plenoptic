@@ -13,15 +13,15 @@ for p in sys.argv[1:]:
         p = []
     paths.extend(p)
 
-EXERCISE_HEADER = """This notebook is an exercise for practicing using plenoptic. You
+EXERCISE_HEADER = r"""This notebook is an exercise for practicing using plenoptic. You
 should work through it on your own, either by clicking on one of the following buttons
 or opening up a new notebook on your own machine and following along.
 
 Regardless of which you choose, you should keep this page open for reference, as the
-links to other pages in the documentation are broken in the downloaded and binder
-notebooks."""
+links to other pages in the documentation \(and some images\) are broken in the
+downloaded and binder notebooks."""
 # This allows us to use re.findall and allow for unwrapped or wrapped-like-above
-# versions of the above text
+# versions of the above text. Note the escaped parentheses in the string above!
 EXERCISE_HEADER = EXERCISE_HEADER.replace("\n", "[\n ]")
 
 fails = []
@@ -32,8 +32,8 @@ for p in paths:
         # then this isn't a markdown notebook
         continue
     filename = p.stem
-    # handle exercises slightly differently
-    if "exercises" not in str(p):
+    # handle tutorials/exercises slightly differently
+    if "tutorials" not in str(p):
         if (
             not re.findall("Run this notebook yourself!", md)
             or not re.findall(f"{{nb-download}}`{filename}.ipynb`", md)

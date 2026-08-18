@@ -16,7 +16,7 @@ kernelspec:
 
 This notebook is an exercise for practicing using plenoptic. You should work through it on your own, either by clicking on one of the following buttons or opening up a new notebook on your own machine and following along.
 
-Regardless of which you choose, you should keep this page open for reference, as the links to other pages in the documentation are broken in the downloaded and binder notebooks.
+Regardless of which you choose, you should keep this page open for reference, as the links to other pages in the documentation (and some images) are broken in the downloaded and binder notebooks.
 
 Download the executed notebook: **{nb-download}`3_textures.ipynb`**!
 

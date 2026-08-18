@@ -11,8 +11,12 @@ kernelspec:
   name: plenoptic_venv
 ---
 
-:::{admonition} Run this notebook yourself!
+:::{admonition} Do this exercise yourself!
 :class: important
+
+This notebook is an exercise for practicing using plenoptic. You should work through it on your own, either by clicking on one of the following buttons or opening up a new notebook on your own machine and following along.
+
+Regardless of which you choose, you should keep this page open for reference, as the links to other pages in the documentation (and some images) are broken in the downloaded and binder notebooks.
 
 Download the executed notebook: **{nb-download}`introductory_tutorial.ipynb`**!
 
@@ -38,19 +42,33 @@ In order to use plenoptic, we need some models! Normally, this will depend on yo
 
 <div class='render-all'>
 
-For the purposes of this notebook, we'll use some very simple convolutional models that are inspired by the processing done in the lateral geniculate nucleus (LGN) of the visual system[^models].
+For the purposes of this notebook, we'll use some very simple convolutional models that are inspired by the processing done in the lateral geniculate nucleus (LGN) of the visual system. (Most of these models were originally published in {cite:alp}`Berardino2017-eigen`, from which the figure is modified.)
 
 <img src="../_static/lgn-models.png">
 
-[^models]: Most of these models were originally published in {cite:alp}`Berardino2017-eigen`, from which the figure is modified.
-
-[^notallmodels]: Note that the Berardino et. al, 2017 paper includes more models than described here. We're not examining all of them for time's sake, but you can check out the rest of the models described in the Berardino paper, they're all {ref}`included in plenoptic <models-api>` (under the header "LGN-inspired models").
-
-We're going to build up in complexity, starting with the Gaussian model at the top and gradually adding features[^notallmodels]. We'll describe the components of these models in more detail as we get to them, but briefly:
+We're going to build up in complexity, starting with the Gaussian model at the top and gradually adding features. We'll describe the components of these models in more detail as we get to them, but briefly:
 
 - {class}`~plenoptic.models.Gaussian`: the model just convolves a Gaussian with an image, so that the model's representation is simply a blurry version of the image.
 - {class}`~plenoptic.models.CenterSurround`: the model convolves a difference-of-Gaussian filter with the image, so that model's representation is bandpass, caring mainly about frequencies that are neither too high or too low.
 - {class}`~plenoptic.models.LuminanceGainControl`: the model rectifies and normalizes the linear component of the response using a local measure of luminance, so that the response is invariant to local changes in luminance.
+
+(Note that {cite:alp}`Berardino2017-eigen` includes more models than described here. We're not examining all of them for time's sake, but you can check out the rest of the models described in the Berardino paper, they're all {ref}`included in plenoptic <models-api>`, under the header "LGN-inspired models".)
+
+</div>
+
+<div  class='render-user render-presenter' style="display:none">
+
+What do the `render-user`, `render-presenter`, `render-all` classes / tags mean?
+
+This file serves as a source file for three different versions of the same notebook:
+
+- The "full" version, as displayed on the website, includes all code and full explanations.
+- The "presenter" version would include all code and brief bullet point descriptions. It is intended as a reference for a presenter live-coding this notebook.
+- The "user" version would include little code (replacing most code blocks with empty ones) and brief bullet point descriptions. It is intended as a "clean slate" for the presenter and users in a live-coding lesson.
+
+In the plenoptic documentation, only the full version is used. However, the `render` tags and classes are left in to facilitate the creation of the other versions for workshops. Instead of setting custom css for the whole site to hide the `render-user` and `render-presenter` classes, as we do for the workshop websites, we instead use inline styles to hide them, as this will carry over if a user uses the download link at the top to download the notebook.
+
+If you have downloaded this file locally and are seeing these sections alongside the lengthier explanations, just know that they are intended as terser restatements and notes, and we recommend paying more attention to the longer explanations; that is why they are hidden by default.
 
 </div>
 
@@ -123,7 +141,7 @@ def plot_helper(metamer, init_img=None):
 
 In addition to our models, all `plenoptic` methods require a "reference" or "target" image --- for Metamer synthesis, for example, this is the image whose representation we will match. Let's load in an image of Einstein to serve as our reference here. We'll also move Einstein to the GPU (if available) and to 64-bit floats, which improves reproducibility:
 
-<div class='render-user render-presenter'>
+<div class='render-user render-presenter' style="display:none">
 
 All synthesis methods require a "reference" or "target" image, so let's load one in.
 
@@ -140,7 +158,7 @@ Models can be really simple, as this demonstrates. It needs to inherit `torch.nn
 
 To start, we'll create the `Gaussian` <!-- skip-lint --> model described above:
 
-<div class='render-user render-presenter'>
+<div class='render-user render-presenter' style="display:none">
 
 Set up the Gaussian model. Models in plenoptic must:
 - Inherit `torch.nn.Module`.
@@ -180,7 +198,7 @@ To work with our synthesis methods, a model must accept a tensor as input and re
 
 We can see that our `Gaussian` <!-- skip-lint --> model satisfies this constraint:
 
-<div class="render-user render-all">
+<div class="render-user render-all" style="display:none">
 
 - Initialize the Gaussian model.
 - Call it on our image.
@@ -206,7 +224,7 @@ There's one final step before this model is ready for synthesis. Most `pytorch` 
 
 Similarly, you probably also want to call `.eval` <!-- skip-lint --> on any model, in case it has training-mode specific behavior: that's not the case here (we're just being pedantic), but it might be the case, depending on your model, and [pytorch's documentation](https://pytorch.org/docs/stable/eotes/autograd.html#evaluation-mode-nn-module-eval) recommends calling `.eval` <!-- skip-lint --> just in case.
 
-<div class="render-user render-all">
+<div class="render-user render-all" style="display:none">
 
 In plenoptic (unlike most uses of pytorch), models are *fixed*, so we:
 - Remove gradients on model parameters.
@@ -221,7 +239,7 @@ model.eval()
 
 Now that we've prepared our model, the following shows the input image and the model output. We can see that output is a blurred version of the input, as we would expect from a low-pass model.
 
-<div class='render-user render-presenter'>
+<div class='render-user render-presenter' style="display:none">
 
 - The Gaussian model output is a blurred version of the input.
 - This is because the model is preserving the low frequencies,  discarding the high frequencies (i.e., it's a lowpass filter).
@@ -247,7 +265,7 @@ While only the model and image are needed, you can set a variety of other optimi
 These arguments are passed to {class}`~plenoptic.Metamer` at initialization or the {func}`~plenoptic.Metamer.setup` method, which is optional (if you just want the defaults, you can skip it, as we do here).
 :::
 
-<div class='render-user render-presenter'>
+<div class='render-user render-presenter' style="display:none">
 
 - Initialize the {class}`~plenoptic.Metamer` object and synthesize a model metamer.
 
@@ -266,7 +284,7 @@ matched_im = metamer.synthesize(store_progress=10, max_iter=480, stop_criterion=
 
 After synthesis runs, we can examine the loss over time. There's a convenience function for this, but you could also call `plt.semilogy(metamer.losses)` to create it yourself.
 
-<div class="render-user render-presenter">
+<div class="render-user render-presenter" style="display:none">
 
 - View the synthesis process.
 
@@ -294,7 +312,7 @@ In the above, we see that we start with white noise, and gradually update the pi
 
 We can then look at the reference and metamer images, as well as the model's outputs on the two images:
 
-<div class="render-user render-presenter">
+<div class="render-user render-presenter" style="display:none">
 
 - Visualize model metamers.
 
@@ -334,7 +352,7 @@ It may seem strange that the synthesized image looks like it has high-frequency 
 
 We can see the model's insensitivity to high frequencies more dramatically by initializing our metamer synthesis with a different image. By default, we initialize with a patch of white noise, but we can initialize with any image of the same size. Let's try with two different images, a sample of pink noise and a picture of Marie Curie.
 
-<div class='render-user render-presenter'>
+<div class='render-user render-presenter' style="display:none">
 
 - Synthesize more model metamers, from different starting points.
 
@@ -376,7 +394,7 @@ po.plot.synthesis_loss(metamer_curie)
 po.plot.synthesis_loss(metamer_pink);
 ```
 
-<div class='render-user render-presenter'>
+<div class='render-user render-presenter' style="display:none">
 
 Visualize all metamer outputs. In the plot we will create:
 - the first row shows our target Einstein image and its model representation, as we saw before.
@@ -431,7 +449,7 @@ By generating model metamers, we've gained a better understanding of the informa
 
 Like {class}`~plenoptic.Metamer`, {class}`~plenoptic.Eigendistortion` accepts an image and a model as its inputs. By default, it synthesizes the top and bottom eigendistortion, that is, the changes to the input image that the model finds most and least noticeable.
 
-<div class='render-user render-presenter'>
+<div class='render-user render-presenter' style="display:none">
 
 - While metamers allow us to examine model invariances, eigendistortions allow us to also examine model sensitivities.
 - Eigendistortions are distortions that the model thinks are the most and least noticeable.
@@ -457,7 +475,7 @@ We can see they make sense: the most noticeable distortion is a very low-frequen
 
 Now we feel pretty confident that we understand how a simple Gaussian works, what happens when we make the model more complicated? Let's try changing the filter from a simple lowpass to a bandpass filter, which have sensitivities more similar to those of neurons in the early human visual system. To do this, we'll use plenoptic's built-in {class}`~plenoptic.models.CenterSurround` object:
 
-<div class='render-user render-presenter'>
+<div class='render-user render-presenter' style="display:none">
 
 - The {class}`~plenoptic.models.CenterSurround` model has bandpass sensitivity, as opposed to the lowpass sensitivity of the `Gaussian` <!-- skip-lint -->.
 - Thus, it is still insensitive to the highest frequencies, but it is less sensitive to the low frequencies the Gaussian prefers, with its peak sensitivity lying in a middling range.
@@ -485,7 +503,7 @@ While the Gaussian model above was lowpass, throwing away high frequencies and p
 
 We can make use of multi-batch processing in order to synthesize the metamers with different start points, as above, using a single {class}`~plenoptic.Metamer` object:
 
-<div class='render-user render-presenter'>
+<div class='render-user render-presenter' style="display:none">
 
 - We can synthesize all three model metamers at once by taking advantage of multi-batch processing.
 
@@ -503,7 +521,7 @@ cs_metamer.synthesize(1000, stop_criterion=1e-10)
 
 Now let's visualize our outputs (the code to create this plot is slightly annoying, so we're defined it as a helper function at the top of the notebook):
 
-<div class="render-user render-presenter">
+<div class="render-user render-presenter" style="display:none">
 
 - Visualize all the model metamers we synthesized.
 
@@ -533,7 +551,7 @@ In all of these, the differences are the result of the fact that our model now c
 
 The change from a lowpass to a bandpass model also changes the model's most sensitive frequencies, though we can't easily tell that using model metamers. We can, however, using eigendistortions!
 
-<div class='render-user render-presenter'>
+<div class='render-user render-presenter' style="display:none">
 
 - By examining the eigendistortions, we can see more clearly that the model's preferred frequency has shifted higher, while the minimal eigendistortion still looks fairly similar.
 
@@ -564,7 +582,7 @@ So far, our models have all been linear. That means that they're relatively easy
     ```
 [^gaincontrol]: Gain control, or divisive normalization, is ubiquitous in the central nervous system and has been proposed as a [canonical neural computation](https://www.nature.com/articles/nrn3136) which allows the brain to maximize sensitivity to relevant stimuli in changing contexts.
 
-<div class='render-user render-presenter'>
+<div class='render-user render-presenter' style="display:none">
 
 - The {class}`~plenoptic.models.LuminanceGainControl` model adds a nonlinearity, gain control. This makes the model harder to reason than the first two models.
 - This model divides the output of the {class}`~plenoptic.models.CenterSurround` filter with an estimate of local luminance (the output of a larger Gaussian filter), which makes the model completely insensitive to absolute pixel values. It now cares about contrast, rather than luminance.
@@ -591,7 +609,7 @@ Notice that not just the two plotted images but also their range (given in the t
 
 Now let's go ahead and synthesize and visualize metamers for this model. The code will look the same as before, except we're going to set the learning rate to a value slightly lower than the default, which allows us to find a better solution here.
 
-<div class='render-user render-presenter'>
+<div class='render-user render-presenter' style="display:none">
 
 - Let's synthesize and visualize some metamers for this model.
 
@@ -605,7 +623,7 @@ lg_metamer.synthesize(5000, stop_criterion=1e-12)
 
 And let's visualize our results:
 
-<div class='render-presenter'>
+<div class='render-presenter' style="display:none">
 
 - The model metamers here look fairly similar to those of the {class}`~plenoptic.models.CenterSurround` model, though you can see that their local luminance is even more similar to the initial image, because this model is even less sensitive to the local luminance than the previous model.
 
@@ -619,7 +637,7 @@ We can see that the {class}`~plenoptic.models.LuminanceGainControl` model metame
 
 Finally, let's look at our eigendistortions:
 
-<div class='render-user render-presenter'>
+<div class='render-user render-presenter' style="display:none">
 
 - Now let's use eigendistortions to see what this model is particularly sensitive to.
 
@@ -650,7 +668,7 @@ Again, the minimum eigendistortion looks fairly similar to before, but now our m
 
 This adaptivity matters not just within images, but across images: the {class}`~plenoptic.models.CenterSurround` and `Gaussian` <!-- skip-lint --> models' eigendistortions look the same on different images, whereas {class}`~plenoptic.models.LuminanceGainControl`'s eigendistortions vary depending on the image content:
 
-<div class='render-presenter'>
+<div class='render-presenter' style="display:none">
 
 - Gain control makes this model adaptive, and thus the location of the eigendistortion matters, which was not true of our previous, linear models.
 
