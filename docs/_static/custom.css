@@ -15,3 +15,11 @@ a.reference.binder::before {
     height: 20px;
     content: "";
 }
+
+.render-user {
+    display: none;
+}
+
+.render-presenter {
+    display: none;
+}

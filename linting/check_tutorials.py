@@ -13,6 +13,16 @@ for p in sys.argv[1:]:
         p = []
     paths.extend(p)
 
+EXERCISE_HEADER = """This notebook is an exercise for practicing using plenoptic. You
+should work through it on your own, either by clicking on one of the following buttons
+or opening up a new notebook on your own machine and following along.
+
+Regardless of which you choose, you should keep this page open for reference, as the
+links to other pages in the documentation are broken in the downloaded and binder
+notebooks."""
+# This allows us to use re.findall and allow for unwrapped or wrapped-like-above
+# versions of the above text
+EXERCISE_HEADER = EXERCISE_HEADER.replace("\n", "[\n ]")
 
 fails = []
 for p in paths:
@@ -22,12 +32,22 @@ for p in paths:
         # then this isn't a markdown notebook
         continue
     filename = p.stem
-    if (
-        not re.findall("Run this notebook yourself!", md)
-        or not re.findall(f"{{nb-download}}`{filename}.ipynb`", md)
-        or not re.findall(f"{{binder}}`{filename}.ipynb`", md)
-    ):
-        fails.append(p)
+    # handle exercises slightly differently
+    if "exercises" not in str(p):
+        if (
+            not re.findall("Run this notebook yourself!", md)
+            or not re.findall(f"{{nb-download}}`{filename}.ipynb`", md)
+            or not re.findall(f"{{binder}}`{filename}.ipynb`", md)
+        ):
+            fails.append(p)
+    else:
+        if (
+            not re.findall("Do this exercise yourself!", md)
+            or not re.findall(EXERCISE_HEADER, md)
+            or not re.findall(f"{{nb-download}}`{filename}.ipynb`", md)
+            or not re.findall(f"{{binder}}`{filename}.ipynb`", md)
+        ):
+            fails.append(p)
 
 
 if fails:
