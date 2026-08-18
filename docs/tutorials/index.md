@@ -1,3 +1,4 @@
+(tutorials-exercises)=
 # Tutorial + Exercises
 
 The pages linked here are notebooks users can work through in order to practice using plenoptic. New users are encouraged to start with [](introductory_tutorial), which uses two of plenoptic's synthesis methods and steps through the kind of scientific reasoning that they facilitate. That starts with a simple {class}`~plenoptic.models.Gaussian` model and gradually adds complexity, demonstrating how synthesis methods allow us to reason about the sensitivities and invariances of computational visual models.
