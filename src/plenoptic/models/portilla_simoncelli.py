@@ -620,7 +620,8 @@ class PortillaSimoncelli(nn.Module):
             ):
                 # Compute relative shift, and disambiguate
                 relative_shift = (
-                  column_shift[0] - row_shift[0], column_shift[1] - row_shift[1]
+                    column_shift[0] - row_shift[0],
+                    column_shift[1] - row_shift[1],
                 )
                 if row_channel == column_channel:
                     opposite_shift = tuple(-offset for offset in relative_shift)
@@ -822,11 +823,9 @@ class PortillaSimoncelli(nn.Module):
             cross_corr_lowpass = self._compute_joint_cross_correlation(
                 [lowpass_signals], [lowpass_signals]
             ).squeeze(-1)
-            cross_corr_coarsest_scale_lowpass = (
-                self._compute_joint_cross_correlation(
-                    [real_pyr_coeffs[-1]], [lowpass_signals]
-                ).squeeze(-1)
-            )
+            cross_corr_coarsest_scale_lowpass = self._compute_joint_cross_correlation(
+                [real_pyr_coeffs[-1]], [lowpass_signals]
+            ).squeeze(-1)
         else:
             cross_ori_corr_mags = self._compute_cross_correlation(
                 mag_pyr_coeffs, mag_pyr_coeffs, mags_var, mags_var

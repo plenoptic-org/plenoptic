@@ -72,7 +72,9 @@ def test_pca_batch_application_and_gradients():
 @pytest.mark.parametrize("max_relative_scaling", [1, 2, 10])
 def test_pca_max_relative_scaling(max_relative_scaling):
     channel = torch.rand(1, 1, 8, 8, device=DEVICE, dtype=torch.float64)
-    target = channel.repeat(1, 3, 1, 1) # Perfect color correlation, inf relative scaling
+    target = channel.repeat(
+        1, 3, 1, 1
+    )  # Perfect color correlation, inf relative scaling
     transform = po.process.PCA(target, max_relative_scaling=max_relative_scaling)
     scaling = torch.linalg.svdvals(transform.matrix)
     torch.testing.assert_close(
