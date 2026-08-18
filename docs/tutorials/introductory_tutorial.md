@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.3
+    jupytext_version: 1.18.1
 kernelspec:
   display_name: plenoptic_venv
   language: python
@@ -87,6 +87,7 @@ In the following hidden cell, we define a helper function for creating some of t
 
 ```{code-cell} ipython3
 :tags: [render-all, hide-input]
+
 def plot_helper(metamer, init_img=None):
     if init_img is None:
         init_img = metamer.saved_metamer[0]
@@ -120,7 +121,7 @@ def plot_helper(metamer, init_img=None):
     return fig
 ```
 
-In addition to our models, all `plenoptic` methods require a "reference" or "target" image --- for Metamer synthesis, for example, this is the image whose representation we will match. Let's load in an image of Einstein to serve as our reference here:
+In addition to our models, all `plenoptic` methods require a "reference" or "target" image --- for Metamer synthesis, for example, this is the image whose representation we will match. Let's load in an image of Einstein to serve as our reference here. We'll also move Einstein to the GPU (if available) and to 64-bit floats, which improves reproducibility:
 
 <div class='render-user render-presenter'>
 
@@ -129,7 +130,7 @@ All synthesis methods require a "reference" or "target" image, so let's load one
 </div>
 
 ```{code-cell} ipython3
-img = po.data.einstein().to(DEVICE)
+img = po.data.einstein().to(DEVICE).to(torch.float64)
 fig = po.plot.imshow(img)
 ```
 
@@ -189,7 +190,7 @@ We can see that our `Gaussian` <!-- skip-lint --> model satisfies this constrain
 
 ```{code-cell} ipython3
 # we pick this particular size kernel to match the models found in the Berardino paper
-model = Gaussian((31, 31)).to(DEVICE)
+model = Gaussian((31, 31)).to(DEVICE).to(img.dtype)
 rep = model(img)
 print(img.shape)
 print(rep.shape)
@@ -255,12 +256,13 @@ These arguments are passed to {class}`~plenoptic.Metamer` at initialization or t
 ```{code-cell} ipython3
 metamer = po.Metamer(img, model)
 
-matched_im = metamer.synthesize(store_progress=True, max_iter=20)
-# if we call synthesize again, we resume where we left off
-matched_im = metamer.synthesize(store_progress=True, max_iter=150)
+matched_im = metamer.synthesize(store_progress=10, max_iter=20)
+# if we call synthesize again, we resume where we left off. We'll also 
+# reduce stop_criterion, so synthesis runs for longer.
+matched_im = metamer.synthesize(store_progress=10, max_iter=480, stop_criterion=1e-7)
 ```
 
-{func}`~plenoptic.Metamer.synthesize` accepts a number of arguments which determine the duration of synthesis (such as `max_iter`) and whether / how often to store the synthesized image-in-progress ({attr}`~plenoptic.Metamer.store_progress`). Here, we have set `store_progress=True` so that we can animate the synthesis process below.
+{func}`~plenoptic.Metamer.synthesize` accepts a number of arguments which determine the duration of synthesis (such as `max_iter`, `stop_criterion`) and whether / how often to store the synthesized image-in-progress ({attr}`~plenoptic.Metamer.store_progress`). Here, we have set `store_progress=True` so that we can animate the synthesis process below.
 
 After synthesis runs, we can examine the loss over time. There's a convenience function for this, but you could also call `plt.semilogy(metamer.losses)` to create it yourself.
 
@@ -341,7 +343,7 @@ We can see the model's insensitivity to high frequencies more dramatically by in
 ```{code-cell} ipython3
 :tags: [render-all]
 
-curie = po.data.curie().to(DEVICE)
+curie = po.data.curie().to(DEVICE).to(img.dtype)
 # pyrtools, imported as pt, has a convenience function for generating samples of white
 # noise, but then we need to convert the image to a torch tensor...
 pink = torch.from_numpy(pt.synthetic_images.pink_noise((256, 256)))
@@ -416,7 +418,7 @@ fig = po.plot.imshow(
     ],
 )
 fig.axes[0].set_visible(False)
-fig.set(tight_layout=True)
+fig.set(tight_layout=True);
 ```
 
 In the above figure, the first row shows our original image and its representation and each subsequent row shows the result of a separate metamer synthesis: the first column shows our initial image, the second the synthesized metaer, and the third the representation of that metamer.
@@ -466,7 +468,7 @@ Now we feel pretty confident that we understand how a simple Gaussian works, wha
 # These values come from Berardino et al., 2017.
 center_surround = po.models.CenterSurround(
     (31, 31), center_std=1.962, surround_std=4.235, pad_mode="circular"
-).to(DEVICE)
+).to(DEVICE).to(img.dtype)
 po.remove_grad(center_surround)
 center_surround.eval()
 center_surround(img).shape
@@ -495,7 +497,7 @@ init_img = torch.cat([white_noise, pink, curie], dim=0)
 # so we need to repeat the target image on the batch dimension
 cs_metamer = po.Metamer(img.repeat(3, 1, 1, 1), center_surround)
 cs_metamer.setup(initial_image=init_img)
-cs_metamer.synthesize(1000, stop_criterion=1e-7)
+cs_metamer.synthesize(1000, stop_criterion=1e-10)
 ```
 
 Now let's visualize our outputs (the code to create this plot is slightly annoying, so we're defined it as a helper function at the top of the notebook):
@@ -572,7 +574,7 @@ So far, our models have all been linear. That means that they're relatively easy
 ```{code-cell} ipython3
 lg = po.models.LuminanceGainControl(
     (31, 31), pad_mode="circular", pretrained=True, cache_filt=True
-).to(DEVICE)
+).to(DEVICE).to(img.dtype)
 po.remove_grad(lg)
 lg.eval()
 ```
@@ -596,14 +598,14 @@ Now let's go ahead and synthesize and visualize metamers for this model. The cod
 ```{code-cell} ipython3
 lg_metamer = po.Metamer(img.repeat(3, 1, 1, 1), lg)
 lg_metamer.setup(initial_image=init_img, optimizer_kwargs={"lr": 0.007})
-lg_metamer.synthesize(3500, stop_criterion=1e-11)
+lg_metamer.synthesize(5000, stop_criterion=1e-12)
 ```
 
 And let's visualize our results:
 
 <div class='render-presenter'>
 
-- The model metamers here look fairly similar to those of the {class}`~plenoptic.models.CenterSurround` model, though you can see these are more "gray", because this model is even less sensitive to the local luminance than the previous model.
+- The model metamers here look fairly similar to those of the {class}`~plenoptic.models.CenterSurround` model, though you can see that their local luminance is even more similar to the initial image, because this model is even less sensitive to the local luminance than the previous model.
 
 </div>
 
@@ -680,7 +682,7 @@ po.plot.imshow(
 );
 ```
 
-We've plotted the {class}`~plenoptic.models.CenterSurround` eigendistortions for comparison and we can see that, while they're not identical, they look essentially the same, regardless of the image: bandpass unoriented noisy patterns for the maximum distortion and the same pattern at a higher frequency for the minimum. The {class}`~plenoptic.models.LuminanceGainControl` eigendistortions, by comparison, vary based on the image. They are, however, consistent with each other: in both cases, the {class}`~plenoptic.models.LuminanceGainControl` maximum distortion is placed in a dark patch of the image, as can be seen more explicitly when we add them (we're multiplying the eigendistortions by 3 to make them more obvious):
+We've plotted the {class}`~plenoptic.models.CenterSurround` eigendistortions for comparison and we can see that, while they're not identical, they look essentially the same, regardless of the image: bandpass unoriented noisy patterns for the maximum distortion and the same pattern at a higher frequency for the minimum. The {class}`~plenoptic.models.LuminanceGainControl` eigendistortions, by comparison, vary based on the image. They are, however, consistent with each other: in both cases, the {class}`~plenoptic.models.LuminanceGainControl` maximum distortion is placed in a dark patch of the image, as can be seen more explicitly when we add them back to the original image (we're multiplying the eigendistortions by 3 to make them more obvious):
 
 ```{code-cell} ipython3
 # the [:1] is a trick to get only the first element while still being a 4d
@@ -704,7 +706,9 @@ print(f"Max LG eigendistortion: {po.loss.l2_norm(img_rep, eig_rep)}")
 print(f"Shifted max LG eigendistortion: {po.loss.l2_norm(img_rep, shift_eig_rep)}")
 ```
 
-While translating the eigendistortion for the {class}`~plenoptic.models.CenterSurround` model has no effect:
+The difference between the model output of the proper maximum eigendistortion and the original image is larger than when we shift that eigendistortion.
+
+However, translating the eigendistortion for the {class}`~plenoptic.models.CenterSurround` model has no effect on model output:
 
 ```{code-cell} ipython3
 img_rep = center_surround(img)
