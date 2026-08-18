@@ -11,17 +11,19 @@ kernelspec:
   name: plenoptic_venv
 ---
 
-:::{admonition} Download
+:::{admonition} Run this notebook yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`introduction.ipynb`**! See the button at the top right to download as markdown or pdf.
+Download the executed notebook: **{nb-download}`introduction.ipynb`**!
+
+Run it in your browser: **{binder}`introduction.ipynb`**!
 
 :::
 
 (full-intro)=
 # Introduction
 
-The goal of this notebook is to give a brief introduction to plenoptic: we'll use two of our synthesis methods with a handful of models, and try to step through the kind of scientific reasoning that plenoptic's synthesis methods facilitate. If you're interested in learning more about this, ask me questions or {external+plenoptic:doc}`check out our documentation <index>`!
+The goal of this notebook is to give a brief introduction to plenoptic: we'll use two of our synthesis methods with a handful of models, and try to step through the kind of scientific reasoning that plenoptic's synthesis methods facilitate. Once you've completed it, we recommend working through the exercises to get more practice using plenpotic, and then read the parts of the documentation that interest you.
 
 :::{admonition} Questions
 :class: important
@@ -30,7 +32,7 @@ Throughout this notebook, there will be several questions that look like this. Y
 
 :::
 
-As described in my presentation, the goal of plenoptic is to provide methods for model-based synthesis of stimuli, facilitating better understanding of how the models make sense of those stimuli: what information is discarded, what is important, etc. These methods have mostly been used on images, which we'll use here, but they also work well on sounds as well.
+As described [in the introductory presentation](https://archive.org/details/vss2025-symposium-plenoptic), the goal of plenoptic is to provide methods for model-based synthesis of stimuli, facilitating better understanding of how the models make sense of those stimuli: what information is discarded, what is important, etc. These methods have mostly been used on images, which we'll use here, but they also work well on sounds as well.
 
 In order to use plenoptic, we need some models! Normally, this will depend on your research problem: you'll use models that you've developed or fit in previous experiments, or that get used in the literature. For example, if you're studying V1, you could use an energy model of complex cells; if you're studying object recognition, you might use a deep network-based model.
 
@@ -42,11 +44,11 @@ For the purposes of this notebook, we'll use some very simple convolutional mode
 
 [^models]: Most of these models were originally published in Berardino, A., Laparra, V., J Ball\'e, & Simoncelli, E. P. (2017). Eigen-distortions of hierarchical representations. In Adv. Neural Information Processing Systems (NIPS*17), from which the figure is modified.
 
-[^notallmodels]: Note that the Berardino et. al, 2017 paper includes more models than described here. We're not examining all of them for time's sake, but you can check out the rest of the models described in the Berardino paper, they're all {external+plenoptic:ref}`included in plenoptic <models-api>` (under the header "LGN-inspired models").
+[^notallmodels]: Note that the Berardino et. al, 2017 paper includes more models than described here. We're not examining all of them for time's sake, but you can check out the rest of the models described in the Berardino paper, they're all {ref}`included in plenoptic <models-api>` (under the header "LGN-inspired models").
 
-- `Gaussian`: the model just convolves a Gaussian with an image, so that the model's representation is simply a blurry version of the image.
-- `CenterSurround`: the model convolves a difference-of-Gaussian filter with the image, so that model's representation is bandpass, caring mainly about frequencies that are neither too high or too low.
-- `LuminanceGainControl`: the model rectifies and normalizes the linear component of the response using a local measure of luminance, so that the response is invariant to local changes in luminance.
+- {class}`~plenoptic.models.Gaussian`: the model just convolves a Gaussian with an image, so that the model's representation is simply a blurry version of the image.
+- {class}`~plenoptic.models.CenterSurround`: the model convolves a difference-of-Gaussian filter with the image, so that model's representation is bandpass, caring mainly about frequencies that are neither too high or too low.
+- {class}`~plenoptic.models.LuminanceGainControl`: the model rectifies and normalizes the linear component of the response using a local measure of luminance, so that the response is invariant to local changes in luminance.
 
 </div>
 
@@ -82,10 +84,7 @@ po.set_seed(1)
 def plot_helper(metamer, init_img=None):
     if init_img is None:
         init_img = metamer.saved_metamer[0]
-    if metamer.image.shape[0] > 1:
-        img = metamer.image[:1]
-    else:
-        img = metamer.image
+    img = metamer.image[:1] if metamer.image.shape[0] > 1 else metamer.image
     to_plot = [torch.cat([torch.ones_like(img), img, metamer.model(img)])]
     for i, j in zip(init_img, metamer.metamer):
         to_plot.append(torch.stack([i, j, metamer.model(j)]))
@@ -128,17 +127,17 @@ img = po.data.einstein().to(DEVICE)
 fig = po.plot.imshow(img)
 ```
 
-Models can be really simple, as this demonstrates. It needs to inherit `torch.nn.Module`[^module] and just needs two methods: `__init__` (so it's an object) and `forward` (so it can take an image).
+Models can be really simple, as this demonstrates. It needs to inherit `torch.nn.Module`[^module] and just needs two methods: `__init__` (so it's an object) and `forward` <!-- skip-lint --> (so it can take an image).
 
-[^module]: Technically, this isn't necessary, but it will make your life easier. See {external+plenoptic:ref}`documentation <models-doc>` for details.
+[^module]: Technically, this isn't necessary, but it will make your life easier. See {ref}`models-doc` for details.
 
-To start, we'll create the `Gaussian` model described above:
+To start, we'll create the `Gaussian` <!-- skip-lint --> model described above:
 
 <div class='render-user render-presenter'>
 
 Set up the Gaussian model. Models in plenoptic must:
 - Inherit `torch.nn.Module`.
-- Have `forward` and `__init__` methods.
+- Have `forward` <!-- skip-lint --> and `__init__` methods.
 - Accept tensors as input and return tensors as output.
 - All operations performed must be torch-differentiable (i.e., come from the torch library)
 - Have all model parameter gradients removed.
@@ -150,7 +149,8 @@ Set up the Gaussian model. Models in plenoptic must:
 
 # Simple Gaussian convolutional model
 class Gaussian(torch.nn.Module):
-    # in __init__, we create the object, initializing the convolutional weights and nonlinearity
+    # in __init__, we create the object, initializing the convolutional weights and
+    # nonlinearity
     def __init__(self, kernel_size, std_dev=3):
         super().__init__()
         self.kernel_size = kernel_size
@@ -162,7 +162,8 @@ class Gaussian(torch.nn.Module):
             kernel_size, std_dev
         )
 
-    # the forward pass of the model defines how to get from an image to the representation
+    # the forward pass of the model defines how to get from an image to the
+    # representation
     def forward(self, x):
         x = po.process.same_padding(x, self.kernel_size, pad_mode="circular")
         return self.conv(x)
@@ -170,7 +171,7 @@ class Gaussian(torch.nn.Module):
 
 To work with our synthesis methods, a model must accept a tensor as input and return a tensor as output. Generally speaking, plenoptic works with 4d inputs: these are commonly used to represent images when working with pytorch models, and the dimensions are batch (often, multiple images), channel (often, RGB or outputs of different convolutional filters), height, and width. This is not required for a model to work with plenoptic's synthesis methods, but several of the helper functions (especially those related to display) will not work if this is not the case.
 
-We can see that our `Gaussian` model satisfies this constraint:
+We can see that our `Gaussian` <!-- skip-lint --> model satisfies this constraint:
 
 <div class="render-user render-all">
 
@@ -188,7 +189,7 @@ print(img.shape)
 print(rep.shape)
 ```
 
-There's one final step before this model is ready for synthesis. Most `pytorch` models will have learnable parameters, such as the weight on the convolution filter we created above, because the focus is generally on training the model to best perform some task. In `plenoptic`, models are *fixed* because we take the opposite approach: generating some new stimulus to better a understand a given model. Thus, all synthesis methods will raise a `ValueError` if given a model with any learnable parameters. We provide a helper function to remove the gradients on these parameters. Similarly, we probably also want to call `.eval` <!-- skip-lint --> on the model, in case it has training-mode specific behavior: that's not the case here (I'm just being pedantic), but it might be the case, depending on your model, and [pytorch's documentation](https://pytorch.org/docs/stable/notes/autograd.html#evaluation-mode-nn-module-eval) recommends calling `.eval` <!-- skip-lint --> just in case.
+There's one final step before this model is ready for synthesis. Most `pytorch` models will have learnable parameters, such as the weight on the convolution filter we created above, because the focus is generally on training the model to best perform some task. In `plenoptic`, models are *fixed* because we take the opposite approach: generating some new stimulus to better a understand a given model. Thus, all synthesis methods will raise a `ValueError` if given a model with any learnable parameters. We provide a helper function to remove the gradients on these parameters. Similarly, we probably also want to call `.eval` <!-- skip-lint --> on the model, in case it has training-mode specific behavior: that's not the case here (I'm just being pedantic), but it might be the case, depending on your model, and [pytorch's documentation](https://pytorch.org/docs/stable/eotes/autograd.html#evaluation-mode-nn-module-eval) recommends calling `.eval` <!-- skip-lint --> just in case.
 
 <div class="render-user render-presenter">
 
@@ -222,11 +223,11 @@ Before moving forward, let's think about this model for a moment. It's a simple 
 
 ## Examining model invariances with metamers
 
-Okay, now we're ready to start with metamer synthesis. To initialize, we only need the model and the image. Optimization-related arguments are set when calling `.synthesize` <!-- skip-lint --> and, in general, you'll probably need to play with these options to find a good solution. It's also probably a good idea, while getting started, to set `store_progress` to `True` (to store every iteration) or some `int` (to store every `int` iterations) so you can examine synthesis progress.
+Okay, now we're ready to start with metamer synthesis. To initialize, we only need the model and the image. Optimization-related arguments are set when calling {func}`~plenoptic.Metamer.synthesize` and, in general, you'll probably need to play with these options to find a good solution. It's also probably a good idea, while getting started, to set {attr}`~plenoptic.Metamer.store_progress` to `True` (to store every iteration) or some `int` (to store every `int` iterations) so you can examine synthesis progress.
 
 <div class='render-user render-presenter'>
 
-- Initialize the `Metamer` object and synthesize a model metamer.
+- Initialize the {class}`~plenoptic.Metamer` object and synthesize a model metamer.
 
 </div>
 
@@ -320,8 +321,8 @@ We can see the model's insensitivity to high frequencies more dramatically by in
 :tags: [render-all]
 
 curie = po.data.curie().to(DEVICE)
-# pyrtools, imported as pt, has a convenience function for generating samples of white noise, but then we still
-# need to do some annoying things to get it ready for plenoptic
+# pyrtools, imported as pt, has a convenience function for generating samples of white
+# noise, but then we still need to do some annoying things to get it ready for plenoptic
 pink = (
     torch.from_numpy(pt.synthetic_images.pink_noise((256, 256)))
     .unsqueeze(0)
@@ -331,7 +332,7 @@ pink = po.process.rescale(pink).to(torch.float32).to(DEVICE)
 po.plot.imshow([curie, pink]);
 ```
 
-We run synthesis in the same way as before, just setting the optional argument `initial_image`:
+We run synthesis in the same way as before, just setting the optional argument {attr}`~plenoptic.Metamer.initial_image`:
 
 ```{code-cell} ipython3
 metamer_curie = po.Metamer(img, model)
@@ -404,9 +405,9 @@ We see that the new synthesized metamers looks quite different from both the ori
 
 ## Examining model sensitivities to eigendistortions
 
-By generating model metamers, we've gained a better understanding of the information our model is invariant to, but what if we want a better understanding of what our model is sensitive to? We can use `Eigendistortion` for that.
+By generating model metamers, we've gained a better understanding of the information our model is invariant to, but what if we want a better understanding of what our model is sensitive to? We can use {class}`~plenoptic.Eigendistortion` for that.
 
-Like `Metamer`, `Eigendistortion` accepts an image and a model as its inputs. By default, it synthesizes the top and bottom eigendistortion, that is, the changes to the input image that the model finds most and least noticeable.
+Like {class}`~plenoptic.Metamer`, {class}`~plenoptic.Eigendistortion` accepts an image and a model as its inputs. By default, it synthesizes the top and bottom eigendistortion, that is, the changes to the input image that the model finds most and least noticeable.
 
 <div class='render-user render-presenter'>
 
@@ -439,11 +440,11 @@ po.plot.imshow(
 
 ## A more complex model
 
-Now we feel pretty confident that we understand how a simple Gaussian works, what happens when we make the model more complicated? Let's try changing the filter from a simple lowpass to a bandpass filter, which have sensitivities more similar to those of neurons in the early human visual system. To do this, we'll use plenoptic's built-in `CenterSurround` object:
+Now we feel pretty confident that we understand how a simple Gaussian works, what happens when we make the model more complicated? Let's try changing the filter from a simple lowpass to a bandpass filter, which have sensitivities more similar to those of neurons in the early human visual system. To do this, we'll use plenoptic's built-in {class}`~plenoptic.models.CenterSurround` object:
 
 <div class='render-user render-presenter'>
 
-- The `CenterSurround` model has bandpass sensitivity, as opposed to the `Gaussian`'s lowpass.
+- The {class}`~plenoptic.models.CenterSurround` model has bandpass sensitivity, as opposed to the lowpass sensitivity of the `Gaussian` <!-- skip-lint -->.
 - Thus, it is still insensitive to the highest frequencies, but it is less sensitive to the low frequencies the Gaussian prefers, with its peak sensitivity lying in a middling range.
 
 </div>
@@ -466,7 +467,7 @@ po.plot.imshow([img, center_surround(img)]);
 
 While the Gaussian model above was lowpass, throwing away high frequencies and preserving the low, the Center-Surround model is bandpass. It is thus most sensitive to frequencies found in the middle, and less sensitive to both high and low frequencies[^bandpass]. We can see that in the figure above because the image looks "sharper" than the Gaussian representation (showing that it contains more high frequencies) while also being an overall "mean gray" (showing that it is discarding the low frequencies that account for making portions of the image dark or light).
 
-We can make use of multi-batch processing in order to synthesize the metamers with different start points, as above, using a single `Metamer` object:
+We can make use of multi-batch processing in order to synthesize the metamers with different start points, as above, using a single {class}`~plenoptic.Metamer` object:
 
 <div class='render-user render-presenter'>
 
@@ -504,15 +505,15 @@ The layout of the plots here is the same as before: the top row shows our target
 How do these model metamers differ from the Gaussian ones? How does that relate to what we know about the model's sensitivities and invariances?
 :::
 
-While these model metamers look reasonably similar to the metamers of the `Gaussian` model, a somewhat blurry Einstein with some additional info riding on top, if we look carefully, we can notice some important differences:
+While these model metamers look reasonably similar to the metamers of the `Gaussian` <!-- skip-lint --> model, a somewhat blurry Einstein with some additional info riding on top, if we look carefully, we can notice some important differences:
 
 - in the white noise metamer, the mean values appear to be different: the dark side of the room on the left side of the picture, as well as his suit, appear to be lighter.
-- whereas the `Gaussian` pink noise metamer just appeared to be blurry, the `CenterSurround` one has dark and light patches that roughly match up with the original noise seed.
+- whereas the `Gaussian` <!-- skip-lint --> pink noise metamer just appeared to be blurry, the {class}`~plenoptic.models.CenterSurround` one has dark and light patches that roughly match up with the original noise seed.
 - the differences are most striking in the Curie metamer, as the initial image was completely black except for Marie Curie's face, which is fairly white. The resulting metamer, therefore, is much darker than the target everywhere except the center of the image, which is much brighter.
 
-In all of these, the differences are the result of the fact that our model now consists of a [difference-of-Gaussians filter](https://en.wikipedia.org/wiki/Difference_of_Gaussians) than a Gaussian. As described earlier, this results in a model with *bandpass* selectivity, rather than *lowpass*. Thus, the `CenterSurround` doesn't care about low frequency information like the local mean pixel value and we can change it without affecting its output[^bandpass].
+In all of these, the differences are the result of the fact that our model now consists of a [difference-of-Gaussians filter](https://en.wikipedia.org/wiki/Difference_of_Gaussians) than a Gaussian. As described earlier, this results in a model with *bandpass* selectivity, rather than *lowpass*. Thus, the {class}`~plenoptic.models.CenterSurround` doesn't care about low frequency information like the local mean pixel value and we can change it without affecting its output[^bandpass].
 
-[^bandpass]: The `CenterSurround` model does retain some sensitivity to lower frequencies, but it's much less sensitive to them than the `Gaussian` model is. The `CenterSurround` retains some low frequency selectivity because its two Gaussians are not perfectly balanced; to play around with their balance, try changing the `amplitude_ratio` argument.
+[^bandpass]: The {class}`~plenoptic.models.CenterSurround` model does retain some sensitivity to lower frequencies, but it's much less sensitive to them than the `Gaussian` <!-- skip-lint --> model is. The {class}`~plenoptic.models.CenterSurround` retains some low frequency selectivity because its two Gaussians are not perfectly balanced; to play around with their balance, try changing the `amplitude_ratio` argument.
 
 The change from a lowpass to a bandpass model also changes the model's most sensitive frequencies, though we can't easily tell that using model metamers. We can, however, using eigendistortions!
 
@@ -531,11 +532,11 @@ po.plot.imshow(
 );
 ```
 
-In this case, we can see that the minimum eigendistortion looks similar to that of the `Gaussian`: an unoriented pattern of high-frequency noise. The maximum eigendistortion, however, has a much higher frequency than that of the `Gaussian`, corresponding to the change in the filter.
+In this case, we can see that the minimum eigendistortion looks similar to that of the `Gaussian` <!-- skip-lint -->: an unoriented pattern of high-frequency noise. The maximum eigendistortion, however, has a much higher frequency than that of the `Gaussian` <!-- skip-lint -->, corresponding to the change in the filter.
 
 ## Adding some nonlinear features to the mix
 
-So far, our models have all been linear. That means that they're easy to understand, and we could indeed infer much of the information above by just looking at the Fourier transform of the model's filter[^fft]. However, if we add nonlinear features, analysis of model selectivity becomes trickier. To see what this looks like, let's use the `LuminanceGainControl` model, which adds gain control[^gaincontrol]: we take the output of the filter and divide it by the local luminance.
+So far, our models have all been linear. That means that they're easy to understand, and we could indeed infer much of the information above by just looking at the Fourier transform of the model's filter[^fft]. However, if we add nonlinear features, analysis of model selectivity becomes trickier. To see what this looks like, let's use the {class}`~plenoptic.models.LuminanceGainControl` model, which adds gain control[^gaincontrol]: we take the output of the filter and divide it by the local luminance.
 
 [^fft]: Try it yourself!
     ```python
@@ -549,8 +550,8 @@ So far, our models have all been linear. That means that they're easy to underst
 
 <div class='render-user render-presenter'>
 
-- The `LuminanceGainControl` model adds a nonlinearity, gain control. This makes the model harder to reason than the first two models.
-- This model divides the output of the `CenterSurround` filter with an estimate of local luminance (the output of a larger Gaussian filter), which makes the model completely insensitive to absolute pixel values. It now cares about contrast, rather than luminance.
+- The {class}`~plenoptic.models.LuminanceGainControl` model adds a nonlinearity, gain control. This makes the model harder to reason than the first two models.
+- This model divides the output of the {class}`~plenoptic.models.CenterSurround` filter with an estimate of local luminance (the output of a larger Gaussian filter), which makes the model completely insensitive to absolute pixel values. It now cares about contrast, rather than luminance.
 - This is a computation that we think is present throughout much of the early visual system.
 
 </div>
@@ -587,7 +588,7 @@ And let's visualize our results:
 
 <div class='render-presenter'>
 
-- The model metamers here look fairly similar to those of the `CenterSurround` model, though you can see these are more "gray", because this model is even less sensitive to the local luminance than the previous model.
+- The model metamers here look fairly similar to those of the {class}`~plenoptic.models.CenterSurround` model, though you can see these are more "gray", because this model is even less sensitive to the local luminance than the previous model.
 
 </div>
 
@@ -595,7 +596,7 @@ And let's visualize our results:
 plot_helper(lg_metamer, init_img);
 ```
 
-We can see that the `LuminanceGainControl` model metamers look somewhat similar to that of the `CenterSurround` model, but taking the insensitivity to pixel values to an extreme --- because of the division by the local luminance, the model is completely invariant to it, so that the mean pixel values match those of the initializing image, fairly dramatically.
+We can see that the {class}`~plenoptic.models.LuminanceGainControl` model metamers look somewhat similar to that of the {class}`~plenoptic.models.CenterSurround` model, but taking the insensitivity to pixel values to an extreme --- because of the division by the local luminance, the model is completely invariant to it, so that the mean pixel values match those of the initializing image, fairly dramatically.
 
 Finally, let's look at our eigendistortions:
 
@@ -617,7 +618,7 @@ po.plot.imshow(
 :::{admonition} Question
 :class: important
 
-How do these eigendistortions compare to that of the `CenterSurround` model? Why do they, especially the maximum eigendistortion, look more distinct from those of the `CenterSurround` model than the metamers do?
+How do these eigendistortions compare to that of the {class}`~plenoptic.models.CenterSurround` model? Why do they, especially the maximum eigendistortion, look more distinct from those of the {class}`~plenoptic.models.CenterSurround` model than the metamers do?
 :::
 
 :::{admonition} Hint
@@ -628,7 +629,7 @@ The maximum eigendistortion emphasizes what the model is *most* sensitive to (wh
 
 Again, the minimum eigendistortion looks fairly similar to before, but now our maximum eigendistortion looks quite different: it's a series of black and white stripes at defined location and orientation. This is a slightly subtle point: without gain control, the simple convolutional models we were investigating view changes everywhere in the image as equivalent and, therefore, a good strategy is to spread out the changes across the whole image. Now, however, gain control means that the model gives different outputs to the same frequency content depending on the local luminance; thus, it matters whether the distortion is placed in a dark or light portion of the image.
 
-This adaptivity matters not just within images, but across images: the `CenterSurround` and `Gaussian` models' eigendistortions look the same on different images, whereas `LuminanceGainControl`'s eigendistortions vary depending on the image content:
+This adaptivity matters not just within images, but across images: the {class}`~plenoptic.models.CenterSurround` and `Gaussian` <!-- skip-lint --> models' eigendistortions look the same on different images, whereas {class}`~plenoptic.models.LuminanceGainControl`'s eigendistortions vary depending on the image content:
 
 <div class='render-presenter'>
 
@@ -664,7 +665,7 @@ po.plot.imshow(
 );
 ```
 
-We've plotted the `CenterSurround` eigendistortions for comparison and we can see that, while they're not identical, they look essentially the same, regardless of the image: bandpass unoriented noisy patterns for the maximum distortion and the same pattern at a higher frequency for the minimum. The `LuminanceGainControl` eigendistortions, by comparison, vary based on the image. They are, however, consistent with each other: in both cases, the `LuminanceGainControl` maximum distortion is placed in a dark patch of the image, as can be seen more explicitly when we add them (we're multiplying the eigendistortions by 3 to make them more obvious):
+We've plotted the {class}`~plenoptic.models.CenterSurround` eigendistortions for comparison and we can see that, while they're not identical, they look essentially the same, regardless of the image: bandpass unoriented noisy patterns for the maximum distortion and the same pattern at a higher frequency for the minimum. The {class}`~plenoptic.models.LuminanceGainControl` eigendistortions, by comparison, vary based on the image. They are, however, consistent with each other: in both cases, the {class}`~plenoptic.models.LuminanceGainControl` maximum distortion is placed in a dark patch of the image, as can be seen more explicitly when we add them (we're multiplying the eigendistortions by 3 to make them more obvious):
 
 ```{code-cell} ipython3
 # the [:1] is a trick to get only the first element while still being a 4d
@@ -680,23 +681,24 @@ po.plot.imshow(
 We can see that this exact placement matters by seeing what happens when we translate the eigendistortion on the Einstein image so it lies on his tie instead of in the dark part of the image:
 
 ```{code-cell} ipython3
+img_rep = lg(img)
+eig_rep = lg(img + lg_eig.eigendistortions[:1])
+shift_eig_rep = lg(img + lg_eig.eigendistortions[:1].roll(128, -1))
 po.plot.imshow(img + 3 * lg_eig.eigendistortions[:1].roll(128, -1))
-print(
-    f"Max LG eigendistortion: {po.loss.l2_norm(lg(img), lg(img + lg_eig.eigendistortions[:1]))}"
-)
-print(
-    f"Shifted max LG eigendistortion: {po.loss.l2_norm(lg(img), lg(img + lg_eig.eigendistortions[:1].roll(128, -1)))}"
-)
+print(f"Max LG eigendistortion: {po.loss.l2_norm(img_rep, eig_rep)}")
+print(f"Shifted max LG eigendistortion: {po.loss.l2_norm(img_rep, shift_eig_rep)}")
 ```
 
-While translating the eigendistortion for the `CenterSurround` model has no effect:
+While translating the eigendistortion for the {class}`~plenoptic.models.CenterSurround` model has no effect:
 
 ```{code-cell} ipython3
+img_rep = center_surround(img)
+eig_rep = center_surround(img + cs_eig.eigendistortions[:1])
+shift_eig_rep = center_surround(img + cs_eig.eigendistortions[:1].roll(128, -1))
+print(f"Max CenterSurround eigendistortion: {po.loss.l2_norm(img_rep, eig_rep)}")
 print(
-    f"Max CenterSurround eigendistortion: {po.loss.l2_norm(center_surround(img), center_surround(img + cs_eig.eigendistortions[:1]))}"
-)
-print(
-    f"Shifted max CenterSurround eigendistortion: {po.loss.l2_norm(center_surround(img), center_surround(img + cs_eig.eigendistortions[:1].roll(128, -1)))}"
+    "Shifted max CenterSurround eigendistortion: "
+    f"{po.loss.l2_norm(img_rep, shift_eig_rep)}"
 )
 ```
 
@@ -708,10 +710,10 @@ We can thus see that the addition of gain control qualitatively changes the sens
 
 In this notebook, we saw the basics of using `plenoptic` to investigate the sensitivities and invariances of some simple convolutional models, and reasoned through how the model metamers and eigendistortions we saw enable us to understand how these models process images.
 
-`plenoptic` includes a variety of {external+plenoptic:ref}`models <models-api>` and {external+plenoptic:ref}`model components <processing-api>`, and you can (and should!) use the synthesis methods with your own models.
+`plenoptic` includes a variety of {ref}`models <models-api>` and {ref}`components <processing-api>` you can use to build models, and you can (and should!) use the synthesis methods with your own models.
 
-Our documentation also has an [example](https://docs.plenoptic.org/docs/pulls/460/user_guide/models_and_metrics/feature_extractor.html) showing how to use models from [torchvision](https://pytorch.org/vision/stable/index.html) and [timm](https://huggingface.co/docs/timm/main/en) (which contains a variety of pretrained neural network models) with plenoptic.
+Our documentation also has an example about [](deep_nets).
 
-In order to use your own models with plenoptic, check the {external+plenoptic:ref}`documentation <models-doc>` for the specific requirements, and use the {external+plenoptic:func}`~plenoptic.validate.validate_model` function to check compatibility. If you have issues or want feedback, we're happy to help --- just post on the [Github discussions page](https://github.com/plenoptic-org/plenoptic/discussions)!
+In order to use your own models with plenoptic, check the {ref}`models-doc` for the specific requirements, and use the {func}`~plenoptic.validate.validate_model` function to check compatibility. If you have issues or want feedback, we're happy to help --- just post on the [Github discussions page](https://github.com/plenoptic-org/plenoptic/discussions)!
 
 </div>
