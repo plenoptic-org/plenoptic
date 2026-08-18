@@ -1076,6 +1076,20 @@ class TestPortillaSimoncelli:
             model.n_scales,
         )
 
+    def test_color_cross_correlation_lowpass_shape(self, color_img_small):
+        model = self._small_ps(color_img_small, color_statistics=True)
+        representation = model.convert_to_dict(model(color_img_small))
+        lowpass_correlations = representation["cross_correlation_lowpass"]
+        necessary_mask = model._necessary_stats_dict["cross_correlation_lowpass"]
+
+        assert lowpass_correlations.shape == (
+            color_img_small.shape[0],
+            15,
+            15,
+        )
+        assert necessary_mask.sum() == 57
+        assert lowpass_correlations[..., necessary_mask].unique().numel() == 57
+
     def test_color_cross_scale_correlation_magnitude_shape(self, color_img_small):
         model = self._small_ps(color_img_small, color_statistics=True)
         representation = model.convert_to_dict(model(color_img_small))

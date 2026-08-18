@@ -41,6 +41,7 @@ from ..tensors import to_numpy
 
 SCALES_TYPE = Literal["pixel_statistics"] | PYR_SCALES_TYPE
 N_RGB_CHANNELS = 3
+LOWPASS_SHIFTS = ((0, 0), (2, 0), (-2, 0), (0, 2), (0, -2))
 
 __all__ = [
     "PortillaSimoncelli",
@@ -444,6 +445,12 @@ class PortillaSimoncelli(nn.Module):
         color_shape_dict["cross_orientation_correlation_real"] = color_shape_dict[
             "cross_orientation_correlation_magnitude"
         ].copy()
+        n_lowpass_signals = len(LOWPASS_SHIFTS) * N_RGB_CHANNELS
+        color_shape_dict["cross_correlation_lowpass"] = np.full(
+            (n_lowpass_signals, n_lowpass_signals),
+            "residual_lowpass",
+            dtype=object,
+        )
         return color_shape_dict
 
     def _create_necessary_stats_dict(
@@ -579,6 +586,37 @@ class PortillaSimoncelli(nn.Module):
             N_RGB_CHANNELS, dtype=torch.bool
         )
         color_mask_dict["cross_orientation_correlation_real"] = same_scale_mask.clone()
+
+        # These correlations depend only on the channel pair and the relative
+        # shift. E.g. (-2, 0) and (0, 0) have same correlation as (0, 0), (2, 0)
+        lowpass_signal_labels = [
+            (channel, shift)
+            for channel in range(N_RGB_CHANNELS)
+            for shift in LOWPASS_SHIFTS
+        ]
+        n_lowpass_signals = len(lowpass_signal_labels)
+        lowpass_mask = torch.zeros(
+            n_lowpass_signals, n_lowpass_signals, dtype=torch.bool
+        )
+        seen_correlations = set()
+        for row, (row_channel, row_shift) in enumerate(lowpass_signal_labels):
+            for column, (column_channel, column_shift) in enumerate(
+                lowpass_signal_labels[:row]
+            ):
+                # Compute relative shift, and disambiguate
+                relative_shift = (
+                  column_shift[0] - row_shift[0], column_shift[1] - row_shift[1]
+                )
+                if row_channel == column_channel:
+                    opposite_shift = tuple(-offset for offset in relative_shift)
+                    relative_shift = min(relative_shift, opposite_shift)
+                # Check if redundant entry was already seen. If not, set to true and
+                # add to seen entries
+                correlation = (row_channel, column_channel, relative_shift)
+                if correlation not in seen_correlations:
+                    lowpass_mask[row, column] = True
+                    seen_correlations.add(correlation)
+        color_mask_dict["cross_correlation_lowpass"] = lowpass_mask
         return color_mask_dict
 
     @staticmethod
@@ -686,7 +724,9 @@ class PortillaSimoncelli(nn.Module):
         # width). Note that the residual lowpass in pyr_dict has been demeaned.
         # We keep both the dict and list of pyramid coefficients because we
         # need the dictionary for reconstructing the image done later on.
-        pyr_dict, pyr_coeffs, highpass, _ = self._compute_pyr_coeffs(image_for_pyramid)
+        pyr_dict, pyr_coeffs, highpass, lowpass = self._compute_pyr_coeffs(
+            image_for_pyramid
+        )
 
         # Now, we create several intermediate representations that we'll use to
         # compute the texture statistics later.
@@ -745,6 +785,19 @@ class PortillaSimoncelli(nn.Module):
             cross_ori_corr_real = self._compute_joint_cross_correlation(
                 real_pyr_coeffs, real_pyr_coeffs
             )
+            # Upsample the lowpass in Fourier space and add its four periodic
+            # two-pixel shifts.
+            expanded_lowpass = signal.expand(lowpass, 2)
+            lowpass_signals = torch.stack(
+                [
+                    torch.roll(expanded_lowpass, shift, (-2, -1))
+                    for shift in LOWPASS_SHIFTS
+                ],
+                dim=2,
+            )
+            cross_corr_lowpass = self._compute_joint_cross_correlation(
+                [lowpass_signals], [lowpass_signals]
+            ).squeeze(-1)
         else:
             cross_ori_corr_mags = self._compute_cross_correlation(
                 mag_pyr_coeffs, mag_pyr_coeffs, mags_var, mags_var
@@ -808,6 +861,7 @@ class PortillaSimoncelli(nn.Module):
                 skew_transformed,
                 kurtosis_transformed,
                 cross_ori_corr_real,
+                cross_corr_lowpass,
             ]
         # And then pack them into a 3d tensor
         if self.color_statistics:
