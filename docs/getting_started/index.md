@@ -1,3 +1,4 @@
+(getting-started)=
 # Getting started
 
 Plenoptic can be installed using either pip or conda:

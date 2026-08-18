@@ -14,14 +14,14 @@ kernelspec:
 :::{admonition} Run this notebook yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`introduction.ipynb`**!
+Download the executed notebook: **{nb-download}`introductory_tutorial.ipynb`**!
 
-Run it in your browser: **{binder}`introduction.ipynb`**!
+Run it in your browser: **{binder}`introductory_tutorial.ipynb`**!
 
 :::
 
 (full-intro)=
-# Introduction
+# Introductory Tutorial
 
 The goal of this notebook is to give a brief introduction to plenoptic: we'll use two of our synthesis methods with a handful of models, and try to step through the kind of scientific reasoning that plenoptic's synthesis methods facilitate. Once you've completed it, we recommend working through the exercises to get more practice using plenpotic, and then read the parts of the documentation that interest you.
 
@@ -32,19 +32,21 @@ Throughout this notebook, there will be several questions that look like this. Y
 
 :::
 
-As described [in the introductory presentation](https://archive.org/details/vss2025-symposium-plenoptic), the goal of plenoptic is to provide methods for model-based synthesis of stimuli, facilitating better understanding of how the models make sense of those stimuli: what information is discarded, what is important, etc. These methods have mostly been used on images, which we'll use here, but they also work well on sounds as well.
+As described [in the introductory presentation video](https://archive.org/details/vss2025-symposium-plenoptic), the goal of plenoptic is to provide methods for model-based synthesis of stimuli, facilitating better understanding of how the models make sense of those stimuli: what information is discarded, what is important, etc. These methods have mostly been used on images, which we'll use here, but they also work on other types of stimuli as well.
 
 In order to use plenoptic, we need some models! Normally, this will depend on your research problem: you'll use models that you've developed or fit in previous experiments, or that get used in the literature. For example, if you're studying V1, you could use an energy model of complex cells; if you're studying object recognition, you might use a deep network-based model.
 
 <div class='render-all'>
 
+For the purposes of this notebook, we'll use some very simple convolutional models that are inspired by the processing done in the lateral geniculate nucleus (LGN) of the visual system[^models].
+
 <img src="../_static/lgn-models.png">
 
-For the purposes of this notebook, we'll use some very simple convolutional models that are inspired by the processing done in the lateral geniculate nucleus (LGN) of the visual system[^models]. We're going to build up in complexity, starting with the Gaussian model at the top and gradually adding features[^notallmodels]. We'll describe the components of these models in more detail as we get to them, but briefly:
-
-[^models]: Most of these models were originally published in Berardino, A., Laparra, V., J Ball\'e, & Simoncelli, E. P. (2017). Eigen-distortions of hierarchical representations. In Adv. Neural Information Processing Systems (NIPS*17), from which the figure is modified.
+[^models]: Most of these models were originally published in {cite:alp}`Berardino2017-eigen`, from which the figure is modified.
 
 [^notallmodels]: Note that the Berardino et. al, 2017 paper includes more models than described here. We're not examining all of them for time's sake, but you can check out the rest of the models described in the Berardino paper, they're all {ref}`included in plenoptic <models-api>` (under the header "LGN-inspired models").
+
+We're going to build up in complexity, starting with the Gaussian model at the top and gradually adding features[^notallmodels]. We'll describe the components of these models in more detail as we get to them, but briefly:
 
 - {class}`~plenoptic.models.Gaussian`: the model just convolves a Gaussian with an image, so that the model's representation is simply a blurry version of the image.
 - {class}`~plenoptic.models.CenterSurround`: the model convolves a difference-of-Gaussian filter with the image, so that model's representation is bandpass, caring mainly about frequencies that are neither too high or too low.
@@ -79,8 +81,12 @@ else:
     print("Running on CPU!")
 # for reproducibility
 po.set_seed(1)
+```
 
+In the following hidden cell, we define a helper function for creating some of the plots we'll use throughout this notebook.
 
+```{code-cell} ipython3
+:tags: [render-all, hide-input]
 def plot_helper(metamer, init_img=None):
     if init_img is None:
         init_img = metamer.saved_metamer[0]
@@ -169,7 +175,7 @@ class Gaussian(torch.nn.Module):
         return self.conv(x)
 ```
 
-To work with our synthesis methods, a model must accept a tensor as input and return a tensor as output. Generally speaking, plenoptic works with 4d inputs: these are commonly used to represent images when working with pytorch models, and the dimensions are batch (often, multiple images), channel (often, RGB or outputs of different convolutional filters), height, and width. This is not required for a model to work with plenoptic's synthesis methods, but several of the helper functions (especially those related to display) will not work if this is not the case.
+To work with our synthesis methods, a model must accept a tensor as input and return a tensor as output. Here, we're working with 4d inputs: these are commonly used to represent images when working with pytorch models, and the dimensions are batch (often, multiple images), channel (often, RGB or outputs of different convolutional filters), height, and width. This is not required for a model to work with plenoptic's synthesis methods (3d, 5d, and other dimensionality inputs should work), but it is the convention in pytorch for representing images and several of the helper functions (especially those related to display) will not work if this is not the case. So we recommend only diverging from this convention if you need to represent non-image stimuli.
 
 We can see that our `Gaussian` <!-- skip-lint --> model satisfies this constraint:
 
@@ -189,11 +195,30 @@ print(img.shape)
 print(rep.shape)
 ```
 
-There's one final step before this model is ready for synthesis. Most `pytorch` models will have learnable parameters, such as the weight on the convolution filter we created above, because the focus is generally on training the model to best perform some task. In `plenoptic`, models are *fixed* because we take the opposite approach: generating some new stimulus to better a understand a given model. Thus, all synthesis methods will raise a `ValueError` if given a model with any learnable parameters. We provide a helper function to remove the gradients on these parameters. Similarly, we probably also want to call `.eval` <!-- skip-lint --> on the model, in case it has training-mode specific behavior: that's not the case here (I'm just being pedantic), but it might be the case, depending on your model, and [pytorch's documentation](https://pytorch.org/docs/stable/eotes/autograd.html#evaluation-mode-nn-module-eval) recommends calling `.eval` <!-- skip-lint --> just in case.
+This transformation between the input and the output must be handled in a pytorch-differentiable manner. As long as your model's `forward` <!-- skip-lint --> method only uses functions or objects from the pytorch library[^torch-only], you will satisfy this constraint. Additionally, you must not break the gradient computation by e.g., converting a tensor to a numpy array and back again, or using {external+torch:class}`torch.no_grad`.
 
-<div class="render-user render-presenter">
+Plenoptic provides a helper function {func}`plenoptic.validate.validate_model` to facilitate checking model compatibility: if `po.validate.validate_model(my_custom_model)` runs without an error, then you can use your model with our synthesis methods.
 
-The following shows the image and the model output. We can see that output is a blurred version of the input, as we would expect from a low-pass model.
+[^torch-only]: You *can* use functions from outside pytorch (e.g., numpy), if you write a custom `backward` method telling pytorch how to differentiate it, but this is difficult and we do not recommend it. See [pytorch docs](https://docs.pytorch.org/docs/main/notes/extending.html#extending-torch-autograd) for more details.
+
+There's one final step before this model is ready for synthesis. Most `pytorch` models will have learnable parameters, such as the weights of the convolution filter we created above, because the focus is generally on training the model to best perform some task. In `plenoptic`, models are *fixed* because we take the opposite approach: generating some new stimulus to better a understand a given model. Thus, all synthesis methods will raise a `ValueError` if given a model with any learnable parameters. We provide a helper function to remove the gradients on these parameters, {func}`plenoptic.remove_grad`.
+
+Similarly, you probably also want to call `.eval` <!-- skip-lint --> on any model, in case it has training-mode specific behavior: that's not the case here (we're just being pedantic), but it might be the case, depending on your model, and [pytorch's documentation](https://pytorch.org/docs/stable/eotes/autograd.html#evaluation-mode-nn-module-eval) recommends calling `.eval` <!-- skip-lint --> just in case.
+
+<div class="render-user render-all">
+
+In plenoptic (unlike most uses of pytorch), models are *fixed*, so we:
+- Remove gradients on model parameters.
+- Switch model to `eval` <!-- skip-lint --> mode.
+
+</div>
+
+```{code-cell} ipython3
+po.remove_grad(model)
+model.eval()
+```
+
+Now that we've prepared our model, the following shows the input image and the model output. We can see that output is a blurred version of the input, as we would expect from a low-pass model.
 
 <div class='render-user render-presenter'>
 
@@ -207,23 +232,19 @@ The following shows the image and the model output. We can see that output is a 
 fig = po.plot.imshow([img, rep], title=["Original image", "Model output"])
 ```
 
-In plenoptic (unlike most uses of pytorch), models are *fixed*, so we:
-- Remove gradients on model parameters.
-- Switch model to `eval` <!-- skip-lint --> mode.
-
-</div>
-
-```{code-cell} ipython3
-po.remove_grad(model)
-model.eval()
-```
-
 Before moving forward, let's think about this model for a moment. It's a simple Gaussian convolution which throws out high-frequency information, as we can see in the representation above. Metamers provide a tool for exploring a model's insensitivities, so any metamers we synthesize should capitalize on this: they should differ from the original image in the high frequencies.
-
 
 ## Examining model invariances with metamers
 
-Okay, now we're ready to start with metamer synthesis. To initialize, we only need the model and the image. Optimization-related arguments are set when calling {func}`~plenoptic.Metamer.synthesize` and, in general, you'll probably need to play with these options to find a good solution. It's also probably a good idea, while getting started, to set {attr}`~plenoptic.Metamer.store_progress` to `True` (to store every iteration) or some `int` (to store every `int` iterations) so you can examine synthesis progress.
+Okay, now we're ready to start with metamer synthesis. To initialize, we only need the model and the image.
+
+:::{admonition} Optional arguments
+:class: dropdown note
+
+While only the model and image are needed, you can set a variety of other optimization-related parameters, such as the loss function, learning rate, optimization algorithm, etc. In general, you'll probably need to play with these to find a good solution.
+
+These arguments are passed to {class}`~plenoptic.Metamer` at initialization or the {func}`~plenoptic.Metamer.setup` method, which is optional (if you just want the defaults, you can skip it, as we do here).
+:::
 
 <div class='render-user render-presenter'>
 
@@ -239,6 +260,8 @@ matched_im = metamer.synthesize(store_progress=True, max_iter=20)
 matched_im = metamer.synthesize(store_progress=True, max_iter=150)
 ```
 
+{func}`~plenoptic.Metamer.synthesize` accepts a number of arguments which determine the duration of synthesis (such as `max_iter`) and whether / how often to store the synthesized image-in-progress ({attr}`~plenoptic.Metamer.store_progress`). Here, we have set `store_progress=True` so that we can animate the synthesis process below.
+
 After synthesis runs, we can examine the loss over time. There's a convenience function for this, but you could also call `plt.semilogy(metamer.losses)` to create it yourself.
 
 <div class="render-user render-presenter">
@@ -251,17 +274,13 @@ After synthesis runs, we can examine the loss over time. There's a convenience f
 po.plot.synthesis_loss(metamer);
 ```
 
-The loss decreases steadily and has reached a very low value. In fact, based on our convergence criterion (one of the optional arguments), it looks as though we've converged (we could change this argument to continue synthesis).
+The loss decreases steadily and has reached a very low value. In fact, based on our convergence criterion (one of the optional arguments to {func}`~plenoptic.Metamer.synthesize`), it looks as though we've converged (we could decrease this argument to run synthesis for longer).
 
 We can also view a movie of our synthesis progress:
-
-<div class='render-user'>
 
 :::{important}
 This next cell will take a while to run --- making animations in matplotlib is a bit of a slow process.
 :::
-
-</div>
 
 ```{code-cell} ipython3
 po.plot.synthesis_animate(
@@ -293,7 +312,9 @@ fig = po.plot.imshow(
 );
 ```
 
-We can see that, even though the target and synthesized images look very different, the two model outputs look basically identical (which matches the exceedingly low loss value we see above). (The left column shows the images and the right column the model outputs; top row shows the original image and bottom the synthesized metamer.)
+In the above figure, the left column shows the images and the right column the model outputs; top row shows the original image and bottom the synthesized metamer.
+
+We can see that, even though the target and synthesized images look very different, the two model outputs look basically identical (which matches the exceedingly low loss value we saw above).
 
 :::{admonition} Question
 :class: important
@@ -322,13 +343,12 @@ We can see the model's insensitivity to high frequencies more dramatically by in
 
 curie = po.data.curie().to(DEVICE)
 # pyrtools, imported as pt, has a convenience function for generating samples of white
-# noise, but then we still need to do some annoying things to get it ready for plenoptic
-pink = (
-    torch.from_numpy(pt.synthetic_images.pink_noise((256, 256)))
-    .unsqueeze(0)
-    .unsqueeze(0)
-)
-pink = po.process.rescale(pink).to(torch.float32).to(DEVICE)
+# noise, but then we need to convert the image to a torch tensor...
+pink = torch.from_numpy(pt.synthetic_images.pink_noise((256, 256)))
+# ... which is 4d ...
+pink = pink.unsqueeze(0).unsqueeze(0)
+# ... whose values lie between 0 and 1, and is the right dtype and device
+pink = po.process.rescale(pink).to(img.dtype).to(DEVICE)
 po.plot.imshow([curie, pink]);
 ```
 
@@ -360,10 +380,6 @@ Visualize all metamer outputs. In the plot we will create:
 - the first row shows our target Einstein image and its model representation, as we saw before.
 - the new three rows show our model metamers resulting from three different starting points.
 - in each, the first column shows the starting point of our metamer synthesis, the middle shows the resulting model metamer, and the third shows the model representation.
-
-</div>
-
-<div class='render-user render-presenter'>
 
 We can see that the model representation is the same for all four images, but the images themselves look very different. Because the model is completely invariant to high frequencies, the high frequencies present in the initial image are not affected by the synthesis procedure and thus are still present in the model metamer.
 
@@ -398,8 +414,12 @@ fig = po.plot.imshow(
         "Synthesized metamer",
         "Model representation\nof synthesized metamer",
     ],
-);
+)
+fig.axes[0].set_visible(False)
+fig.set(tight_layout=True)
 ```
+
+In the above figure, the first row shows our original image and its representation and each subsequent row shows the result of a separate metamer synthesis: the first column shows our initial image, the second the synthesized metaer, and the third the representation of that metamer.
 
 We see that the new synthesized metamers looks quite different from both the original and from our previous metamer, while the model outputs of all the images look very similar. In the third row, the synthesized model metamer looks like a blurry picture of Einstein with a high-frequency "shadow" of Curie added on top. Again, this is because the Gaussian model is insensitive to high frequencies, and thus a model metamer can include any high frequency information. In the final row, we can see that our model metamer looks like a blurry picture of Einstein --- because pink noise has very little information in the high frequencies (and the information that is present is incoherent), our resulting metamer appears to have little information present.
 
@@ -429,14 +449,7 @@ po.plot.imshow(
 );
 ```
 
-We can see they make sense: the most noticeable distortion is a very low-frequency modification to the image, with a period of about half the image. The least noticeable, on the other hand, is very high-frequency, which matches our understanding from the metamer example above. This is clearer if we add them to our Einstein in order to view them together:
-
-```{code-cell} ipython3
-po.plot.imshow(
-    img + 3 * eig.eigendistortions,
-    title=["Maximum eigendistortion", "Minimum eigendistortion"],
-);
-```
+We can see they make sense: the most noticeable distortion is a very low-frequency modification to the image, with a period of about half the image. The least noticeable, on the other hand, is very high-frequency, which matches our understanding from the metamer example above. This matches our understanding of how a lowpass filter works.
 
 ## A more complex model
 
@@ -511,7 +524,7 @@ While these model metamers look reasonably similar to the metamers of the `Gauss
 - whereas the `Gaussian` <!-- skip-lint --> pink noise metamer just appeared to be blurry, the {class}`~plenoptic.models.CenterSurround` one has dark and light patches that roughly match up with the original noise seed.
 - the differences are most striking in the Curie metamer, as the initial image was completely black except for Marie Curie's face, which is fairly white. The resulting metamer, therefore, is much darker than the target everywhere except the center of the image, which is much brighter.
 
-In all of these, the differences are the result of the fact that our model now consists of a [difference-of-Gaussians filter](https://en.wikipedia.org/wiki/Difference_of_Gaussians) than a Gaussian. As described earlier, this results in a model with *bandpass* selectivity, rather than *lowpass*. Thus, the {class}`~plenoptic.models.CenterSurround` doesn't care about low frequency information like the local mean pixel value and we can change it without affecting its output[^bandpass].
+In all of these, the differences are the result of the fact that our model now consists of a [difference-of-Gaussians filter](https://en.wikipedia.org/wiki/Difference_of_Gaussians) rather than a Gaussian. As described earlier, this results in a model with *bandpass* selectivity, rather than *lowpass*. Thus, the {class}`~plenoptic.models.CenterSurround` doesn't care about low frequency information like the local mean pixel value and we can change it without affecting its output[^bandpass].
 
 [^bandpass]: The {class}`~plenoptic.models.CenterSurround` model does retain some sensitivity to lower frequencies, but it's much less sensitive to them than the `Gaussian` <!-- skip-lint --> model is. The {class}`~plenoptic.models.CenterSurround` retains some low frequency selectivity because its two Gaussians are not perfectly balanced; to play around with their balance, try changing the `amplitude_ratio` argument.
 
@@ -536,7 +549,7 @@ In this case, we can see that the minimum eigendistortion looks similar to that 
 
 ## Adding some nonlinear features to the mix
 
-So far, our models have all been linear. That means that they're easy to understand, and we could indeed infer much of the information above by just looking at the Fourier transform of the model's filter[^fft]. However, if we add nonlinear features, analysis of model selectivity becomes trickier. To see what this looks like, let's use the {class}`~plenoptic.models.LuminanceGainControl` model, which adds gain control[^gaincontrol]: we take the output of the filter and divide it by the local luminance.
+So far, our models have all been linear. That means that they're relatively easy to understand, and we could indeed infer much of the information above by just looking at the Fourier transform of the model's filter[^fft]. However, if we add nonlinear features, analysis of model selectivity becomes trickier. To see what this looks like, let's use the {class}`~plenoptic.models.LuminanceGainControl` model, which adds gain control[^gaincontrol]: we take the output of the filter and divide it by the local luminance.
 
 [^fft]: Try it yourself!
     ```python
@@ -570,7 +583,9 @@ This builds in additional invariances to the model, making it explicitly less se
 po.plot.imshow([lg(img), lg(2 * img)], vrange="auto1");
 ```
 
-Now let's go ahead and synthesize and visualize metamers for this model. This will look the same as before, except we're going to set the learning rate to a value slightly lower than the default, which allows us to find a better solution here.
+Notice that not just the two plotted images but also their range (given in the title) are identical.
+
+Now let's go ahead and synthesize and visualize metamers for this model. The code will look the same as before, except we're going to set the learning rate to a value slightly lower than the default, which allows us to find a better solution here.
 
 <div class='render-user render-presenter'>
 

@@ -27,6 +27,10 @@ Run it in your browser: **{binder}`4_torchvision.ipynb`**!
 
 # Synthesizing Deep Net Model Metamers
 
+:::{warning}
+This notebook requires the optional dependency `torchvision`, which can be installed with `pip`.
+:::
+
 plenoptic is compatible with any model written in pytorch, including deep neural networks from the model zoos {external+torchvision:ref}`TorchVision <models>` and {external+timm:doc}`timm <models>`. In this exercise, we'll grab ResNet50 from torchvision and show how to generate metamers for one of its intermediate representations, as done in {cite:alp}`Feather2023-model-metam`.
 
 This tutorial covers similar ground as [](feather2023), but goes into a little less detail. View that page and [](deep_nets) for more details.
