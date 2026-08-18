@@ -95,7 +95,7 @@ If you're curious, try it out and see! (Just pass `transform` instead of `norm` 
 
 :::
 
-Finally, we'll pass our neural network, target layer, and preprocessing transform to plenoptic's [DeepNetFeatures](https://docs.plenoptic.org/docs/pulls/460/api/generated/plenoptic.models.DeepNetFeatures.html), moving it to our specified device and removing the gradient from all learnable parameters (as models in plenoptic [are fixed](https://docs.plenoptic.org/docs/pulls/460/reference/models.html#remove-grad-doc)):
+Finally, we'll pass our neural network, target layer, and preprocessing transform to {class}`~plenoptic.models.DeepNetFeatures`, moving it to our specified device and removing the gradient from all learnable parameters (as models in plenoptic [are fixed](remove-grad-doc)):
 
 ```{code-cell} ipython3
 model = po.models.DeepNetFeatures(deepnet, "layer3", norm)
