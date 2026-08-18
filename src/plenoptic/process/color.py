@@ -16,13 +16,13 @@ def __dir__() -> list[str]:
 def _validate_color_image(image: Tensor) -> None:
     if image.ndim not in (3, 4):
         raise ValueError(
-          "Expected a 3d or 4d color image tensor."
-          f" Got {image.ndim}d tensor with shape {tuple(image.shape)}."
+            "Expected a 3d or 4d color image tensor."
+            f" Got {image.ndim}d tensor with shape {tuple(image.shape)}."
         )
     if image.shape[-3] != 3:
         raise ValueError(
-          "Expected an image with three color channels."
-          f" Got {image.shape[-3]} channels."
+            "Expected an image with three color channels."
+            f" Got {image.shape[-3]} channels."
         )
 
 
@@ -78,11 +78,17 @@ class PCA(torch.nn.Module):
         A 3d tensor with shape ``(channel, height, width)`` or a 4d tensor with
         shape ``(1, channel, height, width)``. The fitted transform is fixed
         after initialization and can be applied to later image batches.
+    max_relative_scaling
+        Maximum ratio between the largest and smallest scaling applied along
+        the principal components by the whitening transform. Must be at least 1.
+        By default, no relative scaling limit is applied.
     """
 
-    def __init__(self, image: Tensor):
+    def __init__(self, image: Tensor, max_relative_scaling: float = float("inf")):
         super().__init__()
         _validate_color_image(image)
+        if not max_relative_scaling >= 1:
+            raise ValueError("max_relative_scaling must be greater than or equal to 1.")
         if image.ndim == 4:
             if image.shape[0] != 1:
                 raise ValueError("PCA must be fit to a single image.")
@@ -92,6 +98,8 @@ class PCA(torch.nn.Module):
         centered = (image - mean).flatten(1)
         covariance = centered @ centered.mT / centered.shape[-1]
         eigenvalues, eigenvectors = torch.linalg.eigh(covariance)
+        eigenvalue_floor = eigenvalues.max() / max_relative_scaling**2
+        eigenvalues = eigenvalues.clamp_min(eigenvalue_floor)
         eigenvalues = eigenvalues.clamp_min(torch.finfo(eigenvalues.dtype).eps)
         transform = torch.einsum("i,ji->ij", eigenvalues.rsqrt(), eigenvectors)
         self.register_buffer("mean", mean.detach())

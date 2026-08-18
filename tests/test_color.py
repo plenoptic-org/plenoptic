@@ -21,9 +21,9 @@ def test_opc(batched, dtype):
     ).to(device=DEVICE, dtype=dtype)
     lms_to_opponent = torch.tensor(
         [
-          [0.5, 0.5, 0.0],
-          [-4.0, 4.0, 0.0],
-          [0.5, 0.5, -1.0],
+            [0.5, 0.5, 0.0],
+            [-4.0, 4.0, 0.0],
+            [0.5, 0.5, -1.0],
         ]
     ).to(device=DEVICE, dtype=dtype)
     expected = torch.einsum("ij,...jhw->...ihw", lms_to_opponent @ rgb_to_lms, image)
@@ -69,12 +69,39 @@ def test_pca_batch_application_and_gradients():
     assert torch.isfinite(image.grad).all()
 
 
+@pytest.mark.parametrize("max_relative_scaling", [1, 2, 10])
+def test_pca_max_relative_scaling(max_relative_scaling):
+    channel = torch.rand(1, 1, 8, 8, device=DEVICE, dtype=torch.float64)
+    target = channel.repeat(1, 3, 1, 1) # Perfect color correlation, inf relative scaling
+    transform = po.process.PCA(target, max_relative_scaling=max_relative_scaling)
+    scaling = torch.linalg.svdvals(transform.matrix)
+    torch.testing.assert_close(
+        scaling.max() / scaling.min(),
+        torch.as_tensor(max_relative_scaling, device=DEVICE, dtype=torch.float64),
+    )
+
+
+def test_pca_infinite_max_relative_scaling_is_default():
+    target = torch.rand(1, 3, 8, 8, device=DEVICE)
+    default = po.process.PCA(target)
+    infinite = po.process.PCA(target, max_relative_scaling=float("inf"))
+    torch.testing.assert_close(default.mean, infinite.mean)
+    torch.testing.assert_close(default.matrix, infinite.matrix)
+
+
+@pytest.mark.parametrize("max_relative_scaling", [-1, 0, 0.5, float("nan")])
+def test_pca_invalid_max_relative_scaling(max_relative_scaling):
+    target = torch.rand(1, 3, 8, 8, device=DEVICE)
+    with pytest.raises(ValueError, match="max_relative_scaling"):
+        po.process.PCA(target, max_relative_scaling=max_relative_scaling)
+
+
 @pytest.mark.parametrize(
     "image",
     [
-      torch.rand(2, 3, 8, 8), # Invalid: batch size > 1
-      torch.rand(1, 2, 8, 8), # Invalid: channel size != 3
-      torch.rand(3, 8), # Invalid: not 3D or 4D
+        torch.rand(2, 3, 8, 8),  # Invalid: batch size > 1
+        torch.rand(1, 2, 8, 8),  # Invalid: channel size != 3
+        torch.rand(3, 8),  # Invalid: not 3D or 4D
     ],
 )
 def test_color_invalid_fit_image(image):
