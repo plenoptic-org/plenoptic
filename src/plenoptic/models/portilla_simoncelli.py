@@ -407,6 +407,8 @@ class PortillaSimoncelli(nn.Module):
             Scale metadata dictionary for the joint color statistics.
         """
         color_shape_dict = OrderedDict()
+        # Vacher 2021 Appendix B.2 specifies that grayscale statistics (iv)-(vi)
+        # are computed jointly across the transformed color bands.
         joint_correlation_keys = [
             "cross_orientation_correlation_magnitude",
             "cross_scale_correlation_magnitude",
@@ -415,18 +417,22 @@ class PortillaSimoncelli(nn.Module):
         for key, value in scales_shape_dict.items():
             if key in joint_correlation_keys:
                 # Add the joint-channel statistics scales
+                # Specified in Appendix B.2, second bullet point.
                 color_shape_dict[key] = np.tile(
                     value, (N_RGB_CHANNELS, N_RGB_CHANNELS, 1)
                 )
             else:
                 color_shape_dict[key] = np.repeat(value[None], N_RGB_CHANNELS, axis=0)
 
-        # Add statistics that only exist for the color representation
+        # Additional color statistics from Vacher & Briand (2021), Appendix B.2.
+        # Comments below number the new statistics as they appear in the Appendix B.2.
+        # (vii) Color covariance matrix.
         color_shape_dict["color_covariance"] = np.full(
             (N_RGB_CHANNELS, N_RGB_CHANNELS),
             "pixel_statistics",
             dtype=object,
         )
+        # (viii) Autocorrelations of each transformed band.
         color_shape_dict["auto_correlation_transformed"] = np.full(
             (
                 N_RGB_CHANNELS,
@@ -436,21 +442,25 @@ class PortillaSimoncelli(nn.Module):
             "pixel_statistics",
             dtype=object,
         )
+        # (ix) Skewness and kurtosis of each transformed band.
         color_shape_dict["skew_transformed"] = np.full(
             N_RGB_CHANNELS, "pixel_statistics", dtype=object
         )
         color_shape_dict["kurtosis_transformed"] = np.full(
             N_RGB_CHANNELS, "pixel_statistics", dtype=object
         )
+        # (x) Same-scale correlations of real oriented coefficients.
         color_shape_dict["cross_orientation_correlation_real"] = color_shape_dict[
             "cross_orientation_correlation_magnitude"
         ].copy()
         n_lowpass_signals = len(LOWPASS_SHIFTS) * N_RGB_CHANNELS
+        # (xi) Correlations among shifted lowpass signals.
         color_shape_dict["cross_correlation_lowpass"] = np.full(
             (n_lowpass_signals, n_lowpass_signals),
             "residual_lowpass",
             dtype=object,
         )
+        # (xii) Correlations between the coarsest real coefficients and lowpass.
         color_shape_dict["cross_correlation_coarsest_scale_lowpass"] = np.full(
             (N_RGB_CHANNELS * self.n_orientations, n_lowpass_signals),
             self.n_scales - 1,
@@ -709,11 +719,14 @@ class PortillaSimoncelli(nn.Module):
             image_for_pyramid = (
                 image if self.transform is None else self.transform(image)
             )
+            # Vacher 2021 Appendix B.2, statistic (vii).
             color_covariance = self._compute_color_covariance(image)
             transformed_pixel_stats = self._compute_pixel_stats(image_for_pyramid)
             image_var = transformed_pixel_stats[..., 1]
+            # Vacher 2021 Appendix B.2, statistic (ix).
             skew_transformed = transformed_pixel_stats[..., 2]
             kurtosis_transformed = transformed_pixel_stats[..., 3]
+            # Vacher 2021 Appendix B.2, statistic (viii).
             centered_transformed = image_for_pyramid - image_for_pyramid.mean(
                 dim=(-2, -1), keepdim=True
             )
@@ -787,12 +800,15 @@ class PortillaSimoncelli(nn.Module):
         # Compute the cross-orientation correlations between the magnitude
         # coefficients at each scale.
         if self.color_statistics:
+            # Vacher 2021 Appendix B.2, second bullet point
             cross_ori_corr_mags = self._compute_joint_cross_correlation(
                 mag_pyr_coeffs, mag_pyr_coeffs, mags_var, mags_var
             )
+            # Vacher 2021 Appendix B.2, statistic (x).
             cross_ori_corr_real = self._compute_joint_cross_correlation(
                 real_pyr_coeffs, real_pyr_coeffs
             )
+            # Vacher 2021 Appendix B.2, statistics (xi) and (xii).
             # Upsample the lowpass in Fourier space and add its four periodic
             # two-pixel shifts.
             expanded_lowpass = signal.expand(lowpass, 2)
@@ -828,6 +844,7 @@ class PortillaSimoncelli(nn.Module):
             # coefficients. For each coefficient, we're correlating it with the
             # coefficients at the next-coarsest scale.
             if self.color_statistics:
+                # Vacher 2021 Appendix B.2, second bullet point
                 cross_scale_corr_mags = self._compute_joint_cross_correlation(
                     mag_pyr_coeffs[:-1],
                     phase_doubled_mags,
@@ -841,6 +858,7 @@ class PortillaSimoncelli(nn.Module):
             # coefficients and the real and imaginary coefficients at the next
             # coarsest scale.
             if self.color_statistics:
+                # Vacher Appendix B.2, statistic (vi), second bullet point
                 cross_scale_corr_real = self._compute_joint_cross_correlation(
                     real_pyr_coeffs[:-1], phase_doubled_sep
                 )
