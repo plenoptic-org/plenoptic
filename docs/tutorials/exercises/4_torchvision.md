@@ -41,6 +41,8 @@ It is recommended that you first work through the [](simple-metamer) exercise be
 
 ```{code-cell} ipython3
 # needed for the plotting/animating:
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -55,6 +57,11 @@ plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# The default value of 6000 for MAX_ITER here will lead to a reasonable metamer, but
+# might take too long if you don't have a GPU. If synthesis is taking a long time on
+# your machine, set this to a lower value.
+MAX_ITER = os.environ.get("MAX_ITER", 6000)
 ```
 
 When synthesizing model metamers for convolutional neural networks, researchers often pick a specific layer whose output they want to match. If we look at [Feather et al. 2023](https://mcdermottlab.mit.edu/papers/Feather_etal_2023_deep_metamers.pdf) Figure 2e, we can see an interesting progression in layers 2 through 4: the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 is almost completely unidentifiable, looking almost completely like random RGB noise. We'll pick layer 3 from now, and you're encouraged to try the other layers!
@@ -138,7 +145,7 @@ met.setup(
 )
 # by setting stop_iters_to_check=max_iter, we ensure it keeps going through
 # all iterations
-met.synthesize(max_iter=6000, stop_iters_to_check=6000, store_progress=120)
+met.synthesize(max_iter=MAX_ITER, stop_iters_to_check=MAX_ITER, store_progress=120)
 ```
 
 And look at the output:
@@ -214,7 +221,7 @@ met.setup(
 )
 # by setting stop_iters_to_check=max_iter, we ensure it keeps going through
 # all iterations
-met.synthesize(max_iter=6000, stop_iters_to_check=6000, store_progress=120)
+met.synthesize(max_iter=MAX_ITER, stop_iters_to_check=MAX_ITER, store_progress=120)
 po.plot.synthesis_status(met, figsize=(15, 4.5));
 ```
 
@@ -248,7 +255,7 @@ met.setup(
 )
 # by setting stop_iters_to_check=max_iter, we ensure it keeps going through
 # all iterations
-met.synthesize(max_iter=6000, stop_iters_to_check=6000, store_progress=120)
+met.synthesize(max_iter=MAX_ITER, stop_iters_to_check=MAX_ITER, store_progress=120)
 po.plot.synthesis_status(met, figsize=(15, 4.5));
 ```
 
@@ -277,7 +284,7 @@ met.setup(
     scheduler_kwargs=scheduler_kwargs,
 )
 assert met.metamer.shape == met.image.shape, "Initial image is the wrong shape!"
-met.synthesize(max_iter=6000, stop_iters_to_check=6000, store_progress=120)
+met.synthesize(max_iter=MAX_ITER, stop_iters_to_check=MAX_ITER, store_progress=120)
 po.plot.synthesis_status(met, figsize=(15, 4.5));
 ```
 
@@ -336,6 +343,6 @@ met.setup(
     scheduler=scheduler,
     scheduler_kwargs=scheduler_kwargs,
 )
-met.synthesize(max_iter=6000, stop_iters_to_check=6000, store_progress=120)
+met.synthesize(max_iter=MAX_ITER, stop_iters_to_check=MAX_ITER, store_progress=120)
 po.plot.synthesis_status(met, figsize=(15, 4.5));
 ```

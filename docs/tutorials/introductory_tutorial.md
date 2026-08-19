@@ -79,6 +79,8 @@ Let's get started! First, we'll import packages and set some configuration optio
 ```{code-cell} ipython3
 :tags: [render-all]
 
+import os
+
 import matplotlib.pyplot as plt
 import pyrtools as pt
 import torch
@@ -99,6 +101,14 @@ else:
     print("Running on CPU!")
 # for reproducibility
 po.set_seed(1)
+
+# The default value of 500 for MAX_ITER here will lead to reasonable results, but will
+# take too long if you don't have a GPU. If synthesis is taking a long time on your
+# machine, set this to a lower value, but know that synthesis has ended early. View the
+# website online to see what completed synthesis looks like.
+MAX_ITER = os.environ.get("MAX_ITER", 500)
+MAX_ITER_MED = MAX_ITER * 2
+MAX_ITER_LONG = MAX_ITER * 10
 ```
 
 In the following hidden cell, we define a helper function for creating some of the plots we'll use throughout this notebook.
@@ -277,7 +287,9 @@ metamer = po.Metamer(img, model)
 matched_im = metamer.synthesize(store_progress=10, max_iter=20)
 # if we call synthesize again, we resume where we left off. We'll also
 # reduce stop_criterion, so synthesis runs for longer.
-matched_im = metamer.synthesize(store_progress=10, max_iter=480, stop_criterion=1e-7)
+matched_im = metamer.synthesize(
+    store_progress=10, max_iter=MAX_ITER, stop_criterion=1e-7
+)
 ```
 
 {func}`~plenoptic.Metamer.synthesize` accepts a number of arguments which determine the duration of synthesis (such as `max_iter`, `stop_criterion`) and whether / how often to store the synthesized image-in-progress ({attr}`~plenoptic.Metamer.store_progress`). Here, we have set `store_progress=True` so that we can animate the synthesis process below.
@@ -383,8 +395,8 @@ metamer_pink.setup(initial_image=pink)
 # we increase the length of time we run synthesis and decrease the
 # stop_criterion, which determines when we think loss has converged
 # for stopping synthesis early.
-metamer_curie.synthesize(max_iter=500, stop_criterion=1e-7)
-metamer_pink.synthesize(max_iter=500, stop_criterion=1e-7)
+metamer_curie.synthesize(max_iter=MAX_ITER, stop_criterion=1e-7)
+metamer_pink.synthesize(max_iter=MAX_ITER, stop_criterion=1e-7)
 ```
 
 Let's double-check that our synthesis looks like it's reached a good solution by checking the loss curve:
@@ -458,7 +470,7 @@ Like {class}`~plenoptic.Metamer`, {class}`~plenoptic.Eigendistortion` accepts an
 
 ```{code-cell} ipython3
 eig = po.Eigendistortion(img, model)
-eig.synthesize();
+eig.synthesize(max_iter=MAX_ITER_MED);
 ```
 
 Let's examine those distortions:
@@ -516,7 +528,7 @@ init_img = torch.cat([white_noise, pink, curie], dim=0)
 # so we need to repeat the target image on the batch dimension
 cs_metamer = po.Metamer(img.repeat(3, 1, 1, 1), center_surround)
 cs_metamer.setup(initial_image=init_img)
-cs_metamer.synthesize(1000, stop_criterion=1e-10)
+cs_metamer.synthesize(MAX_ITER_MED, stop_criterion=1e-10)
 ```
 
 Now let's visualize our outputs (the code to create this plot is slightly annoying, so we're defined it as a helper function at the top of the notebook):
@@ -559,7 +571,7 @@ The change from a lowpass to a bandpass model also changes the model's most sens
 
 ```{code-cell} ipython3
 cs_eig = po.Eigendistortion(img, center_surround)
-cs_eig.synthesize()
+cs_eig.synthesize(max_iter=MAX_ITER_MED)
 po.plot.imshow(
     cs_eig.eigendistortions,
     title=["Maximum eigendistortion", "Minimum eigendistortion"],
@@ -618,7 +630,7 @@ Now let's go ahead and synthesize and visualize metamers for this model. The cod
 ```{code-cell} ipython3
 lg_metamer = po.Metamer(img.repeat(3, 1, 1, 1), lg)
 lg_metamer.setup(initial_image=init_img, optimizer_kwargs={"lr": 0.007})
-lg_metamer.synthesize(5000, stop_criterion=1e-12)
+lg_metamer.synthesize(MAX_ITER_LONG, stop_criterion=1e-12)
 ```
 
 And let's visualize our results:
@@ -645,7 +657,7 @@ Finally, let's look at our eigendistortions:
 
 ```{code-cell} ipython3
 lg_eig = po.Eigendistortion(img, lg)
-lg_eig.synthesize()
+lg_eig.synthesize(max_iter=MAX_ITER_MED)
 po.plot.imshow(
     lg_eig.eigendistortions,
     title=["Maximum eigendistortion", "Minimum eigendistortion"],
@@ -676,7 +688,7 @@ This adaptivity matters not just within images, but across images: the {class}`~
 
 ```{code-cell} ipython3
 lg_curie_eig = po.Eigendistortion(curie, lg)
-lg_curie_eig.synthesize()
+lg_curie_eig.synthesize(max_iter=MAX_ITER_MED)
 po.plot.imshow(
     lg_curie_eig.eigendistortions,
     title=[
@@ -685,7 +697,7 @@ po.plot.imshow(
     ],
 )
 cs_curie_eig = po.Eigendistortion(curie, center_surround)
-cs_curie_eig.synthesize()
+cs_curie_eig.synthesize(max_iter=MAX_ITER_MED)
 po.plot.imshow(
     cs_curie_eig.eigendistortions,
     title=[
