@@ -91,9 +91,10 @@ Try one of the other {ref}`included images <images-api>` or use {func}`plenoptic
 
 :::
 
-```python
+```{code-cell} ipython3
+:tags: [skip-execution]
 
-img = ... # WRITE SOMETHING NEW HERE
+img = ...  # WRITE SOMETHING NEW HERE
 img = img.to(DEVICE)
 met = po.Metamer(img, model)
 met.synthesize(max_iter=1300, stop_criterion=1e-11, store_progress=10)
