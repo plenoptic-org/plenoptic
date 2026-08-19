@@ -62,18 +62,18 @@ po.set_seed(4)
 
 ## Prepare model and images for synthesis
 
-In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of `"layer4"` of a classic image recognition network, [ResNet50](https://en.wikipedia.org/wiki/Residual_neural_network), trained to classify images into one of [1000 categories](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/).. After creating the model, we then prepare the original image and an image of a different class whose represetnation we try to match. Finally, we ensure that the model and images have the proper device and dtype, and remove the gradient from all model parameters.
+In the following block, we create a {class}`~plenoptic.models.DeepNetFeatures` model matching the output of final layer `"fc"` of a classic image recognition network, [ResNet50](https://en.wikipedia.org/wiki/Residual_neural_network), trained to classify images into one of [1000 categories](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/).. After creating the model, we then prepare the original image and an image of a different class whose represetnation we try to match. Finally, we ensure that the model and images have the proper device and dtype, and remove the gradient from all model parameters.
 
 To learn more about any of these steps and why we take them, read [](deep_nets).
 
-As part of this procedure, we must choose an image whose `"layer4"` representation (and thus, categorization) we would like to match. For this example let us fool the network into thinking a macaque is a cheeseburger (image taken from the Caltech256 dataset {cite:alp}`griffin_caltech_2022`).
+As part of this procedure, we must choose an image whose `"fc"` representation (and thus, categorization) we would like to match. For this example let us fool the network into thinking a macaque is a cheeseburger (image taken from the Caltech256 dataset {cite:alp}`griffin_caltech_2022`).
 
 +++
 
-:::{admonition} Why choose `"layer4"`?
+:::{admonition} Would matching other layers also work?
 :class: dropdown hint
 
-Ideally, metamers of an early layer should also be metamers of all subsequent layers. However this is not the case in practise because of the additional constraint on the metamer image we put in pixel space (explained in the following sections). Even when the loss has converged, there will still be some residual error between the original representation and the synthesized representation at the matched layer that can propagate through the network and cause later representation to diverge. By choosing the last convolutional layer of the network ("layer 4"), we minimize this divergence in reprensetation, which gives the network more consistent classification behaviour of the metamer image.
+Ideally, metamers of an early layer should also be metamers of all subsequent layers. However this is not the case in practise because of the additional constraint on the metamer image we put in pixel space (explained in the following sections). Even when the loss has converged, there will still be some residual error between the original representation and the synthesized representation at the matched layer that can propagate through the network and cause later representation to diverge. By choosing the last fully connected layer of the network (`"fc"`), we can ensure the network always has the desired classification behaviour of the metamer image.
 :::
 
 ```{code-cell} ipython3
