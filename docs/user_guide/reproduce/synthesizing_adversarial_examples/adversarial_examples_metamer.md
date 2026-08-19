@@ -201,7 +201,7 @@ met.setup(initial_image=img, optimizer_kwargs={"lr": 0.001})
 Everything has been set up, so now let's synthesize the adversarial example!
 
 ```{code-cell} ipython3
-met.synthesize(store_progress=True, max_iter=1000)
+met.synthesize(max_iter=1000)
 po.plot.synthesis_status(met);
 ```
 
