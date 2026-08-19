@@ -456,6 +456,11 @@ class DeepNetFeatures(torch.nn.Module):
             A list of the artists used to update the information on the
             plots.
 
+        Raises
+        ------
+        ValueError
+            If the data to use is not 2, 3, or 4 dimensional.
+
         See Also
         --------
         plot_representation
@@ -499,23 +504,50 @@ class DeepNetFeatures(torch.nn.Module):
             data = self.convert_to_dict(data)
 
         artists = []
-        per_channel_reps = []
-        for i, (k, v) in enumerate(data.items()):
-            # Average representation across channels
-            avg_channel_rep = v.mean(dim=1, keepdim=True)
-            # Average representation across additional dimensions (probably space)
-            per_channel_rep = v.mean(dim=tuple(np.arange(2, v.ndim)))
-            while per_channel_rep.ndim < 3:
-                per_channel_rep = per_channel_rep.unsqueeze(0)
-            per_channel_reps.append(per_channel_rep)
-            art = display.update_plot(
-                axes[2 * i : 2 * (i + 1)],
-                {"00": avg_channel_rep, "01": per_channel_rep},
-                batch_idx=batch_idx,
-            )
+        axis_i = 0
+        # keep track of the axes which contain plots to rescale and the data plotted on
+        # them
+        rescalable_axes = []
+        rescalable_reps = []
+        for k, v in data.items():
+            if v.ndim in [3, 4]:
+                # Average representation across channels
+                avg_channel_rep = v.mean(dim=1, keepdim=True)
+                # Average representation across additional dimensions (probably space)
+                per_channel_rep = v.mean(dim=tuple(np.arange(2, v.ndim)))
+                while per_channel_rep.ndim < 3:
+                    per_channel_rep = per_channel_rep.unsqueeze(0)
+                rescalable_reps.append(per_channel_rep)
+                art = display.update_plot(
+                    axes[axis_i : axis_i + 2],
+                    {"00": avg_channel_rep, "01": per_channel_rep},
+                    batch_idx=batch_idx,
+                )
+                # the second axis, showing per-channel rep, is a stem plot and so we
+                # want to rescale it
+                rescalable_axes.append(axis_i + 1)
+                axis_i += 2
+            elif v.ndim == 2:
+                # then there's only a single axis
+                art = display.update_plot(
+                    axes[axis_i],
+                    {"_container0": v.unsqueeze(1)},
+                    batch_idx=batch_idx,
+                )
+                # this axis is a stem plot, and so we want to rescale it
+                rescalable_axes.append(axis_i)
+                rescalable_reps.append(v.unsqueeze(1))
+                axis_i += 1
+            else:
+                raise ValueError(
+                    "Only 2, 3, or 4d data is supported; don't know"
+                    f" how to handle data with ndim={v.ndim}"
+                )
             artists.extend(art)
         if rescale_ylim:
-            display._rescale_ylim(axes[1::2], torch.cat(per_channel_reps, -1))
+            display._rescale_ylim(
+                np.asarray(axes)[rescalable_axes], torch.cat(rescalable_reps, -1)
+            )
         return artists
 
     def plot_representation(
@@ -569,6 +601,8 @@ class DeepNetFeatures(torch.nn.Module):
         ------
         ValueError
             If both ``figsize`` and ``ax`` are not ``None``.
+        ValueError
+            If the data to plot is not 2, 3, or 4 dimensional.
 
         Examples
         --------
@@ -666,17 +700,33 @@ class DeepNetFeatures(torch.nn.Module):
         for i, (k, v) in enumerate(data.items()):
             ax = fig.add_subplot(gs[i])
 
-            # Average representation across channels
-            avg_channel_rep = v.mean(dim=1, keepdim=True)
-            # Average representation across additional dimensions (probably space)
-            per_channel_rep = v.mean(dim=tuple(np.arange(2, v.ndim)))
-            while per_channel_rep.ndim < 3:
-                per_channel_rep = per_channel_rep.unsqueeze(0)
+            if v.ndim in [3, 4]:
+                # Average representation across channels
+                avg_channel_rep = v.mean(dim=1, keepdim=True)
+                # Average representation across additional dimensions (probably space)
+                per_channel_rep = v.mean(dim=tuple(np.arange(2, v.ndim)))
+                while per_channel_rep.ndim < 3:
+                    per_channel_rep = per_channel_rep.unsqueeze(0)
 
-            if avg_channel_rep.ndim == 3:
-                height_ratios = [1, 1]
-            elif avg_channel_rep.ndim == 4:
-                height_ratios = [2, 1]
+                if avg_channel_rep.ndim == 3:
+                    height_ratios = [1, 1]
+                elif avg_channel_rep.ndim == 4:
+                    height_ratios = [2, 1]
+                plot_data = {
+                    f"{k} avg across channels": avg_channel_rep,
+                    f"{k} per channel (n={v.shape[1]})": per_channel_rep,
+                }
+
+            elif v.ndim == 2:
+                # then we can just plot all channels, single plot. need to make the data
+                # 3d for generic plot_representation to work
+                plot_data = {k: v.unsqueeze(1)}
+                height_ratios = [1]
+            else:
+                raise ValueError(
+                    "Only 2, 3, or 4d data is supported; don't know"
+                    f" how to handle data with ndim={v.ndim}"
+                )
 
             # this warning is not relevant here
             with warnings.catch_warnings():
@@ -684,10 +734,7 @@ class DeepNetFeatures(torch.nn.Module):
                     "ignore", message="data has keys, so we're ignoring title"
                 )
                 ax = display.plot_representation(
-                    data={
-                        f"{k} avg across channels": avg_channel_rep,
-                        f"{k} per channel (n={v.shape[1]})": per_channel_rep,
-                    },
+                    data=plot_data,
                     ax=ax,
                     batch_idx=batch_idx,
                     axes_direction="vertical",
