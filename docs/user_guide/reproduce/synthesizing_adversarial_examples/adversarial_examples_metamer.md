@@ -68,14 +68,6 @@ To learn more about any of these steps and why we take them, read [](deep_nets).
 
 As part of this procedure, we must choose an image whose `"fc"` representation (and thus, categorization) we would like to match. For this example let us fool the network into thinking a macaque is a cheeseburger (image taken from the Caltech256 dataset {cite:alp}`griffin_caltech_2022`).
 
-+++
-
-:::{admonition} Would matching other layers also work?
-:class: dropdown hint
-
-Ideally, metamers of an early layer should also be metamers of all subsequent layers. However this is not the case in practise because of the additional constraint on the metamer image we put in pixel space (explained in the following sections). Even when the loss has converged, there will still be some residual error between the original representation and the synthesized representation at the matched layer that can propagate through the network and cause later representation to diverge. By choosing the last fully connected layer of the network (`"fc"`), we can ensure the network always has the desired classification behaviour of the metamer image.
-:::
-
 ```{code-cell} ipython3
 weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
 deepnet = torchvision.models.resnet50(weights=weights)
@@ -130,6 +122,8 @@ def get_likely_categories(category_probs):
     likely_idx = torch.where(category_probs > 0.01)[0]
     likely_idx = likely_idx[torch.argsort(category_probs[likely_idx], descending=True)]
     likely_cats = imagenet_categories[likely_idx].tolist()
+    if isinstance(likely_cats, str):
+        likely_cats = [likely_cats]
     return "\n".join(f"- {cat}" for cat in likely_cats)
 ```
 

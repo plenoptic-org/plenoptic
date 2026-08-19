@@ -115,6 +115,8 @@ def get_likely_categories(category_probs):
     likely_idx = torch.where(category_probs > 0.01)[0]
     likely_idx = likely_idx[torch.argsort(category_probs[likely_idx], descending=True)]
     likely_cats = imagenet_categories[likely_idx].tolist()
+    if isinstance(likely_cats, str):
+        likely_cats = [likely_cats]
     return "\n".join(f"- {cat}" for cat in likely_cats)
 ```
 
