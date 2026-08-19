@@ -169,6 +169,7 @@ The following cell shows how to compute the image categories:
 
 ```{code-cell} ipython3
 imagenet_categories = np.asarray(weights.meta["categories"])
+deepnet.to(DEVICE)
 
 
 def get_category(image):
