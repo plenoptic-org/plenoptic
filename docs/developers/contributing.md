@@ -611,7 +611,7 @@ environment variable `RUN_REGRESSION_SYNTH=1` when calling pytest.
 Another approach is to have the number of synthesis iterations (the `max_iter`
 argument accepted by all `synthesize` <!-- skip-lint --> methods) controlled by an environmental
 variable, `MAX_ITER`. In this case, `MAX_ITER` should be set at the top of the
-notebook, with some default value: `MAX_ITER = os.environ.get("MAX_ITER", 500)`,
+notebook, with some default value: `MAX_ITER = int(os.environ.get("MAX_ITER", 500))`,
 accompanied by some text explaining what's going on to the user.
 
 This is useful because the "run notebooks" job in `ci.yml`, which runs all of

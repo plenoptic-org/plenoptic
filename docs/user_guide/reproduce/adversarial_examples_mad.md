@@ -62,7 +62,7 @@ po.set_seed(4)
 # The default value of 1000 for MAX_ITER here will lead to a reasonable metamer, but
 # might take too long if you don't have a GPU. If synthesis is taking a long time on
 # your machine, set this to a lower value.
-MAX_ITER = os.environ.get("MAX_ITER", 1000)
+MAX_ITER = int(os.environ.get("MAX_ITER", 1000))
 ```
 
 ## Prepare model and image for synthesis

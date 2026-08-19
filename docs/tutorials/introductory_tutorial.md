@@ -106,7 +106,7 @@ po.set_seed(1)
 # take too long if you don't have a GPU. If synthesis is taking a long time on your
 # machine, set this to a lower value, but know that synthesis has ended early. View the
 # website online to see what completed synthesis looks like.
-MAX_ITER = os.environ.get("MAX_ITER", 500)
+MAX_ITER = int(os.environ.get("MAX_ITER", 500))
 MAX_ITER_MED = MAX_ITER * 2
 MAX_ITER_LONG = MAX_ITER * 10
 ```

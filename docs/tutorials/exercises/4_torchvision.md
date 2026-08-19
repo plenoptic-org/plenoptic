@@ -61,7 +61,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # The default value of 6000 for MAX_ITER here will lead to a reasonable metamer, but
 # might take too long if you don't have a GPU. If synthesis is taking a long time on
 # your machine, set this to a lower value.
-MAX_ITER = os.environ.get("MAX_ITER", 6000)
+MAX_ITER = int(os.environ.get("MAX_ITER", 6000))
 ```
 
 When synthesizing model metamers for convolutional neural networks, researchers often pick a specific layer whose output they want to match. If we look at [Feather et al. 2023](https://mcdermottlab.mit.edu/papers/Feather_etal_2023_deep_metamers.pdf) Figure 2e, we can see an interesting progression in layers 2 through 4: the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 is almost completely unidentifiable, looking almost completely like random RGB noise. We'll pick layer 3 from now, and you're encouraged to try the other layers!
