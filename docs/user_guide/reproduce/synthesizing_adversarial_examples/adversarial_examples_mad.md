@@ -114,8 +114,8 @@ def get_category(image):
 def get_likely_categories(category_probs):
     likely_idx = torch.where(category_probs > 0.01)[0]
     likely_idx = likely_idx[torch.argsort(category_probs[likely_idx], descending=True)]
-    likely_cats = "\n- ".join(imagenet_categories[likely_idx].tolist())
-    return likely_cats
+    likely_cats = imagenet_categories[likely_idx].tolist()
+    return "\n".join(f"- {cat}" for cat in likely_cats)
 ```
 
 The following plot shows the classification probabilities for the original image as a stem plot. Each of the 1000 categories is represented by a line, whose y-value gives the model's probability that the image belongs to the corresponding category (the x-value is arbitrary). The title shows the label of the most likely category, and the text on the plot shows the other categories with probability higher than 0.01.
@@ -124,7 +124,7 @@ The following plot shows the classification probabilities for the original image
 category_probs, category = get_category(img)
 po.plot.stem_plot(category_probs, title=category)
 likely_cats = get_likely_categories(category_probs)
-plt.text(700, 0.5, f"Likely categories:\n- {likely_cats}");
+plt.text(700, 0.5, f"Likely categories:\n{likely_cats}");
 ```
 
 The category of our initial image, [guenon](https://en.wikipedia.org/wiki/Guenon), is an Old World monkey. Though it isn't the actual species of the monkey in question (a [Celebes crested macaque](https://en.wikipedia.org/wiki/Celebes_crested_macaque)), it's a reasonable category for it. Notice the model is highly confident in its classification, with a probability of about 0.8 and no other category exceeding a probability of 0.1. The other predicted categories are all [Old World monkeys](https://en.wikipedia.org/wiki/Old_World_monkey).
@@ -219,7 +219,7 @@ for i, name in enumerate(["Original", "Initial", "Adversarial"]):
     axes[i, 0].xaxis.set_visible(False)
     axes[i, 0].yaxis.set_visible(False)
     axes[i, 1].text(
-        1, 0.5, f"Likely categories:\n- {likely_cats}", transform=axes[i, 1].transAxes
+        1, 0.5, f"Likely categories:\n{likely_cats}", transform=axes[i, 1].transAxes
     )
 category_probs, category = get_category(mad.mad_image)
 glue("category_name", str(category), display=False)
