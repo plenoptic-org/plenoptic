@@ -179,9 +179,10 @@ html_theme_options = {
         "api/**": [],
     },
     "show_nav_level": 2,
-    "header_links_before_dropdown": 4,
+    "header_links_before_dropdown": 5,
     "navbar_align": "left",
     "navbar_start": ["navbar-logo", "version-switcher"],
+    "navbar_persistent": ["search-button"],
     "show_version_warning_banner": True,
     "switcher": {
         "json_url": "https://docs.plenoptic.org/docs/branch/main/_static/version_switcher.json",
@@ -455,7 +456,6 @@ def skip_torch_inherited_methods(app, obj_type, name, obj, skip, options):
 
 
 def binder_role(name, rawtext, text, lineno, inliner, options={}, content=[]):
-    """Create a role to highlight new contributors in changelog entries."""
     refuri = binder_url + text
     ref_node = nodes.reference(
         rawtext, text, classes=["binder"], refuri=refuri, **options

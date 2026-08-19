@@ -32,9 +32,12 @@ Plenoptic is compatible with any model written in pytorch, including deep neural
 You may also be interested in [](feather2023), where we create model metamers for several ResNet50 intermediate layers, reproducing some of the results from {cite:alp}`Feather2023-model-metam`.
 
 ```{code-cell} ipython3
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from myst_nb import glue
 
 import plenoptic as po
 
@@ -63,6 +66,12 @@ plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 
 # set seed for reproducibility
 po.set_seed(1)
+
+# The default value of 6000 for MAX_ITER here will lead to a reasonable metamer, but
+# might take too long if you don't have a GPU. If synthesis is taking a long time on
+# your machine, set this to a lower value.
+MAX_ITER = int(os.environ.get("MAX_ITER", 6000))
+glue("MAX_ITER", MAX_ITER, display=False)
 ```
 
 ## Prepare model and image for synthesis
@@ -316,13 +325,13 @@ Now that we've set our optimization hyperparameters, we can synthesize our metam
 ```{code-cell} ipython3
 # by setting stop_iters_to_check=max_iter, we ensure it keeps going through
 # all iterations
-met.synthesize(max_iter=6000, stop_iters_to_check=6000, store_progress=100)
+met.synthesize(max_iter=MAX_ITER, stop_iters_to_check=MAX_ITER, store_progress=100)
 ```
 
 :::{admonition} How many iterations?
 :class: hint
 
-Here we're only running optimization for 6000 iterations, which is enough to demonstrate the point, but if you were to use these metamers in an experiment, we would recommend running synthesis for longer and thinking carefully about your success criteria, see [](good-enough) and [](feather-synthesis-success) for more discussion.
+Here we're only running optimization for {glue}`MAX_ITER` iterations, which is enough to demonstrate the point, but if you were to use these metamers in an experiment, we would recommend running synthesis for longer and thinking carefully about your success criteria, see [](good-enough) and [](feather-synthesis-success) for more discussion.
 :::
 
 Let's call {func}`~plenoptic.plot.synthesis_status` to visualize the synthesis status:

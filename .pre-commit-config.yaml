@@ -112,7 +112,7 @@ repos:
       pass_filenames: false
     - id: check-myst-frontmatter
       language: system
-      name: Ensure all text notebooks are in mys tformat
+      name: Ensure all text notebooks are in myst format with proper frontmatter
       entry: python linting/check_myst-nb.py
       types_or: ["markdown"]
       files: ^docs/
