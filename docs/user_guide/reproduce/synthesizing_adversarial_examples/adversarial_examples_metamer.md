@@ -82,7 +82,7 @@ deepnet = torchvision.models.resnet50(weights=weights)
 deepnet.eval()
 transform = weights.transforms()
 norm = torchvision.transforms.Normalize(transform.mean, transform.std)
-target_layer = "layer4"
+target_layer = "fc"
 model = po.models.DeepNetFeatures(deepnet, target_layer, norm)
 
 img = po.data.macaque()
