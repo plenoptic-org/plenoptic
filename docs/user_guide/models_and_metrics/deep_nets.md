@@ -63,6 +63,11 @@ plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 
 # set seed for reproducibility
 po.set_seed(1)
+# To guarantee reproducibility for this example on the GPU, we must tell torch to use
+# deterministic algorithms -- the default behavior for convolution is non-deterministic.
+# Note this will make things slower! See "Reproducibility and Compatibility" in the docs
+# for more details.
+torch.use_deterministic_algorithms(True)
 ```
 
 ## Prepare model and image for synthesis
