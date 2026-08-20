@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.3
+    jupytext_version: 1.19.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -39,7 +39,7 @@ Run it in your browser: **{binder}`feather2023.ipynb`**!
 
 :::
 
-(feather2023)=
+(feather2023-resnet50)=
 # Reproducing ResNet50 Image Metamers from Feather et al., 2023
 
 :::{warning}
