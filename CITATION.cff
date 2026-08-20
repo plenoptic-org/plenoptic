@@ -44,6 +44,9 @@ authors:
   - family-names: Zhao
     given-names: Xinyuan
     orcid: "https://orcid.org/0000-0003-1770-631X"
+  - family-names: Zhu
+    given-names: Raffles Xingqi
+    orcid: "https://orcid.org/0009-0006-1930-8912"
 doi: 10.5281/zenodo.10151130
 repository-code: "https://github.com/plenoptic-org/plenoptic"
 url: "https://docs.plenoptic.org/"

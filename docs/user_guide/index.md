@@ -51,6 +51,7 @@ intermediate_synthesis/*
 :glob:
 
 reproduce/*
+reproduce/synthesizing_adversarial_examples/adversarial_index.md
 :::
 
 ::::

@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.3
+    jupytext_version: 1.19.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -29,7 +29,7 @@ This notebook requires the optional dependency `torchvision`, which can be insta
 
 Plenoptic is compatible with any model written in pytorch, including deep neural networks. In this notebook we show how to use `plenoptic` with models from the deep network zoos {external+torchvision:ref}`TorchVision <models>` and {external+timm:doc}`timm <models>`, creating a metamer for an intermediate layer of ResNet50.
 
-You may also be interested in [](feather2023), where we create model metamers for several ResNet50 intermediate layers, reproducing some of the results from {cite:alp}`Feather2023-model-metam`.
+You may also be interested in [](feather2023-resnet50), where we create model metamers for several ResNet50 intermediate layers, reproducing some of the results from {cite:alp}`Feather2023-model-metam`.
 
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
@@ -93,7 +93,7 @@ deepnet.eval();
 
 Next, we specify the layer to target. Figure 2e from {cite:alp}`Feather2023-model-metam` shows an interesting progression for ResNet50 metamers: the layer 2 metamer looks almost like the target image, the layer 3 metamer shows some RGB noise, and the layer 4 metamer is almost completely unidentifiable.
 
-Let's start with `"layer3"`. See [](feather2023) for the other layers, and note that you can specify multiple layers simultaneously.
+Let's start with `"layer3"`. See [](feather2023-resnet50) for the other layers, and note that you can specify multiple layers simultaneously.
 
 ```{code-cell} ipython3
 target_layer = "layer3"

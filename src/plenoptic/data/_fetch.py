@@ -57,6 +57,8 @@ REGISTRY = {
     "ResNet50-layer2_macaque_metamer.pt": "7104ef9636dc4497e7a95d9d446c6b276937dd645a15cedc0074d2295d48f095",  # noqa: E501
     "ResNet50-layer3_macaque_metamer.pt": "aef81cf76858d5ff8adc095e7c8513ceccc30e04543198533d826548d6e0cceb",  # noqa: E501
     "ResNet50-layer4_macaque_metamer.pt": "c18a5278cb161248c47dba0d5ddbf581784b988f3222430879cf8e48bda03228",  # noqa: E501
+    # Licensed CC-BY
+    "caltech256_burger.jpg": "a67da35a97a17816a6be9a006a5105e46e179a4e36dc8d8cd5651ae463460785",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"
@@ -102,6 +104,7 @@ REGISTRY_URLS = {
     "ResNet50-layer2_macaque_metamer.pt": OSF_TEMPLATE.format("zdbne/?revision=7"),
     "ResNet50-layer3_macaque_metamer.pt": OSF_TEMPLATE.format("bqt2s/?revision=7"),
     "ResNet50-layer4_macaque_metamer.pt": OSF_TEMPLATE.format("yvwjs/?revision=7"),
+    "caltech256_burger.jpg": OSF_TEMPLATE.format("5dhac/?revision=1"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch_data`
@@ -117,6 +120,7 @@ DOWNLOADABLE_FILES = [
     "example_metamerCTF_ps.pt",
     "example_mad.pt",
     "example_eigendistortion_color.pt",
+    "caltech256_burger.jpg",
 ]
 
 retriever = pooch.create(
