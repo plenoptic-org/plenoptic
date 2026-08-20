@@ -58,6 +58,10 @@ plt.rcParams["figure.dpi"] = 72
 
 # set seed for reproducibility
 po.set_seed(4)
+# To guarantee reproducibility on the GPU, we must tell torch to use deterministic
+# algorithms -- the default behavior for convolution is non-deterministic. See
+# "Reproducibility and Compatibility" in the docs for more details.
+torch.use_deterministic_algorithms(True)
 ```
 
 ## Prepare model and images for synthesis
