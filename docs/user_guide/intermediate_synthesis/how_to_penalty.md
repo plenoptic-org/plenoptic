@@ -141,7 +141,7 @@ rand_penalty = custom_penalty(torch.rand(10))
 print(f"Random between 0 and 1 -- intermediate penalty: {rand_penalty}")
 ```
 
-We are trying to minimize the value of `custom_penalty`. Thus, a large negative number if better than 0 (or any positive number). So of our three example inputs above, our penalty prefers the first. Let's see what this looks like with metamer synthesis:
+We are trying to minimize the value of `custom_penalty`. Thus, a large negative number is better than 0 (or any positive number). So of our three example inputs above, our penalty prefers the first. Let's see what this looks like with metamer synthesis:
 
 ```{code-cell} ipython3
 met = po.Metamer(img, model, penalty_function=custom_penalty)
@@ -160,7 +160,7 @@ ax = po.plot.synthesis_loss(met, plot_penalties=True)
 ax["loss"].set_yscale("symlog")
 ```
 
-The penalty value is a large negative value and still going lower, whereas our loss has actually increased. Since our optimization problem is minimizing the weighted sum of these two numbers, and loss is bounded below by 0, the penalty has become much more important to the optimization problem, and it can effectively ignore the metamer loss.
+The penalty value is a large negative value and still going lower, whereas the metamer loss has actually increased. Since our optimization problem is minimizing the weighted sum of these two numbers, and the metamer loss is bounded below by 0, the penalty has become much more important to the optimization problem, and it can effectively ignore the metamer loss.
 
 In situations like this, the solution is to apply some function to the penalty so that its range is remapped from $(-\infty, 0]$ to $[0, \infty)$ (or $[0, x]$, for some finite $x$). Fortunately, the [exponential function](https://en.wikipedia.org/wiki/Exponential_function) will do this for us, remapping $(-\infty, 0]$ to $[0, 1]$:
 
