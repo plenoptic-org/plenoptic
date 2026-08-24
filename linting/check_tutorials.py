@@ -33,7 +33,7 @@ for p in paths:
         continue
     filename = p.stem
     # handle tutorials/exercises slightly differently
-    if "tutorials" not in str(p):
+    if "tutorial" not in str(p) and "exercises" not in str(p):
         if (
             not re.findall("Run this notebook yourself!", md)
             or not re.findall(f"{{nb-download}}`{filename}.ipynb`", md)

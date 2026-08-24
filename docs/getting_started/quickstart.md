@@ -231,3 +231,9 @@ po.plot.imshow(
 We can see they make sense: the most noticeable distortion is a very low-frequency modification to the image, with a period of about half the image. The least noticeable, on the other hand, is very high-frequency, which matches our understanding from the metamer example above.
 
 This brief introduction hopefully demonstrates how you can use plenoptic to better understand your model representations!
+
+## Further reading
+
+An expanded version of this notebook, which starts with a {class}`~plenoptic.models.Gaussian` notebook and works through a series of more complex models, using {class}`~plenoptic.Metamer` and {class}`~plenoptic.Eigendistortion` to understand them, can be found in [](full-intro).
+
+You are encouraged to check out the [](user-guide) for more information about plenoptic's synthesis methods, reproductions of results from the literature, and more advanced usage.
