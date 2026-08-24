@@ -31,7 +31,9 @@ synthesis/*
 models_and_metrics/*
 models_and_metrics/portilla_simoncelli/ps_index.md
 :::
+::::
 
+(intermed-synth-index)=
 ::::{card}
 :::{toctree}
 :maxdepth: 2
