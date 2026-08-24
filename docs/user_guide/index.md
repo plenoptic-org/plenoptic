@@ -35,8 +35,9 @@ models_and_metrics/portilla_simoncelli/ps_index.md
 :::
 ::::
 
-(intermed-index)=
 ::::{card}
+
+(intermed-index)=
 :::{toctree}
 :maxdepth: 2
 :caption: Intermediate usage
