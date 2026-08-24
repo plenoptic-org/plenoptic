@@ -401,7 +401,7 @@ axes[0].set_title("Lambda just right")
 po.plot.synthesis_loss(met_small, plot_penalties=True, ax=axes[1])
 axes[1].set_title("Lambda too small")
 po.plot.synthesis_loss(met_large, plot_penalties=True, ax=axes[2])
-axes[2].set_title("Lambda too large")
+axes[2].set_title("Lambda too large");
 ```
 
 Remember from the beginning of the notebook that our objective function balances the contribution of these components. Finding the right lambda value so that neither overwhelms the other is key!
