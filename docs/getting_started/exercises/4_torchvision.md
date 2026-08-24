@@ -33,7 +33,7 @@ This notebook requires the optional dependency `torchvision`, which can be insta
 
 plenoptic is compatible with any model written in pytorch, including deep neural networks from the model zoos {external+torchvision:ref}`TorchVision <models>` and {external+timm:doc}`timm <models>`. In this exercise, we'll grab ResNet50 from torchvision and show how to generate metamers for one of its intermediate representations, as done in {cite:alp}`Feather2023-model-metam`.
 
-This tutorial covers similar ground as [](feather2023), but goes into a little less detail. View that page and [](deep_nets) for more details.
+This tutorial covers similar ground as [](feather2023-resnet50), but goes into a little less detail. View that page and [](deep_nets) for more details.
 
 :::{attention}
 It is recommended that you first work through the [](simple-metamer) exercise before this one! The optimization procedure here is a bit more complex and takes longer.
