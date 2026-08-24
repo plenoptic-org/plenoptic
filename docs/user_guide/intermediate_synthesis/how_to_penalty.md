@@ -104,10 +104,10 @@ def create_metamer_figure(met, suptitle):
     return fig
 
 
-def plot_penalty(img, custom_penalty, x_vlines, x_range=(-0.2, 1.2)):
+def plot_penalty(img, custom_penalty, x_vlines, x_range):
     """Plot penalty over range of values."""
-    # Create a 1d tensor of values from -0.2 to 1.2
-    vals = torch.linspace(*x_range, 100)
+    # Create a 1d tensor of values with specified range
+    vals = torch.linspace(*x_range, 100).to(img.dtype).to(img.device)
     # Take advantage of broadcasting to create a single tensor of shape (100, 1, 256,
     # 256) whose elements along the batch dimension are images with uniform pixel values
     imgs = vals.reshape(len(vals), 1, 1, 1) * torch.ones_like(img)
@@ -115,7 +115,7 @@ def plot_penalty(img, custom_penalty, x_vlines, x_range=(-0.2, 1.2)):
     # dimension, so that we're applying it separately to each of our synthetic images.
     penalties = torch.func.vmap(custom_penalty)(imgs)
     fig, ax = plt.subplots(1, 1)
-    ax.plot(vals, penalties)
+    ax.plot(po.to_numpy(vals), po.to_numpy(penalties))
     # Let's add some vertical lines showing where our min and max allowed values are.
     if not (penalties < 0).any():
         ylim = (-ax.get_ylim()[1] / 1000, ax.get_ylim()[1])
