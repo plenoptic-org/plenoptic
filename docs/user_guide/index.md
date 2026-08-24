@@ -42,6 +42,7 @@ models_and_metrics/portilla_simoncelli/ps_index.md
 :glob:
 
 reproduce/*
+reproduce/synthesizing_adversarial_examples/adversarial_index.md
 :::
 
 ::::
