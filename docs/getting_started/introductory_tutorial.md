@@ -27,7 +27,7 @@ Run it in your browser: **{binder}`introductory_tutorial.ipynb`**!
 (full-intro)=
 # Introductory Tutorial
 
-The goal of this notebook is to give a brief introduction to plenoptic: we'll use two of our synthesis methods with a handful of models, and try to step through the kind of scientific reasoning that plenoptic's synthesis methods facilitate. Once you've completed it, we recommend working through the exercises to get more practice using plenpotic, and then read the parts of the documentation that interest you.
+The goal of this notebook is to give an introduction to plenoptic: we'll use two of our synthesis methods with a handful of models, and try to step through the kind of scientific reasoning that plenoptic's synthesis methods facilitate. Once you've completed it, we recommend working through the [exercises](exercises-index) to get more practice using plenoptic, and then read the parts of the documentation that interest you.
 
 :::{admonition} Questions
 :class: important

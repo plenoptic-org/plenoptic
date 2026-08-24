@@ -37,6 +37,8 @@ introductory_tutorial
 ::::
 
 ::::{card}
+
+(exercises-index)=
 :::{toctree}
 :caption: Exercises
 :maxdepth: 1
