@@ -25,7 +25,7 @@ Run it in your browser: **{binder}`how_to_penalty.ipynb`**!
 
 Plenoptic's {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` objects allow users to specify a {attr}`~plenoptic.Metamer.penalty_function` at initialization. In this notebook, we'll walk through the process of creating a custom penalty function and explain best practices. We will do so for {class}`~plenoptic.Metamer`, but a similar procedure can be applied to {class}`~plenoptic.MADCompetition`. We will refer to the stimuli as "images", but the same procedure will work with other stimulus types as well.
 
-When synthesizing a metamer, we are searching for a new image whose model representation matches that of a target image. plenoptic performs this procedure as an iterative optimization function, minimizing the objective function:
+When synthesizing a metamer, we are searching for a new image whose model representation matches that of a target image. Plenoptic performs this procedure as an iterative optimization function, minimizing the objective function:
 
 $$ L(M(x), M(\hat{x})) + \lambda P(\hat{x}) $$
 
@@ -35,8 +35,8 @@ where:
 - $x$ is {attr}`~plenoptic.Metamer.image`, the image whose model representation we are trying to match.
 - $\hat{x}$ is {attr}`~plenoptic.Metamer.metamer`, the image we are synthesizing.
 - $L$ is {attr}`~plenoptic.Metamer.loss_function`, a function which accepts two tensors and returns a scalar, which defines how different two representation tensors are (by default, {func}`plenoptic.loss.mse`).
-- $\lambda$ is {attr}`~plenoptic.Metamer.penalty_lambda`, a scalar that controls the balance between the metamer loss and penalty terms (by default, `0.1`).
 - $P$ is {attr}`~plenoptic.Metamer.penalty_function`, a function which accepts a single tensor and returns a scalar, and the focus of this notebook (by default, {func}`plenoptic.regularize.penalize_range`).
+- $\lambda$ is {attr}`~plenoptic.Metamer.penalty_lambda`, a scalar that controls the balance between {attr}`~plenoptic.Metamer.loss_function` and {attr}`~plenoptic.Metamer.penalty_function` (by default, `0.1`).
 
 All of the above are arguments passed at initialization of the {class}`~plenoptic.Metamer` object except $\hat{x}$ / {attr}`~plenoptic.Metamer.metamer`.
 
@@ -44,13 +44,13 @@ Thus, the metamer synthesis procedure balances the importance of two components,
 
 The default penalty function, {func}`~plenoptic.regularize.penalize_range`, places a quadratic penalty on any pixel values outside of the range $[0, 1]$. This is the default because all synthesized images need to be displayed, and a range of $[0, 1]$ (when dealing with floats) or $[0, 255]$ (when dealing with 8-bit integers) are typically used to represent the displayable range of values.
 
-If you have a model operating in a reasonable manner on images, it is likely that we can find metamers that have minimal values for both the metamer loss and the penalty constraining pixel values to lie between 0 and 1. However, we cannot assume that is the case for more complicated penalty functions. As we will show in this notebook, it may be possible to reformulate your penalty term to make the problem more tractable and it is likely that trying different {attr}`~plenoptic.Metamer.penalty_lambda` will allow you to find images with low values for both components, but you may still find yourself in a situation where you have to choose which term to prioritize. If so, it is important to remember: for an image to be a model metamer, its metamer loss **must** be zero (see [](good-enough) and [](feather-synthesis-success) for discussion on what "zero" means in practice). If your scientific reasoning depends on your images being model metamers, this is non-negotiable. However, depending on your scientific question, it is likely that your penalty doesn't need to be met exactly, and you are thus encouraged to prioritize metamer loss.
+It is likely that we can find images that have minimal values for both the metamer loss and this default penalty. However, we cannot assume that is the case for more complicated penalty functions. This notebook will show some strategies to find good solutions, but you may find yourself in a situation where you have to choose which term to prioritize. If so, it is important to remember: for an image to be a model metamer, its metamer loss **must** be zero (see [](good-enough) and [](feather-synthesis-success) for discussion on what "zero" means in practice). If your scientific reasoning depends on your images being model metamers, this is non-negotiable. However, depending on your scientific question, it is likely that your penalty doesn't need to be met exactly, and you are thus encouraged to prioritize metamer loss.
 
-In this notebook, we'll show how to change this penalty to use a different range of allowed values, exploring how the penalty can be used to encourage and discourage different properties in the resulting synthesized metamer, and demonstrating the importance of both properties of the function itself as well as the selection of the {attr}`~plenoptic.Metamer.penalty_lambda` value in successful metamer synthesis.
+In this notebook, we'll show how to change this penalty to restrict the metamer's pixel values to different ranges and demonstrate the importance of both properties of the penalty function itself as well as the selection of the {attr}`~plenoptic.Metamer.penalty_lambda` value in successful metamer synthesis.
 
 :::{admonition} What other penalties can I use?
 
-This notebook demonstrates the technical requirements for {attr}`~plenoptic.Metamer.penalty_function`: it must be a differentiable function that accept a single tensor (the metamer-in-progress) and return a single scalar. **Which** function to use depends on your scientific question and what you're interested in. The other notebooks in this section demonstrate some additional uses of penalty functions beyond controlling the range of allowed pixel values.
+This notebook demonstrates the technical requirements for {attr}`~plenoptic.Metamer.penalty_function`: it must be a differentiable function that accept a single tensor (the metamer-in-progress) and return a single scalar. **Which** function to use depends on your scientific question and what you're interested in. The other notebooks in this section demonstrate some additional uses of penalty functions beyond controlling the range of allowed pixel values. Additionally, see [](adversarial-examples-metamer) for an example using {class}`~plenoptic.Metamer` with {attr}`~plenoptic.Metamer.penalty_function` to generate deep net adversarial examples.
 
 As far as the developers of plenoptic are aware, this use of penalties to bias metamer synthesis is novel, so we do not know of any existing examples in the literature. We presented a poster about it at the [Cognitive Computational Neuroscience 2026](https://2026.ccneuro.org/) conference, {cite:alp}`Broderick2026-biasing-optim` (poster available [here](https://dx.doi.org/10.17605/OSF.IO/R7JPS)), which shows three very different uses of penalty functions in metamer synthesis.
 
@@ -130,7 +130,7 @@ def plot_penalty(img, custom_penalty, x_vlines, x_range):
 
 ## Prepare model and image for synthesis
 
-In this notebook, we'll use a simple {class}`~plenoptic.models.Gaussian` model. This model just convolves a Gaussian kernel across the entire image. It is thus a low-pass model, only caring about low frequencies and disregarding high ones.
+In this notebook, we'll use a simple {class}`~plenoptic.models.Gaussian` model. This model just convolves a Gaussian kernel across the entire image. It is thus a low-pass model, only caring about low frequencies and disregarding high frequencies.
 
 First, let's see what metamer synthesis with the default penalty function looks like:
 
@@ -149,7 +149,7 @@ met.synthesize(MAX_ITER, stop_criterion=1e-16)
 create_metamer_figure(met, "Default penalty");
 ```
 
-In the above figure, the top row shows: the target image, the metamer, and a histogram of pixel values in those two images. The bottom rows shows the model representation of the top two rows. We can see that the two representations on the bottom match and thus the two images on the top are metamers.
+In the above figure, the top row shows: the target image, the metamer, and a histogram of pixel values in those two images. The bottom row shows the model representation of the top two images. We can see that the two representations on the bottom match and thus the two images on the top are metamers.
 
 By looking at the histogram (and the "range" section in the title of the images on the top row), we can see that the pixel values in our metamer vary between 0 and 1 and, since it was initialized with a patch of uniformly-distributed noise, those pixels are widely distributed between those values.
 
@@ -188,7 +188,7 @@ Now that we understand its behavior, we can pass this `custom_penalty` to the {c
 :::{admonition} Multi-stage synthesis
 :class: dropdown note
 
-In the examples in this notebook, we will always call {func}`~plenoptic.Metamer.synthesize` once, simultaneously optimizing for the metamer loss and our custom penalty. For more complex penalty functions, however, we have generally found better performance by first calling {func}`~plenoptic.Metamer.synthesize` without the custom penalty and then using the resulting un-penalized metamer to initialize a second synthesis procedure, like so:
+In the examples in this notebook, we will always call {func}`~plenoptic.Metamer.synthesize` once, simultaneously optimizing for the metamer loss and our custom penalty. For more complex penalty functions, however, we have often found better performance by breaking up the synthesis into multiple stages. That is, first call {func}`~plenoptic.Metamer.synthesize` without the custom penalty and then using the resulting un-penalized metamer to initialize a second synthesis procedure, like so:
 
 ```python
 met = po.Metamer(img, model)
@@ -216,7 +216,7 @@ The figure above has the same structure as earlier, and we can see that the new 
 
 If you are familiar with the machine learning literature, you may be wondering, "why not just use {external+torch:func}`torch.clamp` to constrain the pixel values?" This would accomplish the same goal as this example, but in our experience the quadratic range penalty works more reliably across different models. (In particular, in {cite:alp}`Broderick2025-foveat-metam`, using {func}`~plenoptic.regularize.penalize_range` led to decreased metamer loss compared to clamping.)
 
-Additionally, and more importantly, {external+torch:func}`torch.clamp` is not nearly as flexible as using a penalty function! While it would allow you to keep the pixel values within ranges like $[0, 1]$ or $[0.1, 0.9]$, it would not easily support the behavior we will see in the rest of this notebook, let alone other, more complex penalty functions.
+Additionally, and more importantly, {external+torch:func}`torch.clamp` is not nearly as flexible as using a penalty function! While it would allow you to keep the pixel values within ranges like $[0, 1]$ or $[0.1, 0.9]$, it would not easily support constraining the pixel values to two disjoint ranges, as we will see in the rest of this notebook, let alone other, more complex penalty functions.
 
 :::
 
@@ -228,7 +228,7 @@ The example shown above is relatively simple. However, for optimization to behav
 
 Furthermore, it is generally convenient to have this minimum value be zero.
 
-If the conditions above are violated, then the penalty can overwhelm the loss in the objective function, preventing a metamer from being found.
+If the first condition above is violated, then the penalty can overwhelm the loss in the objective function, preventing a metamer from being found. The second is required in order for the solution found by the synthesis procedure to have the desired property.
 
 To see why, let's say that we wanted to encourage all pixel values to lie *outside* the range $[0.4, 0.6]$. That is, we want to maximize the value from `po.regularize.penalize_range(image, allowed_range=(0.4, 0.6))`. The standard way to maximize a function in optimization frameworks is to minimize its negative value, so we can return the negative of the output from {func}`~plenoptic.regularize.penalize_range` instead:
 
@@ -266,15 +266,7 @@ The penalty value is a large negative value and still going lower, whereas the m
 
 Returning to our discussion at the [beginning of the notebook](how-to-penalty), by design, our penalty function is biasing the optimization procedure. Here, however, because the magnitude of the penalty is so much larger than that of the metamer loss, it is biasing the optimization procedure too much, preventing us from finding a solution whose metamer loss is small.
 
-Let's revisit the plot of the penalty as a function of pixel values:
-
-```{code-cell} ipython3
-plot_penalty(img, custom_penalty, [0.4, 0.6], (0, 1));
-```
-
-If we compare this plot to the [one for the penalty in the previous section](well-behaved-range-penalty), we can see an important difference: while both penalties go towards an absolute value of infinity outside of some range, the well-behaved penalty in the last section does that for the values it is **discouraging**, whereas this poorly-behaved penalty is doing that for the values it is **encouraging**.
-
-To fix this, we need to change the plot above so that it looks that of the well-behaved penalty. That is, we must remap its range from $(-\infty, 0]$, where 0 corresponds to the values we want to avoid, to $[0, \infty$ (or $[0, x]$, for some finite $x$), where 0 corresponds to the values we want to encourage. Fortunately, the [exponential function](https://en.wikipedia.org/wiki/Exponential_function) will do this for us, remapping $(-\infty, 0]$ to $[0, 1]$:
+To fix this, we need to change the plot above so that it looks that of the well-behaved penalty. That is, we must remap its range from $(-\infty, 0]$, where 0 corresponds to the values we want to avoid, to $[0, \infty)$ (or $[0, x]$, for some finite $x$), where 0 corresponds to the values we want to encourage. Fortunately, the [exponential function](https://en.wikipedia.org/wiki/Exponential_function) will do this for us, remapping $(-\infty, 0]$ to $[0, 1]$:
 
 ```{code-cell} ipython3
 def custom_penalty(image):
@@ -341,7 +333,7 @@ create_metamer_figure(
 
 And now we can see that the model metamer pixel values mostly lie outside the range $[0.4, 0.6]$ and within $[0, 1]$. We can see a couple of other interesting results of our penalty function:
 - We have no pixels outside of $[0, 1]$, but we do have some pixels in $[0.4, 0.6]$. If we look at our penalty plot above, we can see that the magnitude of the penalty is much larger for values outside $[0, 1]$ than for those within $[0.4, 0.6]$, so it makes sense that we would see an asymmetry in the resulting metamer. If we do not wish this to be the case, we could multiply the components of the penalty (e.g., `penalty_two`) by some scalar to increase or decrease their relative importance.
-- More subtly, it looks like the pixel values are being pushed to a bimodal distribution, clumping near the values 0 and 1, instead of being uniformly distributed within $[0, 0.4]$ and $[0.6, 1]$. Again, returning to the penalty plot above can help explain this: we see that the penalty decreases very gradually as you move away from $0.4$ or $0.6$, and so it only approaches a value and a slope of zero as you near $0.2$ / $0.8$. If we do not wish to see this bimodal distribution, we could instead pick a penalty whose value decreases more rapidly within the allowed range (for example, using `plenoptic.regularize.penalize_range(image, allowed_range=(0.45, 0.65)` or a different function entirely, such as a narrow Gaussian centered at 0.5).
+- More subtly, it looks like the pixel values are being pushed to a bimodal distribution, clumping near the values 0 and 1, instead of being uniformly distributed within $[0, 0.4]$ and $[0.6, 1]$. Again, returning to the penalty plot above can help explain this: we see that the penalty decreases very gradually as you move away from $0.4$ or $0.6$, and so it only approaches a value and a slope of zero as you near $0.2$ / $0.8$. If we do not wish to see this bimodal distribution, we could instead pick a penalty whose value decreases more rapidly within the allowed range (for example, changing `custom_penalty` above to use `penalty_one = plenoptic.regularize.penalize_range(image, allowed_range=(0.45, 0.65)` or replacing the `torch.exp(-penalty_one / 1000)` with different function entirely, such as a narrow Gaussian centered at 0.5).
 
 We probably could've predicted the above two points by thinking more carefully through the plot of the penalty as a function of the pixel values. This hopefully demonstrates the utility of thinking about your penalty's value and how it will affect your synthesis. When the penalty is operating on pixel values, its behavior is relatively easy to check, but you are encouraged to try any custom penalties on a variety of inputs to better understand their behavior before using them for synthesis!
 
@@ -404,7 +396,7 @@ po.plot.synthesis_loss(met_large, plot_penalties=True, ax=axes[2])
 axes[2].set_title("Lambda too large");
 ```
 
-Remember from the beginning of the notebook that our objective function balances the contribution of these components. Finding the right lambda value so that neither overwhelms the other is key!
+Remember from the [beginning of the notebook](how-to-penalty) that our objective function balances the contribution of these components. Finding the right lambda value so that neither overwhelms the other is key!
 
 ## Concluding thoughts
 
