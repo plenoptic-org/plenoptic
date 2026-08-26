@@ -18,6 +18,8 @@ This notebook is an exercise for practicing using plenoptic. You should work thr
 
 Regardless of which you choose, you should keep this page open for reference, as the links to other pages in the documentation (and some images) are broken in the downloaded and binder notebooks.
 
+If you would like to install everything required to run this notebooks on your local machine, run `pip install plenoptic[nb]`. See [](install-doc) and [](jupyter-doc) for more details.
+
 Download the executed notebook: **{nb-download}`1_simple_metamer.ipynb`**!
 
 Run it in your browser: **{binder}`1_simple_metamer.ipynb`**!

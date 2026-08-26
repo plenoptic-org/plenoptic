@@ -19,7 +19,11 @@ or opening up a new notebook on your own machine and following along.
 
 Regardless of which you choose, you should keep this page open for reference, as the
 links to other pages in the documentation \(and some images\) are broken in the
-downloaded and binder notebooks."""
+downloaded and binder notebooks.
+
+If you would like to install everything required to run this notebooks on your local
+machine, run `pip install plenoptic\[nb\]`. See \[\]\(install-doc\) and
+\[\]\(jupyter-doc\) for more details."""
 # This allows us to use re.findall and allow for unwrapped or wrapped-like-above
 # versions of the above text. Note the escaped parentheses in the string above!
 EXERCISE_HEADER = EXERCISE_HEADER.replace("\n", "[\n ]")
