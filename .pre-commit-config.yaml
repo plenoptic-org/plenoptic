@@ -107,7 +107,7 @@ repos:
     - id: check-api-docs
       language: system
       name: Ensure all public functions / classes are included in _api_change.py
-      entry: python linting/check_apidocs.py
+      entry: python linting/check_api_change.py
       always_run: true
       pass_filenames: false
     - id: check-myst-frontmatter
