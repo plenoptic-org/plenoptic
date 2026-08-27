@@ -1479,3 +1479,15 @@ class TestMAD:
         mad.synthesize(2)
         assert repr(mad) == str(mad)
         assert re.match(expected_str, repr(mad))
+
+    def test_metric_cache_change_warning(self, einstein_img_double):
+        # using this metric, because it's the one used in the doctest for
+        # po.plot.synthesis_loss, and so we already had this object in the cache.
+        def ds_ssim(x, y):
+            return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
+
+        mad = po.MADCompetition(einstein_img_double, ds_ssim, po.metric.mse, "max", 1e6)
+        with pytest.warns(
+            FutureWarning, match="The saved object was saved with plenoptic 2.1.0"
+        ):
+            mad.load(po.data.fetch_data("example_mad-cuda-old.pt"), map_location=DEVICE)

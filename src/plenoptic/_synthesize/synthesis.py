@@ -331,6 +331,8 @@ class _Synthesis(abc.ABC):
                 "_penalty_lambda",
                 "_penalties",
                 "_current_penalty",
+                "_current_ref_metric",
+                "_current_opt_metric",
             }
             if not init_not_save.issubset(compat_attrs):
                 init_not_save_str = "\n ".join(
@@ -400,6 +402,22 @@ class _Synthesis(abc.ABC):
                     "avoid this warning. We cannot recover the history of the "
                     "penalty_function output (the penalties attribute); filling with "
                     "torch.nan for missing values.",
+                    category=FutureWarning,
+                )
+            if init_not_save.intersection(
+                {"_current_ref_metric", "_current_opt_metric"}
+            ):
+                # in PR #485, we implemented a bugfix to make MADCompetition's cached
+                # ref and opt metric align with losses and penalties. that required
+                # adding a _current attribute, as loss and penalty have.
+                tmp_dict["_current_ref_metric"] = None
+                tmp_dict["_current_opt_metric"] = None
+                warnings.warn(
+                    "The saved object was saved with plenoptic 2.1.0 or earlier and "
+                    "will not be compatible with future releases. Save this object "
+                    "with current version of plenoptic or see the 'Reproducibility "
+                    "and Compatibility' page of the documentation for how to make the "
+                    "saved object futureproof and avoid this warning.",
                     category=FutureWarning,
                 )
 
