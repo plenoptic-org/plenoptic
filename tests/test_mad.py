@@ -929,6 +929,47 @@ class TestMAD:
         mad.objective_function()
         assert len(mad.penalties) == len(mad.losses) == 3
 
+    @pytest.mark.parametrize("seed", range(3))
+    @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_mad_stored_value(self, optim, seed, dtype):
+        # Test that the loss/penalty/ref metric/optim metric we store matches the one we
+        # can compute from the saved_mad_image
+        po.set_seed(seed)
+        img = torch.rand((1, 1, 32, 32), device=DEVICE, dtype=dtype)
+        # need to make sure penalty value is large enough that we could find issues with
+        # the below checks
+        mad = po.MADCompetition(
+            img,
+            po.metric.mse,
+            dis_ssim,
+            "min",
+            metric_tradeoff_lambda=1,
+            penalty_function=lambda x: po.regularize.penalize_range(x, (-1, -0.5)),
+        )
+        mad.setup(optimizer=optim)
+        mad.synthesize(10, store_progress=True)
+        saved_mad_image = mad.saved_mad_image.to(DEVICE)
+        posthoc_penalty = torch.func.vmap(mad.penalty_function)(saved_mad_image)
+        torch.testing.assert_close(posthoc_penalty, mad.penalties.to(DEVICE))
+        posthoc_ref_metric = []
+        posthoc_opt_metric = []
+        posthoc_loss = []
+        for saved_img in saved_mad_image:
+            posthoc_ref_metric.append(mad.reference_metric(mad.image, saved_img))
+            posthoc_opt_metric.append(
+                mad.optimized_metric(mad.image, saved_img).squeeze()
+            )
+            posthoc_loss.append(mad.objective_function(saved_img).squeeze())
+        torch.testing.assert_close(torch.stack(posthoc_loss), mad.losses.to(DEVICE))
+        torch.testing.assert_close(
+            torch.stack(posthoc_ref_metric), mad.reference_metric_loss.to(DEVICE)
+        )
+        torch.testing.assert_close(
+            torch.stack(posthoc_opt_metric), mad.optimized_metric_loss.to(DEVICE)
+        )
+
     @pytest.mark.parametrize("iteration", [None, 0, -2, -3, 2, 1, 6, -7])
     @pytest.mark.parametrize("store_progress", [True, False, 2])
     @pytest.mark.parametrize("iteration_selection", ["floor", "ceiling", "round"])
@@ -1158,6 +1199,11 @@ class TestMAD:
                 img, metric, po.loss.l2_norm, minmax, metric_tradeoff_lambda=1
             )
             mad.setup(torch.rand(shape, device=DEVICE))
+            # These attributes are normally created in _optimizer_step before calling
+            # _closure (and are needed for it to operate)
+            mad._penalty_tmp = []
+            mad._reference_metric_tmp = []
+            mad._optimized_metric_tmp = []
             loss = mad.objective_function()
             assert loss == mad._closure()
 
