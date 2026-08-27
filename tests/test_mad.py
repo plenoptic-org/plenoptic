@@ -917,17 +917,23 @@ class TestMAD:
         assert mad.objective_function().numel() == 0
         torch.equal(mad.losses, torch.empty(0))
         torch.equal(mad.penalties, torch.empty(0))
+        torch.equal(mad.reference_metric_loss, torch.empty(0))
+        torch.equal(mad.optimized_metric_loss, torch.empty(0))
         assert len(mad.penalties) == len(mad.losses) == 0
+        assert len(mad.reference_metric_loss) == len(mad.optimized_metric_loss) == 0
         mad.setup(optimizer=optim)
         assert isinstance(mad.objective_function(), torch.Tensor)
         assert len(mad.penalties) == len(mad.losses) == 1
+        assert len(mad.reference_metric_loss) == len(mad.optimized_metric_loss) == 1
         mad.synthesize(max_iter=2)
         assert isinstance(mad.objective_function(), torch.Tensor)
         assert len(mad.penalties) == len(mad.losses) == 3
+        assert len(mad.reference_metric_loss) == len(mad.optimized_metric_loss) == 3
         # calling objective_function should not increase the length of these attributes,
         # only calling synthesize should do that
         mad.objective_function()
         assert len(mad.penalties) == len(mad.losses) == 3
+        assert len(mad.reference_metric_loss) == len(mad.optimized_metric_loss) == 3
 
     @pytest.mark.parametrize("seed", range(3))
     @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
