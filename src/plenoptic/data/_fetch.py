@@ -51,8 +51,8 @@ REGISTRY = {
     "example_metamer_gaussian-cuda.pt": "edd80e63bd776b679f714acee62fefa9885a257c66e2699423887aeab7c03794",  # noqa: E501
     "example_metamerCTF_ps.pt": "060362bb4146649511cf0b8c069450811f1ef842e3763014fbb00808966067d2",  # noqa: E501
     "example_metamerCTF_ps-cuda.pt": "443dbdec5dbc2a7ffb26fc8076981142d14ab9cee36b294f4d890020a4838816",  # noqa: E501
-    "example_mad.pt": "583c60eab6cfb5c5b031af4960db41cc0db767492871182be06da224cd133767",  # noqa: E501
-    "example_mad-cuda.pt": "fd7e1372397bb57cc31a13ca4886ee73ffd405df64e0bb7d291977ba1b460b77",  # noqa: E501
+    "example_mad.pt": "d8dc33f41bd3478b1b7203ed5b82e90e4248e5518a6980eca079a82fa809f9b6",  # noqa: E501
+    "example_mad-cuda.pt": "5c894d7358531a8ce4893ca2573d939387cf9ca600b7dac54c4c34a221ad6c46",  # noqa: E501
     "example_mad-cuda-old.pt": "fd7e1372397bb57cc31a13ca4886ee73ffd405df64e0bb7d291977ba1b460b77",  # noqa: E501
     "example_eigendistortion_color.pt": "63147c5ed9588a64b6af4f181a8d0532d3de5639b20ae79c4706ec488c1854dc",  # noqa: E501
     "ResNet50-layer2_macaque_metamer.pt": "7104ef9636dc4497e7a95d9d446c6b276937dd645a15cedc0074d2295d48f095",  # noqa: E501
@@ -100,8 +100,8 @@ REGISTRY_URLS = {
     "example_metamerCTF_ps.pt": OSF_TEMPLATE.format("4zr37/?revision=10"),
     "example_metamerCTF_ps-cuda.pt": OSF_TEMPLATE.format("627sp/?revision=5"),
     "example_eigendistortion_color.pt": OSF_TEMPLATE.format("jc63h/?revision=3"),
-    "example_mad.pt": OSF_TEMPLATE.format("ersfy/?revision=4"),
-    "example_mad-cuda.pt": OSF_TEMPLATE.format("qjdbc/?revision=3"),
+    "example_mad.pt": OSF_TEMPLATE.format("ersfy/?revision=5"),
+    "example_mad-cuda.pt": OSF_TEMPLATE.format("qjdbc/?revision=4"),
     "example_mad-cuda-old.pt": OSF_TEMPLATE.format("qjdbc/?revision=3"),
     "ResNet50-layer2_macaque_metamer.pt": OSF_TEMPLATE.format("zdbne/?revision=7"),
     "ResNet50-layer3_macaque_metamer.pt": OSF_TEMPLATE.format("bqt2s/?revision=7"),
