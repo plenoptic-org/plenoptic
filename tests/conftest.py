@@ -89,7 +89,7 @@ def basic_stim():
 
 @pytest.fixture(scope="package")
 def timm_resnet50():
-    model = timm.create_model("timm/resnet50.tv_in1k", pretrained=True)
+    model = timm.create_model("hf-hub:timm/resnet50.tv_in1k", pretrained=True)
     return model
 
 
