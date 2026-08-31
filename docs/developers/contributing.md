@@ -613,23 +613,23 @@ arguments. For example, instead of writing:
 
 ```python
 def test_basic_1():
-    assert int('3') == 3
+    assert int("3") == 3
+
 
 def test_basic_2():
-    assert int('5') == 5
+    assert int("5") == 5
 ```
 
 You could write:
 
 ```python
-@pytest.mark.parametrize('a', [3, 5])
+@pytest.mark.parametrize("a", [3, 5])
 def test_basic(a):
-    if a == '3':
+    if a == "3":
         test_val = 3
-    elif a == '5':
+    elif a == "5":
         test_val = 5
     assert int(a) == test_val
-
 ```
 
 This starts to become very helpful when you have multiple arguments you wish to
@@ -648,7 +648,7 @@ add them as arguments to your function:
 
 ```python
 def test_img(curie_img):
-    img = po.load_images('data/curie.pgm')
+    img = po.load_images("data/curie.pgm")
     assert torch.allclose(img, curie_img)
 ```
 
@@ -669,7 +669,7 @@ a fixture, `model` <!-- skip-lint -->, which accepts a string and returns an ins
 the right device. Use it like so:
 
 ```python
-@pytest.mark.parametrize('model', ['SPyr', 'LNL'], indirect=True)
+@pytest.mark.parametrize("model", ["SPyr", "LNL"], indirect=True)
 def test_synth(curie_img, model):
     met = po.Metamer(curie_img, model)
     met.synthesize()
