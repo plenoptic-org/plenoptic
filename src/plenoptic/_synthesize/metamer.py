@@ -718,7 +718,7 @@ class Metamer(_OptimizedSynthesis):
         loss, penalty = self._objective_function()
         loss = loss + self.penalty_lambda * penalty
         loss.backward(retain_graph=False)
-        self._penalty_tmp = penalty.item()
+        self._penalty_tmp.append(penalty.item())
         return loss.item()
 
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
@@ -739,9 +739,16 @@ class Metamer(_OptimizedSynthesis):
             1-element tensor containing the loss on this step.
         """  # numpydoc ignore=ES01,EX01
         last_iter_metamer = self.metamer.clone()
+        # For some reason, the loss actually returned by optimizer.step above for
+        # optimizers that call closure multiple time (like LBFGS) is the one that
+        # corresponds to the *first* call, not the last. Therefore, to make penalty
+        # match it, we keep track of the penalty on each call to closure and then ...
+        self._penalty_tmp = []
         loss = self.optimizer.step(self._closure)
         self._losses.append(loss)
-        self._penalties.append(self._penalty_tmp)
+        # ... grab the first one. This also allows the stored penalty to line up with
+        # penalty_function(saved_metamer)
+        self._penalties.append(self._penalty_tmp[0])
 
         grad_norm = torch.linalg.vector_norm(
             self.metamer.grad.data, ord=2, dim=None

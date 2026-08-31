@@ -331,6 +331,8 @@ class _Synthesis(abc.ABC):
                 "_penalty_lambda",
                 "_penalties",
                 "_current_penalty",
+                "_current_ref_metric",
+                "_current_opt_metric",
             }
             if not init_not_save.issubset(compat_attrs):
                 init_not_save_str = "\n ".join(
@@ -400,6 +402,22 @@ class _Synthesis(abc.ABC):
                     "avoid this warning. We cannot recover the history of the "
                     "penalty_function output (the penalties attribute); filling with "
                     "torch.nan for missing values.",
+                    category=FutureWarning,
+                )
+            if init_not_save.intersection(
+                {"_current_ref_metric", "_current_opt_metric"}
+            ):
+                # in PR #485, we implemented a bugfix to make MADCompetition's cached
+                # ref and opt metric align with losses and penalties. that required
+                # adding a _current attribute, as loss and penalty have.
+                tmp_dict["_current_ref_metric"] = None
+                tmp_dict["_current_opt_metric"] = None
+                warnings.warn(
+                    "The saved object was saved with plenoptic 2.1.0 or earlier and "
+                    "will not be compatible with future releases. Save this object "
+                    "with current version of plenoptic or see the 'Reproducibility "
+                    "and Compatibility' page of the documentation for how to make the "
+                    "saved object futureproof and avoid this warning.",
                     category=FutureWarning,
                 )
 
@@ -722,6 +740,13 @@ class _OptimizedSynthesis(_Synthesis):
         if penalty_lambda < 0:
             raise Exception("penalty_lambda must be non-negative!")
         self._penalty_lambda = penalty_lambda
+
+    @abc.abstractproperty
+    def image(self):
+        r"""The important image."""  # numpydoc ignore=ES01
+        # This is needed so we can check the dtype of something for the penalty and
+        # losses attributes.
+        pass
 
     @abc.abstractmethod
     def setup(self):
@@ -1185,7 +1210,7 @@ class _OptimizedSynthesis(_Synthesis):
                 # this will happen if setup() has not been called and so we can't
                 # compute loss because synthesis hasn't been initialized.
                 return torch.empty(0)
-        return torch.as_tensor([*self._losses, current_loss])
+        return torch.as_tensor([*self._losses, current_loss], dtype=self.image.dtype)
 
     @abc.abstractmethod
     def penalties(self, synth_attr: torch.Tensor) -> torch.Tensor:
@@ -1220,19 +1245,22 @@ class _OptimizedSynthesis(_Synthesis):
                 # compute current penalty, no need to compute gradient
                 with torch.no_grad():
                     current_penalty = self.penalty_function(synth_attr).item()
-        return torch.as_tensor([*self._penalties, current_penalty])
+        return torch.as_tensor(
+            [*self._penalties, current_penalty],
+            dtype=self.image.dtype,
+        )
 
     @property
     def gradient_norm(self) -> torch.Tensor:
         """Optimization gradient's L2 norm over iterations."""
         # numpydoc ignore=RT01,ES01
-        return torch.as_tensor(self._gradient_norm)
+        return torch.as_tensor(self._gradient_norm, dtype=self.image.dtype)
 
     @property
     def pixel_change_norm(self) -> torch.Tensor:
         """L2 norm change in pixel values over iterations."""
         # numpydoc ignore=RT01,ES01
-        return torch.as_tensor(self._pixel_change_norm)
+        return torch.as_tensor(self._pixel_change_norm, dtype=self.image.dtype)
 
     @property
     def store_progress(self) -> bool | int:
