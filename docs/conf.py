@@ -455,7 +455,6 @@ def skip_torch_inherited_methods(app, obj_type, name, obj, skip, options):
 
 
 def binder_role(name, rawtext, text, lineno, inliner, options={}, content=[]):
-    """Create a role to highlight new contributors in changelog entries."""
     refuri = binder_url + text
     ref_node = nodes.reference(
         rawtext, text, classes=["binder"], refuri=refuri, **options

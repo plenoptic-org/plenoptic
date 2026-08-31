@@ -49,6 +49,13 @@ Plenoptic 2.0 introduces breaking changes to the API and will not work with code
 ```
 :::
 :::{grid-item}
+```{button-ref} full-intro
+:shadow:
+:ref-type: myst
+:color: primary
+```
+:::
+:::{grid-item}
 ```{button-link} https://archive.org/details/vss2025-symposium-plenoptic
 :shadow:
 :ref-type: myst

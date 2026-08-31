@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.19.3
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -32,6 +32,8 @@ In this notebook we demonstrate how we can use the {class}`~plenoptic.MADCompeti
 See [](adversarial-examples-metamer) for an alternate approach to synthesizing adversarial examples using {class}`~plenoptic.MADCompetition`.
 
 ```{code-cell} ipython3
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -63,6 +65,11 @@ po.set_seed(4)
 # Note this will make things slower! See "Reproducibility and Compatibility" in the docs
 # for more details.
 torch.use_deterministic_algorithms(True)
+
+# The default value of 1000 for MAX_ITER here will lead to a reasonable metamer, but
+# might take too long if you don't have a GPU. If synthesis is taking a long time on
+# your machine, set this to a lower value.
+MAX_ITER = int(os.environ.get("MAX_ITER", 1000))
 ```
 
 ## Prepare model and image for synthesis
@@ -195,7 +202,7 @@ mad.setup(initial_noise=0.001, optimizer_kwargs={"lr": 0.001})
 Running the synthesis generates an image that looks just like the original image but we see the optimized metric loss has increased significantly (by two orders of magnitude). Even though the reference metric loss measured in pixel space has also increased, it remains a small value. The fact that the optimized metric has significantly increased shows that the model thinks this is a very different category than our initial image, which we'll show in the next section.
 
 ```{code-cell} ipython3
-mad.synthesize(1000)
+mad.synthesize(MAX_ITER)
 po.plot.synthesis_status(mad);
 ```
 
