@@ -150,13 +150,13 @@ In the following, `target_layer` is a string defining the layer we're targeting.
 scheduler = torch.optim.lr_scheduler.StepLR
 scheduler_kwargs = {
     "step_size": 5000 if target_layer == "layer4" else 3000,
-    "gamma": 0.5
+    "gamma": 0.5,
 }
 lr = 3e-2 if target_layer == "layer4" else 1e-2
 met.setup(
     optimizer_kwargs={"lr": lr, "amsgrad": False},
     scheduler=scheduler,
-    scheduler_kwargs=scheduler_kwargs
+    scheduler_kwargs=scheduler_kwargs,
 )
 # by setting stop_iters_to_check=max_iter, we ensure it keeps going through
 # all 12k iterations
