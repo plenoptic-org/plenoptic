@@ -41,7 +41,7 @@ from ..tensors import to_numpy
 
 SCALES_TYPE = Literal["pixel_statistics"] | PYR_SCALES_TYPE
 N_RGB_CHANNELS = 3
-LOWPASS_SHIFTS = ((0, 0), (2, 0), (-2, 0), (0, 2), (0, -2))
+LOWPASS_SHIFTS = ((0, 0), (0, 2), (0, -2), (2, 0), (-2, 0))
 
 __all__ = [
     "PortillaSimoncelli",
