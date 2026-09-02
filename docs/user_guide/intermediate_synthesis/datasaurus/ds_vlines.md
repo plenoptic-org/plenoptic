@@ -14,15 +14,15 @@ kernelspec:
 :::{admonition} Run this notebook yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`ds_bullseye.ipynb`**!
+Download the executed notebook: **{nb-download}`ds_vlines.ipynb`**!
 
-Run it in your browser: **{binder}`ds_bullseye.ipynb`**!
+Run it in your browser: **{binder}`ds_vlines.ipynb`**!
 
 :::
 
-# Synthesize the datasaurus bullseye
+# Synthesize the datasaurus vlines
 
-In this notebook, we will create a datasaurus metamer shaped like a bullseye. It will make use of the `circle_penalty` we used in [](ds_circle.md), so we recommend you read that notebook first. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
+In this notebook, we will create a datasaurus metamer shaped like multiple vertical lines. It will make use of the many of the functions first used in [](ds_hlines.md), so we recommend you read that notebook first. See [](datasaurus-index) for an overview of the datasaurus dozen dataset. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
 
 ```{code-cell} ipython3
 import matplotlib as mpl
@@ -165,7 +165,7 @@ model.eval()
 fig, axes = plt.subplots(
     2, 3, figsize=(8, 6), width_ratios=[5, 5, 3], layout="compressed"
 )
-for i, title in enumerate(["dino (target)", "bullseye"]):
+for i, title in enumerate(["dino (target)", "v_lines"]):
     d = data[categories == title].squeeze()
     axes[i, 0].scatter(*d)
     axes[i, 0].set_title(title)
@@ -181,27 +181,44 @@ for i, title in enumerate(["dino (target)", "bullseye"]):
 Explain penalty: two circles with same center. arbitrarily split points in half
 
 ```{code-cell} ipython3
-def circle_penalty(data, target_ctr, target_r):
-    target_ctr = torch.as_tensor(target_ctr).unsqueeze(-1)
-    R = (data - target_ctr).pow(2).sum(0).sqrt()
-    return (R - target_r).pow(2).sum()
+def predict_line(data, intercepts, slope):
+    return slope * data[0] + intercepts
 
 
-def bullseye_penalty(data, target_ctr, target_rs):
-    n_pts = data.shape[-1]
-    a = circle_penalty(data[..., n_pts // 2 :], target_ctr, target_rs[0])
-    b = circle_penalty(data[..., : n_pts // 2], target_ctr, target_rs[1])
-    return a + b
+def lines_penalty(data, intercepts, slope):
+    # intercepts must be shape [n, 1], slope a scalar or same number of elements as
+    # intercepts
+    errors = []
+    n = data.shape[-1] // intercepts.shape[0]
+    if hasattr(slope, "__len__") and len(slope) != 1:
+        assert len(slope) == len(intercepts)
+    else:
+        slope = len(intercepts) * [slope]
+    for i, (inter, sl) in enumerate(zip(intercepts, slope)):
+        if i != len(intercepts) - 1:
+            split = data[..., i * n : (i + 1) * n]
+        else:
+            # extra entries on last one
+            split = data[..., i * n :]
+        pred_y = predict_line(split, inter, sl)
+        errors.append((split[1] - pred_y).pow(2))
+    return torch.mean(torch.cat(errors))
+
+
+def vlines_penalty(data, x_vals=[10, 30, 50, 70, 90]):
+    intercepts = torch.as_tensor(x_vals).unsqueeze(-1)
+    # same as hlines, just swap x and y:
+    return lines_penalty(data[[1, 0]], intercepts, 0)
 ```
 
-Combine bullseye penalty and range penalty, then run synthesis.
+Combine vlines penalty and range penalty, then run synthesis.
 
 ```{code-cell} ipython3
 def penalty(x):
     range_penalty = po.regularize.penalize_range(x, (0, 100))
     # Change these values to whatever you want!
-    bullseye = bullseye_penalty(x, [50, 50], [20, 40])
-    return range_penalty + bullseye
+    vlines = vlines_penalty(x)
+    return range_penalty + vlines
 
 
 # data[0] is the dinosaur
