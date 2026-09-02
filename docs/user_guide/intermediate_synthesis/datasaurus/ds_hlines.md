@@ -37,9 +37,6 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
-# set seed for reproducibility
-po.set_seed(4)
-
 plt.rcParams["animation.html"] = "html5"
 # use single-threaded ffmpeg for animation writer
 plt.rcParams["animation.writer"] = "ffmpeg"
@@ -49,6 +46,10 @@ plt.rcParams["savefig.bbox"] = "tight"
 # set seed for reproducibility. for strict reproducibility, we'd also need to set
 # torch.use_deterministic_algorithms(True) here, but we don't need to be so strict here.
 po.set_seed(0)
+# To guarantee reproducibility for this example on the GPU, we must tell torch to use
+# deterministic algorithms. Note this will make things slower! See "Reproducibility and
+# Compatibility" in the docs for more details.
+torch.use_deterministic_algorithms(True)
 ```
 
 Don't discuss model, already explained in intro
@@ -263,3 +264,26 @@ ani
 ```
 
 And we've done it. Go back to [](datasaurus-index) or click in the sidebar to go to the next one.
+
+```{code-cell} ipython3
+:tags: [remove-cell]
+
+from plenoptic.tensors import _check_tensor_equality
+
+# This cell just tests for reproducibility. As a user, you should skip it -- because
+# pytorch doesn't guarantee reproducibility across CPU/GPU and GPU types, it's unlikely
+# that your results will exactly match ours. (Though it should look approximtaely as
+# good -- if not, open an issue!)
+cached_met = po.data.fetch_data("datasaurus_metamers.tar.gz") / "datasaurus-hlines.pt"
+# just load in the metamer tensor, instead of the whole object
+cached_met = torch.load(cached_met)["_metamer"]
+_check_tensor_equality(
+    met.metamer,
+    cached_met,
+    "Notebook",
+    "OSF",
+    1e-5,
+    1e-7,
+    "metamer has different {error_type}! Update the OSF version.",
+)
+```

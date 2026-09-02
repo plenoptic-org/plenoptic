@@ -930,12 +930,14 @@ class TestTutorialNotebooks:
                 )
             compare_metamers(met, met_up)
 
+    # None of these take long to run, so we do it with cpu instead of DEVICE/DEVICE2
+    # (which will be GPU for our tests)
     class TestDatasaurus:
         @pytest.fixture(scope="class")
         @classmethod
         def datasaurus(cls):
             data = po.data.fetch_data("datasaurus.tar.gz") / "datasaurus.pt"
-            return torch.load(data)[0].to(DEVICE)
+            return torch.load(data)[0]
 
         @pytest.fixture(scope="class")
         @classmethod
@@ -993,7 +995,6 @@ class TestTutorialNotebooks:
 
             model = DatasaurusModel(142, torch.float64)
             model.eval()
-            model.to(DEVICE)
             return model
 
         @pytest.mark.filterwarnings(
@@ -1043,7 +1044,6 @@ class TestTutorialNotebooks:
                 met_up.load(
                     datasaurus_metamers / "datasaurus-circle.pt",
                     tensor_equality_atol=1e-7,
-                    map_location=DEVICE,
                 )
             compare_metamers(met, met_up)
 
@@ -1100,7 +1100,6 @@ class TestTutorialNotebooks:
                 met_up.load(
                     datasaurus_metamers / "datasaurus-bullseye.pt",
                     tensor_equality_atol=1e-7,
-                    map_location=DEVICE,
                 )
             compare_metamers(met, met_up)
 
@@ -1172,7 +1171,6 @@ class TestTutorialNotebooks:
                 met_up.load(
                     datasaurus_metamers / "datasaurus-hlines.pt",
                     tensor_equality_atol=1e-7,
-                    map_location=DEVICE,
                 )
             compare_metamers(met, met_up)
 
@@ -1245,6 +1243,5 @@ class TestTutorialNotebooks:
                 met_up.load(
                     datasaurus_metamers / "datasaurus-vlines.pt",
                     tensor_equality_atol=1e-7,
-                    map_location=DEVICE,
                 )
             compare_metamers(met, met_up)
