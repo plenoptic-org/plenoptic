@@ -45,6 +45,10 @@ plt.rcParams["animation.html"] = "html5"
 plt.rcParams["animation.writer"] = "ffmpeg"
 plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 plt.rcParams["savefig.bbox"] = "tight"
+
+# set seed for reproducibility. for strict reproducibility, we'd also need to set
+# torch.use_deterministic_algorithms(True) here, but we don't need to be so strict here.
+po.set_seed(0)
 ```
 
 Don't discuss model, already explained in intro
@@ -196,13 +200,14 @@ def penalty(x):
 # data[0] is the dinosaur
 met = po.Metamer(data[0], model, penalty_function=penalty, penalty_lambda=0.0001)
 met.setup(initial_image=100 * torch.rand_like(data[0]), optimizer=torch.optim.LBFGS)
-
 met.synthesize(50, store_progress=True)
 ```
 
 Visualize synthesis process:
 
 ```{code-cell} ipython3
+:tags: [hide-input]
+
 # use one of our helper functions here.
 from plenoptic.plot.display import _update_stem
 

@@ -929,3 +929,121 @@ class TestTutorialNotebooks:
                     map_location=DEVICE2,
                 )
             compare_metamers(met, met_up)
+
+    class TestDatasaurus:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def datasaurus(cls):
+            data = po.data.fetch_data("datasaurus.tar.gz") / "datasaurus.pt"
+            return torch.load(data)[0].to(DEVICE)
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def datasaurus_metamers(cls):
+            return po.data.fetch_data("datasaurus_metamers.tar.gz")
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def datasaurus_model(cls):
+            class DatasaurusModel(torch.nn.Module):
+                def __init__(self, n_pts=None, dtype=None):
+                    super().__init__()
+                    # cache ones to save time
+                    if n_pts is not None:
+                        self._ones = torch.ones(n_pts, dtype=dtype)
+                    else:
+                        self._ones = None
+
+                def _prepare_X(self, x):
+                    ones = self._ones if self._ones is None else torch.ones_like(x)
+                    return torch.stack([ones, x], -1)
+
+                def _compute_linreg(self, x, y):
+                    X = self._prepare_X(x)
+                    # unsqueezing and squeezing needed because of https://github.com/pytorch/pytorch/issues/158169
+                    return torch.linalg.lstsq(X, y.unsqueeze(-1)).solution.squeeze()
+
+                def _compute_coeff_determination(self, x, y, solution):
+                    X = self._prepare_X(x)
+                    pred_y = torch.einsum("x, n x -> n", solution, X)
+                    ss_res = (y - pred_y).pow(2).sum()
+                    ss_tot = (y - y.mean()).pow(2).sum()
+                    return 1 - (ss_res / ss_tot)
+
+                def _vmap_coeff_determination(self, x, solution):
+                    f = torch.func.vmap(
+                        lambda x, solt: self._compute_coeff_determination(*x, solt)
+                    )
+                    return f(x, solution).unsqueeze(-1)
+
+                def forward(self, data):
+                    if data.ndim == 2:
+                        data = data.unsqueeze(0)
+                    elif data.ndim != 3:
+                        raise ValueError("data must be 2 or 3d!")
+                    stats = []
+                    stats.append(data.mean(-1))
+                    stats.append(data.std(-1))
+                    solution = torch.func.vmap(lambda x: self._compute_linreg(*x))(data)
+                    stats.append(solution)
+                    crosscorr = torch.func.vmap(lambda x: torch.corrcoef(x)[0, 1])(data)
+                    stats.append(crosscorr.unsqueeze(-1))
+                    stats.append(self._vmap_coeff_determination(data, solution))
+                    return torch.cat(stats, -1)
+
+            model = DatasaurusModel(142, torch.float64)
+            model.eval()
+            model.to(DEVICE)
+            return model
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_circle(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def circle_penalty(data, target_ctr, target_r):
+                target_ctr = torch.as_tensor(target_ctr).unsqueeze(-1)
+                R = (data - target_ctr).pow(2).sum(0).sqrt()
+                return (R - target_r).pow(2).sum()
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                # Change these values to whatever you want!
+                circle = circle_penalty(x, [50, 50], 35)
+                return range_penalty + circle
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0001,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-circle.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0001,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-circle.pt",
+                    tensor_equality_atol=1e-7,
+                    map_location=DEVICE,
+                )
+            compare_metamers(met, met_up)
