@@ -13,6 +13,7 @@ These pages assume familiarity with the basics of using penalty function in meta
 - download and visualize them
 - refer back to paper (in particular, "can't match stats directly" and "some shapes are more difficult than others")
 - then show our results overview
+      - I think can loop through the pt files in the datasaurus_metamers tarball, use torch.load and just grab _saved_metamer
       - and say something like, if you come up with a penalty to do a better job at star, away, thick lines or find a new penalty that does something else interesting
 
 
