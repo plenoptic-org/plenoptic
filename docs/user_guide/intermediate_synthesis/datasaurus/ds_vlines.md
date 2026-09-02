@@ -205,7 +205,7 @@ def lines_penalty(data, intercepts, slope):
     return torch.mean(torch.cat(errors))
 
 
-def vlines_penalty(data, x_vals=[10, 30, 50, 70, 90]):
+def vlines_penalty(data, x_vals=[30, 50, 70, 90]):
     intercepts = torch.as_tensor(x_vals).unsqueeze(-1)
     # same as hlines, just swap x and y:
     return lines_penalty(data[[1, 0]], intercepts, 0)
