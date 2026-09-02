@@ -386,7 +386,7 @@ def imshow(
       ...     as_rgb=True,
       ...     zoom=0.5,
       ... )
-      <PyrFigure size ... with 1 Axes>
+      <PyrFigure size ... with 2 Axes>
       >>> po.plot.imshow(
       ...     [color_wheel, 2 * color_wheel],
       ...     title="vrange=auto1",
@@ -394,7 +394,7 @@ def imshow(
       ...     as_rgb=True,
       ...     zoom=0.5,
       ... )
-      <PyrFigure size ... with 1 Axes>
+      <PyrFigure size ... with 2 Axes>
 
     Notice that:
 
@@ -413,11 +413,11 @@ def imshow(
 
       >>> gray_whl = color_wheel.mean(1, keepdim=True)
       >>> po.plot.imshow([gray_whl, 2 * gray_whl], title="vrange=indep1", zoom=0.5)
-      <PyrFigure size ... with 1 Axes>
+      <PyrFigure size ... with 2 Axes>
       >>> po.plot.imshow(
       ...     [gray_whl, 2 * gray_whl], title="vrange=auto1", vrange="auto1", zoom=0.5
       ... )
-      <PyrFigure size ... with 1 Axes>
+      <PyrFigure size ... with 2 Axes>
 
     To avoid this problem, one can rescale the input before plotting using a function
     like :func:`plenoptic.process.rescale`:
@@ -432,7 +432,7 @@ def imshow(
       >>> imgs += [po.process.rescale(im) for im in imgs]
       >>> titles += ["rescaled", "rescaled"]
       >>> po.plot.imshow(imgs, as_rgb=True, zoom=0.5, col_wrap=2, title=titles)
-      <PyrFigure size ... with 1 Axes>
+      <PyrFigure size ... with 4 Axes>
 
     If ``as_rgb=False``, images with multiple channels will have each channel plotted
     as a separate grayscale image:
