@@ -14,9 +14,9 @@ kernelspec:
 :::{admonition} Run this notebook yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`circle.ipynb`**!
+Download the executed notebook: **{nb-download}`ds_circle.ipynb`**!
 
-Run it in your browser: **{binder}`circle.ipynb`**!
+Run it in your browser: **{binder}`ds_circle.ipynb`**!
 
 :::
 

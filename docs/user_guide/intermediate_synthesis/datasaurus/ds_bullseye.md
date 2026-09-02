@@ -14,9 +14,9 @@ kernelspec:
 :::{admonition} Run this notebook yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`bullseye.ipynb`**!
+Download the executed notebook: **{nb-download}`ds_bullseye.ipynb`**!
 
-Run it in your browser: **{binder}`bullseye.ipynb`**!
+Run it in your browser: **{binder}`ds_bullseye.ipynb`**!
 
 :::
 

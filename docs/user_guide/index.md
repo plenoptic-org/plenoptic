@@ -44,7 +44,7 @@ models_and_metrics/portilla_simoncelli/ps_index.md
 :glob:
 
 intermediate_synthesis/*
-intermediate_synthesis/datasaurus/index
+intermediate_synthesis/datasaurus/ds_index
 :::
 ::::
 

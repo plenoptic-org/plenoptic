@@ -14,9 +14,9 @@ kernelspec:
 :::{admonition} Run this notebook yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`hlines.ipynb`**!
+Download the executed notebook: **{nb-download}`ds_hlines.ipynb`**!
 
-Run it in your browser: **{binder}`hlines.ipynb`**!
+Run it in your browser: **{binder}`ds_hlines.ipynb`**!
 
 :::
 

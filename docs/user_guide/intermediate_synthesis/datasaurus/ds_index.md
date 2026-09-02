@@ -23,9 +23,9 @@ These pages assume familiarity with the basics of using penalty function in meta
 :::{toctree}
 :maxdepth: 1
 
-circle.md
-bullseye.md
-hlines.md
+ds_circle.md
+ds_bullseye.md
+ds_hlines.md
 
 :::
 ::::
