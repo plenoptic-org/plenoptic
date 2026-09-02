@@ -14,18 +14,17 @@ kernelspec:
 :::{admonition} Run this notebook yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`ds_dots.ipynb`**!
+Download the executed notebook: **{nb-download}`ds_away.ipynb`**!
 
-Run it in your browser: **{binder}`ds_dots.ipynb`**!
+Run it in your browser: **{binder}`ds_away.ipynb`**!
 
 :::
 
-# Synthesize the datasaurus dots
+# Synthesize the datasaurus away
 
-In this notebook, we will create a datasaurus metamer with all the points concentrated in 9 small dots. Its penalty is similar to the `circle_penalty` first used in [](ds_circles.md), so we recommend you read that notebook first. See [](datasaurus-index) for an overview of the datasaurus dozen dataset. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
+In this notebook, we will create a datasaurus metamer where we have no points near the center of the scatter plot. Its penalty is similar to the `circle_penalty` first used in [](ds_circles.md), so we recommend you read that notebook first. See [](datasaurus-index) for an overview of the datasaurus dozen dataset. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
 
 ```{code-cell} ipython3
-import itertools
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -168,7 +167,7 @@ model.eval()
 fig, axes = plt.subplots(
     2, 3, figsize=(8, 6), width_ratios=[5, 5, 3], layout="compressed"
 )
-for i, title in enumerate(["dino (target)", "dots"]):
+for i, title in enumerate(["dino (target)", "away"]):
     d = data[categories == title].squeeze()
     axes[i, 0].scatter(*d)
     axes[i, 0].set_title(title)
@@ -184,42 +183,25 @@ for i, title in enumerate(["dino (target)", "dots"]):
 Explain penalty: two circles with same center. arbitrarily split points in half
 
 ```{code-cell} ipython3
-def dots_penalty(data, target_ctrs, target_r=5):
-    target_ctrs = torch.as_tensor(target_ctrs).unsqueeze(-1)
-    n = data.shape[-1] // target_ctrs.shape[0]
-    errors = []
-    for i, ctr in enumerate(target_ctrs):
-        if i != len(target_ctrs) - 1:
-            split = data[..., i * n : (i + 1) * n]
-        else:
-            # extra entries on last one
-            split = data[..., i * n :]
-        rs = (split - ctr).pow(2).sum(0).sqrt()
-        errors.append((rs - target_r).pow(2).mean())
-    return torch.stack(errors).mean()
+def away_penalty(data, target_ctr, std=5):
+    target_ctr = torch.as_tensor(target_ctr).unsqueeze(-1)
+    r = (data - target_ctr).pow(2).sum(0).sqrt()
+    return torch.exp(-r.pow(2) / (2 * std**2)).mean()
 ```
 
-Combine dots penalty and range penalty, then run synthesis.
+Combine away penalty and range penalty, then run synthesis.
 
 ```{code-cell} ipython3
-# Change these values to whatever you want! Using itertools.product here allows to
-# easily get all possible pairs of the values here.
-dot_ctrs = itertools.product(
-    [25, data[0].mean(-1)[0], 75], [20, data[0].mean(-1)[1], 80]
-)
-dot_ctrs = torch.as_tensor(list(dot_ctrs))
-
-
 def penalty(x):
     range_penalty = po.regularize.penalize_range(x, (0, 100))
-    dots = dots_penalty(x, dot_ctrs)
-    return range_penalty + dots
+    away = away_penalty(x, [50, 50])
+    return range_penalty + away
 
 
 # data[0] is the dinosaur
-met = po.Metamer(data[0], model, penalty_function=penalty, penalty_lambda=0.0005)
+met = po.Metamer(data[0], model, penalty_function=penalty, penalty_lambda=1)
 met.setup(initial_image=100 * torch.rand_like(data[0]), optimizer=torch.optim.LBFGS)
-met.synthesize(80, store_progress=True)
+met.synthesize(50, store_progress=True)
 ```
 
 Visualize synthesis process:
@@ -269,7 +251,7 @@ from plenoptic.tensors import _check_tensor_equality
 # pytorch doesn't guarantee reproducibility across CPU/GPU and GPU types, it's unlikely
 # that your results will exactly match ours. (Though it should look approximtaely as
 # good -- if not, open an issue!)
-cached_met = po.data.fetch_data("datasaurus_metamers.tar.gz") / "datasaurus-dots.pt"
+cached_met = po.data.fetch_data("datasaurus_metamers.tar.gz") / "datasaurus-away.pt"
 # just load in the metamer tensor, instead of the whole object
 cached_met = torch.load(cached_met)["_metamer"]
 _check_tensor_equality(

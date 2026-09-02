@@ -34,5 +34,6 @@ ds_slantup.md
 ds_slantdown.md
 ds_xshape.md
 
+ds_away.md
 :::
 ::::

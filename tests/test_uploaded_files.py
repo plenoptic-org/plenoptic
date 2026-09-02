@@ -1526,3 +1526,53 @@ class TestTutorialNotebooks:
                     tensor_equality_atol=1e-7,
                 )
             compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_away(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def away_penalty(data, target_ctr, std=5):
+                target_ctr = torch.as_tensor(target_ctr).unsqueeze(-1)
+                r = (data - target_ctr).pow(2).sum(0).sqrt()
+                return torch.exp(-r.pow(2) / (2 * std**2)).mean()
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                away = away_penalty(x, [50, 50])
+                return range_penalty + away
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=1,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-away.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=1,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-away.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
