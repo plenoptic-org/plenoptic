@@ -14,15 +14,15 @@ kernelspec:
 :::{admonition} Run this notebook yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`ds_slantup.ipynb`**!
+Download the executed notebook: **{nb-download}`ds_xshape.ipynb`**!
 
-Run it in your browser: **{binder}`ds_slantup.ipynb`**!
+Run it in your browser: **{binder}`ds_xshape.ipynb`**!
 
 :::
 
-# Synthesize the datasaurus slantup
+# Synthesize the datasaurus xshape
 
-In this notebook, we will create a datasaurus metamer shaped like multiple lines running from the bottom left to the top right. It will make use of the many of the functions first used in [](ds_hlines.md), so we recommend you read that notebook first. See [](datasaurus-index) for an overview of the datasaurus dozen dataset. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
+In this notebook, we will create a datasaurus metamer shaped like an X. It will make use of the many of the functions first used in [](ds_hlines.md), so we recommend you read that notebook first. See [](datasaurus-index) for an overview of the datasaurus dozen dataset. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
 
 ```{code-cell} ipython3
 import matplotlib as mpl
@@ -166,7 +166,7 @@ model.eval()
 fig, axes = plt.subplots(
     2, 3, figsize=(8, 6), width_ratios=[5, 5, 3], layout="compressed"
 )
-for i, title in enumerate(["dino (target)", "slant_up"]):
+for i, title in enumerate(["dino (target)", "x_shape"]):
     d = data[categories == title].squeeze()
     axes[i, 0].scatter(*d)
     axes[i, 0].set_title(title)
@@ -212,18 +212,18 @@ def slant_penalty(data, slope, intercepts):
     return lines_penalty(data, intercepts, slope)
 ```
 
-Combine slantup penalty and range penalty, then run synthesis.
+Combine xshape penalty and range penalty, then run synthesis.
 
 ```{code-cell} ipython3
 def penalty(x):
     range_penalty = po.regularize.penalize_range(x, (0, 100))
     # Change these values to whatever you want!
-    slantup = slant_penalty(x, 1, [-20, -10, 0, 10, 20])
-    return range_penalty + slantup
+    xshape = slant_penalty(x, [1.5, -1.5], [-30, 130])
+    return range_penalty + xshape
 
 
 # data[0] is the dinosaur
-met = po.Metamer(data[0], model, penalty_function=penalty, penalty_lambda=0.001)
+met = po.Metamer(data[0], model, penalty_function=penalty, penalty_lambda=0.0005)
 met.setup(initial_image=100 * torch.rand_like(data[0]), optimizer=torch.optim.LBFGS)
 met.synthesize(50, store_progress=True)
 ```
@@ -275,7 +275,7 @@ from plenoptic.tensors import _check_tensor_equality
 # pytorch doesn't guarantee reproducibility across CPU/GPU and GPU types, it's unlikely
 # that your results will exactly match ours. (Though it should look approximtaely as
 # good -- if not, open an issue!)
-cached_met = po.data.fetch_data("datasaurus_metamers.tar.gz") / "datasaurus-slantup.pt"
+cached_met = po.data.fetch_data("datasaurus_metamers.tar.gz") / "datasaurus-xshape.pt"
 # just load in the metamer tensor, instead of the whole object
 cached_met = torch.load(cached_met)["_metamer"]
 _check_tensor_equality(

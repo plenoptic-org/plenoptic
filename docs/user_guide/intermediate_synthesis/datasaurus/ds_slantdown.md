@@ -166,7 +166,7 @@ model.eval()
 fig, axes = plt.subplots(
     2, 3, figsize=(8, 6), width_ratios=[5, 5, 3], layout="compressed"
 )
-for i, title in enumerate(["dino (target)", "slant_up"]):
+for i, title in enumerate(["dino (target)", "slant_down"]):
     d = data[categories == title].squeeze()
     axes[i, 0].scatter(*d)
     axes[i, 0].set_title(title)
@@ -208,6 +208,7 @@ def lines_penalty(data, intercepts, slope):
 
 def slant_penalty(data, slope, intercepts):
     intercepts = torch.as_tensor(intercepts).unsqueeze(-1)
+    slope = torch.as_tensor(slope).unsqueeze(-1)
     return lines_penalty(data, intercepts, slope)
 ```
 
