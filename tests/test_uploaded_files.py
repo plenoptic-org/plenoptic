@@ -1576,3 +1576,80 @@ class TestTutorialNotebooks:
                     tensor_equality_atol=1e-7,
                 )
             compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_star(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def star_penalty(data, target_ctr, target_r, target_theta=-torch.pi / 2):
+                target_ctr = torch.as_tensor(target_ctr).unsqueeze(-1)
+                # recenter the data and then compute the
+                recentered = data - target_ctr
+                actual_theta = torch.atan2(*recentered[[1, 0]])
+                theta = torch.linspace(
+                    -np.pi, np.pi, data.shape[-1], dtype=data.dtype, device=data.device
+                )
+                r = recentered.pow(2).sum(0).sqrt()
+
+                # modified from https://math.stackexchange.com/a/4293385
+                m = 3
+                n = 5
+                k = torch.as_tensor(1)
+
+                nom = torch.cos((2 * torch.arcsin(k) + torch.pi * m) / (2 * n))
+                denom = torch.cos(
+                    (
+                        2 * torch.arcsin(k * torch.cos(n * (theta + target_theta)))
+                        + torch.pi * m
+                    )
+                    / (2 * n)
+                )
+
+                target_r = target_r * nom / denom
+                return (r - target_r).pow(2).sum() + (actual_theta - theta).pow(2).sum()
+
+            def range_penalty(x):
+                return po.regularize.penalize_range(x, (0, 100))
+
+            def penalty(x):
+                star = star_penalty(x, datasaurus.mean(-1), 40)
+                return range_penalty(x) + star
+
+            met_star = po.Metamer(
+                datasaurus,
+                lambda x: x.mean(-1),
+                penalty_function=penalty,
+            )
+            met_star.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            met_star.synthesize(100, store_progress=True)
+            met = po.Metamer(
+                datasaurus, datasaurus_model, penalty_function=range_penalty
+            )
+            met.setup(initial_image=met_star.metamer, optimizer=torch.optim.LBFGS)
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-star.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=1,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-star.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)

@@ -19,6 +19,8 @@ These pages assume familiarity with the basics of using penalty function in meta
       - importantly: we don't actually need our metric value to be very low here, just need them to look like our penalty target
       - compare to original success metric: matches each of those to first N decimal points
       - and say something like, if you come up with a penalty to do a better job at star, away, thick lines or find a new penalty that does something else interesting
+- 3 of these are more difficult. all of them require "composite penalties", combining several penalties to try and get what we want
+      - additionally star: hard to synthesize (shape hard to match), so we do it in two parts
 
 
 ::::{card}
@@ -35,5 +37,6 @@ ds_slantdown.md
 ds_xshape.md
 
 ds_away.md
+ds_star.md
 :::
 ::::
