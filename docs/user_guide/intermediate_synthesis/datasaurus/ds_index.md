@@ -27,6 +27,7 @@ These pages assume familiarity with the basics of using penalty function in meta
 
 ds_circle.md
 ds_bullseye.md
+ds_dots.md
 ds_hlines.md
 ds_vlines.md
 ds_slantup.md

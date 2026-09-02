@@ -9,6 +9,7 @@ update them.
 """
 
 import functools
+import itertools
 import os
 from collections import OrderedDict
 
@@ -1458,6 +1459,70 @@ class TestTutorialNotebooks:
             with pytest.warns(UserWarning, match="You will need to call setup"):
                 met_up.load(
                     datasaurus_metamers / "datasaurus-xshape.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_dots(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def dots_penalty(data, target_ctrs, target_r=5):
+                target_ctrs = torch.as_tensor(target_ctrs).unsqueeze(-1)
+                n = data.shape[-1] // target_ctrs.shape[0]
+                errors = []
+                for i, ctr in enumerate(target_ctrs):
+                    if i != len(target_ctrs) - 1:
+                        split = data[..., i * n : (i + 1) * n]
+                    else:
+                        # extra entries on last one
+                        split = data[..., i * n :]
+                    rs = (split - ctr).pow(2).sum(0).sqrt()
+                    errors.append((rs - target_r).pow(2).mean())
+                return torch.stack(errors).mean()
+
+            dot_ctrs = itertools.product(
+                [25, datasaurus.mean(-1)[0], 75], [20, datasaurus.mean(-1)[1], 80]
+            )
+            dot_ctrs = torch.as_tensor(list(dot_ctrs))
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                dots = dots_penalty(x, dot_ctrs)
+                return range_penalty + dots
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(80, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-dots.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-dots.pt",
                     tensor_equality_atol=1e-7,
                 )
             compare_metamers(met, met_up)
