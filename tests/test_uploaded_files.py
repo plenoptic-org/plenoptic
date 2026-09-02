@@ -1094,11 +1094,83 @@ class TestTutorialNotebooks:
                 datasaurus,
                 datasaurus_model,
                 penalty_function=penalty,
-                penalty_lambda=0.0001,
+                penalty_lambda=0.0005,
             )
             with pytest.warns(UserWarning, match="You will need to call setup"):
                 met_up.load(
                     datasaurus_metamers / "datasaurus-bullseye.pt",
+                    tensor_equality_atol=1e-7,
+                    map_location=DEVICE,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_hlines(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def predict_line(data, intercepts, slope):
+                return slope * data[0] + intercepts
+
+            def lines_penalty(data, intercepts, slope):
+                # intercepts must be shape [n, 1], slope a scalar or same number of
+                # elements as intercepts
+                errors = []
+                n = data.shape[-1] // intercepts.shape[0]
+                if hasattr(slope, "__len__") and len(slope) != 1:
+                    assert len(slope) == len(intercepts)
+                else:
+                    slope = len(intercepts) * [slope]
+                for i, (inter, sl) in enumerate(zip(intercepts, slope)):
+                    if i != len(intercepts) - 1:
+                        split = data[..., i * n : (i + 1) * n]
+                    else:
+                        # extra entries on last one
+                        split = data[..., i * n :]
+                    pred_y = predict_line(split, inter, sl)
+                    errors.append((split[1] - pred_y).pow(2))
+                return torch.mean(torch.cat(errors))
+
+            def hlines_penalty(data, y_vals=[10, 30, 50, 70, 90]):
+                intercepts = torch.as_tensor(y_vals).unsqueeze(-1)
+                return lines_penalty(data, intercepts, 0)
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                hlines = hlines_penalty(x)
+                return range_penalty + hlines
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-hlines.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-hlines.pt",
                     tensor_equality_atol=1e-7,
                     map_location=DEVICE,
                 )

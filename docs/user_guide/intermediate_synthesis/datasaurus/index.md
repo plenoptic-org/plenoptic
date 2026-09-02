@@ -25,6 +25,7 @@ These pages assume familiarity with the basics of using penalty function in meta
 
 circle.md
 bullseye.md
+hlines.md
 
 :::
 ::::
