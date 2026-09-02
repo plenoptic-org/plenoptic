@@ -30,6 +30,7 @@ ds_bullseye.md
 ds_hlines.md
 ds_vlines.md
 ds_slantup.md
+ds_slantdown.md
 
 :::
 ::::
