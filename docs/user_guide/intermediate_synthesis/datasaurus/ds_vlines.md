@@ -22,7 +22,7 @@ Run it in your browser: **{binder}`ds_vlines.ipynb`**!
 
 # Synthesize the datasaurus vlines
 
-In this notebook, we will create a datasaurus metamer shaped like multiple vertical lines. It will make use of the many of the functions first used in [](ds_hlines.md), so we recommend you read that notebook first. See [](datasaurus-index) for an overview of the datasaurus dozen dataset. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
+In this notebook, we will create a datasaurus metamer shaped like multiple vertical lines. It will make use of many of the functions first used in [](ds_hlines.md), so we recommend you read that notebook first. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
 
 ```{code-cell} ipython3
 import matplotlib as mpl

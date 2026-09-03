@@ -41,5 +41,6 @@ ds_away.md
 ds_star.md
 ds_polygon.md
 ds_oval.md
+ds_hwidelines.md
 :::
 ::::

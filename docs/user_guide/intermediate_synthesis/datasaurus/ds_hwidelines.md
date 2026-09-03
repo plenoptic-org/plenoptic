@@ -14,15 +14,15 @@ kernelspec:
 :::{admonition} Run this notebook yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`ds_oval.ipynb`**!
+Download the executed notebook: **{nb-download}`ds_hwidelines.ipynb`**!
 
-Run it in your browser: **{binder}`ds_oval.ipynb`**!
+Run it in your browser: **{binder}`ds_hwidelines.ipynb`**!
 
 :::
 
-# Synthesize the datasaurus oval
+# Synthesize the datasaurus hwidelines
 
-In this notebook, we will create a datasaurus metamer not present in the original set, an oval. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
+In this notebook, we will create a datasaurus metamer shaped like multiple tall horizontal lines. It will make use of many of the functions first used in [](ds_hlines.md), so we recommend you read that notebook first. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
 
 ```{code-cell} ipython3
 import einops
@@ -153,9 +153,66 @@ class DatasaurusModel(torch.nn.Module):
         return axes
 ```
 
+Explain figure
+
+```{code-cell} ipython3
+data = torch.load(po.data.fetch_data("datasaurus.tar.gz") / "datasaurus.pt")
+categories = np.load(
+    po.data.fetch_data("datasaurus.tar.gz") / "categories.npy", allow_pickle=True
+)
+
+model = DatasaurusModel(data.shape[1], data.dtype)
+model.eval()
+
+fig, axes = plt.subplots(
+    2, 3, figsize=(8, 6), width_ratios=[5, 5, 3], layout="compressed"
+)
+for i, title in enumerate(["dino (target)", "high_lines"]):
+    d = data[categories == title].squeeze()
+    axes[i, 0].scatter(*d)
+    axes[i, 0].set_title(title)
+    axes[i, 0].set(xlim=(0, 100), ylim=(0, 100))
+    axes[i, 0].set_aspect(1)
+    model.plot_representation(model(d), axes[i, 1:])
+    model.plot_representation(model(data)[0], axes[i, 1:], "lines")
+    if i == 0:
+        axes[i, 1].set(xticklabels=[])
+        axes[i, 2].set(xticklabels=[])
+```
+
 Explain penalty: two circles with same center. arbitrarily split points in half
 
 ```{code-cell} ipython3
+def predict_line(data, intercepts, slope):
+    return slope * data[0] + intercepts
+
+
+def widelines_penalty(data, intercepts, slope, margin):
+    # intercepts must be shape [n, 1], slope a scalar or same number of elements as
+    # intercepts
+    errors = []
+    n = data.shape[-1] // intercepts.shape[0]
+    if hasattr(slope, "__len__") and len(slope) != 1:
+        assert len(slope) == len(intercepts)
+    else:
+        slope = len(intercepts) * [slope]
+    for i, (inter, sl) in enumerate(zip(intercepts, slope)):
+        if i != len(intercepts) - 1:
+            split = data[..., i * n : (i + 1) * n]
+        else:
+            # extra entries on last one
+            split = data[..., i * n :]
+        pred_y = predict_line(split, inter, sl)
+        err = (split[1] - pred_y).pow(2)
+        errors.append((err - margin**2).clip(min=0))
+    return torch.mean(torch.cat(errors))
+
+
+def hwidelines_penalty(data, y_vals, margin):
+    intercepts = torch.as_tensor(y_vals).unsqueeze(-1)
+    return widelines_penalty(data, intercepts, 0, margin)
+
+
 def polygon_penalty(data, target_dist, nbr):
     # break data into "neighborhoods" of nbr points each and tries to make each of their
     # distances match target i.e., form regular polygons of target size
@@ -181,19 +238,16 @@ def centroid_penalty(data, target_dist, nbr):
 Combine polygon penalty and range penalty, then run synthesis.
 
 ```{code-cell} ipython3
-data = torch.load(po.data.fetch_data("datasaurus.tar.gz") / "datasaurus.pt")
-model = DatasaurusModel(data.shape[1], data.dtype)
-model.eval()
-
-nbr = 3
+nbr = 6
 
 
 def penalty(x):
     range_penalty = po.regularize.penalize_range(x, (0, 100))
     # Change these values to whatever you want!
-    polygon = polygon_penalty(x, 5, nbr)
-    centroid = centroid_penalty(x, 25, nbr)
-    return range_penalty + centroid + polygon
+    polygon = polygon_penalty(x, 2, nbr)
+    centroid = centroid_penalty(x, 5, nbr)
+    lines = hwidelines_penalty(x, [20, 70], 10)
+    return range_penalty + lines + polygon + centroid
 
 
 # data[0] is the dinosaur
@@ -249,7 +303,9 @@ from plenoptic.tensors import _check_tensor_equality
 # pytorch doesn't guarantee reproducibility across CPU/GPU and GPU types, it's unlikely
 # that your results will exactly match ours. (Though it should look approximtaely as
 # good -- if not, open an issue!)
-cached_met = po.data.fetch_data("datasaurus_metamers.tar.gz") / "datasaurus-oval.pt"
+cached_met = (
+    po.data.fetch_data("datasaurus_metamers.tar.gz") / "datasaurus-hwidelines.pt"
+)
 # just load in the metamer tensor, instead of the whole object
 cached_met = torch.load(cached_met)["_metamer"]
 _check_tensor_equality(
