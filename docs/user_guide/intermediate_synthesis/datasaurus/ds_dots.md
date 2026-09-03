@@ -34,8 +34,6 @@ import torch
 
 import plenoptic as po
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 

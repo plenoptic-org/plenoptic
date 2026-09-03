@@ -25,15 +25,12 @@ Run it in your browser: **{binder}`ds_away.ipynb`**!
 In this notebook, we will create a datasaurus metamer where we have no points near the center of the scatter plot. Its penalty is similar to the `circle_penalty` first used in [](ds_circle.md), so we recommend you read that notebook first. See [](datasaurus-index) for an overview of the datasaurus dozen dataset. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
 
 ```{code-cell} ipython3
-
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
 import plenoptic as po
-
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
