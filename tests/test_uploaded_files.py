@@ -1950,7 +1950,7 @@ class TestTutorialNotebooks:
                 dist = dist[tril_idx[0], tril_idx[1]]
                 return (dist - target_dist).pow(2).mean()
 
-            nbr = 6
+            nbr = 3
 
             def penalty(x):
                 range_penalty = po.regularize.penalize_range(x, (0, 100))
@@ -1983,7 +1983,7 @@ class TestTutorialNotebooks:
                 datasaurus,
                 datasaurus_model,
                 penalty_function=penalty,
-                penalty_lambda=0.001,
+                penalty_lambda=0.0005,
             )
             with pytest.warns(UserWarning, match="You will need to call setup"):
                 met_up.load(

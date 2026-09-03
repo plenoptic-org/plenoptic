@@ -39,7 +39,7 @@ ds_xshape.md
 
 ds_away.md
 ds_star.md
-ds_polygon.md
+ds_polygons.md
 ds_oval.md
 ds_hwidelines.md
 ds_vwidelines.md

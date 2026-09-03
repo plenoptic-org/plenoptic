@@ -22,7 +22,7 @@ Run it in your browser: **{binder}`ds_away.ipynb`**!
 
 # Synthesize the datasaurus away
 
-In this notebook, we will create a datasaurus metamer where we have no points near the center of the scatter plot. Its penalty is similar to the `circle_penalty` first used in [](ds_circles.md), so we recommend you read that notebook first. See [](datasaurus-index) for an overview of the datasaurus dozen dataset. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
+In this notebook, we will create a datasaurus metamer where we have no points near the center of the scatter plot. Its penalty is similar to the `circle_penalty` first used in [](ds_circle.md), so we recommend you read that notebook first. See [](datasaurus-index) for an overview of the datasaurus dozen dataset. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
 
 ```{code-cell} ipython3
 
