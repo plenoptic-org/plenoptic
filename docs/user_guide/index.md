@@ -39,7 +39,7 @@ models_and_metrics/portilla_simoncelli/ps_index.md
 
 (intermed-index)=
 :::{toctree}
-:maxdepth: 2
+:maxdepth: 1
 :caption: Intermediate usage
 :glob:
 

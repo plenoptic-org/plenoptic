@@ -1510,7 +1510,7 @@ class TestTutorialNotebooks:
             )
             init_state_dict_lint_ignore = met.optimizer.state_dict()
 
-            met.synthesize(80, store_progress=True)
+            met.synthesize(50, store_progress=True)
             # LBFGS's state dict takes a decent amount of memory (it has two keys that
             # are lists of length history_size, where each element is a tensor with the
             # same number of pixels as img), so we reset it for saving purposes -- it's
@@ -1644,6 +1644,12 @@ class TestTutorialNotebooks:
             # not useful for testing
             met.optimizer.load_state_dict(init_state_dict_lint_ignore)
             met.save("uploaded_files/datasaurus-star.pt")
+            # this is the only one of these that does a two-stage synthesis, so we save
+            # its saved_metamer a bit differently, so we can use it for the movie in
+            # ds_index.md. drop the last element because that corresponds to met.metamer
+            saved_met = torch.cat([met_star.saved_metamer[:-1], met.saved_metamer[:-1]])
+            # only keep every 3rd iteration, so it's the same length as the others
+            torch.save(saved_met[::3], "uploaded_files/datasaurus-star-saved.pt")
             met_up = po.Metamer(
                 datasaurus,
                 datasaurus_model,

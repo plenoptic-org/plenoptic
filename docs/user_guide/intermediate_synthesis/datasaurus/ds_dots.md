@@ -218,7 +218,7 @@ def penalty(x):
 # data[0] is the dinosaur
 met = po.Metamer(data[0], model, penalty_function=penalty, penalty_lambda=0.0005)
 met.setup(initial_image=100 * torch.rand_like(data[0]), optimizer=torch.optim.LBFGS)
-met.synthesize(80, store_progress=True)
+met.synthesize(50, store_progress=True)
 ```
 
 Visualize synthesis process:
