@@ -70,6 +70,8 @@ plt.rcParams["savefig.bbox"] = "tight"
 Explain model
 
 ```{code-cell} ipython3
+:tags: [hide-input]
+
 class DatasaurusModel(torch.nn.Module):
     def __init__(self, n_pts=None, dtype=None):
         super().__init__()
@@ -170,6 +172,7 @@ class DatasaurusModel(torch.nn.Module):
 ```{code-cell} ipython3
 datasaurus_tarball = po.data.fetch_data("datasaurus.tar.gz")
 data = torch.load(datasaurus_tarball / "datasaurus.pt")
+# expand folded cell above to see definition of this model
 model = DatasaurusModel(data.shape[1], data.dtype)
 categories = np.load(datasaurus_tarball / "categories.npy", allow_pickle=True)
 ```
@@ -297,18 +300,38 @@ plot_datasaurus_rep(model(data), categories, model, fig=rep_fig);
 Now let's load in our datasaurus fortnight(?):
 
 ```{code-cell} ipython3
+:tags: [hide-input]
+
 cached_metamers = []
 saved_metamers = []
-titles = []
+# match order of initial data, plus our extras
+titles = [
+    "away",
+    "hlines",
+    "vlines",
+    "xshape",
+    "star",
+    "hwidelines",
+    "dots",
+    "circle",
+    "bullseye",
+    "slantup",
+    "slantdown",
+    "vwidelines",
+    "polygons",
+    "oval",
+]
 metamer_tarball = po.data.fetch_data("datasaurus_metamers.tar.gz")
-for f in metamer_tarball.glob("*.pt"):
-    if "saved" not in f.stem:
-        titles.append(f.stem.replace("datasaurus-", ""))
-        cached_metamers.append(torch.load(f)["_metamer"])
-        if "star" not in f.stem:
-            saved_metamers.append(torch.stack(torch.load(f)["_saved_metamer"]).detach())
-        else:
-            saved_metamers.append(torch.load(f.with_stem(f.stem + "-saved")).detach())
+for t in titles:
+    # synthesis for star is more complex and so it's saved slightly differently. see
+    # its notebook for more details.
+    f = metamer_tarball / f"datasaurus-{t}.pt"
+    cached_metamers.append(torch.load(f)["_metamer"])
+    if t == "star":
+        f = metamer_tarball / f"datasaurus-{t}-saved.pt"
+        saved_metamers.append(torch.load(f).detach())
+    else:
+        saved_metamers.append(torch.stack(torch.load(f)["_saved_metamer"]).detach())
 cached_metamers = torch.stack([data[0], *cached_metamers])
 titles = ["dino (target)"] + titles
 saved_metamers = torch.stack(saved_metamers)
@@ -317,15 +340,17 @@ saved_metamers = torch.stack(saved_metamers)
 ```{code-cell} ipython3
 ax_size = 3
 n_cols, n_rows = (5, 3)
-data_fig = plt.figure(figsize=(ax_size * n_cols, ax_size * n_rows))
-plot_datasaurus(cached_metamers, titles, fig=data_fig)
-rep_fig = plt.figure(figsize=(ax_size * n_cols, ax_size * n_rows))
-plot_datasaurus_rep(model(cached_metamers), titles, model, fig=rep_fig);
+fig = plt.figure(figsize=(ax_size * n_cols, ax_size * n_rows * 2))
+subfigs = fig.subfigures(2, 1, hspace=-0.2)
+plot_datasaurus(cached_metamers, titles, fig=subfigs[0])
+plot_datasaurus_rep(model(cached_metamers), titles, model, fig=subfigs[1]);
 ```
 
 Very pretty. But let's see it ANIMATED
 
 ```{code-cell} ipython3
+:tags: [hide-input]
+
 # use one of our helper functions here.
 from plenoptic.plot.display import _update_stem
 
@@ -336,8 +361,8 @@ subfigs = fig.subfigures(2, 1, hspace=-0.2)
 init_metamers = torch.cat([data[:1], saved_metamers[:, 0]])
 _, data_axes = plot_datasaurus(init_metamers, titles, fig=subfigs[0])
 _, rep_axes = plot_datasaurus_rep(model(init_metamers), titles, model, fig=subfigs[1])
-
 fig.set_layout_engine("none")
+
 ani_data = po.to_numpy(saved_metamers)
 ani_rep = po.to_numpy(torch.func.vmap(model)(saved_metamers))
 
@@ -360,3 +385,25 @@ ani = mpl.animation.FuncAnimation(
 plt.close(fig)
 ani
 ```
+
+::::{card}
+:::{toctree}
+:maxdepth: 1
+
+ds_circle.md
+ds_bullseye.md
+ds_dots.md
+ds_hlines.md
+ds_vlines.md
+ds_slantup.md
+ds_slantdown.md
+ds_xshape.md
+ds_away.md
+ds_star.md
+ds_polygons.md
+ds_oval.md
+ds_hwidelines.md
+ds_vwidelines.md
+
+:::
+::::
