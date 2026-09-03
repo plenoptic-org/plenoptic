@@ -1888,3 +1888,106 @@ class TestTutorialNotebooks:
                     tensor_equality_atol=1e-7,
                 )
             compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_vwidelines(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def predict_line(data, intercepts, slope):
+                return slope * data[0] + intercepts
+
+            def widelines_penalty(data, intercepts, slope, margin):
+                # intercepts must be shape [n, 1], slope a scalar or same number of
+                # elements as intercepts
+                errors = []
+                n = data.shape[-1] // intercepts.shape[0]
+                if hasattr(slope, "__len__") and len(slope) != 1:
+                    assert len(slope) == len(intercepts)
+                else:
+                    slope = len(intercepts) * [slope]
+                for i, (inter, sl) in enumerate(zip(intercepts, slope)):
+                    if i != len(intercepts) - 1:
+                        split = data[..., i * n : (i + 1) * n]
+                    else:
+                        # extra entries on last one
+                        split = data[..., i * n :]
+                    pred_y = predict_line(split, inter, sl)
+                    err = (split[1] - pred_y).pow(2)
+                    errors.append((err - margin**2).clip(min=0))
+                return torch.mean(torch.cat(errors))
+
+            def vwidelines_penalty(data, y_vals, margin):
+                intercepts = torch.as_tensor(y_vals).unsqueeze(-1)
+                # same as hwidelines, just swap x and y
+                return widelines_penalty(data[[1, 0]], intercepts, 0, margin)
+
+            def polygon_penalty(data, target_dist, nbr):
+                # break data into "neighborhoods" of nbr points each and tries to make
+                # each of their distances match target i.e., form regular polygons of
+                # target size
+                pts = einops.rearrange(
+                    data[..., : nbr * (data.shape[-1] // nbr)],
+                    "d (n1 n2) -> n1 n2 d",
+                    n2=nbr,
+                )
+                dist = torch.cdist(pts, pts)
+                tril_idx = torch.tril_indices(pts.shape[1], pts.shape[1], -1)
+                dist = dist[:, tril_idx[0], tril_idx[1]]
+                return (dist - target_dist).pow(2).mean()
+
+            def centroid_penalty(data, target_dist, nbr):
+                pts = einops.rearrange(
+                    data[..., : nbr * (data.shape[-1] // nbr)],
+                    "d (n1 n2) -> n1 n2 d",
+                    n2=nbr,
+                )
+                dist = torch.cdist(pts.mean(1), pts.mean(1))
+                tril_idx = torch.tril_indices(pts.shape[0], pts.shape[0], -1)
+                dist = dist[tril_idx[0], tril_idx[1]]
+                return (dist - target_dist).pow(2).mean()
+
+            nbr = 6
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                # Change these values to whatever you want!
+                polygon = polygon_penalty(x, 5, nbr)
+                centroid = centroid_penalty(x, 25, nbr)
+                lines = vwidelines_penalty(x, [30, 70], 10)
+                return range_penalty + centroid + polygon + lines
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-vwidelines.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.001,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-vwidelines.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
