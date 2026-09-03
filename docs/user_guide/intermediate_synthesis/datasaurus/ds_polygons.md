@@ -14,15 +14,15 @@ kernelspec:
 :::{admonition} Run this notebook yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`ds_oval.ipynb`**!
+Download the executed notebook: **{nb-download}`ds_polygons.ipynb`**!
 
-Run it in your browser: **{binder}`ds_oval.ipynb`**!
+Run it in your browser: **{binder}`ds_polygons.ipynb`**!
 
 :::
 
-# Synthesize the datasaurus oval
+# Synthesize the datasaurus polygons
 
-In this notebook, we will create a datasaurus metamer not present in the original set, an oval. See [](datasaurus-index) for an overview of the datasaurus dozen dataset. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
+In this notebook, we will create a datasaurus metamer not present in the original set, encouraging the dots to group themselves into little regular polygons. See [](datasaurus-index) for an overview of the datasaurus dozen dataset. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
 
 ```{code-cell} ipython3
 import einops
@@ -166,16 +166,6 @@ def polygon_penalty(data, target_dist, nbr):
     tril_idx = torch.tril_indices(pts.shape[1], pts.shape[1], -1)
     dist = dist[:, tril_idx[0], tril_idx[1]]
     return (dist - target_dist).pow(2).mean()
-
-
-def centroid_penalty(data, target_dist, nbr):
-    pts = einops.rearrange(
-        data[..., : nbr * (data.shape[-1] // nbr)], "d (n1 n2) -> n1 n2 d", n2=nbr
-    )
-    dist = torch.cdist(pts.mean(1), pts.mean(1))
-    tril_idx = torch.tril_indices(pts.shape[0], pts.shape[0], -1)
-    dist = dist[tril_idx[0], tril_idx[1]]
-    return (dist - target_dist).pow(2).mean()
 ```
 
 Combine polygon penalty and range penalty, then run synthesis.
@@ -185,15 +175,12 @@ data = torch.load(po.data.fetch_data("datasaurus.tar.gz") / "datasaurus.pt")
 model = DatasaurusModel(data.shape[1], data.dtype)
 model.eval()
 
-nbr = 3
-
 
 def penalty(x):
     range_penalty = po.regularize.penalize_range(x, (0, 100))
     # Change these values to whatever you want!
-    polygon = polygon_penalty(x, 5, nbr)
-    centroid = centroid_penalty(x, 25, nbr)
-    return range_penalty + centroid + polygon
+    polygon = polygon_penalty(x, 5, 6)
+    return range_penalty + polygon
 
 
 # data[0] is the dinosaur
@@ -249,7 +236,7 @@ from plenoptic.tensors import _check_tensor_equality
 # pytorch doesn't guarantee reproducibility across CPU/GPU and GPU types, it's unlikely
 # that your results will exactly match ours. (Though it should look approximtaely as
 # good -- if not, open an issue!)
-cached_met = po.data.fetch_data("datasaurus_metamers.tar.gz") / "datasaurus-oval.pt"
+cached_met = po.data.fetch_data("datasaurus_metamers.tar.gz") / "datasaurus-polygons.pt"
 # just load in the metamer tensor, instead of the whole object
 cached_met = torch.load(cached_met)["_metamer"]
 _check_tensor_equality(
