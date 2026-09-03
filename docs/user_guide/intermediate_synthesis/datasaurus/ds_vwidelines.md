@@ -64,6 +64,8 @@ class DatasaurusModel(torch.nn.Module):
             self._ones = torch.ones(n_pts, dtype=dtype)
         else:
             self._ones = None
+        # This model has no trainable parameters, so it's always in eval mode
+        self.eval()
 
     def _prepare_X(self, x):
         ones = self._ones if self._ones is None else torch.ones_like(x)
@@ -160,7 +162,6 @@ categories = np.load(
 )
 
 model = DatasaurusModel(data.shape[1], data.dtype)
-model.eval()
 
 fig, axes = plt.subplots(
     2, 3, figsize=(8, 6), width_ratios=[5, 5, 3], layout="compressed"

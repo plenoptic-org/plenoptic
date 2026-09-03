@@ -64,6 +64,8 @@ class DatasaurusModel(torch.nn.Module):
             self._ones = torch.ones(n_pts, dtype=dtype)
         else:
             self._ones = None
+        # This model has no trainable parameters, so it's always in eval mode
+        self.eval()
 
     def _prepare_X(self, x):
         ones = self._ones if self._ones is None else torch.ones_like(x)
@@ -181,7 +183,6 @@ Combine polygon penalty and range penalty, then run synthesis.
 ```{code-cell} ipython3
 data = torch.load(po.data.fetch_data("datasaurus.tar.gz") / "datasaurus.pt")
 model = DatasaurusModel(data.shape[1], data.dtype)
-model.eval()
 
 nbr = 3
 

@@ -956,6 +956,9 @@ class TestTutorialNotebooks:
                         self._ones = torch.ones(n_pts, dtype=dtype)
                     else:
                         self._ones = None
+                    # This model has no trainable parameters, so it's always in eval
+                    # mode
+                    self.eval()
 
                 def _prepare_X(self, x):
                     ones = self._ones if self._ones is None else torch.ones_like(x)
@@ -963,7 +966,8 @@ class TestTutorialNotebooks:
 
                 def _compute_linreg(self, x, y):
                     X = self._prepare_X(x)
-                    # unsqueezing and squeezing needed because of https://github.com/pytorch/pytorch/issues/158169
+                    # unsqueezing and squeezing needed because of
+                    # https://github.com/pytorch/pytorch/issues/158169
                     return torch.linalg.lstsq(X, y.unsqueeze(-1)).solution.squeeze()
 
                 def _compute_coeff_determination(self, x, y, solution):
@@ -995,7 +999,6 @@ class TestTutorialNotebooks:
                     return torch.cat(stats, -1)
 
             model = DatasaurusModel(142, torch.float64)
-            model.eval()
             return model
 
         @pytest.mark.filterwarnings(
