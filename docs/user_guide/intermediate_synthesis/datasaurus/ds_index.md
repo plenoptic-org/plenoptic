@@ -21,6 +21,7 @@ These pages assume familiarity with the basics of using penalty function in meta
       - and say something like, if you come up with a penalty to do a better job at star, away, thick lines or find a new penalty that does something else interesting
 - 3 of these are more difficult. all of them require "composite penalties", combining several penalties to try and get what we want
       - additionally star: hard to synthesize (shape hard to match), so we do it in two parts
+- some bonus additional ones: centroids and polygons
 
 
 ::::{card}
@@ -38,5 +39,6 @@ ds_xshape.md
 
 ds_away.md
 ds_star.md
+ds_oval.md
 :::
 ::::
