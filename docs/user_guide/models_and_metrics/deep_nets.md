@@ -111,6 +111,7 @@ You can view possible layer names with {external+torchvision:func}`torchvision.m
 
 ```python
 from torchvision.models import feature_extraction
+
 # this function returns two lists, the first for training mode, the second for eval mode
 feature_extraction.get_graph_node_names(deepnet)[1]
 ```
@@ -246,7 +247,9 @@ print(f"ResNet50 predicted class: {get_category(img)}")
 import urllib
 
 # Download ImageNet-1k categories as a txt file from torchvision's github
-r = urllib.request.urlopen("https://raw.githubusercontent.com/pytorch/hub/master/imagenet_classes.txt")
+r = urllib.request.urlopen(
+    "https://raw.githubusercontent.com/pytorch/hub/master/imagenet_classes.txt"
+)
 # Convert to a numpy array
 imagenet_categories = np.asarray(r.read().decode().split("\n"))
 ```
