@@ -120,7 +120,7 @@ def imshow(
            This argument only affects behavior for grayscale images. RGB
            images will always be displayed with vrange [0, 1] (for floats) or
            [0, 255] (for ints), because of how matplotlib handles them (see
-           :external:func:`matplotlib.pyplot.imshow`).
+           ``vmin``, ``vmax`` args in :external:func:`matplotlib.pyplot.imshow`).
 
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
         the minimum and maximum value of the colormap, respectively. If a
@@ -232,7 +232,8 @@ def imshow(
     -----
     UserWarning
         If vrange is set and at least one of the videos is RGB, because matplotlib will
-        only plot RGB images with vranges of [0, 1] (for floats) or [0, 255] (for ints).
+        only plot RGB images with vranges of [0, 1] (for floats) or [0, 255] (for ints)
+        (see ``vmin``, ``vmax`` args in :external:func:`matplotlib.pyplot.imshow`).
 
     See Also
     --------
@@ -369,8 +370,9 @@ def imshow(
       >>> po.plot.imshow(color_wheel, as_rgb=True, zoom=0.5)
       <PyrFigure size ... with 1 Axes>
 
-    When ``as_rgb=True``, we have no control over the ``vrange`` (because of how
-    :func:`matplotlib.pyplot.imshow` handles color images): regardless of user-specified
+    When ``as_rgb=True``, we have no control over the ``vrange`` because of how
+    :func:`matplotlib.pyplot.imshow` handles color images (see the documentation of
+    that function for the ``vmin``, ``vmax`` args). Thus, regardless of user-specified
     arguments, ``vrange`` is set to ``[0, 1]`` (for floating-typed inputs) or ``[0,
     255]`` (for integer-typed inputs). Additionally, any values outside that range will
     be clipped:
@@ -406,21 +408,9 @@ def imshow(
     - That the image in the second axis (in each figure) has had many of its values
       clipped to 1 and are thus displayed as white.
 
-    Compare this to the results of the same syntax with grayscale images:
-
-    .. plot::
-      :context: close-figs
-
-      >>> gray_whl = color_wheel.mean(1, keepdim=True)
-      >>> po.plot.imshow([gray_whl, 2 * gray_whl], title="vrange=indep1", zoom=0.5)
-      <PyrFigure size ... with 2 Axes>
-      >>> po.plot.imshow(
-      ...     [gray_whl, 2 * gray_whl], title="vrange=auto1", vrange="auto1", zoom=0.5
-      ... )
-      <PyrFigure size ... with 2 Axes>
-
-    To avoid this problem, one can rescale the input before plotting using a function
-    like :func:`plenoptic.process.rescale`:
+    To visualize 3-channel images that aren't defined in one of the supported ranges
+    (e.g., differences of RGB images), one can rescale the input before plotting using
+    a function like :func:`plenoptic.process.rescale`:
 
     .. plot::
       :context: close-figs
