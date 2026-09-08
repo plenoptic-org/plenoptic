@@ -1270,6 +1270,9 @@ class TestMetamers:
         for _ in range(5):
             met = po.Metamer(img, model)
             met.setup(torch.rand(shape, device=DEVICE), optimizer=optim)
+            # This attribute is normally created in _optimizer_step before calling
+            # _closure (and is needed for it to operate)
+            met._penalty_tmp = []
             loss = met.objective_function()
             assert loss == met._closure()
 
@@ -1284,6 +1287,9 @@ class TestMetamers:
         for _ in range(3):
             met = po.Metamer(img, model)
             met.setup(torch.rand(shape, device=DEVICE))
+            # This attribute is normally created in _optimizer_step before calling
+            # _closure (and is needed for it to operate)
+            met._penalty_tmp = []
             loss = met.objective_function()
             assert loss == met._closure()
 
@@ -1541,13 +1547,51 @@ class TestMetamers:
         indirect=True,
     )
     @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
-    def test_metamer_loss_value(self, optim, model, seed):
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+    def test_metamer_stored_value(self, optim, model, seed, dtype):
+        # Test that the losses and penalty we store matches the ones we can compute from
+        # the saved_metamer
+        po.set_seed(seed)
+        model.to(dtype)
+        img = torch.rand((1, 1, 32, 32), device=DEVICE, dtype=dtype)
+        # need to make sure penalty value is large enough that we find issues with the
+        # below
+        met = po.Metamer(
+            img,
+            model,
+            penalty_function=lambda x: po.regularize.penalize_range(x, (-1, -0.5)),
+        )
+        met.setup(optimizer=optim)
+        met.synthesize(10, store_progress=True)
+        saved_met = met.saved_metamer.to(DEVICE)
+        posthoc_loss = torch.func.vmap(met.objective_function)(saved_met)
+        torch.testing.assert_close(posthoc_loss, met.losses.to(DEVICE))
+        posthoc_penalty = torch.func.vmap(met.penalty_function)(saved_met)
+        torch.testing.assert_close(posthoc_penalty, met.penalties.to(DEVICE))
+        model.to(torch.float32)
+
+    @pytest.mark.parametrize("seed", range(3))
+    @pytest.mark.parametrize(
+        "model",
+        ["frontend.LinearNonlinear.nograd", "naive.Gaussian.nograd"],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+    def test_metamer_loss_value(self, optim, model, seed, dtype):
         # we don't store the "metamer loss" (i.e., loss_func(model(target_img) -
         # model(metamer_img))) directly, but we tell people they can reconstruct it, so
         # let's test that's right
         po.set_seed(seed)
-        img = torch.rand((1, 1, 32, 32), device=DEVICE)
-        met = po.Metamer(img, model)
+        model.to(dtype)
+        img = torch.rand((1, 1, 32, 32), device=DEVICE, dtype=dtype)
+        # need to make sure penalty value is large enough that we could find issues with
+        # the below checks
+        met = po.Metamer(
+            img,
+            model,
+            penalty_function=lambda x: po.regularize.penalize_range(x, (-1, -0.5)),
+        )
         met.setup(optimizer=optim)
         met.synthesize(10, store_progress=True)
         met_loss = met.losses - met.penalty_lambda * met.penalties
@@ -1556,6 +1600,7 @@ class TestMetamers:
             saved_rep, met.target_representation
         )
         torch.testing.assert_close(met_loss.to(DEVICE), model_loss)
+        model.to(torch.float32)
 
     @pytest.mark.parametrize(
         "model",
