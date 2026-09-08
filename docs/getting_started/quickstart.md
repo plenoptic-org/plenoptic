@@ -23,7 +23,7 @@ Run it in your browser: **{binder}`quickstart.ipynb`**!
 (quickstart-nb)=
 # Quickstart
 
-The following tutorial is intended to show you how to create a simple `plenoptic`-compliant model and use it with our synthesis methods, with a brief explanation of how to interpret the outputs. See the other tutorials for more details.
+The following tutorial is intended to show you how to create a simple `plenoptic`-compliant model and use it with our synthesis methods, with a brief explanation of how to interpret the outputs. See the [](full-intro) for a longer introduction, and the [](user-guide) for more information about the different synthesis methods and models included in plenoptic, as well as more advanced usage.
 
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
