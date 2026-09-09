@@ -1,8 +1,11 @@
+(user-guide)=
 # User Guide
 
 These sections demonstrate how to use plenoptic in a variety of contexts.
 
-Users are encouraged to read the introductions for the [synthesis method](synthesis-index) or [model / metric](models-metrics-index) they would like to use.
+If you are new to plenoptic and/or stimulus synthesis, you are encouraged to first check out the materials in the [](getting-started) section, especially the [17-minute video introduction](https://archive.org/details/vss2025-symposium-plenoptic) and [](full-intro).
+
+All users are encouraged to read the introductions for the [synthesis method](synthesis-index) or [model / metric](models-metrics-index) they would like to use.
 
 The [](reproduce-index) section includes examples of how to use plenoptic to reproduce results from published papers.
 
