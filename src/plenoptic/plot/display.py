@@ -115,6 +115,13 @@ def imshow(
         displayed at the same height and width, thus, their heights and widths
         must be scalar multiples of each other.
     vrange
+
+        .. attention::
+           This argument only affects behavior for grayscale images. RGB
+           images will always be displayed with vrange [0, 1] (for floats) or
+           [0, 255] (for ints), because of how matplotlib handles them (see
+           ``vmin``, ``vmax`` args in :external:func:`matplotlib.pyplot.imshow`).
+
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
         the minimum and maximum value of the colormap, respectively. If a
         string:
@@ -190,9 +197,11 @@ def imshow(
         restrict the channels.
     as_rgb
         Whether to consider the channels as encoding RGB(A) values. If ``True``, we
-        attempt to plot the image in color, so your tensor must have 3 (or 4 if
-        you want the alpha channel) elements in the channel dimension. If ``False``,
-        we plot each channel as a separate grayscale image.
+        attempt to plot the image in color, so your tensor must have 3 (or 4 if you want
+        the alpha channel) elements in the channel dimension. Note that in this case,
+        the ``vrange`` argument is ignored and set to ``[0, 1]`` (if ``img`` has a
+        floating dtype) or ``[0, 255]`` (if integer dtype). If ``False``, we plot each
+        channel as a separate grayscale image.
     **kwargs
         Passed to :func:`matplotlib.pyplot.imshow`.
 
@@ -218,6 +227,13 @@ def imshow(
         one batch and neither ``batch_idx`` nor ``channel_idx`` is set.
     Exception
         If ``plot_complex`` takes an illegal value.
+
+    Warns
+    -----
+    UserWarning
+        If vrange is set and at least one of the videos is RGB, because matplotlib will
+        only plot RGB images with vranges of [0, 1] (for floats) or [0, 255] (for ints)
+        (see ``vmin``, ``vmax`` args in :external:func:`matplotlib.pyplot.imshow`).
 
     See Also
     --------
@@ -354,8 +370,62 @@ def imshow(
       >>> po.plot.imshow(color_wheel, as_rgb=True, zoom=0.5)
       <PyrFigure size ... with 1 Axes>
 
-    Otherwise, images with multiple channels will have each channel plotted as a
-    separate grayscale image:
+    When ``as_rgb=True``, we have no control over the ``vrange`` because of how
+    :func:`matplotlib.pyplot.imshow` handles color images (see the documentation of
+    that function for the ``vmin``, ``vmax`` args). Thus, regardless of user-specified
+    arguments, ``vrange`` is set to ``[0, 1]`` (for floating-typed inputs) or ``[0,
+    255]`` (for integer-typed inputs). Additionally, any values outside that range will
+    be clipped:
+
+    .. plot::
+      :context: close-figs
+
+      >>> print(color_wheel.max(), (2 * color_wheel).max())
+      tensor(1.) tensor(2.)
+      >>> po.plot.imshow(
+      ...     [color_wheel, 2 * color_wheel],
+      ...     title="vrange=indep1",
+      ...     as_rgb=True,
+      ...     zoom=0.5,
+      ... )
+      <PyrFigure size ... with 2 Axes>
+      >>> po.plot.imshow(
+      ...     [color_wheel, 2 * color_wheel],
+      ...     title="vrange=auto1",
+      ...     vrange="auto1",
+      ...     as_rgb=True,
+      ...     zoom=0.5,
+      ... )
+      <PyrFigure size ... with 2 Axes>
+
+    Notice that:
+
+    - The two figures above are identical despite the different ``vrange`` argument.
+
+    - The two axes in each figure have the same plotted vrange (as shown in the title),
+      despite their different data ranges.
+
+    - That the image in the second axis (in each figure) has had many of its values
+      clipped to 1 and are thus displayed as white.
+
+    To visualize 3-channel images that aren't defined in one of the supported ranges
+    (e.g., differences of RGB images), one can rescale the input before plotting using
+    a function like :func:`plenoptic.process.rescale`:
+
+    .. plot::
+      :context: close-figs
+
+      >>> small_range = 0.5 * color_wheel
+      >>> big_range = 2 * color_wheel
+      >>> imgs = [small_range, big_range]
+      >>> titles = [f"data_range=[{i.min()}, {i.max()}]" for i in imgs]
+      >>> imgs += [po.process.rescale(im) for im in imgs]
+      >>> titles += ["rescaled", "rescaled"]
+      >>> po.plot.imshow(imgs, as_rgb=True, zoom=0.5, col_wrap=2, title=titles)
+      <PyrFigure size ... with 4 Axes>
+
+    If ``as_rgb=False``, images with multiple channels will have each channel plotted
+    as a separate grayscale image:
 
     .. plot::
       :context: close-figs
@@ -558,6 +628,13 @@ def animshow(
     repeat
         Whether to loop the animation or just play it once.
     vrange
+
+        .. attention::
+           This argument only affects behavior for grayscale images. RGB
+           images will always be displayed with vrange [0, 1] (for floats) or
+           [0, 255] (for ints), because of how matplotlib handles them (see
+           :external:func:`matplotlib.pyplot.imshow`).
+
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
         the minimum and maximum value of the colormap, respectively. If a
         string:
@@ -636,7 +713,9 @@ def animshow(
         attempt to plot the image in color, so your tensor must have 3 (or 4 if
         you want the alpha channel) elements in the channel dimension. If ``False``,
         we plot each channel as a separate grayscale image. Note that if ``True``,
-        clipping may result, see Warns section below for details.
+        clipping may result, see Warns section below for details. Additionally, if
+        ``True``, the ``vrange`` argument is ignored and set to ``[0, 1]`` (if ``img``
+        has a floating dtype) or ``[0, 255]`` (if integer dtype).
     **kwargs
         Passed to :func:`matplotlib.pyplot.imshow`.
 
@@ -668,6 +747,9 @@ def animshow(
         of :func:`matplotlib.pyplot.imshow`.) The warning will say how many frames of
         which video were clipped. To avoid clipping, you should remap ``video`` to
         [0, 1] before calling this function.
+    UserWarning
+        If vrange is set and at least one of the videos is RGB, because matplotlib will
+        only plot RGB images with vranges of [0, 1] (for floats) or [0, 255] (for ints).
 
     See Also
     --------
