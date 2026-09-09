@@ -146,6 +146,8 @@ class MADCompetition(_OptimizedSynthesis):
         self._minmax = minmax
         self._store_progress = None
         self._saved_mad_image = []
+        self._current_ref_metric = None
+        self._current_opt_metric = None
 
     def setup(
         self,
@@ -252,10 +254,6 @@ class MADCompetition(_OptimizedSynthesis):
             self._reference_metric_target = self.reference_metric(
                 self.image, self.mad_image
             ).item()
-            self._reference_metric_loss.append(self._reference_metric_target)
-            self._optimized_metric_loss.append(
-                self.optimized_metric(self.image, self.mad_image).item()
-            )
         else:
             if self._loaded:
                 if initial_noise is not None:
@@ -319,6 +317,8 @@ class MADCompetition(_OptimizedSynthesis):
             self.setup()
         self._current_loss = None
         self._current_penalty = None
+        self._current_ref_metric = None
+        self._current_opt_metric = None
 
         # get ready to store progress
         self.store_progress = store_progress
@@ -342,7 +342,10 @@ class MADCompetition(_OptimizedSynthesis):
         # compute current loss, no need to compute gradient
         with torch.no_grad():
             self._current_loss = self.objective_function().item()
-            self._current_penalty = self.penalty_function(self.mad_image).item()
+            sm, fm, penalty = self._objective_function()
+            self._current_penalty = penalty.item()
+            self._current_ref_metric = fm.item()
+            self._current_opt_metric = sm.item()
 
         pbar.close()
 
@@ -544,9 +547,9 @@ class MADCompetition(_OptimizedSynthesis):
             + self.penalty_lambda * penalty
         )
         loss.backward(retain_graph=False)
-        self._reference_metric_tmp = fm.item()
-        self._optimized_metric_tmp = sm.item()
-        self._penalty_tmp = penalty.item()
+        self._reference_metric_tmp.append(fm.item())
+        self._optimized_metric_tmp.append(sm.item())
+        self._penalty_tmp.append(penalty.item())
         return loss.item()
 
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
@@ -567,11 +570,20 @@ class MADCompetition(_OptimizedSynthesis):
             1-element tensor containing the loss on this step.
         """  # numpydoc ignore=ES01
         last_iter_mad_image = self.mad_image.clone()
+        # For some reason, the loss actually returned by optimizer.step above for
+        # optimizers that call closure multiple time (like LBFGS) is the one that
+        # corresponds to the *first* call, not the last. Therefore, to make penalty
+        # match it, we keep track of the penalty on each call to closure and then ...
+        self._penalty_tmp = []
+        self._reference_metric_tmp = []
+        self._optimized_metric_tmp = []
         loss = self.optimizer.step(self._closure)
         self._losses.append(loss)
-        self._penalties.append(self._penalty_tmp)
-        self._reference_metric_loss.append(self._reference_metric_tmp)
-        self._optimized_metric_loss.append(self._optimized_metric_tmp)
+        # ... grab the first one. This also allows the stored penalty to line up with
+        # penalty_function(saved_mad_image). (and same for metrics)
+        self._penalties.append(self._penalty_tmp[0])
+        self._reference_metric_loss.append(self._reference_metric_tmp[0])
+        self._optimized_metric_loss.append(self._optimized_metric_tmp[0])
 
         grad_norm = torch.linalg.vector_norm(
             self.mad_image.grad.data, ord=2, dim=None
@@ -933,7 +945,23 @@ class MADCompetition(_OptimizedSynthesis):
         ``MADCompetition`` object.
         """
         # numpydoc ignore=RT01
-        return torch.as_tensor(self._reference_metric_loss)
+        current_ref = self._current_ref_metric
+        # this will happen if we haven't run synthesize() yet or got
+        # interrupted
+        if current_ref is None:
+            if self.mad_image.numel() == 0:
+                # this will happen if setup() has not been called and so we can't
+                # compute penalty because synthesis hasn't been initialized.
+                return torch.empty(0)
+            else:
+                # compute current penalty, no need to compute gradient
+                with torch.no_grad():
+                    current_ref = self.reference_metric(self.image, self.mad_image)
+                    current_ref = current_ref.item()
+        return torch.as_tensor(
+            [*self._reference_metric_loss, current_ref],
+            dtype=self.image.dtype,
+        )
 
     @property
     def optimized_metric_loss(self) -> Tensor:
@@ -947,7 +975,23 @@ class MADCompetition(_OptimizedSynthesis):
         ``MADCompetition`` object.
         """
         # numpydoc ignore=RT01
-        return torch.as_tensor(self._optimized_metric_loss)
+        current_opt = self._current_opt_metric
+        # this will happen if we haven't run synthesize() yet or got
+        # interrupted
+        if current_opt is None:
+            if self.mad_image.numel() == 0:
+                # this will happen if setup() has not been called and so we can't
+                # compute penalty because synthesis hasn't been initialized.
+                return torch.empty(0)
+            else:
+                # compute current penalty, no need to compute gradient
+                with torch.no_grad():
+                    current_opt = self.optimized_metric(self.image, self.mad_image)
+                    current_opt = current_opt.item()
+        return torch.as_tensor(
+            [*self._optimized_metric_loss, current_opt],
+            dtype=self.image.dtype,
+        )
 
     @property
     def metric_tradeoff_lambda(self) -> float:

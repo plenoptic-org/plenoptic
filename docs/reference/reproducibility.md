@@ -115,6 +115,36 @@ Note that, if `store_progress>1`, then the synthesis procedure did not cache the
 
 (The above all holds for both {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition`.)
 
+(lbfgs-penalties-bugfix)=
+##### Bugfix in plenoptic 2.1.1 for values when using LBFGS and similar optimizers
+
+:::{important}
+
+This change only affects synthesis performed with optimization algorithms that need to re-evaluate the loss function multiple times (equivalently, those that call `closure` multiple times), such as LBFGS and Conjugate Gradient. The default optimizer for all plenoptic iterative optimization synthesis methods is {class}`torch.optim.Adam`, which **is not** affected by this bugfix.
+
+See {external:ref}`optim:taking an optimization step` on the pytorch documentation for more details about `closure`.
+
+:::
+
+In plenptic 2.1.1, a bugfix was released for how the {attr}`plenoptic.Metamer.penalties`, {attr}`plenoptic.MADCompetition.penalties`, {attr}`plenoptic.MADCompetition.reference_metric_loss`, and {attr}`plenoptic.MADCompetition.optimized_metric_loss` are updated for optimizers like {external:class}`torch.optim.LBFGS` that evaluate the loss function multiple times. After this change, their values now correspond to those that can be computed post-hoc from {attr}`plenoptic.Metamer.saved_metamer` / {attr}`plenoptic.MADCompetition.saved_mad_image`, aligning them with {attr}`plenoptic.Metamer.losses` / {attr}`plenoptic.MADCompetition.losses`.
+
+If you are interested in the technical details: optimizers such as LBFGS need to evaluate the loss function multiple times per iteration. This is handled by passing the optimizer's `step` method a `closure` function, which evaluates the loss function, computes the gradients, and returns the loss value. The loss value ultimately returned by the optimizer's `step`, which we use to update the {attr}`~plenoptic.Metamer.losses` attribute, corresponds to the **first** time that `closure` is called on each iteration. However, prior to 2.1.1, the values plenoptic was using to update {attr}`~plenoptic.Metamer.penalties` and other attributes corresponded to the **last** time that `closure` was called on each iteration. This bugfix aligns the behavior of these attributes.
+
+### FutureWarning in load in plenoptic 2.1.1
+
+A small change was made to the {class}`~plenoptic.MADCompetition` APIs in `plenoptic` 2.1.1 (related to [the bugfix](lbfgs-penalties-bugfix) above). You will be able to load {class}`~plenoptic.MADCompetition` objects saved with earlier versions for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
+
+In order to make an object compatible with future releases, you can either load it in with `plenoptic` 2.1.1 and re-save it, or do the following:
+
+```python
+import torch
+old_save = torch.load("old_save.pt")
+old_save["_current_ref_metric"] = None
+old_save["_current_opt_metric"] = None
+torch.save(old_save, "old_save.pt")
+# and then load as normal
+```
+
 (raise-on-checks)=
 ### `raise_on_checks`
 

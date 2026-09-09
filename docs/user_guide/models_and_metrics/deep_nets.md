@@ -194,7 +194,7 @@ import plenoptic as po
 
 # since these two models are identical, they have the same layer names
 target_layer = "layer3"
-deepnet = timm.create_model("timm/resnet50.tv_in1k", pretrained=True)
+deepnet = timm.create_model("hf-hub:timm/resnet50.tv_in1k", pretrained=True)
 deepnet.eval()
 transform = create_transform(
     **resolve_data_config(deepnet.pretrained_cfg, model=deepnet)
