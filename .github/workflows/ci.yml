@@ -83,7 +83,8 @@ jobs:
         for file in $(find docs/ -name '*.md'); do
            # if it doesn't have this header, then it's not an executable notebook
            if [[ $(head -2 $file | tr '\n' ' ') == "--- jupytext: " ]]; then
-               jupytext --execute $file
+               # Set MAX_ITER to reduce the length some of the notebooks take.
+               MAX_ITER=10 jupytext --execute $file
            fi
         done
   doctests:

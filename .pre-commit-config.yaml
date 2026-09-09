@@ -107,12 +107,12 @@ repos:
     - id: check-api-docs
       language: system
       name: Ensure all public functions / classes are included in _api_change.py
-      entry: python linting/check_apidocs.py
+      entry: python linting/check_api_change.py
       always_run: true
       pass_filenames: false
     - id: check-myst-frontmatter
       language: system
-      name: Ensure all text notebooks are in mys tformat
+      name: Ensure all text notebooks are in myst format with proper frontmatter
       entry: python linting/check_myst-nb.py
       types_or: ["markdown"]
       files: ^docs/

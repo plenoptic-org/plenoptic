@@ -136,7 +136,9 @@ class DeepNetFeatures(torch.nn.Module):
     >>> import timm
     >>> from timm.data import resolve_data_config
     >>> from timm.data.transforms_factory import create_transform
-    >>> timm_model = timm.create_model("timm/resnet50.tv_in1k", pretrained=True).eval()
+    >>> timm_model = timm.create_model(
+    ...     "hf-hub:timm/resnet50.tv_in1k", pretrained=True
+    ... ).eval()
     >>> # Create Transform
     >>> timm_transform = create_transform(
     ...     **resolve_data_config(timm_model.pretrained_cfg, model=timm_model)

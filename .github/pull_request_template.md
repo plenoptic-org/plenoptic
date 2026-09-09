@@ -37,5 +37,6 @@ Affirm that you have done the following:
 - [ ] I have described the changes in this PR, following the template above.
 - [ ] I have added any necessary tests.
 - [ ] I have added any necessary documentation. This includes docstrings, updates to existing files found in `docs/`, or (for large changes) adding new files to the `docs/` folder.
+- [ ] If I noticed any typos (my own or others), I have updated `plenoptic-dict.txt` to include those typos and suggested fixes.
 - [ ] If a reproducible example was added: I have taken all required steps to ensure reproducibility, including setting the seed, using float64, calling `torch.use_deterministic_algorithms(True)`. See "Reproducibility and Compatibility" page in the docs for details.
 - [ ] If a public new class or function was added: I have double-checked that it is present in the API docs, adding it to one of the `rst` files in `docs/api/` or adding a new file as necessary.
