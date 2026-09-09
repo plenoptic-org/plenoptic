@@ -62,6 +62,8 @@ If you are aware of examples of a similar use of penalties in the literature, pl
 :::
 
 ```{code-cell} ipython3
+import os
+
 import matplotlib.pyplot as plt
 import torch
 
@@ -72,9 +74,11 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
-# On a cpu, we won't run this to completion (takes too long). If you would like to run
-# it to completion on a local CPU-only device, increase the value from 100 below
-MAX_ITER = 100 if DEVICE.type == "cpu" else 4000
+# The default value of 4000 for MAX_ITER here will lead to reasonable results, but will
+# take too long if you don't have a GPU. If synthesis is taking a long time on your
+# machine, set this to a lower value, but know that synthesis has ended early. View the
+# website online to see what completed synthesis looks like.
+MAX_ITER = int(os.environ.get("MAX_ITER", 4000))
 ```
 
 The following hidden cell creates some plotting functions that we'll reuse throughout this notebook, expand it if you're interested in the details.
