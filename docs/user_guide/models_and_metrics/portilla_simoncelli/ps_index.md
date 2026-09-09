@@ -1,3 +1,4 @@
+(ps-index)=
 # Portilla-Simoncelli Texture Model
 
 The following notebooks introduce the Portilla-Simoncelli texture model, as first described in {cite:alp}`Portilla2000-param-textur`, and its implementation in plenoptic.

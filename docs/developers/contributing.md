@@ -548,11 +548,28 @@ the standard `jupyter` install as long as you have `nbclient>=0.5.5`.
 
 Occasionally, we want to include one or more synthesis calls within a tutorial
 notebook that take a long time to run (for example, because we're reproducing a
-result from the literature). In order to avoid having the documentation build
-take a long time, we instead write a regression test (in
-`tests/test_uploaded_files.py`), which runs the synthesis, saves the output, and
+result from the literature). There are two issues here: this will make our CI
+take along time and may take an unreasonable amount of time on a user's laptop
+if they try to follow the notebook (and do not have a GPU available).
+
+There are two possible solutions, each of which is covered in a following
+section:
+- Run the synthesis in a test, cache the outputs, and retrieve them in the
+  notebook.
+- Have the notebook's number of iterations controlled by the environmental
+  variable `MAX_ITER`.
+
+One or the other of these should be used if a notebook takes more than 5 minutes
+on a CPU. In both cases, some amount of text in the notebook is required as an
+explanation to the user. See existing notebooks for examples.
+
+#### Cache and retrieve outputs.
+
+To cache and retrieve outputs, write a regression test (in
+`tests/test_uploaded_files.py`) which runs the synthesis, saves the output, and
 compares it against a cached version stored in our OSF project. See
-`tests/test_uploaded_files.py` to see how these tests look. Some important notes:
+`tests/test_uploaded_files.py` to see how these tests look. Some important
+notes:
 
 - The new tests should be added to the `TestTutorialNotebooks` class in
   `test_uploaded_files.py`.
@@ -588,6 +605,21 @@ We have a linter that checks the conditions above.
 `pytest` does not run the tests found under `TestTutorialNotebooks` by default,
 since they take a long time. In order to run them, you must explicitly set the
 environment variable `RUN_REGRESSION_SYNTH=1` when calling pytest.
+
+#### Use `MAX_ITER` environmental variable
+
+Another approach is to have the number of synthesis iterations (the `max_iter`
+argument accepted by all `synthesize` <!-- skip-lint --> methods) controlled by an environmental
+variable, `MAX_ITER`. In this case, `MAX_ITER` should be set at the top of the
+notebook, with some default value: `MAX_ITER = int(os.environ.get("MAX_ITER", 500))`,
+accompanied by some text explaining what's going on to the user.
+
+This is useful because the "run notebooks" job in `ci.yml`, which runs all of
+our notebooks on the CPU, sets `MAX_ITER=10`, drastically reducing the duration
+of these runs.
+
+See `docs/user_guide/models_and_metrics/deep_nets.md` and
+`docs/tutorials/introductory_tutorial.md` for examples.
 
 (exact-reproducibility)=
 #### Exact reproducibility

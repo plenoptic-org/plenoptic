@@ -88,8 +88,12 @@ jobs:
         rm -rf ${RELEASE_NAME}
     - name: Run notebooks
       run: |
-        for file in $(find docs/tutorials/ -name '*.md'); do
-           jupytext --execute $file
+        for file in $(find docs/ -name '*.md'); do
+           # if it doesn't have this header, then it's not an executable notebook
+           if [[ $(head -2 $file | tr '\n' ' ') == "--- jupytext: " ]]; then
+               # Set MAX_ITER to reduce the length some of the notebooks take.
+               MAX_ITER=10 jupytext --execute $file
+           fi
         done
     - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
