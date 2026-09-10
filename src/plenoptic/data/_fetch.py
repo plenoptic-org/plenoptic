@@ -63,7 +63,7 @@ REGISTRY = {
     # R package licensed MIT, then converted by me from csv to torch tensor,
     # originally downloaded from
     # https://www.openintro.org/data/index.php?data=datasaurus
-    "datasaurus.tar.gz": "2683bc854aff5f96373a6171948cf75fc6facaa8158a33719ec7d7af6c227997",  # noqa: E501
+    "datasaurus.tar.gz": "f27b0254bc1d070deac5a8ed1c3924331d125e9c389524c23563ae45f2d1be28",  # noqa: E501
     "datasaurus_metamers.tar.gz": "dc31fcd2aa98bfdbf5b1a4782a5d18cfaa972e8b685a795b8a461e245baf426e",  # noqa: E501
 }
 
@@ -112,7 +112,7 @@ REGISTRY_URLS = {
     "ResNet50-layer3_macaque_metamer.pt": OSF_TEMPLATE.format("bqt2s/?revision=7"),
     "ResNet50-layer4_macaque_metamer.pt": OSF_TEMPLATE.format("yvwjs/?revision=7"),
     "caltech256_burger.jpg": OSF_TEMPLATE.format("5dhac/?revision=1"),
-    "datasaurus.tar.gz": OSF_TEMPLATE.format("xfb6q/?revision=1"),
+    "datasaurus.tar.gz": OSF_TEMPLATE.format("xfb6q/?revision=2"),
     "datasaurus_metamers.tar.gz": OSF_TEMPLATE.format("q7bnu/?revision=5"),
 }
 
