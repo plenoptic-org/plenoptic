@@ -320,6 +320,7 @@ titles = [
     "vwidelines",
     "polygons",
     "oval",
+    "plenoptic-logo",
 ]
 metamer_tarball = po.data.fetch_data("datasaurus_metamers.tar.gz")
 for t in titles:
@@ -404,6 +405,7 @@ ds_polygons.md
 ds_oval.md
 ds_hwidelines.md
 ds_vwidelines.md
+ds_plenoptic_logo.md
 
 :::
 ::::

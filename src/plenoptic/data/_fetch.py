@@ -64,7 +64,7 @@ REGISTRY = {
     # originally downloaded from
     # https://www.openintro.org/data/index.php?data=datasaurus
     "datasaurus.tar.gz": "f27b0254bc1d070deac5a8ed1c3924331d125e9c389524c23563ae45f2d1be28",  # noqa: E501
-    "datasaurus_metamers.tar.gz": "dc31fcd2aa98bfdbf5b1a4782a5d18cfaa972e8b685a795b8a461e245baf426e",  # noqa: E501
+    "datasaurus_metamers.tar.gz": "ecdb0ebd984a9955861c2a46849709b1770fb9db1ba4d5dfd5012106bdbab454",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"
@@ -113,7 +113,7 @@ REGISTRY_URLS = {
     "ResNet50-layer4_macaque_metamer.pt": OSF_TEMPLATE.format("yvwjs/?revision=7"),
     "caltech256_burger.jpg": OSF_TEMPLATE.format("5dhac/?revision=1"),
     "datasaurus.tar.gz": OSF_TEMPLATE.format("xfb6q/?revision=2"),
-    "datasaurus_metamers.tar.gz": OSF_TEMPLATE.format("q7bnu/?revision=5"),
+    "datasaurus_metamers.tar.gz": OSF_TEMPLATE.format("q7bnu/?revision=6"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch_data`
