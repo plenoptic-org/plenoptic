@@ -60,7 +60,7 @@ where:
 
 Other penalties $\mathcal{B}$ can be used by passing them to the argument {attr}`~plenoptic.MADCompetition.penalty_function`.
 
-For more details, see the [Metamer regularization section](metamer-regularization).
+For more details, see [](how-to-penalty).
 :::
 
 That's the general idea, now let's explore how to use the {class}`~plenoptic.MADCompetition` class for generating these images
