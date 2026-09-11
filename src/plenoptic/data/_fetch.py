@@ -131,6 +131,7 @@ DOWNLOADABLE_FILES = [
     "example_eigendistortion_color.pt",
     "caltech256_burger.jpg",
     "datasaurus.tar.gz",
+    "datasaurus_metamers.tar.gz",
 ]
 
 retriever = pooch.create(
