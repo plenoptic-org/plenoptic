@@ -27,8 +27,11 @@ __all__ = [
     "kurtosis",
     "normalized_laplacian_pyramid",
     "ssim_map",
+    "OPC",
+    "PCA",
 ]
 
+from .color import OPC, PCA
 from .convolutions import (
     blur_downsample,
     correlate_downsample,

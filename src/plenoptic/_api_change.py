@@ -193,6 +193,8 @@ NEW = [
     "plenoptic.io.LoadWarning",
     "plenoptic.data.macaque",
     "plenoptic.models.DeepNetFeatures",
+    "plenoptic.process.OPC",
+    "plenoptic.process.PCA",
 ]
 
 UNCHANGED = [
