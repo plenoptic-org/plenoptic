@@ -633,7 +633,7 @@ class Metamer(_OptimizedSynthesis):
 
         Get values from last iteration of synthesis:
 
-        >>> print(met.get_progress(-2))
+        >>> met.get_progress(-2)
         {'losses': tensor(0.0145),
         'iteration': 4,
         'penalties': tensor(0.0180),
@@ -642,7 +642,7 @@ class Metamer(_OptimizedSynthesis):
 
         Get current values:
 
-        >>> print(met.get_progress(-1))
+        >>> met.get_progress(-1)
         {'losses': tensor(0.0132),
         'iteration': 5,
         'penalties': tensor(0.0174),
@@ -654,7 +654,7 @@ class Metamer(_OptimizedSynthesis):
 
         >>> met = po.Metamer(img, model)
         >>> met.synthesize(5, store_progress=True)
-        >>> print(met.get_progress(-1))
+        >>> met.get_progress(-1)
         {'losses': tensor(0.0124),
         'iteration': 5,
         'penalties': tensor(0.0168),
@@ -670,7 +670,7 @@ class Metamer(_OptimizedSynthesis):
 
         >>> met = po.Metamer(img, model)
         >>> met.synthesize(5, store_progress=2)
-        >>> print(met.get_progress(-3))
+        >>> met.get_progress(-3)
         {'losses': tensor(0.0152),
         'iteration': 3,
         'penalties': tensor(0.0182),
@@ -682,7 +682,7 @@ class Metamer(_OptimizedSynthesis):
         When we cannot grab the saved metamer corresponding to the requested
         iteration, ``iteration_selection`` controls how we determine "closest":
 
-        >>> print(met.get_progress(-3, iteration_selection="floor"))
+        >>> met.get_progress(-3, iteration_selection="floor")
         {'losses': tensor(0.0152),
         'iteration': 3,
         'penalties': tensor(0.0182),
