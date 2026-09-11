@@ -518,6 +518,15 @@ ani
 
 Now that we've seen that plenoptic can create these metameric datasets, you are encouraged to peruse the following notebooks for details. With the exception of `star` and `plenoptic-logo` (as mentioned above), the only difference between their synthesis is the definition of the penalty function.
 
+:::{admonition} Synthesis efficiency
+:class: attention
+
+These synthesis procedures are all pretty quick, less than a minute on a CPU. This is because our dataset is shape `(2, 142)`, which is a good deal smaller than the `(1, 1, 256, 256)` seen in much of the other tutorials. Additionally, the computations in the `DatasaurusModel` are all relatively quick.
+
+We thus haven't paid much attention to efficiency in the definitions of the penalty functions found in the following notebooks. This means there are some inefficient operations in the penalties themselves, such as converting numpy arrays or lists to tensors and if statements. Because of the small dataset and quick model, this doesn't slow us down much, but if you wanted to use similar penalties on much larger inputs or with slower models, it would be beneficial to ensure the penalty functions are more efficient.
+
+:::
+
 ::::{card}
 :::{toctree}
 :maxdepth: 1
