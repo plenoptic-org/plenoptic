@@ -117,19 +117,16 @@ class MADCompetition(_OptimizedSynthesis):
     and some random image. You can use this as a starting point, but we recommend
     adjusting it.
 
-    .. plot::
-      :context: reset
-
-      >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max")
-      >>> mad.metric_tradeoff_lambda
-      10.0
+    >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max")
+    >>> mad.metric_tradeoff_lambda
+    10.0
 
     Set ``minmax`` to determine whether to minimize or maximize ``optimized_metric``.
     Notice that its value, plotted in the rightmost subplot below, decreases, as opposed
     to the increase seen above.
 
     .. plot::
-      :context: reset
+      :context: close-figs
 
       >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "min", 1e6)
       >>> mad.synthesize(200)
