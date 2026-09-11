@@ -418,9 +418,13 @@ In the video above, the leftmost plot shows the metameric dataset over synthesis
 
 We can see that our synthesis procedure fairly quickly finds a metamer, starting from uniformly-distribute dots with x and y values between 0 and 100. However, the metamer doesn't look all that interesting: it still looks like a fairly random smattering of dots.
 
-In order to find "clearly different and identifiably distinct" datasets, we can use a variety of different penalty functions! If we do so, we can synthesize the following new set of metameric datasets:
+In order to find "clearly different and identifiably distinct" datasets, we need to do something more. Specifically, we can use {attr}`~plenoptic.Metamer.penalty_function` to bias the synthesis procedure. In this case, we can create penalty functions that encourage the dataset to have specific shapes. By passing them to {class}`~plenoptic.Metamer` at initialization, we can try to find datasets that are both `DatasaurusModel` metamers and "identifiably distinct".
+
+The other notebooks in this section demonstrate how to do this, for a wide variety of shapes. First, let's see what they look like. The following hidden cell loads in the cached metamers and creates two figures, laid out like the above ones:
 
 ```{code-cell} ipython3
+:tags: [hide-input]
+
 # for creating the plot
 cached_metamers = []
 # for animating the video
@@ -466,7 +470,16 @@ plot_datasaurus(cached_metamers, titles, fig=subfigs[0])
 plot_datasaurus_rep(model(cached_metamers), titles, model, fig=subfigs[1]);
 ```
 
-Very pretty. But let's see it ANIMATED
+As in the above plots, the leftmost subplot corresponds to our target, the dino dataset. Each of the remaining ones shows a distinct metameric dataset, with the top figure showing the datasets themselves, and the bottom showing their representation (with the dino's representation shown as dashed horizontal lines on each plot). A couple of things to note:
+
+- The plots are laid out in the same order as above, with the addition of three extra datasets (in the rightmost column) discovered while working on them.
+- The majority of these datasets start from randomly-distributed points between with x and y values between 0 and 1 and use {class}`torch.optim.LBFGS` to find a `DatasaurusModel` metamer for the dino dataset in 50 iterations with some custom penalty functions. The exceptions are:
+    - `plenoptic-logo`, which starts from a points arranged into the plenoptic logo and uses no penalty function. The procedure outlined in {cite:alp}`Matejka2017-same-stats` does not allow for arbitrary initialization, and we wished to present an example that does so.
+    - `star` requires a more complex, two-stage synthesis procedure: first a star is synthesized with the same x and y mean as the dino dataset (no other statistics are considered). Then, the star constraint is removed and all of the `DatasaurusModel` statistics are matched.
+- We are not intending to exactly match the original datasaurus dozen, but to demonstrate how one can use plenoptic to create similar datasets.
+- Our datasets are a better metamers! If you look at the subplots showing the metamer representations and compare those to the same plots for the original dataset above, you can see that the distance between the stem plot and the horizontal line is smaller for our datasets, for the slope of the linear regression and the correlation (all other statistics are matched with similar precision).
+
+Okay, now let's see a video of the synthesis process! The following is laid out the same as the figure above, and animates the datasets and their representation over the course of synthesis, starting from initialization:
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -503,23 +516,25 @@ plt.close(fig)
 ani
 ```
 
+Now that we've seen that plenoptic can create these metameric datasets, you are encouraged to peruse the following notebooks for details. With the exception of `star` and `plenoptic-logo` (as mentioned above), the only difference between their synthesis is the definition of the penalty function.
+
 ::::{card}
 :::{toctree}
 :maxdepth: 1
 
-ds_circle.md
-ds_bullseye.md
-ds_dots.md
-ds_hlines.md
-ds_vlines.md
-ds_slantup.md
-ds_slantdown.md
-ds_xshape.md
 ds_away.md
-ds_star.md
+ds_xshape.md
+ds_dots.md
+ds_slantup.md
 ds_polygons.md
+ds_hlines.md
+ds_star.md
+ds_circle.md
+ds_slantdown.md
 ds_oval.md
+ds_vlines.md
 ds_hwidelines.md
+ds_bullseye.md
 ds_vwidelines.md
 ds_plenoptic_logo.md
 
