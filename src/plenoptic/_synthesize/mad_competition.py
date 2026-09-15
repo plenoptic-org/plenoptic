@@ -70,7 +70,7 @@ class MADCompetition(_OptimizedSynthesis):
         ``optimized_metric`` loss. If ``None``, we pick a value so the two
         initial losses are approximately equal in magnitude.
     penalty_function
-        A function applied to the metamer during optimization, that returns
+        A function applied to the MAD image during optimization, that returns
         a scalar penalty to be minimized. By penalizing certain properties of
         the image, like pixels values outside an allowed range, we can constrain
         those image properties. See :ref:`how-to-penalty` in the
@@ -112,7 +112,7 @@ class MADCompetition(_OptimizedSynthesis):
       <Figure size ...>
       >>> fig.subplots_adjust(wspace=0.3)
 
-    If ``metric_tradeoff_lambda`` is not specified, we will attempt to select a
+    If :attr:`metric_tradeoff_lambda` is not specified, we will attempt to select a
     reasonable value based on the values of the two metrics comparing ``image``
     and some random image. You can use this as a starting point, but we recommend
     adjusting it.
@@ -371,7 +371,7 @@ class MADCompetition(_OptimizedSynthesis):
         :func:`~plenoptic.plot.synthesis_status`
             Create a plot summarizing synthesis status at a given iteration.
         :func:`~plenoptic.plot.synthesis_animate`
-            Create a video of the metamer changing over the course of
+            Create a video of the MAD image changing over the course of
             synthesis.
 
         Examples
@@ -387,9 +387,10 @@ class MADCompetition(_OptimizedSynthesis):
         >>> mad.losses
         tensor([-0.0142, -0.1498, -0.2685, -0.3714, -0.4603, -0.5369])
 
-        Synthesize MAD image, using ``store_progress`` so we can examine progress later.
-        (This also enables us to create a video of the MAD image changing over the
-        course of synthesis, see :func:`~plenoptic.plot.synthesis_animate`.)
+        Set ``store_progress`` in order to examine the MAD image-in-progress over the
+        course of synthesis. (This also enables us to create a video of the MAD image
+        changing over the course of synthesis, see
+        :func:`~plenoptic.plot.synthesis_animate`.)
 
         >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max")
         >>> # this isn't enough to run synthesis to completion, just an example
@@ -554,9 +555,10 @@ class MADCompetition(_OptimizedSynthesis):
         >>> mad.losses[-1]
         tensor(-0.5369)
 
-        Can be called with a different image. (Note that, because we called
-        :meth:`synthesize` with ``store_progress=True``, we cached the MAD image
-        over the course of synthesis):
+        Can be called with a different image. In the following example, we compute the
+        objective function on the initial MAD image, which thus matches the first stored
+        loss value (note that, because we called :meth:`synthesize` with
+        ``store_progress=True``, we cached the MAD image over the course of synthesis).
 
         >>> mad.objective_function(mad.saved_mad_image[0])
         tensor([[-0.0142]], grad_fn=<AddBackward0>)
@@ -568,8 +570,8 @@ class MADCompetition(_OptimizedSynthesis):
         - :attr:`optimized_metric_loss`, which is either being maximized or minimized,
           depending on the value of :attr:`minmax` set at initialization.
 
-        - :attr:`reference_metric_loss`, which should be held to the same value as that
-          between :attr:`image` and :attr:`initial_image`, its initial value.
+        - The square of the difference between :attr:`reference_metric_loss` and its
+          initial value. This is done to pin it to its initial value.
 
         - :attr:`penalties`, the output of :attr:`penalty_function`, which will be
           minimized.
@@ -701,17 +703,6 @@ class MADCompetition(_OptimizedSynthesis):
         'reference_metric_loss': tensor(0.0100),
         'optimized_metric_loss': tensor(0.5982)}
 
-        Get values from last iteration of synthesis:
-
-        >>> mad.get_progress(-2)
-        {'losses': tensor(-0.4603),
-        'iteration': 4,
-        'penalties': tensor(2.7274),
-        'pixel_change_norm': tensor(2.4336),
-        'gradient_norm': tensor(0.3309),
-        'reference_metric_loss': tensor(0.0167),
-        'optimized_metric_loss': tensor(0.7335)}
-
         Get current values:
 
         >>> mad.get_progress(-1)
@@ -722,6 +713,17 @@ class MADCompetition(_OptimizedSynthesis):
         'gradient_norm': None,
         'reference_metric_loss': tensor(0.0187),
         'optimized_metric_loss': tensor(0.7615)}
+
+        Get values from last iteration of synthesis:
+
+        >>> mad.get_progress(-2)
+        {'losses': tensor(-0.4603),
+        'iteration': 4,
+        'penalties': tensor(2.7274),
+        'pixel_change_norm': tensor(2.4336),
+        'gradient_norm': tensor(0.3309),
+        'reference_metric_loss': tensor(0.0167),
+        'optimized_metric_loss': tensor(0.7335)}
 
         When synthesis is run with ``store_progress=True``, this function also
         returns the MAD image from the corresponding iteration:
@@ -743,8 +745,10 @@ class MADCompetition(_OptimizedSynthesis):
         ... )
         True
 
-        When synthesis is run with ``store_progress>1``, this function returns the
-        metamer from the closest iteration:
+        When synthesis is run with ``store_progress>1``, this function returns the MAD
+        image from the closest iteration. This might not be the specified iteration,
+        since we only cached the MAD image every ``store_progress`` iterations (2, in
+        the following example):
 
         >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max")
         >>> mad.synthesize(5, store_progress=2)
@@ -759,7 +763,7 @@ class MADCompetition(_OptimizedSynthesis):
         'saved_mad_image': tensor([[[[ 7.9802e-02, ...]]]], grad_fn=<SelectBackward0>),
         'store_progress_iteration': 4}
 
-        When we cannot grab the saved metamer corresponding to the requested
+        When we cannot grab the saved MAD image corresponding to the requested
         iteration, ``iteration_selection`` controls how we determine "closest":
 
         >>> mad.get_progress(-3, iteration_selection="floor")
@@ -1355,7 +1359,7 @@ class MADCompetition(_OptimizedSynthesis):
         Examples
         --------
         If synthesize is called without ``store_progress``, then this attribute
-        just contains the MAD image, though the number of dimensions is different:
+        just contains the MAD image, though there will be an additional dimension:
 
         >>> import plenoptic as po
         >>> po.set_seed(0)
@@ -1376,7 +1380,7 @@ class MADCompetition(_OptimizedSynthesis):
         torch.Size([1, 1, 256, 256])
 
         If synthesize is called with ``store_progress=1``, then this attribute
-        contains the metamer at each iteration, and ``losses[i]`` contains the error
+        contains the MAD image at each iteration, and ``losses[i]`` contains the error
         for ``saved_mad_image[i]``.
 
         >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max", 1e6)
