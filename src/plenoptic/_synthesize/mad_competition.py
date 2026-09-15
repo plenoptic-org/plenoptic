@@ -99,9 +99,9 @@ class MADCompetition(_OptimizedSynthesis):
       >>> import plenoptic as po
       >>> import matplotlib.pyplot as plt
       >>> img = po.data.einstein()
-      >>> def ds_ssim(x, y):
+      >>> def dissimilarity(x, y):
       ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
-      >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
+      >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max", 1e6)
       >>> mad.synthesize(200)
       >>> fig, axes = plt.subplots(1, 3, figsize=(16, 4), width_ratios=[1, 1, 2])
       >>> po.plot.imshow(img, ax=axes[0], title="Target image")
@@ -117,7 +117,7 @@ class MADCompetition(_OptimizedSynthesis):
     and some random image. You can use this as a starting point, but we recommend
     adjusting it.
 
-    >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max")
+    >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max")
     >>> mad.metric_tradeoff_lambda
     10.0
 
@@ -128,7 +128,7 @@ class MADCompetition(_OptimizedSynthesis):
     .. plot::
       :context: close-figs
 
-      >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "min", 1e6)
+      >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "min", 1e6)
       >>> mad.synthesize(200)
       >>> fig, axes = plt.subplots(1, 3, figsize=(16, 4), width_ratios=[1, 1, 2])
       >>> po.plot.imshow(img, ax=axes[0], title="Target image")
@@ -379,9 +379,9 @@ class MADCompetition(_OptimizedSynthesis):
         >>> import plenoptic as po
         >>> po.set_seed(0)
         >>> img = po.data.einstein()
-        >>> def ds_ssim(x, y):
+        >>> def dissimilarity(x, y):
         ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
-        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max")
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max")
         >>> # this isn't enough to run synthesis to completion, just an example
         >>> mad.synthesize(5)
         >>> mad.losses
@@ -391,7 +391,7 @@ class MADCompetition(_OptimizedSynthesis):
         (This also enables us to create a video of the MAD image changing over the
         course of synthesis, see :func:`~plenoptic.plot.synthesis_animate`.)
 
-        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max")
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max")
         >>> # this isn't enough to run synthesis to completion, just an example
         >>> mad.synthesize(5, store_progress=2)
         >>> mad.saved_mad_image.shape
@@ -408,7 +408,7 @@ class MADCompetition(_OptimizedSynthesis):
         large. In practice, you're more likely to make ``stop_criterion`` smaller to let
         synthesis run for longer.
 
-        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max")
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max")
         >>> # this isn't enough to run synthesis to completion, just an example
         >>> mad.synthesize(12, stop_criterion=0.1, stop_iters_to_check=2)
         >>> len(mad.losses)
@@ -536,9 +536,9 @@ class MADCompetition(_OptimizedSynthesis):
         >>> import plenoptic as po
         >>> po.set_seed(0)
         >>> img = po.data.einstein()
-        >>> def ds_ssim(x, y):
+        >>> def dissimilarity(x, y):
         ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
-        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max")
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max")
 
         Before :meth:`setup` or :meth:`synthesize` is called, this returns an
         empty tensor because the MAD image attribute hasn't been initialized:
@@ -685,9 +685,9 @@ class MADCompetition(_OptimizedSynthesis):
         >>> import plenoptic as po
         >>> po.set_seed(0)
         >>> img = po.data.einstein()
-        >>> def ds_ssim(x, y):
+        >>> def dissimilarity(x, y):
         ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
-        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max")
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max")
         >>> mad.synthesize(5)
 
         Get values from the first iteration:
@@ -726,7 +726,7 @@ class MADCompetition(_OptimizedSynthesis):
         When synthesis is run with ``store_progress=True``, this function also
         returns the MAD image from the corresponding iteration:
 
-        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max")
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max")
         >>> mad.synthesize(5, store_progress=True)
         >>> mad.get_progress(-1)
         {'losses': tensor(-0.5298),
@@ -746,7 +746,7 @@ class MADCompetition(_OptimizedSynthesis):
         When synthesis is run with ``store_progress>1``, this function returns the
         metamer from the closest iteration:
 
-        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max")
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max")
         >>> mad.synthesize(5, store_progress=2)
         >>> mad.get_progress(-3)
         {'losses': tensor(-0.3482),
@@ -948,9 +948,9 @@ class MADCompetition(_OptimizedSynthesis):
         --------
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> def ds_ssim(x, y):
+        >>> def dissimilarity(x, y):
         ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
-        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max")
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max")
         >>> mad.synthesize(5, store_progress=True)
         >>> mad.save("mad.pt")
         """
@@ -1009,9 +1009,9 @@ class MADCompetition(_OptimizedSynthesis):
         --------
         >>> import plenoptic as po
         >>> img = po.data.einstein()
-        >>> def ds_ssim(x, y):
+        >>> def dissimilarity(x, y):
         ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
-        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max")
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max")
         >>> mad.image.dtype
         torch.float32
         >>> mad.optimized_metric(mad.image, torch.rand_like(mad.image)).dtype
@@ -1137,9 +1137,9 @@ class MADCompetition(_OptimizedSynthesis):
 
         >>> import plenoptic as po
         >>> img = po.data.einstein().to(torch.float64)
-        >>> def ds_ssim(x, y):
+        >>> def dissimilarity(x, y):
         ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
-        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max", 1e6)
         >>> print(mad.mad_image)
         tensor([])
         >>> mad.load(po.data.fetch_data("example_mad.pt"))
@@ -1149,7 +1149,7 @@ class MADCompetition(_OptimizedSynthesis):
         If the saved ``MADCompetition`` object lived on a CUDA device and you do not
         have CUDA on the loading machine, use ``map_location`` to change device:
 
-        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max", 1e6)
         >>> mad.image.device
         device(type='cpu')
         >>> mad.load(po.data.fetch_data("example_mad-cuda.pt"))
@@ -1167,7 +1167,7 @@ class MADCompetition(_OptimizedSynthesis):
         as the saved object, an error will be raised:
 
         >>> rand_img = torch.rand_like(img)
-        >>> mad = po.MADCompetition(rand_img, ds_ssim, po.metric.mse, "max", 1e6)
+        >>> mad = po.MADCompetition(rand_img, dissimilarity, po.metric.mse, "max", 1e6)
         >>> mad.load(po.data.fetch_data("example_mad.pt"))
         Traceback (most recent call last):
         ValueError: Saved and initialized attribute image have different values...
@@ -1175,7 +1175,7 @@ class MADCompetition(_OptimizedSynthesis):
         If the loading ``MADCompetition`` object has a different data type than the
         saved object, an error will be raised:
 
-        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max", 1e6)
         >>> mad.to(torch.float32)
         >>> mad.load(po.data.fetch_data("example_mad.pt"))
         Traceback (most recent call last):
@@ -1360,9 +1360,9 @@ class MADCompetition(_OptimizedSynthesis):
         >>> import plenoptic as po
         >>> po.set_seed(0)
         >>> img = po.data.einstein()
-        >>> def ds_ssim(x, y):
+        >>> def dissimilarity(x, y):
         ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
-        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max", 1e6)
         >>> mad.saved_mad_image
         tensor([])
         >>> mad.synthesize(5)
@@ -1379,7 +1379,7 @@ class MADCompetition(_OptimizedSynthesis):
         contains the metamer at each iteration, and ``losses[i]`` contains the error
         for ``saved_mad_image[i]``.
 
-        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max", 1e6)
         >>> mad.synthesize(5, store_progress=True)
         >>> mad.saved_mad_image.shape
         torch.Size([6, 1, 1, 256, 256])
