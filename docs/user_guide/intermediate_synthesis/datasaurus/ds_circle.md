@@ -20,11 +20,15 @@ Run it in your browser: **{binder}`ds_circle.ipynb`**!
 
 :::
 
-# Synthesize the datasaurus circle
+# circle
 
-In this notebook, we will create a datasaurus metamer shaped like a circle. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
+In this notebook, we will create a datasaurus metamer shaped like a circle.
+
+This notebook is intentionally brief: most of the code is hidden (you can expand the cells if you would like to see more details), and we only explain the penalty. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
 
 ```{code-cell} ipython3
+:tags: [hide-input]
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -50,13 +54,24 @@ po.set_seed(0)
 torch.use_deterministic_algorithms(True)
 ```
 
-Don't discuss model, already explained in intro
-
 ```{code-cell} ipython3
 :tags: [hide-input]
 
+# Model definition, as in top-level notebook
 class DatasaurusModel(torch.nn.Module):
     def __init__(self, n_pts=None, dtype=None):
+        """
+        Create model to measure datasaurus stats.
+
+        Parameters
+        ----------
+        n_pts
+            Number of data points in the dataset we'll use the model for. Used to cache
+            a corresponding vector of ones for computing linear regression.
+        dtype
+            dtype for the dataset we'll use the model for. Used to cache
+            a corresponding vector of ones for computing linear regression.
+        """
         super().__init__()
         # cache ones to save time
         if n_pts is not None:
@@ -67,15 +82,18 @@ class DatasaurusModel(torch.nn.Module):
         self.eval()
 
     def _prepare_X(self, x):
+        """Append vector of ones to matrix for linear regression (for intercept)."""
         ones = self._ones if self._ones is None else torch.ones_like(x)
         return torch.stack([ones, x], -1)
 
     def _compute_linreg(self, x, y):
+        """Compute linear regression (with intercept) between x and y."""
         X = self._prepare_X(x)
         # unsqueezing and squeezing needed because of https://github.com/pytorch/pytorch/issues/158169
         return torch.linalg.lstsq(X, y.unsqueeze(-1)).solution.squeeze()
 
     def _compute_coeff_determination(self, x, y, solution):
+        """Compute R^2 for linera regression fit."""
         X = self._prepare_X(x)
         pred_y = torch.einsum("x, n x -> n", solution, X)
         ss_res = (y - pred_y).pow(2).sum()
@@ -83,10 +101,12 @@ class DatasaurusModel(torch.nn.Module):
         return 1 - (ss_res / ss_tot)
 
     def _vmap_coeff_determination(self, x, solution):
+        """vmap _compute_coeff_determiniation across dim=0."""
         f = torch.func.vmap(lambda x, solt: self._compute_coeff_determination(*x, solt))
         return f(x, solution).unsqueeze(-1)
 
     def forward(self, data):
+        """Compute summary statistics on data."""
         if data.ndim == 2:
             data = data.unsqueeze(0)
         elif data.ndim != 3:
@@ -102,6 +122,34 @@ class DatasaurusModel(torch.nn.Module):
         return torch.cat(stats, -1)
 
     def plot_representation(self, data, ax=None, style="stem", figsize=(6, 3)):
+        """
+        Plot model representation of data.
+
+        We plot the representation as stem plots (if style=="stem") or dashed
+        horizontal lines (if style=="lines"), on two separate sub-axes. The grouping
+        is determined by their approximate magnitude in the original dino dataset. The
+        first contains ["x mean", "y mean", "x std", "y std", "linreg intercept"], while
+        the second contains ["linreg slope", "correlation", and "R^2"].
+
+        Parameters
+        ----------
+        data: torch.Tensor
+            The data to show on the plot. Should look like the output of
+            forward, with the exact same structure.
+        ax: plt.Axes or None
+            Axes where we will plot the data. If a plt.Axes instance, will
+            subdivide into 2 new axes. If None, we create a new figure.
+        style: {"stem", "lines"}
+            If "stem", plot data as stem plot. If "lines", plot as dashed
+            horizontal lines.
+        figsize: tuple[int]
+            The size of the figure to create. Ignored if ax is not None.
+
+        Returns
+        -------
+        axes
+            List of two axes containing the subplots.
+        """
         data = po.to_numpy(data).squeeze()
         # Set up grid spec
         if ax is None:
@@ -152,9 +200,11 @@ class DatasaurusModel(torch.nn.Module):
         return axes
 ```
 
-Explain figure
+The following plot shows the `circle` dataset from the original datasaurus dozen, along with its representation.
 
 ```{code-cell} ipython3
+:tags: [hide-input]
+
 data = torch.load(po.data.fetch_data("datasaurus.tar.gz") / "datasaurus.pt")
 categories = np.load(
     po.data.fetch_data("datasaurus.tar.gz") / "categories.npy", allow_pickle=True
@@ -178,22 +228,23 @@ for i, title in enumerate(["dino (target)", "circle"]):
         axes[i, 2].set(xticklabels=[])
 ```
 
-Explain penalty: standard equation for circle centered at given location
+Our intended shape here, as can be seen above, is a circle with its center in the middle of the screen. To encourage metamer synthesis to find such a dataset, we create a function, `circle_penalty`, which computes the distance of each point to some (user-specified) center point and returns the mean-squared error between that distance and a user-specified radius. To use this penalty with synthesis, we define the center and radius (try changing these to different values!) and combine the resulting value with a range penalty which requires all points to lie between 0 and 100.
 
 ```{code-cell} ipython3
 def circle_penalty(data, target_ctr, target_r):
     target_ctr = torch.as_tensor(target_ctr).unsqueeze(-1)
     R = (data - target_ctr).pow(2).sum(0).sqrt()
     return (R - target_r).pow(2).sum()
-```
 
-Combine circle penalty and range penalty, then run synthesis.
 
-```{code-cell} ipython3
+# Try changing these to different values!
+ctr = (50, 50)
+radius = 35
+
+
 def penalty(x):
     range_penalty = po.regularize.penalize_range(x, (0, 100))
-    # Change these values to whatever you want!
-    circle = circle_penalty(x, [50, 50], 35)
+    circle = circle_penalty(x, ctr, radius)
     return range_penalty + circle
 
 
@@ -202,8 +253,6 @@ met = po.Metamer(data[0], model, penalty_function=penalty, penalty_lambda=0.0001
 met.setup(initial_image=100 * torch.rand_like(data[0]), optimizer=torch.optim.LBFGS)
 met.synthesize(50, store_progress=True)
 ```
-
-Visualize synthesis process:
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -220,6 +269,10 @@ ani_data = po.to_numpy(plot_data)
 ani_rep = po.to_numpy(model(plot_data))
 path = axes[0].scatter(*ani_data[0])
 axes[0].set(xlim=(0, 100), ylim=(0, 100))
+xs = np.linspace(ctr[0] - radius, ctr[0] + radius)
+axes[0].scatter(*ctr, marker="+", c="red")
+axes[0].plot(xs, ctr[1] + np.sqrt(radius**2 - (xs - ctr[0]) ** 2), "k--")
+axes[0].plot(xs, ctr[1] - np.sqrt(radius**2 - (xs - ctr[0]) ** 2), "k--")
 axes[0].set_aspect(1)
 
 rep_axes = model.plot_representation(model(data)[0], axes[1:], "lines")
@@ -239,7 +292,11 @@ plt.close(fig)
 ani
 ```
 
-And we've done it. Go back to [](datasaurus-index) or click in the sidebar to go to the next one.
+In the video of the synthesis above, we can see the dataset shifting itself so that it becomes a circle and a datasaurus metamer, at roughly the same rate. Interestingly, the resulting circle's radius is **not** the same as the target (shown as a dashed line, with its center as a red plus), it is just a bit smaller. This approximate radius stays consistent even when setting other target radius values (try changing it in the block above!).
+
+This fact, and a glance back at the circle in the original dataset, provides a hint as to why we are unable to perfectly match our target circle: synthesis is unable to match the target circle while also synthesizing a metamer. We can see that the example in the original dataset also had this problem, though the original algorithm solved this problem by having a small cluster of points excluded from the circle, sitting in a small bunch on top. Interestingly, our synthesis distributes the penalty equally among all the points (by having all of them have a slightly different radius than the target) rather than "sacrificing" a few points with a high penalty.
+
+Remember that the tradeoff between the metamer objective and the penalty is [governed by {attr}`~plenoptic.Metamer.penalty_lambda`](penalty-lambda): if we increased {attr}`~plenoptic.Metamer.penalty_lambda` in the above block, we could make the synthesis procedure find the target circle at the cost of reducing the metamer quality. Alternatively, we could also change the penalty so as to exclude some small number of points, allowing them to move freely, which might allow the other points to match the target circle more closely.
 
 ```{code-cell} ipython3
 :tags: [remove-cell]
