@@ -225,7 +225,9 @@ for i, title in enumerate(["dino (target)", "circle"]):
         axes[i, 2].set(xticklabels=[])
 ```
 
-Our intended shape here, as can be seen above, is a circle with its center in the middle of the screen. To encourage metamer synthesis to find such a dataset, we create a function, `circle_penalty`, which computes the distance of each point to some (user-specified) center point and returns the mean-squared error between that distance and a user-specified radius. To use this penalty with synthesis, we define the center and radius (try changing these to different values!) and combine the resulting value with a range penalty which requires all points to lie between 0 and 100.
+Our intended shape here, as can be seen above, is a circle with its center in the middle of the screen. To encourage metamer synthesis to find such a dataset, we create a function, `circle_penalty`, which computes the distance of each point to some (user-specified) center point and returns the mean-squared error between that distance and a user-specified radius.
+
+To use this penalty with synthesis, we define the center and radius (try changing these to different values!) and combine the resulting value with a range penalty which requires all points to lie between 0 and 100.
 
 ```{code-cell} ipython3
 def circle_penalty(data, target_ctr, target_r):
