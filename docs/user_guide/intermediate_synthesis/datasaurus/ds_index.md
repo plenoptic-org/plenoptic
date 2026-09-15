@@ -479,6 +479,18 @@ As in the above plots, the leftmost subplot corresponds to our target, the dino 
 - We are not intending to exactly match the original datasaurus dozen, but to demonstrate how one can use plenoptic to create similar datasets.
 - Our datasets are a better metamers! If you look at the subplots showing the metamer representations and compare those to the same plots for the original dataset above, you can see that the distance between the stem plot and the horizontal line is smaller for our datasets, for the slope of the linear regression and the correlation (all other statistics are matched with similar precision).
 
+:::{admonition} What does successful metamer synthesis look like?
+:class: note
+
+In this case, successful synthesis results in datasets which are:
+- metameric to the original datasaurus, i.e., the heads of their stem plots lie on the dashed horizontal lines.
+- "clearly different and identifiably distinct" from the original dataset and each other.
+- similar, but not necessarily identical, in appearance to the corresponding dataset from the original datasaurus dozen.
+
+Importantly, we do **not** need to achieve a penalty value of zero in order for the synthesis to be successful! We are using the penalty function to bias the synthesis procedure, and do not necessarily need it to be completely satisfied, if the other desiderata above are met.
+
+:::
+
 Okay, now let's see a video of the synthesis process! The following is laid out the same as the figure above, and animates the datasets and their representation over the course of synthesis, starting from initialization:
 
 ```{code-cell} ipython3
@@ -527,25 +539,42 @@ We thus haven't paid much attention to efficiency in the definitions of the pena
 
 :::
 
+The following notebooks are roughly ordered by complexity.
+
+<!--
+The notebooks are grouped into:
+- no penalty
+- circle penalty
+- lines penalty
+- cluster distance penalty
+- cluster distance and lines penalties
+- star, which requires two stages.
+-->
+
 ::::{card}
 :::{toctree}
 :maxdepth: 1
 
-ds_away.md
-ds_xshape.md
-ds_dots.md
-ds_slantup.md
-ds_polygons.md
-ds_hlines.md
-ds_star.md
-ds_circle.md
-ds_slantdown.md
-ds_oval.md
-ds_vlines.md
-ds_hwidelines.md
-ds_bullseye.md
-ds_vwidelines.md
 ds_plenoptic_logo.md
+
+ds_circle.md
+ds_bullseye.md
+ds_away.md
+ds_dots.md
+
+ds_hlines.md
+ds_vlines.md
+ds_xshape.md
+ds_slantup.md
+ds_slantdown.md
+
+ds_polygons.md
+ds_oval.md
+
+ds_hwidelines.md
+ds_vwidelines.md
+
+ds_star.md
 
 :::
 ::::
