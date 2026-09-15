@@ -52,10 +52,7 @@ po.set_seed(0)
 # deterministic algorithms. Note this will make things slower! See "Reproducibility and
 # Compatibility" in the docs for more details.
 torch.use_deterministic_algorithms(True)
-```
 
-```{code-cell} ipython3
-:tags: [hide-input]
 
 # Model definition, as in top-level notebook
 class DatasaurusModel(torch.nn.Module):
