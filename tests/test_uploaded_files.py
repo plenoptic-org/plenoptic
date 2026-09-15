@@ -1474,7 +1474,7 @@ class TestTutorialNotebooks:
             po.set_seed(0)
             torch.use_deterministic_algorithms(True)
 
-            def dots_penalty(data, target_ctrs, target_r=5):
+            def dots_penalty(data, target_ctrs):
                 target_ctrs = torch.as_tensor(target_ctrs).unsqueeze(-1)
                 n = data.shape[-1] // target_ctrs.shape[0]
                 errors = []
@@ -1484,8 +1484,8 @@ class TestTutorialNotebooks:
                     else:
                         # extra entries on last one
                         split = data[..., i * n :]
-                    rs = (split - ctr).pow(2).sum(0).sqrt()
-                    errors.append((rs - target_r).pow(2).mean())
+                    rs = (split - ctr).pow(2).sum(0)
+                    errors.append(rs.mean())
                 return torch.stack(errors).mean()
 
             dot_ctrs = itertools.product(
@@ -1502,7 +1502,7 @@ class TestTutorialNotebooks:
                 datasaurus,
                 datasaurus_model,
                 penalty_function=penalty,
-                penalty_lambda=0.0005,
+                penalty_lambda=0.001,
             )
             met.setup(
                 initial_image=100 * torch.rand_like(datasaurus),
