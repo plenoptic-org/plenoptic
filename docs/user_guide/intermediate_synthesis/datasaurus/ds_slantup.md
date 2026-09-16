@@ -228,7 +228,7 @@ Our intended shape here, as can be seen above, is five parallel lines with a pos
 - `lines_penalty` returns the mean-squared error for a set of points, given a user-specified set of slopes and intercepts. This function arbitrarily splits the data into one group per intercept.
 - `slant_penalty` ensures that the input arguments are the proper type and shape, then calls `lines_penalty`.
 
-To use this penalty with synthesis, we define the x-values of the vertical lines (try changing these to different values!) and combine the resulting value with a range penalty which requires all points to lie between 0 and 100.
+To use this penalty with synthesis, we define the slope and intercepts (try changing these to different values!) and combine the resulting value with a range penalty which requires all points to lie between 0 and 100.
 
 ```{code-cell} ipython3
 def predict_line(x_vals, intercepts, slope):
