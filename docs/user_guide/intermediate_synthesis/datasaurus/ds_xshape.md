@@ -249,11 +249,11 @@ def lines_penalty(data, intercepts, slope):
     # intercepts
     errors = []
     n = data.shape[-1] // intercepts.shape[0]
-    # Must either have the same number of slopes and intercepts
+    # Must either have the same number of slopes and intercepts...
     if hasattr(slope, "__len__") and len(slope) != 1:
         assert len(slope) == len(intercepts)
     else:
-        # or one intercept
+        # ...or one intercept
         slope = len(intercepts) * [slope]
     # loop through all lines
     for i, (inter, sl) in enumerate(zip(intercepts, slope)):
