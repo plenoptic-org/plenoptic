@@ -1096,6 +1096,7 @@ class Metamer(_OptimizedSynthesis):
         ...     def forward(self, x):
         ...         return model(x)
         >>> model.to(torch.float64)
+        Gaussian()
         >>> wrong_model = WrongModel().eval()
         >>> po.remove_grad(wrong_model)
         >>> met = po.Metamer(img, wrong_model)
