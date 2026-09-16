@@ -685,23 +685,41 @@ def remove_redundant_and_normalize(
 
 
 class TestPortillaSimoncelli:
+    @staticmethod
+    def _small_ps(image, **kwargs):
+        """Helper to easily generate lightweight PS model"""
+        return po.models.PortillaSimoncelli(
+            image.shape[-2:],
+            n_scales=2,
+            n_orientations=4,
+            spatial_corr_width=3,
+            **kwargs,
+        ).to(DEVICE)
+
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
+    @pytest.mark.parametrize("color_statistics", [False, True])
     def test_portilla_simoncelli(
         self,
         n_scales,
         n_orientations,
         spatial_corr_width,
+        color_statistics,
         einstein_img,
+        color_img,
     ):
+        image = color_img if color_statistics else einstein_img
+        transform = po.process.OPC()
         ps = po.models.PortillaSimoncelli(
-            einstein_img.shape[-2:],
+            image.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
+            color_statistics=color_statistics,
+            transform=transform,
         ).to(DEVICE)
-        ps(einstein_img)
+        ps(image)
 
     # tests for whether output matches the original matlab output.  This implicitly
     # tests that Portilla_simoncelli.forward() returns an object of the correct size.
@@ -987,6 +1005,185 @@ class TestPortillaSimoncelli:
                 "Output doesn't have same number of batch/channel dims as input!"
             )
 
+    def test_explicit_color_statistics(self):
+        image = torch.rand(2, 3, 32, 32, device=DEVICE)
+        # PCA is fitted to a single target image
+        transform = po.process.PCA(image[0]).to(DEVICE)
+        model = self._small_ps(image, color_statistics=True, transform=transform)
+        representation_tensor = model(image)
+
+        # Batch dimension preserved, channels reduced to 1
+        assert representation_tensor.shape[:2] == (2, 1)
+
+        # Convert to dict and back to tensor, should match the original tensor
+        representation_dict = model.convert_to_dict(representation_tensor)
+        representation_tensor_new = model.convert_to_tensor(representation_dict)
+        torch.testing.assert_close(representation_tensor, representation_tensor_new)
+
+        # Test that removing a scale works and maintains batch and channel dims
+        assert model.remove_scales(representation_tensor, [0]).shape[:2] == (2, 1)
+
+        # Test that all grayscale statistics families are in the color statistics model
+        grayscale_image = image[:, :1]
+        grayscale_model = self._small_ps(grayscale_image)
+        grayscale_representation_dict = grayscale_model.convert_to_dict(
+            grayscale_model(grayscale_image)
+        )
+
+        missing_keys = set(grayscale_representation_dict) - set(representation_dict)
+        assert not missing_keys, (
+            f"Color representation is missing grayscale statistics: {missing_keys}"
+        )
+
+    def test_color_statistics_dict_mask(self, color_img_small):
+        model = self._small_ps(color_img_small, color_statistics=True)
+        representation = model.convert_to_dict(model(color_img_small))
+
+        color_statistics = {
+            "color_covariance",
+            "auto_correlation_transformed",
+            "skew_transformed",
+            "kurtosis_transformed",
+        }
+        assert color_statistics <= representation.keys()
+
+        for key, value in representation.items():
+            mask = model._necessary_stats_dict[key].to(value.device)
+            assert torch.isfinite(value[..., mask]).all()
+            assert torch.isnan(value[..., ~mask]).all()
+
+    def test_color_cross_orientation_correlation_magnitude_shape(self, color_img_small):
+        model = self._small_ps(color_img_small, color_statistics=True)
+        representation = model.convert_to_dict(model(color_img_small))
+        n_channels = color_img_small.shape[1]
+        n_oriented_signals = n_channels * model.n_orientations
+
+        assert representation["cross_orientation_correlation_magnitude"].shape == (
+            color_img_small.shape[0],
+            n_oriented_signals,
+            n_oriented_signals,
+            model.n_scales,
+        )
+
+    def test_color_cross_orientation_correlation_real_shape(self, color_img_small):
+        model = self._small_ps(color_img_small, color_statistics=True)
+        representation = model.convert_to_dict(model(color_img_small))
+        n_channels = color_img_small.shape[1]
+        n_oriented_signals = n_channels * model.n_orientations
+
+        assert representation["cross_orientation_correlation_real"].shape == (
+            color_img_small.shape[0],
+            n_oriented_signals,
+            n_oriented_signals,
+            model.n_scales,
+        )
+
+    def test_color_cross_correlation_lowpass_shape(self, color_img_small):
+        model = self._small_ps(color_img_small, color_statistics=True)
+        representation = model.convert_to_dict(model(color_img_small))
+        lowpass_correlations = representation["cross_correlation_lowpass"]
+        necessary_mask = model._necessary_stats_dict["cross_correlation_lowpass"]
+
+        assert lowpass_correlations.shape == (
+            color_img_small.shape[0],
+            15,
+            15,
+        )
+        assert necessary_mask.sum() == 57
+        assert lowpass_correlations[..., necessary_mask].unique().numel() == 57
+
+    def test_color_cross_correlation_coarsest_scale_lowpass_shape(
+        self, color_img_small
+    ):
+        model = self._small_ps(color_img_small, color_statistics=True)
+        representation = model.convert_to_dict(model(color_img_small))
+        n_channels = color_img_small.shape[1]
+        n_oriented_signals = n_channels * model.n_orientations
+
+        assert representation["cross_correlation_coarsest_scale_lowpass"].shape == (
+            color_img_small.shape[0],
+            n_oriented_signals,
+            15,
+        )
+
+    def test_color_cross_scale_correlation_magnitude_shape(self, color_img_small):
+        model = self._small_ps(color_img_small, color_statistics=True)
+        representation = model.convert_to_dict(model(color_img_small))
+        n_channels = color_img_small.shape[1]
+        n_oriented_signals = n_channels * model.n_orientations
+
+        assert representation["cross_scale_correlation_magnitude"].shape == (
+            color_img_small.shape[0],
+            n_oriented_signals,
+            n_oriented_signals,
+            model.n_scales - 1,
+        )
+
+    def test_color_cross_scale_correlation_real_shape(self, color_img_small):
+        model = self._small_ps(color_img_small, color_statistics=True)
+        representation = model.convert_to_dict(model(color_img_small))
+        n_channels = color_img_small.shape[1]
+        n_oriented_signals = n_channels * model.n_orientations
+
+        assert representation["cross_scale_correlation_real"].shape == (
+            color_img_small.shape[0],
+            n_oriented_signals,
+            2 * n_oriented_signals,
+            model.n_scales - 1,
+        )
+
+    def test_default_color_transform(self):
+        # The color PS model should run out of the box with the OPC transform
+        image = torch.rand(1, 3, 32, 32, device=DEVICE)
+        default_model = self._small_ps(image, color_statistics=True)
+        explicit_model = self._small_ps(
+            image, color_statistics=True, transform=po.process.OPC()
+        )
+        torch.testing.assert_close(default_model(image), explicit_model(image))
+
+    def test_none_color_transform(self):
+        # The transform=None parameter is the identity color transform
+        # Test that the object initializes, it can compute statistics,
+        # and they are different from default OPC color
+        image = torch.rand(1, 3, 32, 32, device=DEVICE)
+        color_model_id = self._small_ps(image, color_statistics=True, transform=None)
+        color_model_opc = self._small_ps(image, color_statistics=True)
+
+        representation_id = color_model_id(image)
+        representation_opc = color_model_opc(image)
+        assert not torch.allclose(representation_id, representation_opc)
+
+    def test_transform_ignored_without_color_statistics(self):
+        def transform(image):
+            raise RuntimeError("Non-color model shouldn't call this transform")
+
+        image = torch.rand(1, 3, 32, 32, device=DEVICE)
+        model = self._small_ps(image, transform=transform)
+        assert model(image).shape[:2] == image.shape[:2]
+
+    @pytest.mark.parametrize("n_channels", [1, 2])
+    def test_color_statistics_requires_rgb(self, n_channels):
+        image = torch.rand(1, n_channels, 32, 32, device=DEVICE)
+        model = self._small_ps(image, color_statistics=True)
+        with pytest.raises(ValueError, match="three channels"):
+            model(image)
+
+    def test_portilla_simoncelli_requires_4d(self):
+        image = torch.rand(1, 32, 32, device=DEVICE)
+        model = self._small_ps(image)
+        with pytest.raises(ValueError, match="expects a 4d image"):
+            model(image)
+
+    def test_color_statistics_plot_not_implemented(self):
+        image = torch.rand(1, 3, 32, 32, device=DEVICE)
+        model = self._small_ps(image, color_statistics=True)
+        representation = model(image)
+
+        with pytest.raises(NotImplementedError, match="Plotting is not implem"):
+            model.plot_representation(representation)
+        with pytest.raises(NotImplementedError, match="Plotting is not implem"):
+            model.update_plot([], representation)
+
     @pytest.mark.parametrize("input_type", ["tensor", "dict"])
     @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
@@ -1109,41 +1306,76 @@ class TestPortillaSimoncelli:
 
     # fft doesn't support float16, so we can't support it
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-    def test_dtypes(self, dtype, einstein_img):
-        model = po.models.PortillaSimoncelli(einstein_img.shape[-2:]).to(DEVICE)
-        model(einstein_img.to(dtype))
+    @pytest.mark.parametrize("color_statistics", [False, True])
+    def test_dtypes(self, dtype, color_statistics, einstein_img, color_img):
+        image = color_img if color_statistics else einstein_img
+        image = image.to(dtype)
+        transform = po.process.OPC()
+        model = po.models.PortillaSimoncelli(
+            image.shape[-2:],
+            color_statistics=color_statistics,
+            transform=transform,
+        ).to(device=DEVICE, dtype=dtype)
+        representation = model(image)
+        assert representation.dtype == dtype
+
+    def test_validate_color_model(self):
+        image_shape = (1, 3, 32, 32)
+        transform = po.process.OPC()
+        model = po.models.PortillaSimoncelli(
+            image_shape[-2:],
+            n_scales=2,
+            spatial_corr_width=3,
+            color_statistics=True,
+            transform=transform,
+        ).to(DEVICE)
+        po.validate.validate_model(model, image_shape=image_shape, device=DEVICE)
 
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
+    @pytest.mark.parametrize("color_statistics", [False, True])
     def test_scales_shapes(
-        self, n_scales, n_orientations, spatial_corr_width, einstein_img
+        self,
+        n_scales,
+        n_orientations,
+        spatial_corr_width,
+        color_statistics,
+        einstein_img,
+        color_img,
     ):
         # test that the shapes we use to assign scale labels to each statistic
         # and determine redundant stats are accurate
+        image = color_img if color_statistics else einstein_img
+        transform = po.process.OPC()
         model = po.models.PortillaSimoncelli(
-            einstein_img.shape[-2:],
+            image.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
+            color_statistics=color_statistics,
+            transform=transform,
         ).to(DEVICE)
         # this hack is to prevent model from removing redundant stats
         model._necessary_stats_mask = None
-        rep = model(einstein_img)
+        rep = model(image)
         # and then we get them back into their original shapes
         unpacked_rep = einops.unpack(rep, model._pack_info, "b c *")
+        # Discard empty statistics families (cros-corrs when scales=1)
+        # Matches keys of unpacked_rep and necessary_stats in zip below
+        necessary_stats = [
+            (key, value)
+            for key, value in model._necessary_stats_dict.items()
+            if value.nelement() > 0
+        ]
+        assert len(unpacked_rep) == len(necessary_stats)
         # because _necessary_stats_dict is an ordered dictionary, its elements
         # will be in the same order as in unpackaged_rep
-        for unp_v, dict_v in zip(unpacked_rep, model._necessary_stats_dict.values()):
-            # when we have a single scale, _necessary_stats_dict will contain
-            # keys for the cross_scale correlations, but there are no
-            # corresponding values. Thus, skip.
-            if dict_v.nelement() == 0:
-                continue
+        for unp_v, (key, dict_v) in zip(unpacked_rep, necessary_stats):
             # ignore batch and channel
             unp_v = unp_v[0, 0]
-            if not unp_v.shape:
-                # then this is var_residual_highpass, which has a single element
+            if key == "var_highpass_residual":
+                # this statistic has no explicit singleton statistic dimension
                 np.testing.assert_equal(unp_v.nelement(), dict_v.nelement())
             else:
                 np.testing.assert_equal(unp_v.shape, dict_v.shape)
