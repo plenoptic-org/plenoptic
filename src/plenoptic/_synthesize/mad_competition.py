@@ -1141,9 +1141,9 @@ class MADCompetition(_OptimizedSynthesis):
 
         >>> import plenoptic as po
         >>> img = po.data.einstein().to(torch.float64)
-        >>> def dissimilarity(x, y):
+        >>> def ds_ssim(x, y):
         ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
-        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max", 1e6)
+        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
         >>> print(mad.mad_image)
         tensor([])
         >>> mad.load(po.data.fetch_data("example_mad.pt"))
@@ -1153,7 +1153,7 @@ class MADCompetition(_OptimizedSynthesis):
         If the saved ``MADCompetition`` object lived on a CUDA device and you do not
         have CUDA on the loading machine, use ``map_location`` to change device:
 
-        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max", 1e6)
+        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
         >>> mad.image.device
         device(type='cpu')
         >>> mad.load(po.data.fetch_data("example_mad-cuda.pt"))
@@ -1171,7 +1171,7 @@ class MADCompetition(_OptimizedSynthesis):
         as the saved object, an error will be raised:
 
         >>> rand_img = torch.rand_like(img)
-        >>> mad = po.MADCompetition(rand_img, dissimilarity, po.metric.mse, "max", 1e6)
+        >>> mad = po.MADCompetition(rand_img, ds_ssim, po.metric.mse, "max", 1e6)
         >>> mad.load(po.data.fetch_data("example_mad.pt"))
         Traceback (most recent call last):
         ValueError: Saved and initialized attribute image have different values...
@@ -1179,11 +1179,30 @@ class MADCompetition(_OptimizedSynthesis):
         If the loading ``MADCompetition`` object has a different data type than the
         saved object, an error will be raised:
 
-        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max", 1e6)
+        >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
         >>> mad.to(torch.float32)
         >>> mad.load(po.data.fetch_data("example_mad.pt"))
         Traceback (most recent call last):
         ValueError: Saved and initialized attribute image have different dtype...
+
+        If the name of the metrics or penalty function has changed (even if the
+        behavior is identical), an error will be raised:
+
+        >>> def dissimilarity(x, y):
+        ...     return ds_ssim(x, y)
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max", 1e6)
+        >>> mad.load(po.data.fetch_data("example_mad.pt"))
+        Traceback (most recent call last):
+        ValueError: Saved and initialized optimized_metric have different names...
+
+        If you wish to proceed anyway, you can set ``raise_on_checks=False`` to turn the
+        errors into warnings. Do so at your own risk and read the resulting warning
+        messages in order to ensure the **only** differences are those you expect.
+        See :ref:`raise-on-checks` on the "Reproducibility and Compatibility" page of
+        the documentation for more info.
+
+        >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max", 1e6)
+        >>> mad.load(po.data.fetch_data("example_mad.pt"), raise_on_checks=False)
         """
         check_attributes = [
             "_image",

@@ -190,6 +190,7 @@ class Metamer(_OptimizedSynthesis):
         Set initial image:
 
         >>> import plenoptic as po
+        >>> import torch
         >>> img = po.data.einstein()
         >>> model = po.models.Gaussian(30).eval()
         >>> po.remove_grad(model)
@@ -616,6 +617,7 @@ class Metamer(_OptimizedSynthesis):
         Examples
         --------
         >>> import plenoptic as po
+        >>> import torch
         >>> po.set_seed(0)
         >>> img = po.data.einstein()
         >>> model = po.models.Gaussian(30).eval()
@@ -913,6 +915,7 @@ class Metamer(_OptimizedSynthesis):
         Examples
         --------
         >>> import plenoptic as po
+        >>> import torch
         >>> img = po.data.einstein()
         >>> model = po.models.Gaussian(30).eval()
         >>> po.remove_grad(model)
@@ -1041,6 +1044,7 @@ class Metamer(_OptimizedSynthesis):
         Here, we load in a cached example:
 
         >>> import plenoptic as po
+        >>> import torch
         >>> img = po.data.einstein().to(torch.float64)
         >>> model = po.models.Gaussian(30).eval().to(torch.float64)
         >>> po.remove_grad(model)
@@ -1084,6 +1088,31 @@ class Metamer(_OptimizedSynthesis):
         >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
         Traceback (most recent call last):
         ValueError: Saved and initialized attribute image have different dtype...
+
+        If the name of the model, loss function, or penalty function has changed (even
+        if their behavior is identical), an error will be raised:
+
+        >>> class WrongModel(torch.nn.Module):
+        ...     def forward(self, x):
+        ...         return model(x)
+        >>> model.to(torch.float64)
+        >>> wrong_model = WrongModel().eval()
+        >>> po.remove_grad(wrong_model)
+        >>> met = po.Metamer(img, wrong_model)
+        >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
+        Traceback (most recent call last):
+        ValueError: Saved and initialized model have different names...
+
+        If you wish to proceed anyway, you can set ``raise_on_checks=False`` to turn the
+        errors into warnings. Do so at your own risk and read the resulting warning
+        messages in order to ensure the **only** differences are those you expect.
+        See :ref:`raise-on-checks` on the "Reproducibility and Compatibility" page of
+        the documentation for more info.
+
+        >>> met = po.Metamer(img, wrong_model)
+        >>> met.load(
+        ...     po.data.fetch_data("example_metamer_gaussian.pt"), raise_on_checks=False
+        ... )
         """
         self._load(
             file_path,
@@ -1232,6 +1261,7 @@ class Metamer(_OptimizedSynthesis):
         Examples
         --------
         >>> import plenoptic as po
+        >>> import torch
         >>> img = po.data.einstein()
         >>> model = po.models.Gaussian(30).eval()
         >>> po.remove_grad(model)
@@ -1932,6 +1962,7 @@ class MetamerCTF(Metamer):
         Examples
         --------
         >>> import plenoptic as po
+        >>> import torch
         >>> img = po.data.reptile_skin()
         >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
         >>> met = po.MetamerCTF(img, model)
@@ -2054,6 +2085,7 @@ class MetamerCTF(Metamer):
         Here, we load in a cached example:
 
         >>> import plenoptic as po
+        >>> import torch
         >>> img = po.data.reptile_skin().to(torch.float64)
         >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
         >>> met = po.MetamerCTF(img, model, po.loss.l2_norm)
@@ -2102,6 +2134,30 @@ class MetamerCTF(Metamer):
         >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
         Traceback (most recent call last):
         ValueError: Saved and initialized attribute image have different dtype...
+
+        If the name of the model, loss function, or penalty function has changed (even
+        if their behavior is identical), an error will be raised:
+
+        >>> class WrongModel(po.models.PortillaSimoncelli):
+        ...     def forward(self, x, scales=None):
+        ...         return model(x, scales)
+        >>> wrong_model = WrongModel(img.shape[-2:]).eval()
+        >>> po.remove_grad(wrong_model)
+        >>> met = po.MetamerCTF(img, wrong_model, po.loss.l2_norm)
+        >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
+        Traceback (most recent call last):
+        ValueError: Saved and initialized model have different names...
+
+        If you wish to proceed anyway, you can set ``raise_on_checks=False`` to turn the
+        errors into warnings. Do so at your own risk and read the resulting warning
+        messages in order to ensure the **only** differences are those you expect.
+        See :ref:`raise-on-checks` on the "Reproducibility and Compatibility" page of
+        the documentation for more info.
+
+        >>> met = po.MetamerCTF(img.to(torch.float64), wrong_model, po.loss.l2_norm)
+        >>> met.load(
+        ...     po.data.fetch_data("example_metamerCTF_ps.pt"), raise_on_checks=False
+        ... )
         """
         super()._load(
             file_path,
