@@ -340,7 +340,7 @@ plot_datasaurus_rep(model(data), categories, model, fig=rep_fig);
 
 The plot layout is the same as the first plot: the subplot on the far left corresponds to the dino dataset, and the others correspond to the metameric datasets. For each dataset, we're plotting the model output as two stem plots, based on their approximate magnitude: the means, standard deviations, and intercept of the linear regression in the first, and the slope of the linear regression, correlation, and coefficient of determination ($R^2$) of the linear regression in the second. Each subplot also shows the values for the dino dataset as dashed horizontal lines.
 
-You can see that all the datasets approximately match on all statistics, with some error around the slope of the linear regression and the correaltion for some of the datasets (if we double-check [the wikipedia page](https://en.wikipedia.org/wiki/Datasaurus_dozen), we can see that the accuracy is different for different statistics). That shows us that these dataset are all metamers for our `DatasaurusModel`.
+You can see that all the datasets approximately match on all statistics, with some error around the slope of the linear regression and the correlation for some of the datasets (if we double-check [the wikipedia page](https://en.wikipedia.org/wiki/Datasaurus_dozen), we can see that the accuracy is different for different statistics). That shows us that these dataset are all metamers for our `DatasaurusModel`.
 
 The authors of {cite:alp}`Matejka2017-same-stats` generated the datasets shown above using a [simulated annealing](https://en.wikipedia.org/wiki/Simulated_annealing) procedure: starting from the dino dataset, they made small random perturbations to the points, with the goal of matching a target shape as defined by a line drawing. A perturbation was accepted if it either made the dataset more like the target shape or if some gradually decreasing temperature was above some random number. After a perturbed dataset was accepted, it was checked for statistical equivalence (up to the specified number of decimal places) against the initial dataset and, if not, another random perturbation was tried.
 
@@ -348,7 +348,7 @@ This is a very different procedure than plenoptic's metamer synthesis! Important
 
 There is one additional wrinkle: as the authors point out, it's fairly straightforward to generate random datasets whose statistics match --- the difficulty lies in finding datasets that are "clearly different and identifiably distinct" while having the same statistical properties.
 
-We can generate metameric datasets in relatively straightforward manner:
+Using plenoptic, we can generate metameric datasets in a relatively straightforward manner, though note that even in this simple case, we have to tweak the penalty. As plenoptic was largely developed to work on images, the default {attr}`~plenoptic.Metamer.penalty_function` is {func}`~plenoptic.regularize.penalize_range` which, with its default values, encourages values to lie between 0 and 1. For this synthesis problem, we instead want the values to lie between 0 and 100, so we write a custom `penalty` which calls {func}`~plenoptic.regularize.penalize_range` while specifying an allowed range of `(0, 100)`.
 
 ```{code-cell} ipython3
 # default penalty penalizes points whose values lie outside the (0, 1) range,
@@ -363,8 +363,6 @@ met = po.Metamer(data[0], model, penalty_function=penalty)
 met.setup(initial_image=100 * torch.rand_like(data[0]), optimizer=torch.optim.LBFGS)
 met.synthesize(20, store_progress=True)
 ```
-
-The only something something range
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -399,11 +397,11 @@ ani
 
 In the video above, the leftmost plot shows the metameric dataset over synthesis, while the right-two show the model's representation at each stage (the horizontal lines show the representation of the dino, which is our target).
 
-We can see that our synthesis procedure fairly quickly finds a metamer, starting from uniformly-distribute dots with x and y values between 0 and 100. However, the metamer doesn't look all that interesting: it still looks like a fairly random smattering of dots.
+We can see that our synthesis procedure fairly quickly finds a metamer, starting from uniformly-distributed dots with x and y values between 0 and 100. However, the metamer doesn't look all that interesting: it still looks like a fairly random smattering of dots.
 
 In order to find "clearly different and identifiably distinct" datasets, we need to do something more. Specifically, we can use {attr}`~plenoptic.Metamer.penalty_function` to bias the synthesis procedure. In this case, we can create penalty functions that encourage the dataset to have specific shapes. By passing them to {class}`~plenoptic.Metamer` at initialization, we can try to find datasets that are both `DatasaurusModel` metamers and "identifiably distinct".
 
-The other notebooks in this section demonstrate how to do this, for a wide variety of shapes. First, let's see what they look like. The following hidden cell loads in the cached metamers and creates two figures, laid out like the above ones:
+The other notebooks in this section demonstrate how to do this, for a wide variety of shapes. First, let's see what they look like. The following hidden cell loads in the cached metamers and creates figures showing the datasets and their representations, laid out like the above ones:
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -453,12 +451,12 @@ plot_datasaurus(cached_metamers, titles, fig=subfigs[0])
 plot_datasaurus_rep(model(cached_metamers), titles, model, fig=subfigs[1]);
 ```
 
-As in the above plots, the leftmost subplot corresponds to our target, the dino dataset. Each of the remaining ones shows a distinct metameric dataset, with the top figure showing the datasets themselves, and the bottom showing their representation (with the dino's representation shown as dashed horizontal lines on each plot). A couple of things to note:
+As in the above plots, the leftmost subplot corresponds to our target, the dino dataset. Each of the remaining ones shows a distinct metameric dataset, with the top figure showing the datasets themselves, and the bottom showing their representation (with the dino's representation shown as dashed horizontal lines on each plot). Several things to note:
 
-- The plots are laid out in the same order as above, with the addition of three extra datasets (in the rightmost column) discovered while working on them.
+- The plots are laid out in the same order as above, with the addition of three extra datasets (in the rightmost column).
 - The majority of these datasets start from randomly-distributed points between with x and y values between 0 and 1 and use {class}`torch.optim.LBFGS` to find a `DatasaurusModel` metamer for the dino dataset in 50 iterations with some custom penalty functions. The exceptions are:
-    - `plenoptic-logo`, which starts from a points arranged into the plenoptic logo and uses no penalty function. The procedure outlined in {cite:alp}`Matejka2017-same-stats` does not allow for arbitrary initialization, and we wished to present an example that does so.
-    - `star` requires a more complex, two-stage synthesis procedure: first a star is synthesized with the same x and y mean as the dino dataset (no other statistics are considered). Then, the star constraint is removed and all of the `DatasaurusModel` statistics are matched.
+    - [](ds_plenoptic_logo.md), which starts from a points arranged into the plenoptic logo and uses no penalty function. The procedure outlined in {cite:alp}`Matejka2017-same-stats` does not allow for arbitrary initialization, and we wished to present an example that does so.
+    - [](ds_star.md) requires a more complex, two-stage synthesis procedure: first a star is synthesized with the same x and y mean as the dino dataset (no other statistics are considered). Then, the star constraint is removed and all of the `DatasaurusModel` statistics are matched.
 - We are not intending to exactly match the original datasaurus dozen, but to demonstrate how one can use plenoptic to create similar datasets.
 - Our datasets are a better metamers! If you look at the subplots showing the metamer representations and compare those to the same plots for the original dataset above, you can see that the distance between the stem plot and the horizontal line is smaller for our datasets, for the slope of the linear regression and the correlation (all other statistics are matched with similar precision).
 
@@ -470,7 +468,7 @@ In this case, successful synthesis results in datasets which are:
 - "clearly different and identifiably distinct" from the original dataset and each other.
 - similar, but not necessarily identical, in appearance to the corresponding dataset from the original datasaurus dozen.
 
-Importantly, we do **not** need to achieve a penalty value of zero in order for the synthesis to be successful! We are using the penalty function to bias the synthesis procedure, and do not necessarily need it to be completely satisfied, if the other desiderata above are met.
+Importantly, we do **not** need to achieve a penalty value of zero in order for the synthesis to be successful! We are using the penalty function to bias the synthesis procedure, and do not necessarily need it to be completely satisfied, if the desiderata above are met.
 
 :::
 
@@ -511,14 +509,14 @@ plt.close(fig)
 ani
 ```
 
-Now that we've seen that plenoptic can create these metameric datasets, you are encouraged to peruse the following notebooks for details. With the exception of `star` and `plenoptic-logo` (as mentioned above), the only difference between their synthesis is the definition of the penalty function.
+Now that we've seen that plenoptic can create these metameric datasets, you are encouraged to peruse the following notebooks for details. With the exception of [](ds_star.md) and [](ds_plenoptic_logo.md) (as mentioned above), the only difference between their synthesis is the definition of the penalty function.
 
 :::{admonition} Synthesis efficiency
 :class: attention
 
 These synthesis procedures are all pretty quick, less than a minute on a CPU. This is because our dataset is shape `(2, 142)`, which is a good deal smaller than the `(1, 1, 256, 256)` seen in much of the other tutorials. Additionally, the computations in the `DatasaurusModel` are all relatively quick.
 
-We thus haven't paid much attention to efficiency in the definitions of the penalty functions found in the following notebooks. This means there are some inefficient operations in the penalties themselves, such as converting numpy arrays or lists to tensors and if statements. Because of the small dataset and quick model, this doesn't slow us down much, but if you wanted to use similar penalties on much larger inputs or with slower models, it would be beneficial to ensure the penalty functions are more efficient.
+We thus haven't paid much attention to efficiency in the definitions of the penalty functions found in the following notebooks. This means there are some inefficient operations in the penalties themselves, such as converting numpy arrays or lists to tensors and if statements. Because the input is small and the model is quick, this doesn't slow us down much, but if you wanted to use similar penalties on much larger inputs or with slower models, it would be beneficial to ensure the penalty functions are more efficient.
 
 :::
 
