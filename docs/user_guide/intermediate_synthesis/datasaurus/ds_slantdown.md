@@ -271,7 +271,6 @@ intercepts = [40, 50, 60, 70, 80]
 
 def penalty(x):
     range_penalty = po.regularize.penalize_range(x, (0, 100))
-    # Change these values to whatever you want!
     slantdown = slant_penalty(x, slope, intercepts)
     return range_penalty + slantdown
 

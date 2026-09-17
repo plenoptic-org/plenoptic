@@ -1699,7 +1699,6 @@ class TestTutorialNotebooks:
 
             def penalty(x):
                 range_penalty = po.regularize.penalize_range(x, (0, 100))
-                # Change these values to whatever you want!
                 polygon = polygon_penalty(x, 5, nbr)
                 centroid = centroid_penalty(x, 25, nbr)
                 return range_penalty + centroid + polygon
@@ -1760,7 +1759,6 @@ class TestTutorialNotebooks:
 
             def penalty(x):
                 range_penalty = po.regularize.penalize_range(x, (0, 100))
-                # Change these values to whatever you want!
                 polygon = polygon_penalty(x, 5, 6)
                 return range_penalty + polygon
 
@@ -1860,7 +1858,6 @@ class TestTutorialNotebooks:
 
             def penalty(x):
                 range_penalty = po.regularize.penalize_range(x, (0, 100))
-                # Change these values to whatever you want!
                 polygon = polygon_penalty(x, 2, nbr)
                 centroid = centroid_penalty(x, 5, nbr)
                 lines = hwidelines_penalty(x, [20, 70], 10)
@@ -1963,7 +1960,6 @@ class TestTutorialNotebooks:
 
             def penalty(x):
                 range_penalty = po.regularize.penalize_range(x, (0, 100))
-                # Change these values to whatever you want!
                 polygon = polygon_penalty(x, 5, nbr)
                 centroid = centroid_penalty(x, 25, nbr)
                 lines = vwidelines_penalty(x, [30, 70], 10)

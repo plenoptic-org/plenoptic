@@ -270,7 +270,6 @@ x_vals = [30, 50, 70, 90]
 
 def penalty(x):
     range_penalty = po.regularize.penalize_range(x, (0, 100))
-    # Change these values to whatever you want!
     vlines = vlines_penalty(x, x_vals)
     return range_penalty + vlines
 

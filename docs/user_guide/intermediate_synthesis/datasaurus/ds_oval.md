@@ -237,7 +237,6 @@ model = DatasaurusModel(data.shape[1], data.dtype)
 
 def penalty(x):
     range_penalty = po.regularize.penalize_range(x, (0, 100))
-    # Change these values to whatever you want!
     polygon = polygon_penalty(x, polygon_distance, neighborhood_size)
     centroid = centroid_penalty(x, centroid_distance, neighborhood_size)
     return range_penalty + centroid + polygon

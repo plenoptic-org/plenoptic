@@ -243,7 +243,6 @@ nbr = 3
 
 def penalty(x):
     range_penalty = po.regularize.penalize_range(x, (0, 100))
-    # Change these values to whatever you want!
     polygon = polygon_penalty(x, 5, nbr)
     centroid = centroid_penalty(x, 25, nbr)
     lines = vwidelines_penalty(x, [30, 70], 10)
