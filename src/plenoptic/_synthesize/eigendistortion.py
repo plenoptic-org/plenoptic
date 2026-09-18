@@ -72,6 +72,25 @@ class Eigendistortion(_Synthesis):
            neural information processing systems (pp. 3530-3539).
            https://www.cns.nyu.edu/pub/lcv/berardino17c-final.pdf
            https://www.cns.nyu.edu/~lcv/eigendistortions/
+
+    Examples
+    --------
+    Synthesize and visualize the top and bottom eigendistortions for a simple
+    model:
+
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> img = po.data.einstein()
+      >>> po.set_seed(0)
+      >>> model = po.models.Gaussian(10, pad_mode="circular").eval()
+      >>> po.remove_grad(model)
+      >>> eig = po.Eigendistortion(img, model)
+      >>> eig.synthesize()
+      Top k=1 eigendists computed | Stop criterion 1.00E-07 reached.
+      >>> po.plot.eigendistortion_imshow_all(eig, distortion_scale=20)
+      <PyrFigure size ...>
     """
 
     def __init__(self, image: Tensor, model: torch.nn.Module):
@@ -163,9 +182,76 @@ class Eigendistortion(_Synthesis):
         Warns
         -----
         UserWarning
-            If ``method == "power"`` but the Jacobian size is greater than 1e6 (which
+            If ``method == "exact"`` but the Jacobian size is greater than 1e6 (which
             depends on the number of elements in the model's representation and input
             image), in which case we're worried about running out of memory.
+
+        Examples
+        --------
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> po.set_seed(0)
+        >>> model = po.models.Gaussian(10, pad_mode="circular").eval()
+        >>> po.remove_grad(model)
+        >>> eig = po.Eigendistortion(img, model)
+        >>> # this isn't enough to run synthesis to completion, just an example
+        >>> eig.synthesize(max_iter=5)
+        >>> # eigenvalue of the top and bottom eigendistortion
+        >>> eig.eigenvalues
+        tensor([0.9320, 0.1514])
+
+        Set ``method`` to use different algorithms for finding the eigendistortions.
+        Note that, while ``"power"`` synthesizes the top and bottom ``k``
+        eigendistortions, ``"randomized_svd"`` only synthesizes the top ``k``.
+
+        >>> eig = po.Eigendistortion(img, model)
+        >>> # randomized_svd doesn't take a max_iter argument
+        >>> eig.synthesize("randomized_svd")
+        >>> # eigenvalue of top eigendistortion
+        >>> eig.eigenvalues
+        tensor(0.8777)
+
+        And ``"exact"`` explicitly computes the Jacobian, retrieving all
+        eigendistortions, and thus uses a lot of memory, and so is only recommended
+        for small images or models.
+
+        >>> small_img = po.process.blur_downsample(img, n_scales=3)
+        >>> small_img.shape
+        torch.Size([1, 1, 32, 32])
+        >>> eig = po.Eigendistortion(small_img, model)
+        >>> # exact doesn't take a max_iter argument
+        >>> eig.synthesize("exact")
+        >>> # eigenvalue of all eigendistortions
+        >>> eig.eigenvalues
+        tensor([1.0000e+00, 7.9990e-01, ..., 1.2294e-08, 1.5311e-08])
+        >>> len(eig.eigenvalues)
+        1024
+
+        Set ``k`` to increase the number of eigendistortions found for ``"power"``
+        or ``"randomized_svd"``:
+
+        >>> eig = po.Eigendistortion(img, model)
+        >>> # this isn't enough to run synthesis to completion, just an example
+        >>> eig.synthesize(max_iter=5, k=3)
+        >>> # eigenvalue of 3 top and bottom eigendistortion
+        >>> eig.eigenvalues
+        tensor([0.9191, 0.9207, 0.9143, 0.1501, 0.1500, 0.1508])
+
+        Adjust ``stop_criterion`` to change how convergence is determined for
+        ``"power"``. In this case, we stop early by making ``stop_criterion`` fairly
+        large. In practice, you're more likely to make ``stop_criterion`` smaller to let
+        synthesis run for longer.
+
+        >>> eig = po.Eigendistortion(img, model)
+        >>> # this isn't enough to run synthesis to completion, just an example
+        >>> eig.synthesize(max_iter=5, stop_criterion=0.1)
+        Top k=1 eigendists computed | Stop criterion 1.00E-01 reached.
+        Bottom k=1 eigendists computed | Stop criterion 1.00E-01 reached.
+        >>> # eigenvalues of the top and bottom eigendistortion, notice how they are not
+        >>> # as high / low as when stop_criterion has a lower value (because synthesis
+        >>> # has stopped early)
+        >>> eig.eigenvalues
+        tensor([0.8468, 0.1976])
         """
         allowed_methods = ["power", "exact", "randomized_svd"]
         if method not in allowed_methods:
@@ -478,13 +564,26 @@ class Eigendistortion(_Synthesis):
         r"""
         Save all relevant variables in .pt file.
 
-        See :meth:`load` docstring for an example of use.
-
         Parameters
         ----------
-        file_path : str
+        file_path
             The path to save the Eigendistortion object to.
-        """
+
+        See Also
+        --------
+        load
+            Method to load in saved ``Eigendistortion`` objects.
+
+        Examples
+        --------
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> model = po.models.Gaussian(10, pad_mode="circular").eval()
+        >>> po.remove_grad(model)
+        >>> eig = po.Eigendistortion(img, model)
+        >>> eig.synthesize(max_iter=5)
+        >>> eig.save("eig.pt")
+        """  # numpydoc ignore=ES01
         save_io_attrs = [("_model", ("_image",))]
         super().save(file_path, save_io_attrs)
 
@@ -515,8 +614,6 @@ class Eigendistortion(_Synthesis):
         with respect to the host if possible, e.g., moving CPU Tensors with
         pinned memory to CUDA devices.
 
-        See :meth:`torch.nn.Module.to` for examples.
-
         .. note::
             This method modifies the module in-place.
 
@@ -530,6 +627,23 @@ class Eigendistortion(_Synthesis):
         tensor : torch.Tensor
             Tensor whose dtype and device are the desired dtype and device for
             all parameters and buffers in this module.
+
+        Examples
+        --------
+        >>> import plenoptic as po
+        >>> img = po.data.einstein()
+        >>> model = po.models.Gaussian(10, pad_mode="circular").eval()
+        >>> po.remove_grad(model)
+        >>> eig = po.Eigendistortion(img, model)
+        >>> eig.image.dtype
+        torch.float32
+        >>> eig.model(eig.image).dtype
+        torch.float32
+        >>> eig.to(torch.float64)
+        >>> eig.image.dtype
+        torch.float64
+        >>> eig.model(eig.image).dtype
+        torch.float64
         """  # numpydoc ignore=PR01,PR02
         attrs = [
             "_jacobian",
@@ -642,15 +756,85 @@ class Eigendistortion(_Synthesis):
 
         Examples
         --------
+        In order to load a saved ``Eigendistortion`` object, we must first initialize
+        one using the same arguments. (We use float64 / "double" precision rather than
+        torch's default float32 because it increases reproducibility, see the
+        :ref:`Reproducibility <reproduce>` page of our documentations for more details.)
+        Here, we load in a cached example:
+
         >>> import plenoptic as po
-        >>> img = po.data.einstein()
-        >>> model = po.models.Gaussian(30).eval()
-        >>> po.remove_grad(model)
-        >>> eig = po.Eigendistortion(img, model)
-        >>> eig.synthesize(max_iter=5)
-        >>> eig.save("eig.pt")
-        >>> eig_copy = po.Eigendistortion(img, model)
-        >>> eig_copy.load("eig.pt")
+        >>> img = po.data.einstein().to(torch.float64)
+        >>> lg = po.models.LuminanceGainControl(
+        ...     (31, 31), pad_mode="circular", pretrained=True, cache_filt=True
+        ... ).eval()
+        >>> lg.to(torch.float64)
+        LuminanceGainControl(...)
+        >>> po.remove_grad(lg)
+        >>> eig = po.Eigendistortion(img, lg)
+        >>> eig.eigendistortions
+        >>> eig.load(po.data.fetch_data("example_eigendistortion.pt"))
+        >>> eig.eigendistortions
+        tensor([[[[-1.8766e-04, ...]]]], dtype=torch.float64)
+
+        If the saved ``Eigendistortion`` object lived on a CUDA device and you do not
+        have CUDA on the loading machine, use ``map_location`` to change device:
+
+        >>> eig = po.Eigendistortion(img, lg)
+        >>> eig.image.device
+        device(type='cpu')
+        >>> eig.load(po.data.fetch_data("example_eigendistortion-cuda.pt"))
+        Traceback (most recent call last):
+        RuntimeError: Attempting to deserialize object on a CUDA device but
+        torch.cuda.is_available() is False...
+        >>> eig.load(
+        ...     po.data.fetch_data("example_eigendistortion-cuda.pt"),
+        ...     map_location="cpu",
+        ... )
+        >>> eig.eigendistortions
+        tensor([[[[-1.8766e-04, ...]]]], dtype=torch.float64)
+
+        If the loading ``Eigendistortion`` object was not initialized with same values
+        as the saved object, an error will be raised:
+
+        >>> eig = po.Eigendistortion(torch.rand_like(img), lg)
+        >>> eig.load(po.data.fetch_data("example_eigendistortion.pt"))
+        Traceback (most recent call last):
+        ValueError: Saved and initialized attribute image have different values...
+
+        If the loading ``Eigendistortion`` object has a different data type than the
+        saved object, an error will be raised:
+
+        >>> eig = po.Eigendistortion(img, lg)
+        >>> eig.to(torch.float32)
+        >>> eig.load(po.data.fetch_data("example_eigendistortion.pt"))
+        Traceback (most recent call last):
+        ValueError: Saved and initialized attribute image have different dtype...
+
+        If the name of the model has changed (even if their behavior is identical), an
+        error will be raised:
+
+        >>> class WrongModel(torch.nn.Module):
+        ...     def forward(self, x):
+        ...         return lg(x)
+        >>> lg.to(torch.float64)
+        LuminanceGainControl(...)
+        >>> wrong_model = WrongModel().eval()
+        >>> po.remove_grad(wrong_model)
+        >>> eig = po.Eigendistortion(img, wrong_model)
+        >>> eig.load(po.data.fetch_data("example_eigendistortion.pt"))
+        Traceback (most recent call last):
+        ValueError: Saved and initialized model have different names...
+
+        If you wish to proceed anyway, you can set ``raise_on_checks=False`` to turn the
+        errors into warnings. Do so at your own risk and read the resulting warning
+        messages in order to ensure the **only** differences are those you expect.
+        See :ref:`raise-on-checks` on the "Reproducibility and Compatibility" page of
+        the documentation for more info.
+
+        >>> eig = po.Eigendistortion(img, wrong_model)
+        >>> eig.load(
+        ...     po.data.fetch_data("example_eigendistortion.pt"), raise_on_checks=False
+        ... )
         """
         check_attributes = ["_image"]
         check_io_attrs = [("_model", ("_image",))]
@@ -695,6 +879,38 @@ class Eigendistortion(_Synthesis):
 
         Only set when :func:`synthesize` is run with ``method='exact'``.
         Else, ``None``.
+
+        Examples
+        --------
+        Jacobian is empty at initialization:
+
+        >>> import plenoptic as po
+        >>> model = po.models.Gaussian(10, pad_mode="circular").eval()
+        >>> po.remove_grad(model)
+        >>> small_img = po.process.blur_downsample(po.data.einstein(), n_scales=3)
+        >>> eig = po.Eigendistortion(small_img, model)
+        >>> eig.jacobian
+
+        It is set when :func:`synthesize` is called with ``method="exact"``:
+
+        >>> eig.synthesize("exact")
+        >>> eig.jacobian
+        tensor([[0.0210, ..., 0.0210]])
+        >>> # Jacobian size is (numel, numel), where numel is the number of elements
+        >>> # in image
+        >>> eig.image.shape
+        torch.Size([1, 1, 32, 32])
+        >>> eig.image.numel()
+        1024
+        >>> eig.jacobian.shape
+        torch.Size([1024, 1024])
+
+        If :func:`synthesize` is called with a different method, jacobian is not set.
+
+        >>> small_img = po.process.blur_downsample(po.data.einstein(), n_scales=3)
+        >>> eig = po.Eigendistortion(small_img, model)
+        >>> eig.synthesize(max_iter=5)
+        >>> eig.jacobian
         """  # numpydoc ignore=RT01
         return self._jacobian
 
