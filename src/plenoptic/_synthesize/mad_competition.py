@@ -1140,10 +1140,10 @@ class MADCompetition(_OptimizedSynthesis):
         >>> def ds_ssim(x, y):
         ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
         >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
-        >>> print(mad.mad_image)
+        >>> mad.mad_image
         tensor([])
         >>> mad.load(po.data.fetch_data("example_mad.pt"))
-        >>> print(mad.mad_image)
+        >>> mad.mad_image
         tensor([[[[0.0230, ...]]]], dtype=torch.float64, requires_grad=True)
 
         If the saved ``MADCompetition`` object lived on a CUDA device and you do not
@@ -1160,7 +1160,7 @@ class MADCompetition(_OptimizedSynthesis):
         ...     po.data.fetch_data("example_mad-cuda.pt"),
         ...     map_location="cpu",
         ... )
-        >>> print(mad.mad_image)
+        >>> mad.mad_image
         tensor([[[[0.0230, ...]]]], dtype=torch.float64, requires_grad=True)
 
         If the loading ``MADCompetition`` object was not initialized with same values

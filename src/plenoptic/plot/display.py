@@ -275,7 +275,7 @@ def imshow(
       >>> import torch
       >>> curie = po.data.curie()
       >>> imgs = torch.cat([einstein, curie])
-      >>> print(imgs.shape)
+      >>> imgs.shape
       torch.Size([2, 1, 256, 256])
       >>> po.plot.imshow(imgs)
       <PyrFigure size ... with 2 Axes>
@@ -305,7 +305,7 @@ def imshow(
     .. plot::
       :context: close-figs
 
-      >>> print(imgs.shape)
+      >>> imgs.shape
       torch.Size([2, 1, 256, 256])
       >>> po.plot.imshow(imgs, batch_idx=1)
       <PyrFigure size ... with 1 Axes>
@@ -343,7 +343,7 @@ def imshow(
     Note that if ``zoom<1`` and the value is not a divisor of the largest image size,
     this function will raise an error:
 
-    >>> print(einstein.shape)
+    >>> einstein.shape
     torch.Size([1, 1, 256, 256])
     >>> po.plot.imshow(einstein, zoom=0.7)
     Traceback (most recent call last):
@@ -365,7 +365,7 @@ def imshow(
       :context: close-figs
 
       >>> color_wheel = po.data.color_wheel()
-      >>> print(color_wheel.shape)
+      >>> color_wheel.shape
       torch.Size([1, 3, 600, 600])
       >>> po.plot.imshow(color_wheel, as_rgb=True, zoom=0.5)
       <PyrFigure size ... with 1 Axes>
@@ -380,7 +380,7 @@ def imshow(
     .. plot::
       :context: close-figs
 
-      >>> print(color_wheel.max(), (2 * color_wheel).max())
+      >>> color_wheel.max(), (2 * color_wheel).max()
       tensor(1.) tensor(2.)
       >>> po.plot.imshow(
       ...     [color_wheel, 2 * color_wheel],
@@ -436,7 +436,7 @@ def imshow(
     This function will raise a ``ValueError`` if ``as_rgb=True`` and the input image
     doesn't have the required number of channels:
 
-    >>> print(einstein.shape)
+    >>> einstein.shape
     torch.Size([1, 1, 256, 256])
     >>> po.plot.imshow(einstein, as_rgb=True)
     Traceback (most recent call last):

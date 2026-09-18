@@ -1047,10 +1047,10 @@ class Metamer(_OptimizedSynthesis):
         >>> model = po.models.Gaussian(30).eval().to(torch.float64)
         >>> po.remove_grad(model)
         >>> met = po.Metamer(img, model)
-        >>> print(met.metamer)
+        >>> met.metamer
         tensor([])
         >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
-        >>> print(met.metamer)
+        >>> met.metamer
         tensor([[[[0.0692, ...]]]], dtype=torch.float64, requires_grad=True)
 
         If the saved ``Metamer`` object lived on a CUDA device and you do not have
@@ -1067,7 +1067,7 @@ class Metamer(_OptimizedSynthesis):
         ...     po.data.fetch_data("example_metamer_gaussian-cuda.pt"),
         ...     map_location="cpu",
         ... )
-        >>> print(met.metamer)
+        >>> met.metamer
         tensor([[[[0.0692, ...]]]], dtype=torch.float64, requires_grad=True)
 
         If the loading ``Metamer`` object was not initialized with same values
@@ -2088,10 +2088,10 @@ class MetamerCTF(Metamer):
         >>> img = po.data.reptile_skin().to(torch.float64)
         >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
         >>> met = po.MetamerCTF(img, model, po.loss.l2_norm)
-        >>> print(met.metamer)
+        >>> met.metamer
         tensor([])
         >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
-        >>> print(met.metamer)
+        >>> met.metamer
         tensor([[[[0.1421, ...]]]], dtype=torch.float64, requires_grad=True)
 
         If the saved ``MetamerCTF`` object lived on a CUDA device and you do not have
@@ -2107,7 +2107,7 @@ class MetamerCTF(Metamer):
         >>> met.load(
         ...     po.data.fetch_data("example_metamerCTF_ps-cuda.pt"), map_location="cpu"
         ... )
-        >>> print(met.metamer)
+        >>> met.metamer
         tensor([[[[0.1421, ...]]]], dtype=torch.float64, requires_grad=True)
 
         Loading and saving must both be done with ``MetamerCTF``:
