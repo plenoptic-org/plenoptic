@@ -41,7 +41,8 @@ REGISTRY = {
     "portilla_simoncelli_synthesize_gpu_ps-refactor.npz": "9fbb490f1548133f6aa49c54832130cf70f8dc6546af59688ead17f62ab94e61",  # noqa: E501
     "portilla_simoncelli_scales_ps-refactor.npz": "ce11d85e6bcf5fad1b819c36dac584c3e933706a0ee423ea1c76ffe0daccbae5",  # noqa: E501
     "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz": "ffd967543d58a03df390008c35878791590520624aa0e5e5a26ad3f877345ab4",  # noqa: E501
-    "example_eigendistortion.pt": "87080836713e8efe1e7ff29538099e82a26b8700080e1bc1d30f00de1a54b2f5",  # noqa: E501
+    "example_eigendistortion.pt": "44f94049834bba386183336dade0b613cd68581fca70f2fe3cb7e5c3fdd730e6",  # noqa: E501
+    "example_eigendistortion-cuda.pt": "87080836713e8efe1e7ff29538099e82a26b8700080e1bc1d30f00de1a54b2f5",  # noqa: E501
     "load_image_test.tar.gz": "8a2b92dc0d442695c45b1e908ef0a04cae35c5f21b774a93b9fc6b675423b526",  # noqa: E501
     "berardino_onoff.pt": "2174a40005489b9c94acc91213b2f6d57a75f262caf118cb1980658eadbfd047",  # noqa: E501
     "berardino_vgg16.pt": "ef1b3234e6e1b5ca4479f215b0408e7a1d1ffd2baff5103142370d58047fb9f5",  # noqa: E501
@@ -89,7 +90,8 @@ REGISTRY_URLS = {
     "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz": OSF_TEMPLATE.format(  # noqa: E501
         "en8du"
     ),
-    "example_eigendistortion.pt": OSF_TEMPLATE.format("gwhz2"),
+    "example_eigendistortion.pt": OSF_TEMPLATE.format("gwhz2/?revision=3"),
+    "example_eigendistortion-cuda.pt": OSF_TEMPLATE.format("j9mqk/?revision=1"),
     "load_image_test.tar.gz": OSF_TEMPLATE.format("avpzq"),
     "berardino_onoff.pt": OSF_TEMPLATE.format("uqfa8"),
     "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b/?revision=6"),
