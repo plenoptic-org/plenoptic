@@ -230,6 +230,13 @@ Our intended shape here, as can be seen above, is four vertical lines, roughly e
 
 To use this penalty with synthesis, we define the x-values of the vertical lines (try changing these to different values!) and combine the resulting value with a range penalty which requires all points to lie between 0 and 100.
 
+:::{admonition} Other slopes/intercepts
+:class: seealso
+
+You can see how other combinations of slopes and intercepts lead to different shapes in:  [](ds_hlines.md), [](ds_vlines.md), [](ds_slantup.md), and [](ds_slantdown.md).
+
+:::
+
 ```{code-cell} ipython3
 def predict_line(x_vals, intercepts, slope):
     return slope * x_vals + intercepts
