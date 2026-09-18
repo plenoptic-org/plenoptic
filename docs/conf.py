@@ -178,7 +178,7 @@ html_theme_options = {
         "[!a]?[!p]?[!i]**": ["page-toc"],
         "api/**": [],
     },
-    "show_nav_level": 2,
+    "show_nav_level": 1,
     "header_links_before_dropdown": 4,
     "navbar_align": "left",
     "navbar_start": ["navbar-logo", "version-switcher"],
