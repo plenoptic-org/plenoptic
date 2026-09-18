@@ -936,8 +936,6 @@ class MADCompetition(_OptimizedSynthesis):
         Note that if ``store_progress`` is True, this will probably be very
         large.
 
-        See :func:`load` docstring for an example of use.
-
         Parameters
         ----------
         file_path
@@ -992,8 +990,6 @@ class MADCompetition(_OptimizedSynthesis):
         `on_blocking`` is set, it tries to convert/move asynchronously
         with respect to the host if possible, e.g., moving CPU Tensors with
         pinned memory to CUDA devices.
-
-        See :meth:`torch.nn.Module.to` for examples.
 
         .. note::
             This method modifies the module in-place.

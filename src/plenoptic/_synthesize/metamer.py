@@ -896,8 +896,6 @@ class Metamer(_OptimizedSynthesis):
         with respect to the host if possible, e.g., moving CPU Tensors with
         pinned memory to CUDA devices.
 
-        See :meth:`torch.nn.Module.to` for examples.
-
         .. note::
             This method modifies the module in-place.
 
