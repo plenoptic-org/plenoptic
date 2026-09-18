@@ -208,6 +208,8 @@ met.synthesize(1000, stop_criterion=1e-16)
 
 You are encouraged to try both methods and see which performs best for your use case.
 
+See [](ds-star) for an example of a two-stage metamer synthesis. In that example, the first stage uses the penalty with a reduced model, and the second stage uses the full model and a reduced penalty.
+
 :::
 
 ```{code-cell} ipython3
