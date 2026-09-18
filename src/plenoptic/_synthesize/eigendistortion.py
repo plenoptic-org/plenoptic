@@ -223,7 +223,7 @@ class Eigendistortion(_Synthesis):
         >>> eig.synthesize("exact")
         >>> # eigenvalue of all eigendistortions
         >>> eig.eigenvalues
-        tensor([1.0000e+00, 7.9989e-01, ..., 1.8644e-08, 4.2846e-08])
+        tensor([1.0000e+00, 7.9990e-01, ..., 1.2294e-08, 1.5311e-08])
         >>> len(eig.eigenvalues)
         1024
 

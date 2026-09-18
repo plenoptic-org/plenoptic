@@ -381,7 +381,7 @@ def imshow(
       :context: close-figs
 
       >>> color_wheel.max(), (2 * color_wheel).max()
-      tensor(1.) tensor(2.)
+      (tensor(1.), tensor(2.))
       >>> po.plot.imshow(
       ...     [color_wheel, 2 * color_wheel],
       ...     title="vrange=indep1",
