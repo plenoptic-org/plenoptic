@@ -20,11 +20,17 @@ Run it in your browser: **{binder}`ds_vwidelines.ipynb`**!
 
 :::
 
-# Synthesize the datasaurus vwidelines
+# vwidelines
 
-In this notebook, we will create a datasaurus metamer shaped like multiple tall horizontal lines. It will make use of many of the functions first used in [](ds_hlines.md), so we recommend you read that notebook first. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
+In this notebook, we will create a datasaurus metamer shaped like two  wide vertical lines.
+
+This notebook is intentionally brief: most of the code is hidden (you can expand the cells if you would like to see more details), and we only explain the penalty. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
+
+The penalty here is the most complex in this series of notebooks, so you're encouraged to read others first (especially [](ds_polygons.md), [](ds_oval.md), and one of [](ds_hlines.md), [](ds_vlines.md), [](ds_slantdown.md), [](ds_slantup.md), or [](ds_xshape.md)).
 
 ```{code-cell} ipython3
+:tags: [hide-input]
+
 import einops
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -49,15 +55,23 @@ po.set_seed(0)
 # deterministic algorithms. Note this will make things slower! See "Reproducibility and
 # Compatibility" in the docs for more details.
 torch.use_deterministic_algorithms(True)
-```
 
-Don't discuss model, already explained in intro
 
-```{code-cell} ipython3
-:tags: [hide-input]
-
+# Model definition, as in top-level notebook
 class DatasaurusModel(torch.nn.Module):
     def __init__(self, n_pts=None, dtype=None):
+        """
+        Create model to measure datasaurus stats.
+
+        Parameters
+        ----------
+        n_pts
+            Number of data points in the dataset we'll use the model for. Used to cache
+            a corresponding vector of ones for computing linear regression.
+        dtype
+            dtype for the dataset we'll use the model for. Used to cache
+            a corresponding vector of ones for computing linear regression.
+        """
         super().__init__()
         # cache ones to save time
         if n_pts is not None:
@@ -68,15 +82,18 @@ class DatasaurusModel(torch.nn.Module):
         self.eval()
 
     def _prepare_X(self, x):
+        """Append vector of ones to matrix for linear regression (for intercept)."""
         ones = self._ones if self._ones is None else torch.ones_like(x)
         return torch.stack([ones, x], -1)
 
     def _compute_linreg(self, x, y):
+        """Compute linear regression (with intercept) between x and y."""
         X = self._prepare_X(x)
         # unsqueezing and squeezing needed because of https://github.com/pytorch/pytorch/issues/158169
         return torch.linalg.lstsq(X, y.unsqueeze(-1)).solution.squeeze()
 
     def _compute_coeff_determination(self, x, y, solution):
+        """Compute R^2 for linera regression fit."""
         X = self._prepare_X(x)
         pred_y = torch.einsum("x, n x -> n", solution, X)
         ss_res = (y - pred_y).pow(2).sum()
@@ -84,10 +101,12 @@ class DatasaurusModel(torch.nn.Module):
         return 1 - (ss_res / ss_tot)
 
     def _vmap_coeff_determination(self, x, solution):
+        """vmap _compute_coeff_determiniation across dim=0."""
         f = torch.func.vmap(lambda x, solt: self._compute_coeff_determination(*x, solt))
         return f(x, solution).unsqueeze(-1)
 
     def forward(self, data):
+        """Compute summary statistics on data."""
         if data.ndim == 2:
             data = data.unsqueeze(0)
         elif data.ndim != 3:
@@ -103,6 +122,34 @@ class DatasaurusModel(torch.nn.Module):
         return torch.cat(stats, -1)
 
     def plot_representation(self, data, ax=None, style="stem", figsize=(6, 3)):
+        """
+        Plot model representation of data.
+
+        We plot the representation as stem plots (if style=="stem") or dashed
+        horizontal lines (if style=="lines"), on two separate sub-axes. The grouping
+        is determined by their approximate magnitude in the original dino dataset. The
+        first contains ["x mean", "y mean", "x std", "y std", "linreg intercept"], while
+        the second contains ["linreg slope", "correlation", and "R^2"].
+
+        Parameters
+        ----------
+        data: torch.Tensor
+            The data to show on the plot. Should look like the output of
+            forward, with the exact same structure.
+        ax: plt.Axes or None
+            Axes where we will plot the data. If a plt.Axes instance, will
+            subdivide into 2 new axes. If None, we create a new figure.
+        style: {"stem", "lines"}
+            If "stem", plot data as stem plot. If "lines", plot as dashed
+            horizontal lines.
+        figsize: tuple[int]
+            The size of the figure to create. Ignored if ax is not None.
+
+        Returns
+        -------
+        axes
+            List of two axes containing the subplots.
+        """
         data = po.to_numpy(data).squeeze()
         # Set up grid spec
         if ax is None:
@@ -153,7 +200,7 @@ class DatasaurusModel(torch.nn.Module):
         return axes
 ```
 
-Explain figure
+The following plot shows the `wide_lines` dataset from the original datasaurus dozen, along with its representation.
 
 ```{code-cell} ipython3
 data = torch.load(po.data.fetch_data("datasaurus.tar.gz") / "datasaurus.pt")
@@ -179,11 +226,18 @@ for i, title in enumerate(["dino (target)", "wide_lines"]):
         axes[i, 2].set(xticklabels=[])
 ```
 
-Explain penalty: two circles with same center. arbitrarily split points in half
+Our intended shape here, as can be seen above, is two vertical streaks, about 20 wide with y-values varying from 0 to 100. To encourage metamer synthesis to find such a dataset, we create several functions (all of these show up in other notebooks in this series and so may look familiar):
+- `predict_line` returns the y-values for a user-defined line, evaluated at the specified x-values.
+- `widelines_penalty` is similar to `lines_penalty` seen in [](ds_xshape.md), among others. However, it subtracts a user-specified margin off the error and throws away all negative values, which allows points to be within margin of the lines, instead of directly on them.
+- `vwidelines_penalty` ensures that the input arguments are the proper type and shape, then calls `widelines_penalty`.
+- `polygon_penalty`: breaks points into small groups and computes the MSE between the pairwise distances between all the points in each groups and a specified value. Together with `centroid_penalty`, attempts to evenly distribute points across space, see [](ds_polygons.md) for more details.
+- `centroid_penalty`: breaks points into small groups and computes the MSE between the pairwise distances between the centroids of all those groups and a specified value. Together with `polygon_penalty`, attempts to evenly distribute points across space, see [](ds_oval.md) for more details.
+
+To use this penalty with synthesis, we define the parameters (try changing these to different values!) and combine the resulting value with a range penalty which requires all points to lie between 0 and 100.
 
 ```{code-cell} ipython3
-def predict_line(data, intercepts, slope):
-    return slope * data[0] + intercepts
+def predict_line(x_vals, intercepts, slope):
+    return slope * x_vals + intercepts
 
 
 def widelines_penalty(data, intercepts, slope, margin):
@@ -191,9 +245,11 @@ def widelines_penalty(data, intercepts, slope, margin):
     # intercepts
     errors = []
     n = data.shape[-1] // intercepts.shape[0]
+    # Must either have the same number of slopes and intercepts...
     if hasattr(slope, "__len__") and len(slope) != 1:
         assert len(slope) == len(intercepts)
     else:
+        # ...or one intercept
         slope = len(intercepts) * [slope]
     for i, (inter, sl) in enumerate(zip(intercepts, slope)):
         if i != len(intercepts) - 1:
@@ -201,7 +257,7 @@ def widelines_penalty(data, intercepts, slope, margin):
         else:
             # extra entries on last one
             split = data[..., i * n :]
-        pred_y = predict_line(split, inter, sl)
+        pred_y = predict_line(split[0], inter, sl)
         err = (split[1] - pred_y).pow(2)
         errors.append((err - margin**2).clip(min=0))
     return torch.mean(torch.cat(errors))
@@ -209,7 +265,7 @@ def widelines_penalty(data, intercepts, slope, margin):
 
 def vwidelines_penalty(data, y_vals, margin):
     intercepts = torch.as_tensor(y_vals).unsqueeze(-1)
-    # same as hwidelines, just swap x and y
+    # same as hwidelines, except we swap x and y:
     return widelines_penalty(data[[1, 0]], intercepts, 0, margin)
 
 
@@ -233,19 +289,21 @@ def centroid_penalty(data, target_dist, nbr):
     tril_idx = torch.tril_indices(pts.shape[0], pts.shape[0], -1)
     dist = dist[tril_idx[0], tril_idx[1]]
     return (dist - target_dist).pow(2).mean()
-```
 
-Combine polygon penalty and range penalty, then run synthesis.
 
-```{code-cell} ipython3
-nbr = 3
+# Try changing these to other values!
+x_vals = [30, 70]
+margin = 10
+polygon_distance = 5
+centroid_distance = 25
+neighborhood_size = 3
 
 
 def penalty(x):
     range_penalty = po.regularize.penalize_range(x, (0, 100))
-    polygon = polygon_penalty(x, 5, nbr)
-    centroid = centroid_penalty(x, 25, nbr)
-    lines = vwidelines_penalty(x, [30, 70], 10)
+    polygon = polygon_penalty(x, polygon_distance, neighborhood_size)
+    centroid = centroid_penalty(x, centroid_distance, neighborhood_size)
+    lines = vwidelines_penalty(x, x_vals, margin)
     return range_penalty + lines + polygon + centroid
 
 
@@ -254,8 +312,6 @@ met = po.Metamer(data[0], model, penalty_function=penalty, penalty_lambda=0.0005
 met.setup(initial_image=100 * torch.rand_like(data[0]), optimizer=torch.optim.LBFGS)
 met.synthesize(50, store_progress=True)
 ```
-
-Visualize synthesis process:
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -271,6 +327,10 @@ plot_data = met.saved_metamer
 ani_data = po.to_numpy(plot_data)
 ani_rep = po.to_numpy(model(plot_data))
 path = axes[0].scatter(*ani_data[0])
+for x in x_vals:
+    axes[0].fill_betweenx(
+        np.asarray([0, 100]), x - margin, x + margin, zorder=0, alpha=0.2, color="C0"
+    )
 axes[0].set(xlim=(0, 100), ylim=(0, 100))
 axes[0].set_aspect(1)
 
@@ -291,7 +351,9 @@ plt.close(fig)
 ani
 ```
 
-And we've done it. Go back to [](datasaurus-index) or click in the sidebar to go to the next one.
+In the video of the synthesis above, we can see the dataset first shifting itself to become metameric, before moving the points into the vertical regions defined by our penalty. Almost all points end up lying in these regions, which is a success! However, the they do still end up clumping together somewhat, so the `centroid_penalty` and `polygon_penalty` have not been perfectly met. They are doing something important, however, which can be seen by removing them from the definition of `penalty` above.
+
+Interestingly, as in the corresponding dataset in the original datasaurus dozen, the right streak is consistently wider than the left. This consistency implies that this property is required in order for the dataset to be metameric.
 
 ```{code-cell} ipython3
 :tags: [remove-cell]
