@@ -47,8 +47,6 @@ plt.rcParams["animation.writer"] = "ffmpeg"
 plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 plt.rcParams["savefig.bbox"] = "tight"
 
-# set seed for reproducibility. for strict reproducibility, we'd also need to set
-# torch.use_deterministic_algorithms(True) here, but we don't need to be so strict here.
 po.set_seed(0)
 # To guarantee reproducibility for this example on the GPU, we must tell torch to use
 # deterministic algorithms. Note this will make things slower! See "Reproducibility and
