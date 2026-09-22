@@ -1521,7 +1521,7 @@ class TestTutorialNotebooks:
                 datasaurus,
                 datasaurus_model,
                 penalty_function=penalty,
-                penalty_lambda=0.0005,
+                penalty_lambda=0.001,
             )
             with pytest.warns(UserWarning, match="You will need to call setup"):
                 met_up.load(
