@@ -226,9 +226,11 @@ for i, title in enumerate(["dino (target)", "star"]):
         axes[i, 2].set(xticklabels=[])
 ```
 
-Our intended shape here, as can be seen above, is a star, roughly centered in the plot. Stars, unlike circles, are a difficult shape to describe
+Our intended shape here, as can be seen above, is a star, roughly centered in the plot. In order to encourage metamer synthesis to find this shape, we define the function `star_penalty`, which assigns each point a polar angle and, using that angle, computes the corresponding radial distance from the user-specified center using an equation found [here](https://math.stackexchange.com/a/4293385). The function then returns the sum of the sum of squared errors for both the distance and angle.
 
 To use this penalty with synthesis, we define the parameters (try changing these to different values!) and combine the resulting value with a range penalty which requires all points to lie between 0 and 100.
+
+However, you'll notice an important difference with the synthesis performed in the other notebooks in this series: we perform synthesis in a two-stage process. First, we match the combined `penalty` but use a reduced model (only matching the x and y means). Then, we initialize a new {class}`~plenoptic.Metamer` object which matches the full datasaurus model but only uses the `range_penalty`, and starts from the {attr}`~plenoptic.Metamer.metamer` attribute produced by the first stage.
 
 ```{code-cell} ipython3
 # target_theta allows us to rotate the star, default puts it aligned with y-axis
@@ -317,9 +319,11 @@ plt.close(fig)
 ani
 ```
 
-In the video of the synthesis above, we can see the dataset first shifting itself to become metameric, before moving the points around and then condensing into horizontal lines. However, like [](ds_circle.md), the points do not land exactly on their targets. Analagously to [](ds_circle.md), the points do form perfect horizontal lines, but their y-values do not align exactly with the targets.
+In the video above, we can see that first, the points arrange themselves in a star centered in the plot. If you look at the stem plots, you can see this dataset is far from metameric with the datasaurus! Only the means are matched and the other statistics (which are allowed to freely vary) have very different values. Then, when we switch to the second stage two-thirds into the video, the star expands and rotates, bringing its statistics to their metameric values.
 
-Remember that the tradeoff between the metamer objective and the penalty is [governed by {attr}`~plenoptic.Metamer.penalty_lambda`](penalty-lambda): if we increased {attr}`~plenoptic.Metamer.penalty_lambda` in the above block, we could make the synthesis procedure push the points onto the specified locations at the cost of reducing the metamer quality. Alternatively, we could also change the penalty so as to exclude some small number of points, allowing them to move freely, which might allow the other points to match the target locations more closely.
+If you look at the star in the original datasaurus dozen, you can see that ours is larger and more rotated, though it is a better metamer, with a more precise match of its model statistics.
+
+This two-stage procedure can be useful when using penalty functions which are difficult to match. It may work better to start with the penalty alone and then add the model, as done here, or the inverse. And sometimes alternating between these stages more than once can be helpful! We encourage you to experiment.
 
 ```{code-cell} ipython3
 :tags: [remove-cell]
