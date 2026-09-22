@@ -329,6 +329,18 @@ class DatasaurusModel(torch.nn.Module):
         return axes
 ```
 
+:::{admonition} Redundant statistics?
+:class: dropdown note
+
+Our `DatasaurusModel` contains redundant statistics: the slope and intercept of the best-fit line and the corresponding coefficient of determination provide no additional constraints over the other five statistics. Put another way, it is impossible to generate a dataset that has matched means, variances, and correlation of x and y without also matching the remaining three statistics. (The demonstration of this fact is left as an exercise to the reader.)
+
+However, in practice, we find that adding those redundant statistics makes the optimization easier: it converges faster and results in a solution that better balances the metamer loss and penalty.
+
+If you would like to see for yourself, try removing the corresponding computations from the `forward` <!-- skip-lint --> method of `DatasaurusModel` and running synthesis yourself:
+the reduced model finds good solutions for the simpler penalties such as [](ds_circle.md) and [](ds_away.md), and has difficulty for the more complex ones such as [](ds_slantup.md) and [](ds_vwidelines.md). Note that if you wish to create the plots and movies shown in these notebooks, so that you can see for yourself that the redundant statistics are also matched, you should use the existing `DatasaurusModel` to do so. See [](ps-mag-means) for a similar example and discussion for the {class}`~plenoptic.models.PortillaSimoncelli` model.
+
+:::
+
 Let's use our model and one of our plotting helper functions to visualize the model output on the datasaurus dozen:
 
 ```{code-cell} ipython3

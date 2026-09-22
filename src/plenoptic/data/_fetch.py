@@ -113,6 +113,8 @@ REGISTRY_URLS = {
     "ResNet50-layer4_macaque_metamer.pt": OSF_TEMPLATE.format("yvwjs/?revision=7"),
     "caltech256_burger.jpg": OSF_TEMPLATE.format("5dhac/?revision=1"),
     "datasaurus.tar.gz": OSF_TEMPLATE.format("xfb6q/?revision=2"),
+    # there's a version 11 which we're not using, so set to revision=12 if uploading a
+    # new one
     "datasaurus_metamers.tar.gz": OSF_TEMPLATE.format("q7bnu/?revision=10"),
 }
 
