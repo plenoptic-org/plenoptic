@@ -309,22 +309,25 @@ Remember that the tradeoff between the metamer objective and the penalty is [gov
 ```{code-cell} ipython3
 :tags: [remove-cell]
 
+import os
+
 from plenoptic.tensors import _check_tensor_equality
 
-# This cell just tests for reproducibility. As a user, you should skip it -- because
-# pytorch doesn't guarantee reproducibility across CPU/GPU and GPU types, it's unlikely
-# that your results will exactly match ours. (Though it should look approximtaely as
-# good -- if not, open an issue!)
-cached_met = po.data.fetch_data("datasaurus_metamers.tar.gz") / "datasaurus-dots.pt"
-# just load in the metamer tensor, instead of the whole object
-cached_met = torch.load(cached_met)["_metamer"]
-_check_tensor_equality(
-    met.metamer,
-    cached_met,
-    "Notebook",
-    "OSF",
-    1e-5,
-    1e-7,
-    "metamer has different {error_type}! Update the OSF version.",
-)
+if os.environ.get("DATASAURUS_CHECK", False):
+    # This cell just tests for reproducibility. As a user, you should skip it -- because
+    # pytorch doesn't guarantee reproducibility across CPU/GPU and GPU types, it's
+    # unlikely that your results will exactly match ours. (Though it should look
+    # approximately as good -- if not, open an issue!)
+    cached_met = po.data.fetch_data("datasaurus_metamers.tar.gz") / "datasaurus-dots.pt"
+    # just load in the metamer tensor, instead of the whole object
+    cached_met = torch.load(cached_met)["_metamer"]
+    _check_tensor_equality(
+        met.metamer,
+        cached_met,
+        "Notebook",
+        "OSF",
+        1e-5,
+        1e-7,
+        "metamer has different {error_type}! Update the OSF version.",
+    )
 ```
