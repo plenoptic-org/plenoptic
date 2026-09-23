@@ -9,6 +9,7 @@ update them.
 """
 
 import functools
+import itertools
 import os
 from collections import OrderedDict
 
@@ -927,5 +928,1117 @@ class TestTutorialNotebooks:
                     ps_regression / f"ps_mag_means-{mag_bool}.pt",
                     tensor_equality_atol=1e-7,
                     map_location=DEVICE2,
+                )
+            compare_metamers(met, met_up)
+
+    # None of these take long to run, so we do it with cpu instead of DEVICE/DEVICE2
+    # (which will be GPU for our tests)
+    class TestDatasaurus:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def datasaurus(cls):
+            data = po.data.fetch_data("datasaurus.tar.gz") / "datasaurus.pt"
+            return torch.load(data)[0]
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def datasaurus_metamers(cls):
+            return po.data.fetch_data("datasaurus_metamers.tar.gz")
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def datasaurus_model(cls):
+            class DatasaurusModel(torch.nn.Module):
+                def __init__(self, n_pts=None, dtype=None):
+                    super().__init__()
+                    # cache ones to save time
+                    if n_pts is not None:
+                        self._ones = torch.ones(n_pts, dtype=dtype)
+                    else:
+                        self._ones = None
+                    # This model has no trainable parameters, so it's always in eval
+                    # mode
+                    self.eval()
+
+                def _prepare_X(self, x):
+                    ones = self._ones if self._ones is None else torch.ones_like(x)
+                    return torch.stack([ones, x], -1)
+
+                def _compute_linreg(self, x, y):
+                    X = self._prepare_X(x)
+                    # unsqueezing and squeezing needed because of
+                    # https://github.com/pytorch/pytorch/issues/158169
+                    return torch.linalg.lstsq(X, y.unsqueeze(-1)).solution.squeeze()
+
+                def _compute_coeff_determination(self, x, y, solution):
+                    X = self._prepare_X(x)
+                    pred_y = torch.einsum("x, n x -> n", solution, X)
+                    ss_res = (y - pred_y).pow(2).sum()
+                    ss_tot = (y - y.mean()).pow(2).sum()
+                    return 1 - (ss_res / ss_tot)
+
+                def _vmap_coeff_determination(self, x, solution):
+                    f = torch.func.vmap(
+                        lambda x, solt: self._compute_coeff_determination(*x, solt)
+                    )
+                    return f(x, solution).unsqueeze(-1)
+
+                def forward(self, data):
+                    if data.ndim == 2:
+                        data = data.unsqueeze(0)
+                    elif data.ndim != 3:
+                        raise ValueError("data must be 2 or 3d!")
+                    stats = []
+                    stats.append(data.mean(-1))
+                    stats.append(data.std(-1))
+                    solution = torch.func.vmap(lambda x: self._compute_linreg(*x))(data)
+                    stats.append(solution)
+                    crosscorr = torch.func.vmap(lambda x: torch.corrcoef(x)[0, 1])(data)
+                    stats.append(crosscorr.unsqueeze(-1))
+                    stats.append(self._vmap_coeff_determination(data, solution))
+                    return torch.cat(stats, -1)
+
+            model = DatasaurusModel(142, torch.float64)
+            return model
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_circle(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def circle_penalty(data, target_ctr, target_r):
+                target_ctr = torch.as_tensor(target_ctr).unsqueeze(-1)
+                R = (data - target_ctr).pow(2).sum(0).sqrt()
+                return (R - target_r).pow(2).sum()
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                circle = circle_penalty(x, [50, 50], 35)
+                return range_penalty + circle
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0001,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-circle.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0001,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-circle.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_bullseye(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def circle_penalty(data, target_ctr, target_r):
+                target_ctr = torch.as_tensor(target_ctr).unsqueeze(-1)
+                R = (data - target_ctr).pow(2).sum(0).sqrt()
+                return (R - target_r).pow(2).sum()
+
+            def bullseye_penalty(data, target_ctr, target_rs):
+                n_pts = data.shape[-1]
+                a = circle_penalty(data[..., n_pts // 2 :], target_ctr, target_rs[0])
+                b = circle_penalty(data[..., : n_pts // 2], target_ctr, target_rs[1])
+                return a + b
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                bullseye = bullseye_penalty(x, [50, 50], [20, 40])
+                return range_penalty + bullseye
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-bullseye.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-bullseye.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_hlines(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def predict_line(data, intercepts, slope):
+                return slope * data[0] + intercepts
+
+            def lines_penalty(data, intercepts, slope):
+                # intercepts must be shape [n, 1], slope a scalar or same number of
+                # elements as intercepts
+                errors = []
+                n = data.shape[-1] // intercepts.shape[0]
+                if hasattr(slope, "__len__") and len(slope) != 1:
+                    assert len(slope) == len(intercepts)
+                else:
+                    slope = len(intercepts) * [slope]
+                for i, (inter, sl) in enumerate(zip(intercepts, slope)):
+                    if i != len(intercepts) - 1:
+                        split = data[..., i * n : (i + 1) * n]
+                    else:
+                        # extra entries on last one
+                        split = data[..., i * n :]
+                    pred_y = predict_line(split, inter, sl)
+                    errors.append((split[1] - pred_y).pow(2))
+                return torch.mean(torch.cat(errors))
+
+            def hlines_penalty(data, y_vals=[10, 30, 50, 70, 90]):
+                intercepts = torch.as_tensor(y_vals).unsqueeze(-1)
+                return lines_penalty(data, intercepts, 0)
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                hlines = hlines_penalty(x)
+                return range_penalty + hlines
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-hlines.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-hlines.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_vlines(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def predict_line(data, intercepts, slope):
+                return slope * data[0] + intercepts
+
+            def lines_penalty(data, intercepts, slope):
+                # intercepts must be shape [n, 1], slope a scalar or same number of
+                # elements as intercepts
+                errors = []
+                n = data.shape[-1] // intercepts.shape[0]
+                if hasattr(slope, "__len__") and len(slope) != 1:
+                    assert len(slope) == len(intercepts)
+                else:
+                    slope = len(intercepts) * [slope]
+                for i, (inter, sl) in enumerate(zip(intercepts, slope)):
+                    if i != len(intercepts) - 1:
+                        split = data[..., i * n : (i + 1) * n]
+                    else:
+                        # extra entries on last one
+                        split = data[..., i * n :]
+                    pred_y = predict_line(split, inter, sl)
+                    errors.append((split[1] - pred_y).pow(2))
+                return torch.mean(torch.cat(errors))
+
+            def vlines_penalty(data, x_vals=[30, 50, 70, 90]):
+                intercepts = torch.as_tensor(x_vals).unsqueeze(-1)
+                # same as hlines, just swap x and y:
+                return lines_penalty(data[[1, 0]], intercepts, 0)
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                vlines = vlines_penalty(x)
+                return range_penalty + vlines
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-vlines.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-vlines.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_slantup(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def predict_line(data, intercepts, slope):
+                return slope * data[0] + intercepts
+
+            def lines_penalty(data, intercepts, slope):
+                # intercepts must be shape [n, 1], slope a scalar or same number of
+                # elements as intercepts
+                errors = []
+                n = data.shape[-1] // intercepts.shape[0]
+                if hasattr(slope, "__len__") and len(slope) != 1:
+                    assert len(slope) == len(intercepts)
+                else:
+                    slope = len(intercepts) * [slope]
+                for i, (inter, sl) in enumerate(zip(intercepts, slope)):
+                    if i != len(intercepts) - 1:
+                        split = data[..., i * n : (i + 1) * n]
+                    else:
+                        # extra entries on last one
+                        split = data[..., i * n :]
+                    pred_y = predict_line(split, inter, sl)
+                    errors.append((split[1] - pred_y).pow(2))
+                return torch.mean(torch.cat(errors))
+
+            def slant_penalty(data, slope, intercepts=[-20, -10, 0, 10, 20]):
+                slope = torch.as_tensor(slope).unsqueeze(-1)
+                intercepts = torch.as_tensor(intercepts).unsqueeze(-1)
+                return lines_penalty(data, intercepts, slope)
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                slantup = slant_penalty(x, 1, [-20, -10, 0, 10, 20])
+                return range_penalty + slantup
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.001,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-slantup.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.001,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-slantup.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_slantdown(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def predict_line(data, intercepts, slope):
+                return slope * data[0] + intercepts
+
+            def lines_penalty(data, intercepts, slope):
+                # intercepts must be shape [n, 1], slope a scalar or same number of
+                # elements as intercepts
+                errors = []
+                n = data.shape[-1] // intercepts.shape[0]
+                if hasattr(slope, "__len__") and len(slope) != 1:
+                    assert len(slope) == len(intercepts)
+                else:
+                    slope = len(intercepts) * [slope]
+                for i, (inter, sl) in enumerate(zip(intercepts, slope)):
+                    if i != len(intercepts) - 1:
+                        split = data[..., i * n : (i + 1) * n]
+                    else:
+                        # extra entries on last one
+                        split = data[..., i * n :]
+                    pred_y = predict_line(split, inter, sl)
+                    errors.append((split[1] - pred_y).pow(2))
+                return torch.mean(torch.cat(errors))
+
+            def slant_penalty(data, slope, intercepts=[-20, -10, 0, 10, 20]):
+                intercepts = torch.as_tensor(intercepts).unsqueeze(-1)
+                slope = torch.as_tensor(slope).unsqueeze(-1)
+                return lines_penalty(data, intercepts, slope)
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                slantdown = slant_penalty(x, -0.6, [40, 50, 60, 70, 80])
+                return range_penalty + slantdown
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-slantdown.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-slantdown.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_xshape(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def predict_line(data, intercepts, slope):
+                return slope * data[0] + intercepts
+
+            def lines_penalty(data, intercepts, slope):
+                # intercepts must be shape [n, 1], slope a scalar or same number of
+                # elements as intercepts
+                errors = []
+                n = data.shape[-1] // intercepts.shape[0]
+                if hasattr(slope, "__len__") and len(slope) != 1:
+                    assert len(slope) == len(intercepts)
+                else:
+                    slope = len(intercepts) * [slope]
+                for i, (inter, sl) in enumerate(zip(intercepts, slope)):
+                    if i != len(intercepts) - 1:
+                        split = data[..., i * n : (i + 1) * n]
+                    else:
+                        # extra entries on last one
+                        split = data[..., i * n :]
+                    pred_y = predict_line(split, inter, sl)
+                    errors.append((split[1] - pred_y).pow(2))
+                return torch.mean(torch.cat(errors))
+
+            def slant_penalty(data, slope, intercepts):
+                intercepts = torch.as_tensor(intercepts).unsqueeze(-1)
+                slope = torch.as_tensor(slope).unsqueeze(-1)
+                return lines_penalty(data, intercepts, slope)
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                xshape = slant_penalty(x, [1.5, -1.5], [-30, 130])
+                return range_penalty + xshape
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-xshape.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-xshape.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_dots(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def dots_penalty(data, target_ctrs):
+                target_ctrs = torch.as_tensor(target_ctrs).unsqueeze(-1)
+                n = data.shape[-1] // target_ctrs.shape[0]
+                errors = []
+                for i, ctr in enumerate(target_ctrs):
+                    if i != len(target_ctrs) - 1:
+                        split = data[..., i * n : (i + 1) * n]
+                    else:
+                        # extra entries on last one
+                        split = data[..., i * n :]
+                    rs = (split - ctr).pow(2).sum(0)
+                    errors.append(rs.mean())
+                return torch.stack(errors).mean()
+
+            dot_ctrs = itertools.product(
+                [25, datasaurus.mean(-1)[0], 75], [20, datasaurus.mean(-1)[1], 80]
+            )
+            dot_ctrs = torch.as_tensor(list(dot_ctrs))
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                dots = dots_penalty(x, dot_ctrs)
+                return range_penalty + dots
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.001,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-dots.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.001,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-dots.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_away(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def away_penalty(data, target_ctr, std=5):
+                target_ctr = torch.as_tensor(target_ctr).unsqueeze(-1)
+                r = (data - target_ctr).pow(2).sum(0).sqrt()
+                return torch.exp(-r.pow(2) / (2 * std**2)).mean()
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                away = away_penalty(x, [50, 50])
+                return range_penalty + away
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=1,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-away.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=1,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-away.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_star(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def star_penalty(data, target_ctr, target_r, target_theta=-torch.pi / 2):
+                target_ctr = torch.as_tensor(target_ctr).unsqueeze(-1)
+                # recenter the data and then compute the
+                recentered = data - target_ctr
+                actual_theta = torch.atan2(*recentered[[1, 0]])
+                theta = torch.linspace(
+                    -np.pi, np.pi, data.shape[-1], dtype=data.dtype, device=data.device
+                )
+                r = recentered.pow(2).sum(0).sqrt()
+
+                # modified from https://math.stackexchange.com/a/4293385
+                m = 3
+                n = 5
+                k = torch.as_tensor(1)
+
+                nom = torch.cos((2 * torch.arcsin(k) + torch.pi * m) / (2 * n))
+                denom = torch.cos(
+                    (
+                        2 * torch.arcsin(k * torch.cos(n * (theta + target_theta)))
+                        + torch.pi * m
+                    )
+                    / (2 * n)
+                )
+
+                target_r = target_r * nom / denom
+                return (r - target_r).pow(2).sum() + (actual_theta - theta).pow(2).sum()
+
+            def range_penalty(x):
+                return po.regularize.penalize_range(x, (0, 100))
+
+            def penalty(x):
+                star = star_penalty(x, datasaurus.mean(-1), 40)
+                return range_penalty(x) + star
+
+            met_star = po.Metamer(
+                datasaurus,
+                lambda x: x.mean(-1),
+                penalty_function=penalty,
+            )
+            met_star.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            met_star.synthesize(100, store_progress=True)
+            met = po.Metamer(
+                datasaurus, datasaurus_model, penalty_function=range_penalty
+            )
+            met.setup(initial_image=met_star.metamer, optimizer=torch.optim.LBFGS)
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-star.pt")
+            # this is the only one of these that does a two-stage synthesis, so we save
+            # its saved_metamer a bit differently, so we can use it for the movie in
+            # ds_index.md. drop the last element because that corresponds to met.metamer
+            saved_met = torch.cat([met_star.saved_metamer[:-1], met.saved_metamer[:-1]])
+            # only keep every 3rd iteration, so it's the same length as the others
+            torch.save(saved_met[::3], "uploaded_files/datasaurus-star-saved.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=range_penalty,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-star.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_oval(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def polygon_penalty(data, target_dist, nbr):
+                # break data into "neighborhoods" of nbr points each and tries to make
+                # each of their distances match target i.e., form regular polygons of
+                # target size
+                pts = einops.rearrange(
+                    data[..., : nbr * (data.shape[-1] // nbr)],
+                    "d (n1 n2) -> n1 n2 d",
+                    n2=nbr,
+                )
+                dist = torch.cdist(pts, pts)
+                tril_idx = torch.tril_indices(pts.shape[1], pts.shape[1], -1)
+                dist = dist[:, tril_idx[0], tril_idx[1]]
+                return (dist - target_dist).pow(2).mean()
+
+            def centroid_penalty(data, target_dist, nbr):
+                pts = einops.rearrange(
+                    data[..., : nbr * (data.shape[-1] // nbr)],
+                    "d (n1 n2) -> n1 n2 d",
+                    n2=nbr,
+                )
+                dist = torch.cdist(pts.mean(1), pts.mean(1))
+                tril_idx = torch.tril_indices(pts.shape[0], pts.shape[0], -1)
+                dist = dist[tril_idx[0], tril_idx[1]]
+                return (dist - target_dist).pow(2).mean()
+
+            nbr = 3
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                polygon = polygon_penalty(x, 5, nbr)
+                centroid = centroid_penalty(x, 25, nbr)
+                return range_penalty + centroid + polygon
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.001,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-oval.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.001,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-oval.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_polygons(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def polygon_penalty(data, target_dist, nbr):
+                # break data into "neighborhoods" of nbr points each and tries to make
+                # each of their distances match target i.e., form regular polygons of
+                # target size
+                pts = einops.rearrange(
+                    data[..., : nbr * (data.shape[-1] // nbr)],
+                    "d (n1 n2) -> n1 n2 d",
+                    n2=nbr,
+                )
+                dist = torch.cdist(pts, pts)
+                tril_idx = torch.tril_indices(pts.shape[1], pts.shape[1], -1)
+                dist = dist[:, tril_idx[0], tril_idx[1]]
+                return (dist - target_dist).pow(2).mean()
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                polygon = polygon_penalty(x, 5, 6)
+                return range_penalty + polygon
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.001,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-polygons.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.001,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-polygons.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_hwidelines(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def predict_line(data, intercepts, slope):
+                return slope * data[0] + intercepts
+
+            def widelines_penalty(data, intercepts, slope, margin):
+                # intercepts must be shape [n, 1], slope a scalar or same number of
+                # elements as intercepts
+                errors = []
+                n = data.shape[-1] // intercepts.shape[0]
+                if hasattr(slope, "__len__") and len(slope) != 1:
+                    assert len(slope) == len(intercepts)
+                else:
+                    slope = len(intercepts) * [slope]
+                for i, (inter, sl) in enumerate(zip(intercepts, slope)):
+                    if i != len(intercepts) - 1:
+                        split = data[..., i * n : (i + 1) * n]
+                    else:
+                        # extra entries on last one
+                        split = data[..., i * n :]
+                    pred_y = predict_line(split, inter, sl)
+                    err = (split[1] - pred_y).pow(2)
+                    errors.append((err - margin**2).clip(min=0))
+                return torch.mean(torch.cat(errors))
+
+            def hwidelines_penalty(data, y_vals, margin):
+                intercepts = torch.as_tensor(y_vals).unsqueeze(-1)
+                return widelines_penalty(data, intercepts, 0, margin)
+
+            def polygon_penalty(data, target_dist, nbr):
+                # break data into "neighborhoods" of nbr points each and tries to make
+                # each of their distances match target i.e., form regular polygons of
+                # target size
+                pts = einops.rearrange(
+                    data[..., : nbr * (data.shape[-1] // nbr)],
+                    "d (n1 n2) -> n1 n2 d",
+                    n2=nbr,
+                )
+                dist = torch.cdist(pts, pts)
+                tril_idx = torch.tril_indices(pts.shape[1], pts.shape[1], -1)
+                dist = dist[:, tril_idx[0], tril_idx[1]]
+                return (dist - target_dist).pow(2).mean()
+
+            def centroid_penalty(data, target_dist, nbr):
+                pts = einops.rearrange(
+                    data[..., : nbr * (data.shape[-1] // nbr)],
+                    "d (n1 n2) -> n1 n2 d",
+                    n2=nbr,
+                )
+                dist = torch.cdist(pts.mean(1), pts.mean(1))
+                tril_idx = torch.tril_indices(pts.shape[0], pts.shape[0], -1)
+                dist = dist[tril_idx[0], tril_idx[1]]
+                return (dist - target_dist).pow(2).mean()
+
+            nbr = 6
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                polygon = polygon_penalty(x, 2, nbr)
+                centroid = centroid_penalty(x, 5, nbr)
+                lines = hwidelines_penalty(x, [20, 70], 10)
+                return range_penalty + centroid + polygon + lines
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.001,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-hwidelines.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.001,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-hwidelines.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_vwidelines(self, datasaurus, datasaurus_model, datasaurus_metamers):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def predict_line(data, intercepts, slope):
+                return slope * data[0] + intercepts
+
+            def widelines_penalty(data, intercepts, slope, margin):
+                # intercepts must be shape [n, 1], slope a scalar or same number of
+                # elements as intercepts
+                errors = []
+                n = data.shape[-1] // intercepts.shape[0]
+                if hasattr(slope, "__len__") and len(slope) != 1:
+                    assert len(slope) == len(intercepts)
+                else:
+                    slope = len(intercepts) * [slope]
+                for i, (inter, sl) in enumerate(zip(intercepts, slope)):
+                    if i != len(intercepts) - 1:
+                        split = data[..., i * n : (i + 1) * n]
+                    else:
+                        # extra entries on last one
+                        split = data[..., i * n :]
+                    pred_y = predict_line(split, inter, sl)
+                    err = (split[1] - pred_y).pow(2)
+                    errors.append((err - margin**2).clip(min=0))
+                return torch.mean(torch.cat(errors))
+
+            def vwidelines_penalty(data, y_vals, margin):
+                intercepts = torch.as_tensor(y_vals).unsqueeze(-1)
+                # same as hwidelines, just swap x and y
+                return widelines_penalty(data[[1, 0]], intercepts, 0, margin)
+
+            def polygon_penalty(data, target_dist, nbr):
+                # break data into "neighborhoods" of nbr points each and tries to make
+                # each of their distances match target i.e., form regular polygons of
+                # target size
+                pts = einops.rearrange(
+                    data[..., : nbr * (data.shape[-1] // nbr)],
+                    "d (n1 n2) -> n1 n2 d",
+                    n2=nbr,
+                )
+                dist = torch.cdist(pts, pts)
+                tril_idx = torch.tril_indices(pts.shape[1], pts.shape[1], -1)
+                dist = dist[:, tril_idx[0], tril_idx[1]]
+                return (dist - target_dist).pow(2).mean()
+
+            def centroid_penalty(data, target_dist, nbr):
+                pts = einops.rearrange(
+                    data[..., : nbr * (data.shape[-1] // nbr)],
+                    "d (n1 n2) -> n1 n2 d",
+                    n2=nbr,
+                )
+                dist = torch.cdist(pts.mean(1), pts.mean(1))
+                tril_idx = torch.tril_indices(pts.shape[0], pts.shape[0], -1)
+                dist = dist[tril_idx[0], tril_idx[1]]
+                return (dist - target_dist).pow(2).mean()
+
+            nbr = 3
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                polygon = polygon_penalty(x, 5, nbr)
+                centroid = centroid_penalty(x, 25, nbr)
+                lines = vwidelines_penalty(x, [30, 70], 10)
+                return range_penalty + centroid + polygon + lines
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            met.setup(
+                initial_image=100 * torch.rand_like(datasaurus),
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-vwidelines.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+                penalty_lambda=0.0005,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-vwidelines.pt",
+                    tensor_equality_atol=1e-7,
+                )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings(
+            "ignore:plenoptic's methods have mostly been tested on 4d:UserWarning"
+        )
+        @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+        def test_plenoptic_logo(
+            self, datasaurus, datasaurus_model, datasaurus_metamers
+        ):
+            po.set_seed(0)
+            torch.use_deterministic_algorithms(True)
+
+            def penalty(x):
+                range_penalty = po.regularize.penalize_range(x, (0, 100))
+                return range_penalty
+
+            met = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+            )
+            logo = po.data.fetch_data("datasaurus.tar.gz") / "plenoptic_logo.pt"
+            logo = torch.load(logo)
+            met.setup(
+                initial_image=logo,
+                optimizer=torch.optim.LBFGS,
+            )
+            init_state_dict_lint_ignore = met.optimizer.state_dict()
+
+            met.synthesize(50, store_progress=True)
+            # LBFGS's state dict takes a decent amount of memory (it has two keys that
+            # are lists of length history_size, where each element is a tensor with the
+            # same number of pixels as img), so we reset it for saving purposes -- it's
+            # not useful for testing
+            met.optimizer.load_state_dict(init_state_dict_lint_ignore)
+            met.save("uploaded_files/datasaurus-plenoptic-logo.pt")
+            met_up = po.Metamer(
+                datasaurus,
+                datasaurus_model,
+                penalty_function=penalty,
+            )
+            with pytest.warns(UserWarning, match="You will need to call setup"):
+                met_up.load(
+                    datasaurus_metamers / "datasaurus-plenoptic-logo.pt",
+                    tensor_equality_atol=1e-7,
                 )
             compare_metamers(met, met_up)

@@ -1,0 +1,350 @@
+---
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.17.3
+kernelspec:
+  display_name: Python 3 (ipykernel)
+  language: python
+  name: python3
+---
+
+:::{admonition} Run this notebook yourself!
+:class: important
+
+Download the executed notebook: **{nb-download}`ds_star.ipynb`**!
+
+Run it in your browser: **{binder}`ds_star.ipynb`**!
+
+:::
+
+(ds-star)=
+# star
+
+In this notebook, we will create a datasaurus metamer shaped like a star.
+
+This notebook is intentionally brief: most of the code is hidden (you can expand the cells if you would like to see more details), and we only explain the penalty. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
+
+The synthesis procedure for this example is slightly different than the others, because this penalty is difficult to meet. We proceed in two stages: we first use a reduced model (only matching the means) and a penalty to encourage a star shape, and then use the output of this synthesis to initialize a second {class}`~plenoptic.Metamer` object, which uses the full model and removes the star penalty. Read on for more details.
+
+```{code-cell} ipython3
+:tags: [hide-input]
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+
+import plenoptic as po
+
+# so that relative sizes of axes created by po.plot.imshow and others look right
+plt.rcParams["figure.dpi"] = 72
+
+plt.rcParams["animation.html"] = "html5"
+# use single-threaded ffmpeg for animation writer
+plt.rcParams["animation.writer"] = "ffmpeg"
+plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
+plt.rcParams["savefig.bbox"] = "tight"
+
+po.set_seed(0)
+# To guarantee reproducibility for this example on the GPU, we must tell torch to use
+# deterministic algorithms. Note this will make things slower! See "Reproducibility and
+# Compatibility" in the docs for more details.
+torch.use_deterministic_algorithms(True)
+
+
+# Model definition, as in top-level notebook
+class DatasaurusModel(torch.nn.Module):
+    def __init__(self, n_pts=None, dtype=None):
+        """
+        Create model to measure datasaurus stats.
+
+        Parameters
+        ----------
+        n_pts
+            Number of data points in the dataset we'll use the model for. Used to cache
+            a corresponding vector of ones for computing linear regression.
+        dtype
+            dtype for the dataset we'll use the model for. Used to cache
+            a corresponding vector of ones for computing linear regression.
+        """
+        super().__init__()
+        # cache ones to save time
+        if n_pts is not None:
+            self._ones = torch.ones(n_pts, dtype=dtype)
+        else:
+            self._ones = None
+        # This model has no trainable parameters, so it's always in eval mode
+        self.eval()
+
+    def _prepare_X(self, x):
+        """Append vector of ones to matrix for linear regression (for intercept)."""
+        ones = self._ones if self._ones is None else torch.ones_like(x)
+        return torch.stack([ones, x], -1)
+
+    def _compute_linreg(self, x, y):
+        """Compute linear regression (with intercept) between x and y."""
+        X = self._prepare_X(x)
+        # unsqueezing and squeezing needed because of https://github.com/pytorch/pytorch/issues/158169
+        return torch.linalg.lstsq(X, y.unsqueeze(-1)).solution.squeeze()
+
+    def _compute_coeff_determination(self, x, y, solution):
+        """Compute R^2 for linera regression fit."""
+        X = self._prepare_X(x)
+        pred_y = torch.einsum("x, n x -> n", solution, X)
+        ss_res = (y - pred_y).pow(2).sum()
+        ss_tot = (y - y.mean()).pow(2).sum()
+        return 1 - (ss_res / ss_tot)
+
+    def _vmap_coeff_determination(self, x, solution):
+        """vmap _compute_coeff_determiniation across dim=0."""
+        f = torch.func.vmap(lambda x, solt: self._compute_coeff_determination(*x, solt))
+        return f(x, solution).unsqueeze(-1)
+
+    def forward(self, data):
+        """Compute summary statistics on data."""
+        if data.ndim == 2:
+            data = data.unsqueeze(0)
+        elif data.ndim != 3:
+            raise ValueError("data must be 2 or 3d!")
+        stats = []
+        stats.append(data.mean(-1))
+        stats.append(data.std(-1))
+        solution = torch.func.vmap(lambda x: self._compute_linreg(*x))(data)
+        stats.append(solution)
+        crosscorr = torch.func.vmap(lambda x: torch.corrcoef(x)[0, 1])(data)
+        stats.append(crosscorr.unsqueeze(-1))
+        stats.append(self._vmap_coeff_determination(data, solution))
+        return torch.cat(stats, -1)
+
+    def plot_representation(self, data, ax=None, style="stem", figsize=(6, 3)):
+        """
+        Plot model representation of data.
+
+        We plot the representation as stem plots (if style=="stem") or dashed
+        horizontal lines (if style=="lines"), on two separate sub-axes. The grouping
+        is determined by their approximate magnitude in the original dino dataset. The
+        first contains ["x mean", "y mean", "x std", "y std", "linreg intercept"], while
+        the second contains ["linreg slope", "correlation", and "R^2"].
+
+        Parameters
+        ----------
+        data: torch.Tensor
+            The data to show on the plot. Should look like the output of
+            forward, with the exact same structure.
+        ax: plt.Axes or None
+            Axes where we will plot the data. If a plt.Axes instance, will
+            subdivide into 2 new axes. If None, we create a new figure.
+        style: {"stem", "lines"}
+            If "stem", plot data as stem plot. If "lines", plot as dashed
+            horizontal lines.
+        figsize: tuple[int]
+            The size of the figure to create. Ignored if ax is not None.
+
+        Returns
+        -------
+        axes
+            List of two axes containing the subplots.
+        """
+        data = po.to_numpy(data).squeeze()
+        # Set up grid spec
+        if ax is None:
+            # we add 2 to order because we're adding one to get the
+            # number of orientations and then another one to add an
+            # extra column for the mean luminance plot
+            fig = plt.figure(figsize=figsize, layout="constrained")
+            gs = mpl.gridspec.GridSpec(1, 2, fig, width_ratios=[5, 3])
+            axes = [fig.add_subplot(gs[0, i]) for i in range(2)]
+        elif isinstance(ax, mpl.axes.Axes) or len(ax) == 1:
+            # want to make sure the axis we're taking over is basically invisible.
+            ax = po.plot.display._clean_up_axes(
+                ax, False, ["top", "right", "bottom", "left"], ["x", "y"]
+            )
+            gs = ax.get_subplotspec().subgridspec(1, 2, width_ratios=[5, 3])
+            fig = ax.figure
+            axes = [fig.add_subplot(gs[0, i]) for i in range(2)]
+        else:
+            axes = ax
+            fig = axes[0].figure
+
+        labels = [
+            "x mean",
+            "y mean",
+            "x std",
+            "y std",
+            "linreg intercept",
+            "linreg slope",
+            "correlation",
+            "$R^2$",
+        ]
+        cutoff = 5
+        linewidth = 1
+        for i, ax in enumerate(axes):
+            if i == 0:
+                slicer = slice(0, cutoff)
+            elif i == 1:
+                slicer = slice(cutoff, len(labels) + 1)
+            y = data[slicer]
+            labs = labels[slicer]
+            x = np.arange(len(labs))
+
+            if style == "stem":
+                ax.stem(y)
+            elif style == "lines":
+                ax.hlines(y, x - linewidth / 2, x + linewidth / 2, "k", "--")
+            ax.set_xticks(x, labs, rotation=30, ha="right")
+        return axes
+```
+
+The following plot shows the `star` dataset from the original datasaurus dozen, along with its representation.
+
+```{code-cell} ipython3
+data = torch.load(po.data.fetch_data("datasaurus.tar.gz") / "datasaurus.pt")
+categories = np.load(
+    po.data.fetch_data("datasaurus.tar.gz") / "categories.npy", allow_pickle=True
+)
+
+model = DatasaurusModel(data.shape[1], data.dtype)
+
+fig, axes = plt.subplots(
+    2, 3, figsize=(8, 6), width_ratios=[5, 5, 3], layout="compressed"
+)
+for i, title in enumerate(["dino (target)", "star"]):
+    d = data[categories == title].squeeze()
+    axes[i, 0].scatter(*d)
+    axes[i, 0].set_title(title)
+    axes[i, 0].set(xlim=(0, 100), ylim=(0, 100))
+    axes[i, 0].set_aspect(1)
+    model.plot_representation(model(d), axes[i, 1:])
+    model.plot_representation(model(data)[0], axes[i, 1:], "lines")
+    if i == 0:
+        axes[i, 1].set(xticklabels=[])
+        axes[i, 2].set(xticklabels=[])
+```
+
+Our intended shape here, as can be seen above, is a star, roughly centered in the plot. In order to encourage metamer synthesis to find this shape, we define the function `star_penalty`, which assigns each point a polar angle and, using that angle, computes the corresponding radial distance from the user-specified center using an equation found [here](https://math.stackexchange.com/a/4293385). The function then returns the sum of the sum of squared errors for both the distance and angle.
+
+To use this penalty with synthesis, we define the parameters (try changing these to different values!) and combine the resulting value with a range penalty which requires all points to lie between 0 and 100.
+
+However, you'll notice an important difference with the synthesis performed in the other notebooks in this series: we perform synthesis in a two-stage process. First, we match the combined `penalty` but use a reduced model (only matching the x and y means). Then, we initialize a new {class}`~plenoptic.Metamer` object which matches the full datasaurus model but only uses the `range_penalty`, and starts from the {attr}`~plenoptic.Metamer.metamer` attribute produced by the first stage.
+
+```{code-cell} ipython3
+# target_theta allows us to rotate the star, default puts it aligned with y-axis
+def star_penalty(data, target_ctr, target_r, target_theta=-torch.pi / 2):
+    target_ctr = torch.as_tensor(target_ctr).unsqueeze(-1)
+    # recenter the data and then compute the
+    recentered = data - target_ctr
+    actual_theta = torch.atan2(*recentered[[1, 0]])
+    theta = torch.linspace(
+        -np.pi, np.pi, data.shape[-1], dtype=data.dtype, device=data.device
+    )
+    r = recentered.pow(2).sum(0).sqrt()
+
+    # modified from https://math.stackexchange.com/a/4293385
+    m = 3
+    n = 5
+    k = torch.as_tensor(1)
+
+    nom = torch.cos((2 * torch.arcsin(k) + torch.pi * m) / (2 * n))
+    denom = torch.cos(
+        (2 * torch.arcsin(k * torch.cos(n * (theta + target_theta))) + torch.pi * m)
+        / (2 * n)
+    )
+
+    target_r = target_r * nom / denom
+    return (r - target_r).pow(2).sum() + (actual_theta - theta).pow(2).sum()
+
+
+# Try changing these to other values, though that may make the optimization more
+# difficult!
+target_ctr = data[0].mean(-1)
+target_r = 40
+
+
+def range_penalty(x):
+    return po.regularize.penalize_range(x, (0, 100))
+
+
+def penalty(x):
+    star = star_penalty(x, target_ctr, target_r)
+    return range_penalty(x) + star
+
+
+# data[0] is the dinosaur
+met_star = po.Metamer(data[0], lambda x: x.mean(-1), penalty_function=penalty)
+met_star.setup(
+    initial_image=100 * torch.rand_like(data[0]), optimizer=torch.optim.LBFGS
+)
+met_star.synthesize(100, store_progress=True)
+met = po.Metamer(data[0], model, penalty_function=range_penalty)
+met.setup(initial_image=met_star.metamer, optimizer=torch.optim.LBFGS)
+met.synthesize(50, store_progress=True)
+```
+
+```{code-cell} ipython3
+:tags: [hide-input]
+
+# use one of our helper functions here.
+from plenoptic.plot.display import _update_stem
+
+# Initialize figure by plotting the first iteration
+fig, axes = plt.subplots(
+    1, 3, figsize=(8, 3), width_ratios=[5, 5, 3], layout="compressed"
+)
+plot_data = torch.cat([met_star.saved_metamer, met.saved_metamer])
+ani_data = po.to_numpy(plot_data)
+ani_rep = po.to_numpy(model(plot_data))
+path = axes[0].scatter(*ani_data[0])
+axes[0].set(xlim=(0, 100), ylim=(0, 100))
+axes[0].set_aspect(1)
+
+rep_axes = model.plot_representation(model(data)[0], axes[1:], "lines")
+model.plot_representation(ani_rep[0], rep_axes)
+fig.set_layout_engine("none")
+
+
+# Update the data for each saved iteration.
+def animate(i):
+    path.set_offsets(ani_data[i].T)
+    _update_stem(rep_axes[0].containers[0], ani_rep[i, :5])
+    _update_stem(rep_axes[1].containers[0], ani_rep[i, 5:])
+
+
+ani = mpl.animation.FuncAnimation(fig, animate, range(len(plot_data)), repeat=False)
+plt.close(fig)
+ani
+```
+
+In the video above, we can see that first, the points arrange themselves in a star centered in the plot. If you look at the stem plots, you can see this dataset is far from metameric with the datasaurus! Only the means are matched and the other statistics (which are allowed to freely vary) have very different values. Then, when we switch to the second stage two-thirds into the video, the star expands and rotates, bringing its statistics to their metameric values.
+
+If you look at the star in the original datasaurus dozen, you can see that ours is larger and more rotated, though it is a better metamer, with a more precise match of its model statistics.
+
+This two-stage procedure can be useful when using penalty functions which are difficult to match. It may work better to start with the penalty alone and then add the model, as done here, or the inverse. And sometimes alternating between these stages more than once can be helpful! We encourage you to experiment.
+
+```{code-cell} ipython3
+:tags: [remove-cell]
+
+import os
+
+from plenoptic.tensors import _check_tensor_equality
+
+if os.environ.get("DATASAURUS_CHECK", False):
+    # This cell just tests for reproducibility. As a user, you should skip it -- because
+    # pytorch doesn't guarantee reproducibility across CPU/GPU and GPU types, it's
+    # unlikely that your results will exactly match ours. (Though it should look
+    # approximately as good -- if not, open an issue!)
+    cached_met = po.data.fetch_data("datasaurus_metamers.tar.gz") / "datasaurus-star.pt"
+    # just load in the metamer tensor, instead of the whole object
+    cached_met = torch.load(cached_met)["_metamer"]
+    _check_tensor_equality(
+        met.metamer,
+        cached_met,
+        "Notebook",
+        "OSF",
+        1e-5,
+        1e-7,
+        "metamer has different {error_type}! Update the OSF version.",
+    )
+```
