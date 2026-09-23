@@ -162,13 +162,17 @@ class Eigendistortion(_Synthesis):
             computation. Ignored for other methods.
         p
             Oversampling parameter for randomized SVD. k+p vectors will be sampled,
-            and k will be returned. See docstring of ``_synthesize_randomized_svd``
-            for more details including algorithm reference.
+            and k will be returned. Increasing this value will increase the accuracy,
+            but will also increase the time required for synthesis. See docstring of
+            ``_synthesize_randomized_svd`` for more details including algorithm
+            reference.
         q
             Matrix power parameter for randomized SVD. This is an effective trick for
-            the algorithm to converge to the correct eigenvectors when the
-            eigenspectrum does not decay quickly. See ``_synthesize_randomized_svd``
-            for more details including algorithm reference.
+            the algorithm to converge to the correct eigenvectors when the eigenspectrum
+            does not decay quickly. Increasing this value will increase the accuracy
+            (though not as much as increasing ``p``), but will also increase the time
+            required for synthesis. See ``_synthesize_randomized_svd`` for more details
+            including algorithm reference.
         stop_criterion
             Used if ``method='power'`` to check for convergence. If the L2-norm
             of the eigenvalues has changed by less than this value from one
@@ -190,7 +194,10 @@ class Eigendistortion(_Synthesis):
         Examples
         --------
         >>> import plenoptic as po
-        >>> img = po.data.einstein()
+        >>> # Decrease size of image to speed things up
+        >>> img = po.process.blur_downsample(po.data.einstein(), n_scales=3)
+        >>> img.shape
+        torch.Size([1, 1, 32, 32])
         >>> po.set_seed(0)
         >>> model = po.models.Gaussian(10, pad_mode="circular").eval()
         >>> po.remove_grad(model)
@@ -199,7 +206,7 @@ class Eigendistortion(_Synthesis):
         >>> eig.synthesize(max_iter=5)
         >>> # eigenvalue of the top and bottom eigendistortion
         >>> eig.eigenvalues
-        tensor([0.9320, 0.1514])
+        tensor([0.8080, 0.1384])
 
         Set ``method`` to use different algorithms for finding the eigendistortions.
         Note that, while ``"power"`` synthesizes the top and bottom ``k``
@@ -210,21 +217,41 @@ class Eigendistortion(_Synthesis):
         >>> eig.synthesize("randomized_svd")
         >>> # eigenvalue of top eigendistortion
         >>> eig.eigenvalues
-        tensor(0.8777)
+        tensor(0.9799)
 
-        And ``"exact"`` explicitly computes the Jacobian, retrieving all
-        eigendistortions, and thus uses a lot of memory, and so is only recommended
-        for small images or models.
+        Note the eigenvalue found for the top distortion is different for the two
+        methods. In both cases, that is because we have not yet found the top
+        eigendistortion. In order to increase the synthesis accuracy, you can:
 
-        >>> small_img = po.process.blur_downsample(img, n_scales=3)
-        >>> small_img.shape
-        torch.Size([1, 1, 32, 32])
-        >>> eig = po.Eigendistortion(small_img, model)
-        >>> # exact doesn't take a max_iter argument
+        * With ``"power"``, increase ``max_iter`` to run synthesis until convergence
+          is reached. This will increase the duration required for synthesis.
+
+        >>> eig = po.Eigendistortion(img, model)
+        >>> # In this example, convergence is reached around 35 iterations
+        >>> eig.synthesize(max_iter=50)
+        Top k=1 eigendists computed | Stop criterion 1.00E-07 reached.
+        >>> eig.eigenvalues
+        tensor([1.0000, 0.0201])
+
+        * With ``"randomized_svd"``, increase ``p`` and/or ``q``. This will decrease
+          the reported spectral approximation error while increasing the duration
+          of synthesis.
+
+        >>> eig = po.Eigendistortion(img, model)
+        >>> eig.synthesize("randomized_svd", p=20, q=10)
+        >>> eig.eigenvalues
+        tensor(1.0000)
+
+        * Use the ``"exact"`` method. This explicitly computes the Jacobian, retrieving
+          all eigendistortions, and thus uses **a lot of memory**, and so is only
+          recommended for small images or models.
+
+        >>> eig = po.Eigendistortion(img, model)
+        >>> # exact doesn't take any arguments
         >>> eig.synthesize("exact")
         >>> # eigenvalue of all eigendistortions
         >>> eig.eigenvalues
-        tensor([1.0000e+00, 7.9990e-01, ...])
+        tensor([1.0000e+00, ...])
         >>> len(eig.eigenvalues)
         1024
 
@@ -236,7 +263,7 @@ class Eigendistortion(_Synthesis):
         >>> eig.synthesize(max_iter=5, k=3)
         >>> # eigenvalue of 3 top and bottom eigendistortion
         >>> eig.eigenvalues
-        tensor([0.9191, 0.9207, 0.9143, 0.1501, 0.1500, 0.1508])
+        tensor([0.9256, 0.8508, 0.7679, 0.1576, 0.1425, 0.1576])
 
         Adjust ``stop_criterion`` to change how convergence is determined for
         ``"power"``. In this case, we stop early by making ``stop_criterion`` fairly
@@ -252,7 +279,7 @@ class Eigendistortion(_Synthesis):
         >>> # as high / low as when stop_criterion has a lower value (because synthesis
         >>> # has stopped early)
         >>> eig.eigenvalues
-        tensor([0.8468, 0.1976])
+        tensor([0.6565, 0.1321])
         """
         allowed_methods = ["power", "exact", "randomized_svd"]
         if method not in allowed_methods:
