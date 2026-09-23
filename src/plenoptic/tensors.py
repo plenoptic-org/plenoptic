@@ -309,6 +309,7 @@ def convert_float_to_int(
     Examples
     --------
     .. plot::
+      :context: reset
 
        >>> import plenoptic as po
        >>> img = po.data.einstein()
@@ -328,6 +329,7 @@ def convert_float_to_int(
     they are the proper shape (2d for grayscale, 3d for color):
 
     .. plot::
+      :context: close-figs
 
        >>> import imageio.v3 as iio
        >>> import pyrtools as pt
