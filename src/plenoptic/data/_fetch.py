@@ -89,7 +89,7 @@ REGISTRY_URLS = {
     "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz": OSF_TEMPLATE.format(  # noqa: E501
         "en8du"
     ),
-    "example_eigendistortion.pt": OSF_TEMPLATE.format("gwhz2"),
+    "example_eigendistortion.pt": OSF_TEMPLATE.format("gwhz2/?revision=2"),
     "load_image_test.tar.gz": OSF_TEMPLATE.format("avpzq"),
     "berardino_onoff.pt": OSF_TEMPLATE.format("uqfa8"),
     "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b/?revision=6"),
