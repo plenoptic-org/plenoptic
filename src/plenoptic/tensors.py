@@ -305,6 +305,42 @@ def convert_float_to_int(
     ------
     ValueError
         If ``image`` max is greater than 1.
+
+    Examples
+    --------
+    .. plot::
+
+       >>> import plenoptic as po
+       >>> img = po.data.einstein()
+       >>> img.min(), img.max()
+       (tensor(0.0039), tensor(1.))
+       >>> int_img = po.convert_float_to_int(po.to_numpy(img))
+       >>> int_img.min(), int_img.max()
+       (np.uint8(1), np.uint8(255))
+
+    Input ``image`` must be a numpy array, not a torch tensor:
+
+    >>> po.convert_float_to_int(img)
+    Traceback (most recent call last):
+    AttributeError: 'Tensor' object has no attribute 'astype'
+
+    Integer images can be saved to disk in a standard image format, once
+    they are the proper shape (2d for grayscale, 3d for color):
+
+    .. plot::
+
+       >>> import imageio.v3 as iio
+       >>> import pyrtools as pt
+       >>> # Fails because we can't write float image to pngs
+       >>> iio.imwrite("test.png", img.squeeze())
+       Traceback (most recent call last):
+       OSError: cannot write mode F as PNG
+       >>> int_img = int_img.squeeze()
+       >>> int_img.shape
+       (256, 256)
+       >>> iio.imwrite("test.png", int_img)
+       >>> pt.imshow(iio.imread("test.png"))
+       <PyrFigure size 256x320 with 1 Axes>
     """
     if image.max() > 1:
         raise ValueError(
