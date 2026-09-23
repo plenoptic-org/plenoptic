@@ -225,14 +225,15 @@ class Eigendistortion(_Synthesis):
         eigendistortion. In order to increase the synthesis accuracy, you can:
 
         * With ``"power"``, increase ``max_iter`` to run synthesis until convergence
-          is reached. This will increase the duration required for synthesis.
+          is reached. This will increase the duration required for synthesis. Note
+          that the bottom eigendistortion(s) need more iterations to synthesize than the
+          top and it has not converged in the following example.
 
         >>> eig = po.Eigendistortion(img, model)
-        >>> # In this example, convergence is reached around 35 iterations
-        >>> eig.synthesize(max_iter=50)
+        >>> eig.synthesize(max_iter=100)
         Top k=1 eigendists computed | Stop criterion 1.00E-07 reached.
         >>> eig.eigenvalues
-        tensor([1.0000, 0.0201])
+        tensor([1.0000, 0.0039])
 
         * With ``"randomized_svd"``, increase ``p`` and/or ``q``. This will decrease
           the reported spectral approximation error while increasing the duration
