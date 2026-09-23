@@ -91,7 +91,7 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     reasonable (you could also use :func:`plenoptic.process.rescale` to linearly rescale
     the image to that same range).
 
-    >>> import imageio
+    >>> import imageio.v3 as iio
     >>> import numpy as np
     >>> # Load in an example metamer synthesis
     >>> img = po.data.einstein()
@@ -102,7 +102,7 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
     >>> met_squeezed = po.to_numpy(met.metamer, squeeze=True)
     >>> met_squeezed = po.convert_float_to_int(np.clip(met_squeezed, 0, 1))
-    >>> imageio.v3.imwrite("example_metamer_gaussian.png", met_squeezed)
+    >>> iio.imwrite("example_metamer_gaussian.png", met_squeezed)
     """
     with contextlib.suppress(AttributeError):
         # if this fails, it's already a numpy array
