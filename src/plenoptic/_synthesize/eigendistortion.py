@@ -82,14 +82,15 @@ class Eigendistortion(_Synthesis):
       :context: reset
 
       >>> import plenoptic as po
-      >>> img = po.data.einstein()
+      >>> # Downsample image to save computation time.
+      >>> img = po.process.blur_downsample(po.data.einstein(), n_scales=1)
       >>> po.set_seed(0)
       >>> model = po.models.Gaussian(10, pad_mode="circular").eval()
       >>> po.remove_grad(model)
       >>> eig = po.Eigendistortion(img, model)
       >>> eig.synthesize()
       Top k=1 eigendists computed | Stop criterion 1.00E-07 reached.
-      >>> po.plot.eigendistortion_imshow_all(eig, distortion_scale=20)
+      >>> po.plot.eigendistortion_imshow_all(eig, distortion_scale=20, zoom=2)
       <PyrFigure size ...>
     """
 
