@@ -322,7 +322,7 @@ def convert_float_to_int(
 
     >>> po.convert_float_to_int(img)
     Traceback (most recent call last):
-    AttributeError: 'Tensor' object has no attribute 'astype'
+    AttributeError: 'Tensor' object has no attribute 'astype'...
 
     Integer images can be saved to disk in a standard image format, once
     they are the proper shape (2d for grayscale, 3d for color):
