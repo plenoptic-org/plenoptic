@@ -182,9 +182,10 @@ class Eigendistortion(_Synthesis):
         Warns
         -----
         UserWarning
-            If ``method == "exact"`` but the Jacobian size is greater than 1e6 (which
-            depends on the number of elements in the model's representation and input
-            image), in which case we're worried about running out of memory.
+            Raised if ``method == "exact"`` but the Jacobian size is greater than 1e6,
+            in which case we're worried about running out of memory. The number of
+            elements in the Jacobian is the product of the number of elements in the
+            model output and :attr:`image`.
 
         Examples
         --------
@@ -757,10 +758,10 @@ class Eigendistortion(_Synthesis):
         Examples
         --------
         In order to load a saved ``Eigendistortion`` object, we must first initialize
-        one using the same arguments. (We use float64 / "double" precision rather than
-        torch's default float32 because it increases reproducibility, see the
-        :ref:`Reproducibility <reproduce>` page of our documentations for more details.)
-        Here, we load in a cached example:
+        one using the same arguments and same dtype. (We use float64 / "double"
+        precision rather than torch's default float32 because it increases
+        reproducibility, see the :ref:`Reproducibility <reproduce>` page of our
+        documentations for more details.) Here, we load in a cached example:
 
         >>> import plenoptic as po
         >>> img = po.data.einstein().to(torch.float64)
