@@ -186,7 +186,8 @@ def load_images(
       >>> po.plot.imshow(imgs, title=titles)
       <PyrFigure size ... with 5 Axes>
 
-    Sort the images by the second letter of their filename:
+    Specify ``sorted_key`` in order to sort in some other way. E.g., sort the
+    images by the second letter of their filename:
 
     .. plot::
 
