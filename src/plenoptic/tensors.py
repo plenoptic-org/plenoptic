@@ -333,10 +333,6 @@ def convert_float_to_int(
 
        >>> import imageio.v3 as iio
        >>> import pyrtools as pt
-       >>> # Fails because we can't write float image to pngs
-       >>> iio.imwrite("test.png", img.squeeze())
-       Traceback (most recent call last):
-       OSError: cannot write mode F as PNG
        >>> int_img = int_img.squeeze()
        >>> int_img.shape
        (256, 256)
