@@ -90,6 +90,12 @@ def examine_saved_synthesis(file_path: str, map_location: str | None = None):
     This is used for debugging, it will print out information about the versions used,
     names of the callable attributes, shapes of tensor attributes, etc.
 
+    .. warning::
+       This will call :func:`torch.load` on the specified path; it will not try to
+       initialize any plenoptic objects. We set ``weights_only=True``, so it should
+       be safe (it will not run any saved code), but will load the tensors into memory,
+       which may be a problem if they are large.
+
     Parameters
     ----------
     file_path
@@ -100,9 +106,120 @@ def examine_saved_synthesis(file_path: str, map_location: str | None = None):
         CPU, you'll need this to make sure everything lines up
         properly. This should be structured like the str you would
         pass to :class:`torch.device`.
+
+    Raises
+    ------
+    ValueError
+        If we are unable to parse the saved object, in which case we believe it is not
+        a saved plenoptic synthesis object.
+
+    Examples
+    --------
+    The function prints out information about the versions of plenoptic and pytorch used
+    when saving the object (and the currently installed versions), as well the object
+    type, and then information about all of the attributes of the object, split into
+    separate groups for callables, tensors, and everything else.
+
+    >>> import plenoptic as po
+    >>> # Download one of our cached examples
+    >>> saved_obj = po.data.fetch_data("example_mad.pt")
+    >>> po.io.examine_saved_synthesis(saved_obj)
+    Metadata
+    --------
+    plenoptic version : ...
+    torch version     : ...
+    Saved object type : plenoptic.MADCompetition
+    <BLANKLINE>
+    Callables attributes
+    --------------------
+    optimized_metric : ...
+    reference_metric : ...
+    penalty_function : ...
+    optimizer        : ...
+    scheduler        : ...
+    <BLANKLINE>
+    Tensor attributes
+    -----------------
+    image         : torch.float64, shape torch.Size([1, 1, 256, 256])
+    mad_image     : torch.float64, shape torch.Size([1, 1, 256, 256])
+    initial_image : torch.float64, shape torch.Size([1, 1, 256, 256])
+    <BLANKLINE>
+    Other attributes
+    ----------------
+    loaded                  : True
+    losses                  : <class 'list'> with length ...
+    penalties               : <class 'list'> with length ...
+    gradient_norm           : <class 'list'> with length ...
+    pixel_change_norm       : <class 'list'> with length ...
+    store_progress          : ...
+    current_loss            : ...
+    current_penalty         : ...
+    penalty_lambda          : ...
+    image_shape             : <class 'torch.Size'> with length 4
+    scheduler_step_arg      : False
+    optimized_metric_loss   : <class 'list'> with length ...
+    reference_metric_loss   : <class 'list'> with length ...
+    reference_metric_target : ...
+    metric_tradeoff_lambda  : ...
+    minmax                  : max
+    saved_mad_image         : <class 'list'> with length ...
+    current_ref_metric      : ...
+    current_opt_metric      : ...
+
+    Because we must load in the torch object in order to retrieve the above information,
+    ``map_location`` must be set in order to examine an object that was saved from a
+    CUDA device if none is available on your current machine:
+
+    >>> saved_obj = po.data.fetch_data("example_eigendistortion_color.pt")
+    >>> po.io.examine_saved_synthesis(saved_obj)
+    Traceback (most recent call last):
+    RuntimeError: Attempting to deserialize object on a CUDA device but
+    torch.cuda.is_available() is False...
+
+    Note that the information about the attributes printed depends on the object type:
+
+    >>> po.io.examine_saved_synthesis(saved_obj, map_location="cpu")
+    Metadata
+    --------
+    plenoptic version : ...
+    torch version     : ...
+    Saved object type : plenoptic.Eigendistortion
+    <BLANKLINE>
+    Callables attributes
+    --------------------
+    model : ...
+    <BLANKLINE>
+    Tensor attributes
+    -----------------
+    image_flat          : torch.float64, shape torch.Size([1200, 1])
+    image               : torch.float64, shape torch.Size([1, 3, 20, 20])
+    representation_flat : torch.float64, shape torch.Size([1296, 1])
+    eigendistortions    : torch.float64, shape torch.Size([2, 3, 20, 20])
+    eigenvalues         : torch.float64, shape torch.Size([2])
+    eigenindex          : torch.int64, shape torch.Size([2])
+    <BLANKLINE>
+    Other attributes
+    ----------------
+    loaded      : False
+    image_shape : <class 'torch.Size'> with length 3
+    jacobian    : None
+
+    This only works for plenoptic synthesis objects, not arbitrary torch objects:
+
+    >>> import torch
+    >>> torch.save(torch.rand(1, 1, 32, 32), "test.pt")
+    >>> po.io.examine_saved_synthesis("test.pt")
+    Traceback (most recent call last):
+    ValueError: Unable to parse saved object -- is this a plenoptic synthesis object?...
     """
     load_dict = torch.load(file_path, map_location=map_location, weights_only=True)
-    metadata = load_dict.pop("save_metadata")
+    try:
+        metadata = load_dict.pop("save_metadata")
+    except AttributeError as e:
+        raise ValueError(
+            "Unable to parse saved object -- is this a plenoptic"
+            f" synthesis object?\n\nOriginal exception: {e}"
+        )
     print("Metadata\n--------")
     print(
         f"plenoptic version : {metadata['plenoptic_version']} "
