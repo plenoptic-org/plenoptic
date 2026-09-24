@@ -936,8 +936,6 @@ class MADCompetition(_OptimizedSynthesis):
         Note that if ``store_progress`` is True, this will probably be very
         large.
 
-        See :func:`load` docstring for an example of use.
-
         Parameters
         ----------
         file_path
@@ -992,8 +990,6 @@ class MADCompetition(_OptimizedSynthesis):
         `on_blocking`` is set, it tries to convert/move asynchronously
         with respect to the host if possible, e.g., moving CPU Tensors with
         pinned memory to CUDA devices.
-
-        See :meth:`torch.nn.Module.to` for examples.
 
         .. note::
             This method modifies the module in-place.
@@ -1144,10 +1140,10 @@ class MADCompetition(_OptimizedSynthesis):
         >>> def ds_ssim(x, y):
         ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
         >>> mad = po.MADCompetition(img, ds_ssim, po.metric.mse, "max", 1e6)
-        >>> print(mad.mad_image)
+        >>> mad.mad_image
         tensor([])
         >>> mad.load(po.data.fetch_data("example_mad.pt"))
-        >>> print(mad.mad_image)
+        >>> mad.mad_image
         tensor([[[[0.0230, ...]]]], dtype=torch.float64, requires_grad=True)
 
         If the saved ``MADCompetition`` object lived on a CUDA device and you do not
@@ -1164,7 +1160,7 @@ class MADCompetition(_OptimizedSynthesis):
         ...     po.data.fetch_data("example_mad-cuda.pt"),
         ...     map_location="cpu",
         ... )
-        >>> print(mad.mad_image)
+        >>> mad.mad_image
         tensor([[[[0.0230, ...]]]], dtype=torch.float64, requires_grad=True)
 
         If the loading ``MADCompetition`` object was not initialized with same values
