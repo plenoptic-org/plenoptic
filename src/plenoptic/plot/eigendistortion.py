@@ -115,11 +115,7 @@ def eigendistortion_imshow_all(
       >>> po.remove_grad(lg)
       >>> eig = po.Eigendistortion(img, lg)
       >>> # grab saved example eigendistortion, which runs the above to completion.
-      >>> eig.load(
-      ...     po.data.fetch_data("example_eigendistortion.pt"),
-      ...     map_location="cpu",
-      ...     tensor_equality_atol=1e-7,
-      ... )
+      >>> eig.load(po.data.fetch_data("example_eigendistortion.pt"))
       >>> po.plot.eigendistortion_imshow_all(eig)
       <PyrFigure size ...>
 

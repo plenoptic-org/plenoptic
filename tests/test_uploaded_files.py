@@ -313,14 +313,16 @@ class TestDoctest:
         lg.eval()
         eig = po.Eigendistortion(einstein_img_double, lg)
         eig.synthesize(max_iter=1000)
-        eig.save("uploaded_files/example_eigendistortion.pt")
+        eig.save("uploaded_files/example_eigendistortion-cuda.pt")
         eig_up = po.Eigendistortion(einstein_img_double, lg)
         eig_up.load(
-            po.data.fetch_data("example_eigendistortion.pt"),
+            po.data.fetch_data("example_eigendistortion-cuda.pt"),
             tensor_equality_atol=1e-7,
             map_location=DEVICE,
         )
         compare_eigendistortions(eig, eig_up)
+        eig.to("cpu")
+        eig.save("uploaded_files/example_eigendistortion.pt")
 
     def test_eigendistortion_color(self):
         po.set_seed(0)

@@ -650,10 +650,7 @@ def synthesis_histogram(
       >>> lg = lg.to(torch.float64)
       >>> po.remove_grad(lg)
       >>> eig = po.Eigendistortion(img, lg)
-      >>> eig.load(
-      ...     po.data.fetch_data("example_eigendistortion.pt"),
-      ...     map_location="cpu",
-      ... )
+      >>> eig.load(po.data.fetch_data("example_eigendistortion.pt"))
       >>> po.plot.synthesis_histogram(eig)
       <Axes: ... 'Histogram of tensor values'...>
     """
@@ -893,10 +890,7 @@ def synthesis_imshow(
       >>> lg = lg.to(torch.float64)
       >>> po.remove_grad(lg)
       >>> eig = po.Eigendistortion(img, lg)
-      >>> eig.load(
-      ...     po.data.fetch_data("example_eigendistortion.pt"),
-      ...     map_location="cpu",
-      ... )
+      >>> eig.load(po.data.fetch_data("example_eigendistortion.pt"))
       >>> po.plot.synthesis_imshow(eig)
       <Axes: title=...5.0 * Eigendistortion[0]...range: [-1.4e-01, 1.0e+00]...>
 
@@ -1585,10 +1579,7 @@ def synthesis_status(
       >>> lg = lg.to(torch.float64)
       >>> po.remove_grad(lg)
       >>> eig = po.Eigendistortion(img, lg)
-      >>> eig.load(
-      ...     po.data.fetch_data("example_eigendistortion.pt"),
-      ...     map_location="cpu",
-      ... )
+      >>> eig.load(po.data.fetch_data("example_eigendistortion.pt"))
       >>> po.plot.synthesis_status(eig)
       <Figure size ...>
     """
