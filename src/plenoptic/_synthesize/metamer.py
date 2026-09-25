@@ -190,6 +190,7 @@ class Metamer(_OptimizedSynthesis):
         Set initial image:
 
         >>> import plenoptic as po
+        >>> import torch
         >>> img = po.data.einstein()
         >>> model = po.models.Gaussian(30).eval()
         >>> po.remove_grad(model)
@@ -327,9 +328,9 @@ class Metamer(_OptimizedSynthesis):
         >>> met.losses
         tensor([0.0194, 0.0198, 0.0179, 0.0160, 0.0145, 0.0132])
 
-        Synthesize a metamer, using ``store_progress`` so we can examine progress
-        later. (This also enables us to create a video of the metamer changing over
-        the course of synthesis, see
+        Set ``store_progress`` in order to examine the metamer-in-progress over the
+        course of synthesis. (This also enables us to create a video of the metamer
+        changing over the course of synthesis, see
         :func:`~plenoptic.plot.synthesis_animate`.)
 
         >>> met = po.Metamer(img, model)
@@ -483,9 +484,10 @@ class Metamer(_OptimizedSynthesis):
         >>> met.losses[-1]
         tensor(0.0132)
 
-        Can be called with a different image. (Note that, because we called
-        :meth:`synthesize` with ``store_progress=True``, we cached the metamer
-        over the course of synthesis):
+        Can be called with a different image. In the following example, we compute the
+        objective function on the initial metamer, which thus matches the first stored
+        loss value (note that, because we called :meth:`synthesize` with
+        ``store_progress=True``, we cached the metamer over the course of synthesis).
 
         >>> met.objective_function(met.saved_metamer[0])
         tensor(0.0194, grad_fn=<AddBackward0>)
@@ -615,6 +617,7 @@ class Metamer(_OptimizedSynthesis):
         Examples
         --------
         >>> import plenoptic as po
+        >>> import torch
         >>> po.set_seed(0)
         >>> img = po.data.einstein()
         >>> model = po.models.Gaussian(30).eval()
@@ -631,30 +634,30 @@ class Metamer(_OptimizedSynthesis):
         'pixel_change_norm': tensor(2.5326),
         'gradient_norm': tensor(0.0010)}
 
-        Get values from last iteration of synthesis:
-
-        >>> print(met.get_progress(-2))
-        {'losses': tensor(0.0145),
-        'iteration': 4,
-        'penalties': tensor(0.0180),
-        'pixel_change_norm': tensor(2.2698),
-        'gradient_norm': tensor(0.0268)}
-
         Get current values:
 
-        >>> print(met.get_progress(-1))
+        >>> met.get_progress(-1)
         {'losses': tensor(0.0132),
         'iteration': 5,
         'penalties': tensor(0.0174),
         'pixel_change_norm': None,
         'gradient_norm': None}
 
+        Get values from last iteration of synthesis:
+
+        >>> met.get_progress(-2)
+        {'losses': tensor(0.0145),
+        'iteration': 4,
+        'penalties': tensor(0.0180),
+        'pixel_change_norm': tensor(2.2698),
+        'gradient_norm': tensor(0.0268)}
+
         When synthesis is run with ``store_progress=True``, this function also
         returns the metamer from the corresponding iteration:
 
         >>> met = po.Metamer(img, model)
         >>> met.synthesize(5, store_progress=True)
-        >>> print(met.get_progress(-1))
+        >>> met.get_progress(-1)
         {'losses': tensor(0.0124),
         'iteration': 5,
         'penalties': tensor(0.0168),
@@ -666,11 +669,13 @@ class Metamer(_OptimizedSynthesis):
         True
 
         When synthesis is run with ``store_progress>1``, this function returns the
-        metamer from the closest iteration:
+        metamer from the closest iteration. This might not be the specified iteration,
+        since we only cached the metamer every ``store_progress`` iterations (2, in
+        the following example):
 
         >>> met = po.Metamer(img, model)
         >>> met.synthesize(5, store_progress=2)
-        >>> print(met.get_progress(-3))
+        >>> met.get_progress(-3)
         {'losses': tensor(0.0152),
         'iteration': 3,
         'penalties': tensor(0.0182),
@@ -682,7 +687,7 @@ class Metamer(_OptimizedSynthesis):
         When we cannot grab the saved metamer corresponding to the requested
         iteration, ``iteration_selection`` controls how we determine "closest":
 
-        >>> print(met.get_progress(-3, iteration_selection="floor"))
+        >>> met.get_progress(-3, iteration_selection="floor")
         {'losses': tensor(0.0152),
         'iteration': 3,
         'penalties': tensor(0.0182),
@@ -718,7 +723,7 @@ class Metamer(_OptimizedSynthesis):
         loss, penalty = self._objective_function()
         loss = loss + self.penalty_lambda * penalty
         loss.backward(retain_graph=False)
-        self._penalty_tmp = penalty.item()
+        self._penalty_tmp.append(penalty.item())
         return loss.item()
 
     def _optimizer_step(self, pbar: tqdm) -> Tensor:
@@ -739,9 +744,16 @@ class Metamer(_OptimizedSynthesis):
             1-element tensor containing the loss on this step.
         """  # numpydoc ignore=ES01,EX01
         last_iter_metamer = self.metamer.clone()
+        # For some reason, the loss actually returned by optimizer.step above for
+        # optimizers that call closure multiple time (like LBFGS) is the one that
+        # corresponds to the *first* call, not the last. Therefore, to make penalty
+        # match it, we keep track of the penalty on each call to closure and then ...
+        self._penalty_tmp = []
         loss = self.optimizer.step(self._closure)
         self._losses.append(loss)
-        self._penalties.append(self._penalty_tmp)
+        # ... grab the first one. This also allows the stored penalty to line up with
+        # penalty_function(saved_metamer)
+        self._penalties.append(self._penalty_tmp[0])
 
         grad_norm = torch.linalg.vector_norm(
             self.metamer.grad.data, ord=2, dim=None
@@ -884,8 +896,6 @@ class Metamer(_OptimizedSynthesis):
         with respect to the host if possible, e.g., moving CPU Tensors with
         pinned memory to CUDA devices.
 
-        See :meth:`torch.nn.Module.to` for examples.
-
         .. note::
             This method modifies the module in-place.
 
@@ -903,6 +913,7 @@ class Metamer(_OptimizedSynthesis):
         Examples
         --------
         >>> import plenoptic as po
+        >>> import torch
         >>> img = po.data.einstein()
         >>> model = po.models.Gaussian(30).eval()
         >>> po.remove_grad(model)
@@ -1031,14 +1042,15 @@ class Metamer(_OptimizedSynthesis):
         Here, we load in a cached example:
 
         >>> import plenoptic as po
+        >>> import torch
         >>> img = po.data.einstein().to(torch.float64)
         >>> model = po.models.Gaussian(30).eval().to(torch.float64)
         >>> po.remove_grad(model)
         >>> met = po.Metamer(img, model)
-        >>> print(met.metamer)
+        >>> met.metamer
         tensor([])
         >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
-        >>> print(met.metamer)
+        >>> met.metamer
         tensor([[[[0.0692, ...]]]], dtype=torch.float64, requires_grad=True)
 
         If the saved ``Metamer`` object lived on a CUDA device and you do not have
@@ -1055,7 +1067,7 @@ class Metamer(_OptimizedSynthesis):
         ...     po.data.fetch_data("example_metamer_gaussian-cuda.pt"),
         ...     map_location="cpu",
         ... )
-        >>> print(met.metamer)
+        >>> met.metamer
         tensor([[[[0.0692, ...]]]], dtype=torch.float64, requires_grad=True)
 
         If the loading ``Metamer`` object was not initialized with same values
@@ -1074,6 +1086,32 @@ class Metamer(_OptimizedSynthesis):
         >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
         Traceback (most recent call last):
         ValueError: Saved and initialized attribute image have different dtype...
+
+        If the name of the model, loss function, or penalty function has changed (even
+        if their behavior is identical), an error will be raised:
+
+        >>> class WrongModel(torch.nn.Module):
+        ...     def forward(self, x):
+        ...         return model(x)
+        >>> model.to(torch.float64)
+        Gaussian()
+        >>> wrong_model = WrongModel().eval()
+        >>> po.remove_grad(wrong_model)
+        >>> met = po.Metamer(img, wrong_model)
+        >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
+        Traceback (most recent call last):
+        ValueError: Saved and initialized model have different names...
+
+        If you wish to proceed anyway, you can set ``raise_on_checks=False`` to turn the
+        errors into warnings. Do so at your own risk and read the resulting warning
+        messages in order to ensure the **only** differences are those you expect.
+        See :ref:`raise-on-checks` on the "Reproducibility and Compatibility" page of
+        the documentation for more info.
+
+        >>> met = po.Metamer(img, wrong_model)
+        >>> met.load(
+        ...     po.data.fetch_data("example_metamer_gaussian.pt"), raise_on_checks=False
+        ... )
         """
         self._load(
             file_path,
@@ -1222,6 +1260,7 @@ class Metamer(_OptimizedSynthesis):
         Examples
         --------
         >>> import plenoptic as po
+        >>> import torch
         >>> img = po.data.einstein()
         >>> model = po.models.Gaussian(30).eval()
         >>> po.remove_grad(model)
@@ -1258,7 +1297,7 @@ class Metamer(_OptimizedSynthesis):
         Examples
         --------
         If synthesize is called without ``store_progress``, then this attribute
-        just contains the metamer, though the number of dimensions is different:
+        just contains the metamer, though there will be an additional dimension:
 
         >>> import plenoptic as po
         >>> po.set_seed(0)
@@ -1922,6 +1961,7 @@ class MetamerCTF(Metamer):
         Examples
         --------
         >>> import plenoptic as po
+        >>> import torch
         >>> img = po.data.reptile_skin()
         >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
         >>> met = po.MetamerCTF(img, model)
@@ -2044,13 +2084,14 @@ class MetamerCTF(Metamer):
         Here, we load in a cached example:
 
         >>> import plenoptic as po
+        >>> import torch
         >>> img = po.data.reptile_skin().to(torch.float64)
         >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
         >>> met = po.MetamerCTF(img, model, po.loss.l2_norm)
-        >>> print(met.metamer)
+        >>> met.metamer
         tensor([])
         >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
-        >>> print(met.metamer)
+        >>> met.metamer
         tensor([[[[0.1421, ...]]]], dtype=torch.float64, requires_grad=True)
 
         If the saved ``MetamerCTF`` object lived on a CUDA device and you do not have
@@ -2066,7 +2107,7 @@ class MetamerCTF(Metamer):
         >>> met.load(
         ...     po.data.fetch_data("example_metamerCTF_ps-cuda.pt"), map_location="cpu"
         ... )
-        >>> print(met.metamer)
+        >>> met.metamer
         tensor([[[[0.1421, ...]]]], dtype=torch.float64, requires_grad=True)
 
         Loading and saving must both be done with ``MetamerCTF``:
@@ -2092,6 +2133,30 @@ class MetamerCTF(Metamer):
         >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
         Traceback (most recent call last):
         ValueError: Saved and initialized attribute image have different dtype...
+
+        If the name of the model, loss function, or penalty function has changed (even
+        if their behavior is identical), an error will be raised:
+
+        >>> class WrongModel(po.models.PortillaSimoncelli):
+        ...     def forward(self, x, scales=None):
+        ...         return model(x, scales)
+        >>> wrong_model = WrongModel(img.shape[-2:]).eval()
+        >>> po.remove_grad(wrong_model)
+        >>> met = po.MetamerCTF(img, wrong_model, po.loss.l2_norm)
+        >>> met.load(po.data.fetch_data("example_metamerCTF_ps.pt"))
+        Traceback (most recent call last):
+        ValueError: Saved and initialized model have different names...
+
+        If you wish to proceed anyway, you can set ``raise_on_checks=False`` to turn the
+        errors into warnings. Do so at your own risk and read the resulting warning
+        messages in order to ensure the **only** differences are those you expect.
+        See :ref:`raise-on-checks` on the "Reproducibility and Compatibility" page of
+        the documentation for more info.
+
+        >>> met = po.MetamerCTF(img.to(torch.float64), wrong_model, po.loss.l2_norm)
+        >>> met.load(
+        ...     po.data.fetch_data("example_metamerCTF_ps.pt"), raise_on_checks=False
+        ... )
         """
         super()._load(
             file_path,

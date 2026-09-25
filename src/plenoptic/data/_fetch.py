@@ -41,7 +41,8 @@ REGISTRY = {
     "portilla_simoncelli_synthesize_gpu_ps-refactor.npz": "9fbb490f1548133f6aa49c54832130cf70f8dc6546af59688ead17f62ab94e61",  # noqa: E501
     "portilla_simoncelli_scales_ps-refactor.npz": "ce11d85e6bcf5fad1b819c36dac584c3e933706a0ee423ea1c76ffe0daccbae5",  # noqa: E501
     "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz": "ffd967543d58a03df390008c35878791590520624aa0e5e5a26ad3f877345ab4",  # noqa: E501
-    "example_eigendistortion.pt": "87080836713e8efe1e7ff29538099e82a26b8700080e1bc1d30f00de1a54b2f5",  # noqa: E501
+    "example_eigendistortion.pt": "44f94049834bba386183336dade0b613cd68581fca70f2fe3cb7e5c3fdd730e6",  # noqa: E501
+    "example_eigendistortion-cuda.pt": "87080836713e8efe1e7ff29538099e82a26b8700080e1bc1d30f00de1a54b2f5",  # noqa: E501
     "load_image_test.tar.gz": "8a2b92dc0d442695c45b1e908ef0a04cae35c5f21b774a93b9fc6b675423b526",  # noqa: E501
     "berardino_onoff.pt": "2174a40005489b9c94acc91213b2f6d57a75f262caf118cb1980658eadbfd047",  # noqa: E501
     "berardino_vgg16.pt": "ef1b3234e6e1b5ca4479f215b0408e7a1d1ffd2baff5103142370d58047fb9f5",  # noqa: E501
@@ -51,12 +52,15 @@ REGISTRY = {
     "example_metamer_gaussian-cuda.pt": "edd80e63bd776b679f714acee62fefa9885a257c66e2699423887aeab7c03794",  # noqa: E501
     "example_metamerCTF_ps.pt": "060362bb4146649511cf0b8c069450811f1ef842e3763014fbb00808966067d2",  # noqa: E501
     "example_metamerCTF_ps-cuda.pt": "443dbdec5dbc2a7ffb26fc8076981142d14ab9cee36b294f4d890020a4838816",  # noqa: E501
-    "example_mad.pt": "583c60eab6cfb5c5b031af4960db41cc0db767492871182be06da224cd133767",  # noqa: E501
-    "example_mad-cuda.pt": "fd7e1372397bb57cc31a13ca4886ee73ffd405df64e0bb7d291977ba1b460b77",  # noqa: E501
+    "example_mad.pt": "d8dc33f41bd3478b1b7203ed5b82e90e4248e5518a6980eca079a82fa809f9b6",  # noqa: E501
+    "example_mad-cuda.pt": "5c894d7358531a8ce4893ca2573d939387cf9ca600b7dac54c4c34a221ad6c46",  # noqa: E501
+    "example_mad-cuda-old.pt": "fd7e1372397bb57cc31a13ca4886ee73ffd405df64e0bb7d291977ba1b460b77",  # noqa: E501
     "example_eigendistortion_color.pt": "63147c5ed9588a64b6af4f181a8d0532d3de5639b20ae79c4706ec488c1854dc",  # noqa: E501
     "ResNet50-layer2_macaque_metamer.pt": "7104ef9636dc4497e7a95d9d446c6b276937dd645a15cedc0074d2295d48f095",  # noqa: E501
     "ResNet50-layer3_macaque_metamer.pt": "aef81cf76858d5ff8adc095e7c8513ceccc30e04543198533d826548d6e0cceb",  # noqa: E501
     "ResNet50-layer4_macaque_metamer.pt": "c18a5278cb161248c47dba0d5ddbf581784b988f3222430879cf8e48bda03228",  # noqa: E501
+    # Licensed CC-BY
+    "caltech256_burger.jpg": "a67da35a97a17816a6be9a006a5105e46e179a4e36dc8d8cd5651ae463460785",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"
@@ -86,7 +90,8 @@ REGISTRY_URLS = {
     "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz": OSF_TEMPLATE.format(  # noqa: E501
         "en8du"
     ),
-    "example_eigendistortion.pt": OSF_TEMPLATE.format("gwhz2"),
+    "example_eigendistortion.pt": OSF_TEMPLATE.format("gwhz2/?revision=3"),
+    "example_eigendistortion-cuda.pt": OSF_TEMPLATE.format("j9mqk/?revision=1"),
     "load_image_test.tar.gz": OSF_TEMPLATE.format("avpzq"),
     "berardino_onoff.pt": OSF_TEMPLATE.format("uqfa8"),
     "berardino_vgg16.pt": OSF_TEMPLATE.format("6r87b/?revision=6"),
@@ -97,11 +102,13 @@ REGISTRY_URLS = {
     "example_metamerCTF_ps.pt": OSF_TEMPLATE.format("4zr37/?revision=10"),
     "example_metamerCTF_ps-cuda.pt": OSF_TEMPLATE.format("627sp/?revision=5"),
     "example_eigendistortion_color.pt": OSF_TEMPLATE.format("jc63h/?revision=3"),
-    "example_mad.pt": OSF_TEMPLATE.format("ersfy/?revision=4"),
-    "example_mad-cuda.pt": OSF_TEMPLATE.format("qjdbc/?revision=3"),
+    "example_mad.pt": OSF_TEMPLATE.format("ersfy/?revision=5"),
+    "example_mad-cuda.pt": OSF_TEMPLATE.format("qjdbc/?revision=4"),
+    "example_mad-cuda-old.pt": OSF_TEMPLATE.format("qjdbc/?revision=3"),
     "ResNet50-layer2_macaque_metamer.pt": OSF_TEMPLATE.format("zdbne/?revision=7"),
     "ResNet50-layer3_macaque_metamer.pt": OSF_TEMPLATE.format("bqt2s/?revision=7"),
     "ResNet50-layer4_macaque_metamer.pt": OSF_TEMPLATE.format("yvwjs/?revision=7"),
+    "caltech256_burger.jpg": OSF_TEMPLATE.format("5dhac/?revision=1"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch_data`
@@ -117,6 +124,7 @@ DOWNLOADABLE_FILES = [
     "example_metamerCTF_ps.pt",
     "example_mad.pt",
     "example_eigendistortion_color.pt",
+    "caltech256_burger.jpg",
 ]
 
 retriever = pooch.create(

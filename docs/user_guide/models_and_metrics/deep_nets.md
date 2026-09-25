@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.3
+    jupytext_version: 1.19.3
 kernelspec:
   display_name: plenoptic
   language: python
@@ -29,12 +29,15 @@ This notebook requires the optional dependency `torchvision`, which can be insta
 
 Plenoptic is compatible with any model written in pytorch, including deep neural networks. In this notebook we show how to use `plenoptic` with models from the deep network zoos {external+torchvision:ref}`TorchVision <models>` and {external+timm:doc}`timm <models>`, creating a metamer for an intermediate layer of ResNet50.
 
-You may also be interested in [](feather2023), where we create model metamers for several ResNet50 intermediate layers, reproducing some of the results from {cite:alp}`Feather2023-model-metam`.
+You may also be interested in [](feather2023-resnet50), where we create model metamers for several ResNet50 intermediate layers, reproducing some of the results from {cite:alp}`Feather2023-model-metam`.
 
 ```{code-cell} ipython3
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from myst_nb import glue
 
 import plenoptic as po
 
@@ -63,6 +66,17 @@ plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
 
 # set seed for reproducibility
 po.set_seed(1)
+# To guarantee reproducibility for this example on the GPU, we must tell torch to use
+# deterministic algorithms -- the default behavior for convolution is non-deterministic.
+# Note this will make things slower! See "Reproducibility and Compatibility" in the docs
+# for more details.
+torch.use_deterministic_algorithms(True)
+
+# The default value of 6000 for MAX_ITER here will lead to a reasonable metamer, but
+# might take too long if you don't have a GPU. If synthesis is taking a long time on
+# your machine, set this to a lower value.
+MAX_ITER = int(os.environ.get("MAX_ITER", 6000))
+glue("MAX_ITER", MAX_ITER, display=False)
 ```
 
 ## Prepare model and image for synthesis
@@ -93,7 +107,7 @@ deepnet.eval();
 
 Next, we specify the layer to target. Figure 2e from {cite:alp}`Feather2023-model-metam` shows an interesting progression for ResNet50 metamers: the layer 2 metamer looks almost like the target image, the layer 3 metamer shows some RGB noise, and the layer 4 metamer is almost completely unidentifiable.
 
-Let's start with `"layer3"`. See [](feather2023) for the other layers, and note that you can specify multiple layers simultaneously.
+Let's start with `"layer3"`. See [](feather2023-resnet50) for the other layers, and note that you can specify multiple layers simultaneously.
 
 ```{code-cell} ipython3
 target_layer = "layer3"
@@ -189,7 +203,7 @@ import plenoptic as po
 
 # since these two models are identical, they have the same layer names
 target_layer = "layer3"
-deepnet = timm.create_model("timm/resnet50.tv_in1k", pretrained=True)
+deepnet = timm.create_model("hf-hub:timm/resnet50.tv_in1k", pretrained=True)
 deepnet.eval()
 transform = create_transform(
     **resolve_data_config(deepnet.pretrained_cfg, model=deepnet)
@@ -316,13 +330,13 @@ Now that we've set our optimization hyperparameters, we can synthesize our metam
 ```{code-cell} ipython3
 # by setting stop_iters_to_check=max_iter, we ensure it keeps going through
 # all iterations
-met.synthesize(max_iter=6000, stop_iters_to_check=6000, store_progress=100)
+met.synthesize(max_iter=MAX_ITER, stop_iters_to_check=MAX_ITER, store_progress=100)
 ```
 
 :::{admonition} How many iterations?
 :class: hint
 
-Here we're only running optimization for 6000 iterations, which is enough to demonstrate the point, but if you were to use these metamers in an experiment, we would recommend running synthesis for longer and thinking carefully about your success criteria, see [](good-enough) and [](feather-synthesis-success) for more discussion.
+Here we're only running optimization for {glue}`MAX_ITER` iterations, which is enough to demonstrate the point, but if you were to use these metamers in an experiment, we would recommend running synthesis for longer and thinking carefully about your success criteria, see [](good-enough) and [](feather-synthesis-success) for more discussion.
 :::
 
 Let's call {func}`~plenoptic.plot.synthesis_status` to visualize the synthesis status:

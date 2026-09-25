@@ -1,8 +1,13 @@
+(user-guide)=
 # User Guide
 
 These sections demonstrate how to use plenoptic in a variety of contexts.
 
-Users are encouraged to read the introductions for the [synthesis method](synthesis-index) or [model / metric](models-metrics-index) they would like to use.
+If you are new to plenoptic and/or stimulus synthesis, you are encouraged to first check out the materials in the [](getting-started) section, especially the [17-minute video introduction](https://archive.org/details/vss2025-symposium-plenoptic) and [](full-intro).
+
+All users are encouraged to read the introductions for the [synthesis method](synthesis-index) or [model / metric](models-metrics-index) they would like to use.
+
+The [](intermed-index) section includes topics that may interest users once they are familiar with basic synthesis.
 
 The [](reproduce-index) section includes examples of how to use plenoptic to reproduce results from published papers.
 
@@ -31,11 +36,14 @@ synthesis/*
 models_and_metrics/*
 models_and_metrics/portilla_simoncelli/ps_index.md
 :::
+::::
 
 ::::{card}
+
+(intermed-index)=
 :::{toctree}
 :maxdepth: 2
-:caption: Intermediate synthesis
+:caption: Intermediate usage
 :glob:
 
 intermediate_synthesis/*
@@ -51,6 +59,7 @@ intermediate_synthesis/*
 :glob:
 
 reproduce/*
+reproduce/synthesizing_adversarial_examples/adversarial_index.md
 :::
 
 ::::

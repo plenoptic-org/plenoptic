@@ -26,6 +26,9 @@ authors:
   - family-names: Herrera-Esposito
     given-names: Daniel
     orcid: "https://orcid.org/0000-0001-8181-9787"
+  - family-names: Meyer
+    given-names: Emily E
+    orcid: "https://orcid.org/0009-0004-1302-1510"
   - family-names: Parthasarathy
     given-names: Nikhil
     orcid: "https://orcid.org/0000-0003-2572-6492"
@@ -44,6 +47,9 @@ authors:
   - family-names: Zhao
     given-names: Xinyuan
     orcid: "https://orcid.org/0000-0003-1770-631X"
+  - family-names: Zhu
+    given-names: Raffles Xingqi
+    orcid: "https://orcid.org/0009-0006-1930-8912"
 doi: 10.5281/zenodo.10151130
 repository-code: "https://github.com/plenoptic-org/plenoptic"
 url: "https://docs.plenoptic.org/"

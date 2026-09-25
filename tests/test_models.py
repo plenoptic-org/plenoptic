@@ -1480,8 +1480,11 @@ class TestDeepNetFeatures:
         "model",
         [
             "torchvision_resnet50-layer2",
+            # fc layer has a different dimensionality than the convolutional layers
+            "torchvision_resnet50-fc",
             "timm_resnet50-layer2",
             "torchvision_resnet50-layer2,layer4",
+            "torchvision_resnet50-layer2,fc",
             "timm_resnet50-layer2,layer4",
         ],
         indirect=True,
@@ -1659,6 +1662,122 @@ class TestDeepNetFeatures:
     @pytest.mark.parametrize(
         "model",
         [
+            # fc layer has a different dimensionality than the convolutional layers
+            "torchvision_resnet50-fc",
+        ],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("input_type", ["tensor", "dict"])
+    @pytest.mark.parametrize("axis", ["existing", None])
+    @pytest.mark.parametrize("ylim", [False, None, (0, 1)])
+    @pytest.mark.parametrize("plot_func", ["model", "display"])
+    def test_plot_representation_2d_only(
+        self,
+        model,
+        input_type,
+        axis,
+        ylim,
+        plot_func,
+        torchvision_img,
+        close_figures_on_teardown,
+    ):
+        rep = model(torchvision_img)
+        if input_type == "dict":
+            rep = model.convert_to_dict(rep)
+        if axis == "existing":
+            _, axis = plt.subplots(1, 1)
+        if plot_func == "model":
+            _, axes = model.plot_representation(
+                rep, ax=axis, title="Representation", ylim=ylim
+            )
+        elif plot_func == "display":
+            axes = po.plot.plot_representation(
+                model, rep, ax=axis, title="Representation", ylim=ylim
+            )
+        if not isinstance(rep, dict):
+            rep = model.convert_to_dict(rep)
+        assert len(axes) == 1
+        ax_ylim = axes[0].get_ylim()
+        # then this is the stem plot
+        if ylim is False:
+            # in this case ymin is just below 0, ymax is something positive
+            assert ax_ylim[0] < 0
+            assert abs(ax_ylim[0]) < ax_ylim[1]
+            assert ax_ylim[1] > 0
+        elif ylim is None:
+            # in this case ymin and ymax are symmetric about 0
+            assert ax_ylim[0] < 0
+            assert abs(ax_ylim[0]) == ax_ylim[1]
+            assert ax_ylim[1] > 0
+        else:
+            # in this case ymin and ymax are set explicitly
+            assert ax_ylim[0] == ylim[0]
+            assert ax_ylim[1] == ylim[1]
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2,fc",
+        ],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("input_type", ["tensor", "dict"])
+    @pytest.mark.parametrize("axis", ["existing", None])
+    @pytest.mark.parametrize("ylim", [False, None, (0, 1)])
+    @pytest.mark.parametrize("plot_func", ["model", "display"])
+    def test_plot_representation_2d_mixed(
+        self,
+        model,
+        input_type,
+        axis,
+        ylim,
+        plot_func,
+        torchvision_img,
+        close_figures_on_teardown,
+    ):
+        rep = model(torchvision_img)
+        if input_type == "dict":
+            rep = model.convert_to_dict(rep)
+        if axis == "existing":
+            _, axis = plt.subplots(1, 1)
+        if plot_func == "model":
+            _, axes = model.plot_representation(
+                rep, ax=axis, title="Representation", ylim=ylim
+            )
+        elif plot_func == "display":
+            axes = po.plot.plot_representation(
+                model, rep, ax=axis, title="Representation", ylim=ylim
+            )
+        if not isinstance(rep, dict):
+            rep = model.convert_to_dict(rep)
+        layers = ["layer2", "layer2", "fc"]
+        for i, (ax, layer) in enumerate(zip(axes, layers)):
+            ax_ylim = ax.get_ylim()
+            if i == 0:
+                # then this is an image axis, so ylim should correspond to the size of
+                # the image
+                assert ax_ylim[0] == rep[layer].shape[-1] - 0.5
+                assert ax_ylim[1] == -0.5
+            else:
+                # then this is the stem plot
+                if ylim is False:
+                    # in this case ymin is just below 0, ymax is something positive
+                    assert ax_ylim[0] < 0
+                    assert abs(ax_ylim[0]) < ax_ylim[1]
+                    assert ax_ylim[1] > 0
+                elif ylim is None:
+                    # in this case ymin and ymax are symmetric about 0
+                    assert ax_ylim[0] < 0
+                    assert abs(ax_ylim[0]) == ax_ylim[1]
+                    assert ax_ylim[1] > 0
+                else:
+                    # in this case ymin and ymax are set explicitly
+                    assert ax_ylim[0] == ylim[0]
+                    assert ax_ylim[1] == ylim[1]
+
+    @pytest.mark.parametrize(
+        "model",
+        [
             "torchvision_resnet50-layer2",
             "timm_resnet50-layer2",
             "torchvision_resnet50-layer2,layer4",
@@ -1678,8 +1797,25 @@ class TestDeepNetFeatures:
         "model",
         [
             "torchvision_resnet50-layer2",
+        ],
+        indirect=True,
+    )
+    def test_plot_representation_invalid(
+        self, model, torchvision_img, close_figures_on_teardown
+    ):
+        rep = model.convert_to_dict(model(torchvision_img))
+        # change this from 4d to 5d, so we can test the failure.
+        rep["layer2"] = rep["layer2"].unsqueeze(1)
+        with pytest.raises(ValueError, match="Only 2, 3, or 4d data"):
+            model.plot_representation(rep)
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
             "timm_resnet50-layer2",
             "torchvision_resnet50-layer2,layer4",
+            "torchvision_resnet50-layer2,fc",
             "timm_resnet50-layer2,layer4",
         ],
         indirect=True,
@@ -1718,3 +1854,39 @@ class TestDeepNetFeatures:
             raise ValueError("Update plot didn't rescale_ylim successfully!")
         if not np.equal(orig_img_ylim, updated_img_ylim).all():
             raise ValueError("Image ylim should never change!")
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            # fc layer has a different dimensionality than the convolutional layers
+            "torchvision_resnet50-fc",
+        ],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("input_type", ["tensor", "dict"])
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_2d_only(
+        self,
+        model,
+        input_type,
+        rescale_ylim,
+        torchvision_img,
+        close_figures_on_teardown,
+    ):
+        # with 2d rep only, no image created, so slightly different test
+        rep = model(torchvision_img)
+        fig, axes = model.plot_representation(rep, title="Representation")
+        orig_y = axes[0].containers[0].markerline.get_ydata()
+        orig_ylim = axes[0].get_ylim()
+        rep = model(torch.rand_like(torchvision_img))
+        if input_type == "dict":
+            rep = model.convert_to_dict(rep)
+        artists = model.update_plot(axes, rep, rescale_ylim=rescale_ylim)
+        updated_y = artists[0].get_ydata()
+        updated_ylim = axes[0].get_ylim()
+        if np.equal(orig_y, updated_y).all():
+            raise ValueError("Update plot didn't run successfully!")
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")

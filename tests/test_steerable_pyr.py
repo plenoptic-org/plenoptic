@@ -163,19 +163,15 @@ class TestSteerablePyramid:
         params=[f"{shape}" for shape in [None, 224, "128_1", "128_2"]],
     )
     @classmethod
-    def multichannel_img(cls, request):
+    def multichannel_img(cls, color_img, request):
         shape = request.param
-        # use fixture for img and use color_wheel instead.
-        img = po.load_images(IMG_DIR / "mixed" / "flowers.jpg", as_gray=False).to(
-            DEVICE
-        )
         if shape == "224":
-            img = img[..., :224, :224]
+            color_img = color_img[..., :224, :224]
         elif shape == "128_1":
-            img = img[..., :128, :]
+            color_img = color_img[..., :128, :]
         elif shape == "128_2":
-            img = img[..., :128]
-        return img
+            color_img = color_img[..., :128]
+        return color_img
 
     # WARNING: because this fixture requires the img fixture above, it should
     # only be used in tests that also use the img fixture. That is, tests where

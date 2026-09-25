@@ -52,4 +52,4 @@ def download_timm():
 
     Similar potential problem to torchvision.
     """
-    timm.create_model("timm/resnet50.tv_in1k", pretrained=True)
+    timm.create_model("hf-hub:timm/resnet50.tv_in1k", pretrained=True)

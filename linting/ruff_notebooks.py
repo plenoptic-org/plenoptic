@@ -25,7 +25,7 @@ for p in paths:
     if not md.startswith("---\njupytext"):
         # then this isn't a markdown notebook
         continue
-    ipynb_path = f"nb_tmp{os.sep}{p.stem}.ipynb"
+    ipynb_path = f"nb_tmp{os.sep}{p.parent.stem}_{p.stem}.ipynb"
     subprocess.run(
         ["jupytext", p, "-o", ipynb_path, "--from", "myst"], capture_output=True
     )

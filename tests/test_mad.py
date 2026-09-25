@@ -917,17 +917,64 @@ class TestMAD:
         assert mad.objective_function().numel() == 0
         torch.equal(mad.losses, torch.empty(0))
         torch.equal(mad.penalties, torch.empty(0))
+        torch.equal(mad.reference_metric_loss, torch.empty(0))
+        torch.equal(mad.optimized_metric_loss, torch.empty(0))
         assert len(mad.penalties) == len(mad.losses) == 0
+        assert len(mad.reference_metric_loss) == len(mad.optimized_metric_loss) == 0
         mad.setup(optimizer=optim)
         assert isinstance(mad.objective_function(), torch.Tensor)
         assert len(mad.penalties) == len(mad.losses) == 1
+        assert len(mad.reference_metric_loss) == len(mad.optimized_metric_loss) == 1
         mad.synthesize(max_iter=2)
         assert isinstance(mad.objective_function(), torch.Tensor)
         assert len(mad.penalties) == len(mad.losses) == 3
+        assert len(mad.reference_metric_loss) == len(mad.optimized_metric_loss) == 3
         # calling objective_function should not increase the length of these attributes,
         # only calling synthesize should do that
         mad.objective_function()
         assert len(mad.penalties) == len(mad.losses) == 3
+        assert len(mad.reference_metric_loss) == len(mad.optimized_metric_loss) == 3
+
+    @pytest.mark.parametrize("seed", range(3))
+    @pytest.mark.parametrize("optim", [torch.optim.Adam, torch.optim.LBFGS])
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_mad_stored_value(self, optim, seed, dtype):
+        # Test that the loss/penalty/ref metric/optim metric we store matches the one we
+        # can compute from the saved_mad_image
+        po.set_seed(seed)
+        img = torch.rand((1, 1, 32, 32), device=DEVICE, dtype=dtype)
+        # need to make sure penalty value is large enough that we could find issues with
+        # the below checks
+        mad = po.MADCompetition(
+            img,
+            po.metric.mse,
+            dis_ssim,
+            "min",
+            metric_tradeoff_lambda=1,
+            penalty_function=lambda x: po.regularize.penalize_range(x, (-1, -0.5)),
+        )
+        mad.setup(optimizer=optim)
+        mad.synthesize(10, store_progress=True)
+        saved_mad_image = mad.saved_mad_image.to(DEVICE)
+        posthoc_penalty = torch.func.vmap(mad.penalty_function)(saved_mad_image)
+        torch.testing.assert_close(posthoc_penalty, mad.penalties.to(DEVICE))
+        posthoc_ref_metric = []
+        posthoc_opt_metric = []
+        posthoc_loss = []
+        for saved_img in saved_mad_image:
+            posthoc_ref_metric.append(mad.reference_metric(mad.image, saved_img))
+            posthoc_opt_metric.append(
+                mad.optimized_metric(mad.image, saved_img).squeeze()
+            )
+            posthoc_loss.append(mad.objective_function(saved_img).squeeze())
+        torch.testing.assert_close(torch.stack(posthoc_loss), mad.losses.to(DEVICE))
+        torch.testing.assert_close(
+            torch.stack(posthoc_ref_metric), mad.reference_metric_loss.to(DEVICE)
+        )
+        torch.testing.assert_close(
+            torch.stack(posthoc_opt_metric), mad.optimized_metric_loss.to(DEVICE)
+        )
 
     @pytest.mark.parametrize("iteration", [None, 0, -2, -3, 2, 1, 6, -7])
     @pytest.mark.parametrize("store_progress", [True, False, 2])
@@ -1158,6 +1205,11 @@ class TestMAD:
                 img, metric, po.loss.l2_norm, minmax, metric_tradeoff_lambda=1
             )
             mad.setup(torch.rand(shape, device=DEVICE))
+            # These attributes are normally created in _optimizer_step before calling
+            # _closure (and are needed for it to operate)
+            mad._penalty_tmp = []
+            mad._reference_metric_tmp = []
+            mad._optimized_metric_tmp = []
             loss = mad.objective_function()
             assert loss == mad._closure()
 
@@ -1433,3 +1485,15 @@ class TestMAD:
         mad.synthesize(2)
         assert repr(mad) == str(mad)
         assert re.match(expected_str, repr(mad))
+
+    def test_metric_cache_change_warning(self, einstein_img_double):
+        # using this metric, because it's the one used in the doctest for
+        # po.plot.synthesis_loss, and so we already had this object in the cache.
+        def ds_ssim(x, y):
+            return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
+
+        mad = po.MADCompetition(einstein_img_double, ds_ssim, po.metric.mse, "max", 1e6)
+        with pytest.warns(
+            FutureWarning, match="The saved object was saved with plenoptic 2.1.0"
+        ):
+            mad.load(po.data.fetch_data("example_mad-cuda-old.pt"), map_location=DEVICE)

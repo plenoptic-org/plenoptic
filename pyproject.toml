@@ -21,7 +21,7 @@ keywords = ['neuroscience', 'pytorch', 'visual information processing', 'machine
 dependencies = [
     "numpy>=1.1",
     "torch>=1.8,!=1.12.0",
-    "pyrtools>=1.0.9",
+    "pyrtools>=1.0.11",
     "scipy>=1.0",
     "matplotlib>=3.3",
     "tqdm>=4.29",
@@ -82,6 +82,7 @@ nb = [
     "torchvision>=0.3",
     "jupytext",
     "seaborn",
+    "myst-nb",
 ]
 
 [project.urls]
@@ -180,6 +181,8 @@ suppress-none-returning = true
 "!src/**.py" = ["D", "DOC", "ANN"]
 # this file has very long lines
 "src/plenoptic/_api_change.py" = ["E501"]
+# exercise notebooks sometimes will have undefined names in the skipped cells
+"exercises*ipynb" = ["F821"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
@@ -209,3 +212,4 @@ check-hidden = true
 # ignore regex like [Tt]rue
 ignore-regex = '\[[A-Z][a-z]\][a-z]+'
 # ignore-words-list = ''
+dictionary = "plenoptic-dict.txt,-"

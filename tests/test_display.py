@@ -852,6 +852,7 @@ def template_test_synthesis_all_plot(
     plot_kwargs = {}
     from plenoptic.plot import synthesis
 
+    expectation = does_not_raise()
     if synth_image:
         included_plots.append("synthesis_imshow")
     if loss:
@@ -860,6 +861,13 @@ def template_test_synthesis_all_plot(
         included_plots.append("metamer_representation_error")
         as_rgb = synthesis_object.image.shape[1] > 1
         plot_kwargs["metamer_representation_error_kwargs"] = {"as_rgb": as_rgb}
+        # metamer_representation-error will pass vrange=indep0 by default, which will
+        # trigger the following warning if as_rgb=True. (users should probably just set
+        # as_rgb=False)
+        if as_rgb:
+            expectation = pytest.warns(
+                UserWarning, match="RGB images cannot have their vrange set"
+            )
     if histogram:
         included_plots.append("synthesis_histogram")
     width_ratios = {}
@@ -876,14 +884,15 @@ def template_test_synthesis_all_plot(
         )
     elif fig_creation == "pass-without":
         fig, axes = plt.subplots(1, 4)
-    fig = po.plot.synthesis_status(
-        synthesis_object,
-        iteration=iteration,
-        included_plots=included_plots,
-        fig=fig,
-        **plot_kwargs,
-        width_ratios=width_ratios,
-    )
+    with expectation:
+        fig = po.plot.synthesis_status(
+            synthesis_object,
+            iteration=iteration,
+            included_plots=included_plots,
+            fig=fig,
+            **plot_kwargs,
+            width_ratios=width_ratios,
+        )
 
 
 def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp_path):
@@ -895,11 +904,19 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
     included_plots = ["synthesis_imshow", "synthesis_histogram"]
     # need to figure out which plotting function to call
     axes_idx = {"synthesis_imshow": 0}
+    expectation = does_not_raise()
     if isinstance(synthesis_object, po.Metamer):
         as_rgb = synthesis_object.image.shape[1] > 1
         plot_kwargs["metamer_representation_error_kwargs"] = {"as_rgb": as_rgb}
         included_plots.extend(["metamer_representation_error", "synthesis_loss"])
         axes_idx["metamer_representation_error"] = 8
+        # metamer_representation-error will pass vrange=indep0 by default, which will
+        # trigger the following warning if as_rgb=True. (users should probably just set
+        # as_rgb=False)
+        if as_rgb:
+            expectation = pytest.warns(
+                UserWarning, match="RGB images cannot have their vrange set"
+            )
     elif isinstance(synthesis_object, po.MADCompetition):
         included_plots.append("synthesis_loss")
     fig, axes = plt.subplots(3, 3, figsize=(35, 17))
@@ -912,27 +929,32 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
             axes_idx["synthesis_loss"] = 6
         if "synthesis_histogram" in included_plots:
             axes_idx["synthesis_histogram"] = 7
-    if func == "plot":
-        fig = po.plot.synthesis_status(
-            synthesis_object,
-            included_plots=included_plots,
-            fig=fig,
-            axes_idx=axes_idx,
-            **plot_kwargs,
-        )
-    elif fig_creation.endswith("preplot"):
-        po.plot.imshow(torch.rand_like(synthesis_object.image), ax=axes.flatten()[1])
-        po.plot.imshow(torch.rand_like(synthesis_object.image), ax=axes.flatten()[4])
-    if func == "animate":
-        # animate closes the matplotlib figure itself, so don't need to do it here
-        path = tmp_path / "test_anim.html"
-        po.plot.synthesis_animate(
-            synthesis_object,
-            fig=fig,
-            axes_idx=axes_idx,
-            included_plots=included_plots,
-            **plot_kwargs,
-        ).save(path)
+    with expectation:
+        if func == "plot":
+            fig = po.plot.synthesis_status(
+                synthesis_object,
+                included_plots=included_plots,
+                fig=fig,
+                axes_idx=axes_idx,
+                **plot_kwargs,
+            )
+        elif fig_creation.endswith("preplot"):
+            po.plot.imshow(
+                torch.rand_like(synthesis_object.image), ax=axes.flatten()[1]
+            )
+            po.plot.imshow(
+                torch.rand_like(synthesis_object.image), ax=axes.flatten()[4]
+            )
+        if func == "animate":
+            # animate closes the matplotlib figure itself, so don't need to do it here
+            path = tmp_path / "test_anim.html"
+            po.plot.synthesis_animate(
+                synthesis_object,
+                fig=fig,
+                axes_idx=axes_idx,
+                included_plots=included_plots,
+                **plot_kwargs,
+            ).save(path)
 
 
 class TestMADDisplay:
