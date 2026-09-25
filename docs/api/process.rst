@@ -110,6 +110,19 @@ The following functions return a modified version of their input.
    ~center_crop
    ~modulate_phase
 
+.. rubric:: Color transformations
+   :heading-level: 3
+
+These functions transform the color space of RGB images.
+
+.. autosummary::
+   :signatures: none
+   :toctree: generated
+   :template: torch_module.rst.jinja
+
+   ~OPC
+   ~PCA
+
 .. rubric:: Image statistics
    :heading-level: 3
 
