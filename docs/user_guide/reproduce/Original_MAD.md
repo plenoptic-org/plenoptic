@@ -38,16 +38,10 @@ Goal here is to reproduce original MAD Competition results, as generated using t
 
 ```{code-cell} ipython3
 # Download some data we'll need for this notebook
-import contextlib
-import os
-
 import plenoptic as po
 
-# the contextlib.redirect_stderr here is so that we don't print out the progressbar.
-# If you would like to see it, remove this line.
-with contextlib.redirect_stderr(open(os.devnull, "w")):
-    po.data.fetch_data("MAD_results.tar.gz")
-    po.data.fetch_data("ssim_images.tar.gz")
+po.data.fetch_data("MAD_results.tar.gz")
+po.data.fetch_data("ssim_images.tar.gz")
 ```
 
 ## SSIM
