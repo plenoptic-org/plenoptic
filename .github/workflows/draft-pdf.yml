@@ -1,19 +1,19 @@
 name: joss
 on:
   push:
-    branches: 
+    branches:
       - joss
   pull_request:
-    branches: 
+    branches:
       - joss
-        
+
 jobs:
   paper:
     runs-on: ubuntu-latest
     name: Paper Draft
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
       - name: Build draft PDF
         uses: openjournals/openjournals-draft-action@master
         with:
