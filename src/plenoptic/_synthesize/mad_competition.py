@@ -137,7 +137,9 @@ class MADCompetition(_OptimizedSynthesis):
       <Figure size ...>
 
     Change the penalty function. A penalty function must accept one tensor and return a
-    scalar. See :ref:`how-to-penalty` for more information about penalty functions.
+    scalar. See :ref:`how-to-penalty` for more information about penalty functions. Note
+    the different ranges in the title of the subplots showing the MAD images in the
+    following two examples.
 
     .. plot::
       :context: close-figs
