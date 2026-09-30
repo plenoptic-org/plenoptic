@@ -38,6 +38,25 @@ def set_seed(seed: int | None = None) -> None:
     ----------
     seed
         The seed to set. If ``None``, do nothing.
+
+    Examples
+    --------
+    This function sets both the torch and numpy random number generator seeds, so
+    that any calls to their random functions returns the same output:
+
+    >>> import plenoptic as po
+    >>> import torch
+    >>> import numpy as np
+    >>> po.set_seed(0)
+    >>> torch.rand(1)
+    tensor([0.4963])
+    >>> np.random.rand(1)
+    array([0.5488135])
+    >>> po.set_seed(0)
+    >>> np.random.rand(1)
+    array([0.5488135])
+    >>> torch.rand(1)
+    tensor([0.4963])
     """
     if seed is not None:
         # random initialization
@@ -73,6 +92,17 @@ def mse(synth_rep: Tensor, ref_rep: Tensor, **kwargs: Any) -> Tensor:
     -------
     loss
         The mean-squared error between ``synth_rep`` and ``ref_rep``.
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> import torch
+    >>> a = torch.as_tensor([2, 4, 6, 8, 10], dtype=torch.float32)
+    >>> b = torch.ones_like(a)
+    >>> po.loss.mse(a, b)
+    tensor(33.)
+    >>> (a - b).pow(2).mean()
+    tensor(33.)
     """
     return torch.pow(synth_rep - ref_rep, 2).mean()
 
@@ -103,6 +133,17 @@ def l2_norm(synth_rep: Tensor, ref_rep: Tensor, **kwargs: Any) -> Tensor:
     -------
     loss
         The L2-norm of the difference between ``ref_rep`` and ``synth_rep``.
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> import torch
+    >>> a = torch.as_tensor([2, 4, 6, 8, 10], dtype=torch.float32)
+    >>> b = torch.ones_like(a)
+    >>> po.loss.l2_norm(a, b)
+    tensor(12.8452)
+    >>> (a - b).pow(2).sum().sqrt()
+    tensor(12.8452)
     """
     return torch.linalg.vector_norm(ref_rep - synth_rep, ord=2)
 
@@ -140,6 +181,24 @@ def relative_sse(synth_rep: Tensor, ref_rep: Tensor, **kwargs: Any) -> Tensor:
     loss
         Ratio of the squared l2-norm of the difference between ``ref_rep`` and
         ``synth_rep`` to the squared l2-norm of ``ref_rep``.
+
+    Examples
+    --------
+    >>> import plenoptic as po
+    >>> import torch
+    >>> a = torch.as_tensor([2, 4, 6, 8, 10], dtype=torch.float32)
+    >>> b = 2 * torch.ones_like(a)
+    >>> po.loss.relative_sse(a, b)
+    tensor(6.0000)
+    >>> numerator = (a - b).pow(2).sum()
+    >>> denominator = b.pow(2).sum()
+    >>> numerator / denominator
+    tensor(6.0000)
+    >>> # numerator is equivalent to the l2-norm loss squared
+    >>> numerator
+    tensor(120.0000)
+    >>> po.loss.l2_norm(a, b).pow(2)
+    tensor(120.0000)
     """
     return (
         torch.linalg.vector_norm(ref_rep - synth_rep, ord=2) ** 2
