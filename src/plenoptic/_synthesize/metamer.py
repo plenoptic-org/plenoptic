@@ -74,9 +74,11 @@ class Metamer(_OptimizedSynthesis):
 
     Examples
     --------
-    Synthesize and visualize a metamer for a simple model. Note that for all of these
-    examples, synthesis has not been run to completion, this is just to demonstrate
-    basic usage.
+    Synthesize and visualize a metamer for a simple model.
+
+    .. attention::
+       For all of these examples, synthesis has not been run to completion. These
+       examples just demonstrate basic usage.
 
     .. plot::
       :context: reset
@@ -104,8 +106,8 @@ class Metamer(_OptimizedSynthesis):
       <Figure size ...>
 
     Change the loss function. A loss function must accept two tensors and return a
-    scalar. Note that resulting metamer and synthesis efficiency change as a result of
-    the loss function.
+    scalar. Note that metamer and synthesis efficiency change when using a different
+    loss function.
 
     .. plot::
       :context: close-figs

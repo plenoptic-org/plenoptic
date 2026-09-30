@@ -93,6 +93,10 @@ class MADCompetition(_OptimizedSynthesis):
     :func:`~plenoptic.metric.ssim` is a similarity metric, and thus 0 corresponds to
     "completely different" and 1 "identical".
 
+    .. attention::
+       For all of these examples, synthesis has not been run to completion. These
+       examples just demonstrate basic usage.
+
     .. plot::
       :context: reset
 
