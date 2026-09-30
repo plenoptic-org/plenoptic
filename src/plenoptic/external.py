@@ -186,7 +186,9 @@ def plot_MAD_results(
         vrange_list = []
         for i in range(len(images) // 5):
             vr, cmap = pt.tools.display.colormap_range(
-                images[5 * i : 5 * (i + 1)], vrange.replace("row", "auto")
+                images[5 * i : 5 * (i + 1)],
+                contains_rgb=5 * [False],
+                vrange=vrange.replace("row", "auto"),
             )
             vrange_list.extend(vr)
     else:
