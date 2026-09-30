@@ -1,18 +1,15 @@
-FROM nvidia/cuda:11.2.2-devel-ubuntu20.04
+FROM docker.io/pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
-      python3-numpy \
-      python3-pip \
-      python3-pytest \
-      python3-pytest-cov \
-      python3-venv \
-      python3-yaml \
-      ffmpeg \
+      'python3.12' \
+      'python3.12-venv' \
+      git \
+      curl \
+      jq "ffmpeg" \
+      pandoc \
+      make \
       && \
     apt-get autoremove --purge -y && \
     apt-get autoclean -y && \
     rm -rf /var/cache/apt/* /var/lib/apt/lists/*
-
-COPY requirements.txt /tmp/
-RUN pip3 install --upgrade --upgrade-strategy eager -r /tmp/requirements.txt

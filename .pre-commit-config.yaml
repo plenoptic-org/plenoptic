@@ -1,0 +1,126 @@
+repos:
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.12.12
+  hooks:
+    # Run the formatter.
+    - id: ruff-format
+      args: [--config=pyproject.toml]
+    # Run the linter.
+    - id: ruff
+      args: [--config=pyproject.toml]
+
+- repo: https://github.com/numpy/numpydoc
+  rev: v1.9.0
+  hooks:
+    - id: numpydoc-validation
+      exclude: |
+          (?x)(
+              tests/|
+              linting/|
+              docs/
+          )
+
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v6.0.0
+  # note: pre-commit runs top-to-bottom, so put the hooks that modify content first,
+  # followed by checks that might be more likely to pass after the modifactaion hooks (like flake8)
+  hooks:
+  # Checks for large files added to the repository, typically to prevent accidental inclusion of large binaries or datasets.
+  - id: check-added-large-files
+  # Detects potential filename conflicts due to case-insensitive filesystems (e.g., Windows) where File.txt and file.txt would be considered the same.
+  - id: check-case-conflict
+  # Checks for files that contain merge conflict strings (e.g., <<<<<<<, =======, >>>>>>>).
+  - id: check-merge-conflict
+  # Validates YAML files for syntax errors.
+  - id: check-yaml
+  # Detects debug statements (e.g., print, console.log, etc.) left in code.
+  - id: debug-statements
+  # Ensures files have a newline at the end.
+  - id: end-of-file-fixer
+  # Removes trailing whitespace characters from files.
+  - id: trailing-whitespace
+
+- repo: local
+  hooks:
+    - id: check-docstrings
+      name: check docstrings for markdown
+      language: system
+      entry: python linting/check_docstrings.py
+      types: [file, python]
+    - id: check-malformed-directive
+      language: system
+      name: Check for malformed sphinx directives
+      types_or: ["python", "rst", "markdown"]
+      entry: python linting/check_sphinx_directives.py
+    - id: check-tutorials
+      language: system
+      name: Check for issues with markdown tutorial notebooks
+      types_or: ["markdown"]
+      entry: python linting/check_tutorials.py
+      files: ^docs/
+    - id: check-docs-markdown
+      language: python
+      # only run on docs/ folder
+      name: Check for issues with markdown files in docs
+      types_or: ["markdown"]
+      entry: linting/check_markdown.py
+      files: ^docs/
+      additional_dependencies: ["sphobjinv"]
+    - id: ruff notebooks
+      language: python
+      name: Convert myst-nb markdown notebooks to ipynb and run ruff on them
+      types_or: ["markdown"]
+      entry: linting/ruff_notebooks.py
+      files: ^docs/
+      additional_dependencies: ["ruff", "jupytext"]
+    - id: check-regression-tests
+      language: system
+      name: Ensure regression tests and notebook are matched
+      types_or: ["markdown"]
+      entry: python linting/check_regression_tests.py tests/test_uploaded_files.py
+      files: ^docs/
+    - id: check-api-docs
+      language: system
+      name: Ensure all public functions / classes are included in API docs
+      entry: python linting/check_apidocs.py
+      always_run: true
+      pass_filenames: false
+    - id: check-inline
+      language: python
+      name: Check for ipython magic functions in md notebooks
+      types_or: ["markdown"]
+      files: ^docs/
+      entry: linting/check_magic_functions.py
+    - id: check-semicolons
+      language: python
+      name: Fix semicolons after plotting functions
+      types_or: ["markdown"]
+      files: ^docs/
+      entry: linting/fix_tutorial_semicolons.py
+      additional_dependencies: ["jupytext"]
+    - id: return-literal-annotation
+      language: python
+      name: Ensure we have no Literal return annotations
+      types_or: ["python"]
+      files: ^src/
+      entry: linting/check_return_literal.py
+    - id: check-api-docs
+      language: system
+      name: Ensure all public functions / classes are included in _api_change.py
+      entry: python linting/check_api_change.py
+      always_run: true
+      pass_filenames: false
+    - id: check-myst-frontmatter
+      language: system
+      name: Ensure all text notebooks are in myst format with proper frontmatter
+      entry: python linting/check_myst-nb.py
+      types_or: ["markdown"]
+      files: ^docs/
+
+- repo: https://github.com/codespell-project/codespell
+  # Configuration for codespell is in pyproject.toml
+  rev: v2.4.1
+  hooks:
+    - id: codespell
+      additional_dependencies:
+        - tomli; python_version<'3.11'

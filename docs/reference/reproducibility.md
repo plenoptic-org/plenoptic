@@ -1,0 +1,159 @@
+(reproduce)=
+
+# Reproducibility and Compatibility
+
+## Reprodubility
+
+(reproduce-best-practices)=
+### Best Practices
+
+plenoptic's synthesis methods are high-dimensional non-linear optimization problems. Thus, when trying to make your results reproducible, you should follow the guidelines below, which plenoptic uses for its tests and documentation:
+
+- Set the seed for the random number generator. In plenoptic's synthesis methods, this largely affects the initialization of the synthesis method (e.g., with random noise for {class}`plenoptic.Metamer`). We provide a convenience function for this, {func}`~plenoptic.set_seed`, which sets both the pytorch and numpy seeds.
+(float64-doc)=
+- Use `torch.float64` dtype (torch defaults to `torch.float32`). {func}`torch.set_default_dtype` might be helpful for this. See {class}`torch.dtype` for more information.
+- Note the versions of plenoptic and pytorch when performing your analysis. We do not believe the versions of other packages are likely to affect reproducibility, but breaking changes in both plenoptic and pytorch have broken reproducibility.
+- If you *really* need to guarantee reproducibility and you used a GPU, note all relevant information, especially the CUDA and driver versions. See [plenoptic issue #368](https://github.com/plenoptic-org/plenoptic/issues/368) for a discussion here.
+- Use {func}`torch.use_deterministic_algorithms` to use deterministic algorithms where available, which largely affects operations performed on CUDA tensors (i.e., on the GPU). See the documentation of that function for a full list of affected operations, which includes convolution when performed on the GPU. Note that, as the torch docs say: "deterministic operations tend to have worse performance than nondeterministic operations."
+    - And note that not all operations can be done in a deterministic fashion! If you need strict reproducibility, you may need to avoid such operations or perform them on the CPU.
+
+Small differences in the output of computations resulting from any of the latter three points above can result in small differences in the gradient that accumulate over the course of synthesis, so that it is easier to guarantee reproducibility for procedures that take fewer iterations than those that take more.
+
+However, even when following all of the above steps, as discussed [below](reproduce-limits), we cannot guarantee perfect reproducibility.
+
+(reproduce-limits)=
+### Limits
+
+`plenoptic` includes several results reproduced from the literature and aims to facilitate reproducible research. However, we are limited by our dependencies and PyTorch, in particular, comes with the [caveat](https://pytorch.org/docs/stable/notes/randomness.html) that "Completely reproducible results are not guaranteed across PyTorch releases, individual commits, or different platforms. Furthermore, results may not be reproducible between CPU and GPU executions, even when using identical seeds" (quote from the [v1.12](https://pytorch.org/docs/1.12/notes/randomness.html) documentation).
+
+This means that you should note the `plenoptic` version and the `pytorch` version your synthesis used in order to guarantee reproducibility (some versions of `pytorch` will give consistent results with each other, but it's not guaranteed and hard to predict). We do not believe reproducibility depends on the python version or any other packages.
+
+However, in general, the CPU and GPU will always give different results, and you may also end up with different outputs on GPU devices with different CUDA or driver versions.
+
+We reproduce several results from the literature and validate these as part of our tests. We are therefore aware of the following changes that broke reproducibility:
+
+- PyTorch 1.8 and 1.9 give the same results, but 1.10 changes results in changes, probably due to the difference in how the sub-gradient for `torch.min` and `torch.max` are computed ([see this PR](https://github.com/plenoptic-org/plenoptic/pull/96#issuecomment-973318291)).
+- PyTorch 1.12 breaks reproducibility with 1.10 and 1.11, unclear why ([see this issue](https://github.com/plenoptic-org/plenoptic/issues/165)).
+
+(compat)=
+## Compatibility
+
+While we try to maintain compatibility between `plenoptic` versions, `plenoptic` is under active development and so the API of its objects may change. Similar to the comments on reproducibility above, we cannot guarantee that you will be able to load a `plenoptic` object saved with a different version of `plenoptic` or `pytorch`. The following notes known breaking changes and how, if possible, to load your object anyway.
+
+Note that you should always be able to load in the saved object using `pytorch` directly, like so:
+
+If your object was saved in plenoptic 1.1 or earlier:
+
+```python
+import torch
+plen_object = torch.load("saved_plen_object.pt", weights_only=False)
+```
+
+Note that setting `weights_only=False` allows arbitrary code execution and thus is unsafe --- only run the above code when you know the contents of and trust the saved file! (See [related issue](https://github.com/plenoptic-org/plenoptic/issues/313) for more details.)
+
+If your object was saved in plenoptic 1.2 or later, `weights_only=False` is unnecessary:
+
+```python
+import torch
+plen_object = torch.load("saved_plen_object.pt")
+```
+
+The object you have loaded is a dictionary with strings as keys. Once you've loaded your object, you can extract the outcome of your synthesis (e.g., by looking at the `"metamer"` key). [Post an issue](https://github.com/plenoptic-org/plenoptic/issues/new/choose) if you need help!
+
+### Breaking change to load in plenoptic 1.2
+
+Prior to plenoptic 1.2, we were saving python functions and pytorch optimization objects. This was incompatible with a breaking change made to {func}`torch.load` in `pytorch` version 2.6. Unfortunately, there is no way to make an object saved prior to 1.2 compatible with later `plenoptic` releases; see [](compat) for how to extract the outputs of your synthesis.
+
+### FutureWarning in load in plenoptic 1.3.1
+
+A small change was made to the {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` APIs in `plenoptic` 1.3.1. You will be able to load {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` objects saved with version 1.2 and 1.3 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
+
+In order to make an object compatible with future releases, you can either load it in with `plenoptic` 1.3.1 and re-save it, or do the following:
+
+```python
+import torch
+old_save = torch.load("old_save.pt")
+old_save["_current_loss"] = None
+torch.save(old_save, "old_save.pt")
+# and then load as normal
+```
+
+### FutureWarning in load in plenoptic 1.4
+
+Loading {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` objects saved before plenoptic 1.4 will result in a `FutureWarning` due to two changes:
+
+- {class}`~plenoptic.Metamer` objects' save method was updated allow saving of more general loss functions (e.g., {func}`~plenoptic.loss.portilla_simoncelli_loss_factory`).
+- {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` APIs were changed, replacing the range penalty with a more generic {attr}`~plenoptic.Metamer.penalty_function`. See [](how-to-penalty) for more details on how to use this new capability.
+
+You will be able to load {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition` objects saved with version 1.2 through 1.3.1 for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
+
+In order to make an object compatible with future releases, you can load it in with `plenoptic` 1.4 and re-save it.
+
+#### Penalties attribute
+
+Accompanying the new {attr}`~plenoptic.Metamer.penalty_function` attribute is the new attribute {attr}`~plenoptic.Metamer.penalties`, which tracks the penalty function output over synthesis iterations (analogous to how {attr}`~plenoptic.Metamer.losses` tracks the value of the objective function over synthesis iterations). Because this data was not tracked before this release, we are unable to produce it when loading an old object. Instead, {attr}`~plenoptic.Metamer.penalties` will be set to an appropriately-sized tensor of `torch.nan` to signify the missing values.
+
+If you called {func}`~plenoptic.Metamer.synthesize` with the optional `store_progress` argument, the metamer-in-progress was cached over synthesis with some frequency and so you can manually compute the corresponding penalty values. To do so:
+
+```python
+# initialize your Metamer object
+...
+met.load("old_metamer_object.pt")
+
+import torch
+# saved_metamer is always on cpu, so if your metamer is on the GPU, you'll need to move it there
+saved_mets = met.saved_metamer.to(met.image.device)
+penalties = torch.func.vmap(met.penalty_function)(saved_mets)
+assert len(saved_mets) == len(penalties)
+```
+
+:::{admonition} Warning
+:class: warning
+
+Note that, if `store_progress>1`, then the synthesis procedure did not cache the metamer-in-progress on every iteration and so `len(penalties) < len(met.losses)`.
+:::
+
+(The above all holds for both {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition`.)
+
+(lbfgs-penalties-bugfix)=
+##### Bugfix in plenoptic 2.1.1 for values when using LBFGS and similar optimizers
+
+:::{important}
+
+This change only affects synthesis performed with optimization algorithms that need to re-evaluate the loss function multiple times (equivalently, those that call `closure` multiple times), such as LBFGS and Conjugate Gradient. The default optimizer for all plenoptic iterative optimization synthesis methods is {class}`torch.optim.Adam`, which **is not** affected by this bugfix.
+
+See {external:ref}`optim:taking an optimization step` on the pytorch documentation for more details about `closure`.
+
+:::
+
+In plenptic 2.1.1, a bugfix was released for how the {attr}`plenoptic.Metamer.penalties`, {attr}`plenoptic.MADCompetition.penalties`, {attr}`plenoptic.MADCompetition.reference_metric_loss`, and {attr}`plenoptic.MADCompetition.optimized_metric_loss` are updated for optimizers like {external:class}`torch.optim.LBFGS` that evaluate the loss function multiple times. After this change, their values now correspond to those that can be computed post-hoc from {attr}`plenoptic.Metamer.saved_metamer` / {attr}`plenoptic.MADCompetition.saved_mad_image`, aligning them with {attr}`plenoptic.Metamer.losses` / {attr}`plenoptic.MADCompetition.losses`.
+
+If you are interested in the technical details: optimizers such as LBFGS need to evaluate the loss function multiple times per iteration. This is handled by passing the optimizer's `step` method a `closure` function, which evaluates the loss function, computes the gradients, and returns the loss value. The loss value ultimately returned by the optimizer's `step`, which we use to update the {attr}`~plenoptic.Metamer.losses` attribute, corresponds to the **first** time that `closure` is called on each iteration. However, prior to 2.1.1, the values plenoptic was using to update {attr}`~plenoptic.Metamer.penalties` and other attributes corresponded to the **last** time that `closure` was called on each iteration. This bugfix aligns the behavior of these attributes.
+
+### FutureWarning in load in plenoptic 2.1.1
+
+A small change was made to the {class}`~plenoptic.MADCompetition` APIs in `plenoptic` 2.1.1 (related to [the bugfix](lbfgs-penalties-bugfix) above). You will be able to load {class}`~plenoptic.MADCompetition` objects saved with earlier versions for some time, but doing so will raise a `FutureWarning` and this compatibility will eventually be removed.
+
+In order to make an object compatible with future releases, you can either load it in with `plenoptic` 2.1.1 and re-save it, or do the following:
+
+```python
+import torch
+old_save = torch.load("old_save.pt")
+old_save["_current_ref_metric"] = None
+old_save["_current_opt_metric"] = None
+torch.save(old_save, "old_save.pt")
+# and then load as normal
+```
+
+(raise-on-checks)=
+### `raise_on_checks`
+
+When loading synthesis objects, `plenoptic` is fairly conservative: we do not save callable objects (as that can allow for arbitrary code execution during load, which is unsafe), and thus users are required to initialize the object before loading in the saved version. Therefore, while loading, we run a variety of checks to ensure that the saved object is the same as the one doing the loading. This is to avoid a situation where e.g., a {class}`~plenoptic.Metamer` object was initialized `model=po.models.OnOff` but the saved object used `model=po.models.Gaussian`. If the user attempted to continue synthesis at that point, things would get very confused, and, even if they were just examining the completed synthesis, it's unclear what exactly correct behavior should be.
+
+However, it is possible that we're *too* conservative, and are raising errors where they don't belong. This is especially likely across plenoptic versions or if you do something simple like change the name of an object.
+
+Starting in `plenoptic` 2.0, all synthesis object load methods have the argument `raise_on_checks`. If this is set to `True` (the default), then failing any of our checks will result in an error. If it's set to `False`, then they will instead result in a warning ({class}`plenoptic.io.LoadWarning`) being raised. It is recommended that you always run your code with `raise_on_checks=True` first, only set it to `False` if you are *certain* that the saved object is the same as the loading one, and carefully inspect all {class}`~plenoptic.io.LoadWarning` raised. See the example in the docstring of {class}`~plenoptic.io.LoadWarning` for a usage example.
+
+Note that loading with `raise_on_checks=False` will still result in errors if the `dtype` or `device` are different. The proper way to handle this is to call `synth_object.to(dtype)` before loading or `synth_object.load(file, map_location=device)`, respectively. These will ensure that the object is properly moved to the correct data type or device.
+
+Finally, note that we are unable to ensure that the behavior of synthesis object's methods is unchanged. Thus, you should be especially careful if the synthesis object itself appears to have changed -- proceed at your own risk!

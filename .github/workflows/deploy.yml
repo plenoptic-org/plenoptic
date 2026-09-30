@@ -1,0 +1,121 @@
+name: deploy
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        # fetch-depth=0 is necessary for setuptools_scm to work properly with github
+        # actions, see https://github.com/pypa/setuptools_scm/issues/480 and
+        # https://stackoverflow.com/a/68959339
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+    - name: Check for plenoptic-binder branch
+      run: |
+        echo "Looking for $(git describe --tags)"
+        curl --silent --fail --head "https://github.com/plenoptic-org/plenoptic-binder/tree/$(git describe --tags)"
+    - name: Check for tag in docs version switcher
+      run: |
+        echo "Looking for $(git describe --tags)"
+        grep "$(git describe --tags)" docs/_static/version_switcher.json
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
+      with:
+        python-version: 3.x
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build
+    - name: Build package
+      run: python -m build --outdir dist/ --sdist --wheel
+    - name: Check there's only one sdist and one whl file created
+      shell: bash
+        # because the following two tests will be weird otherwise. see
+        # https://askubuntu.com/a/454568 for why this is the right way to handle
+        # it. using [[ BOOLEAN ]] || EXPR is a compact way of writing IF NOT
+        # BOOLEAN THEN EXPR in bash
+      run: |
+        [[ $(find dist/ -type f -name "*whl" -printf x | wc -c) == 1 ]] || exit 1
+        [[ $(find dist/ -type f -name "*tar.gz" -printf x | wc -c) == 1 ]] || exit 1
+    - name: Check setuptools_scm version against git tag
+      shell: bash
+        # this won't work if we use workflow dispatch, so no sense in running
+        # it.
+      if: github.event_name == 'release' && github.event.action == 'published'
+      run: |
+        # we use the error code of this comparison: =~ is bash's regex
+        # operator, so it checks whether the right side is contained in the
+        # left side. In particular, we succeed if the path of the source code
+        # ends in the most recent git tag, fail if it does not.
+        [[ "$(ls dist/*tar.gz)" =~ "-$(git describe --tags).tar.gz" ]]
+    - name: Check we can install from wheel
+        # note that this is how this works in bash (different shells might be
+        # slightly different). we've checked there's only one .whl file in an
+        # earlier step, so the bit in `$()` will expand to that single file,
+        # then we pass [dev] to get specify the optional dev dependencies, and
+        # we wrap the whole thing in quotes so bash doesn't try to interpret the
+        # square brackets but passes them directly to pip install
+      shell: bash
+      run: |
+        pip install "$(ls dist/*whl)[dev,nb]" papermill
+    - name: Run tests
+      run: |
+        pytest -n auto
+    - name: Load cached FFmpeg
+      id: cache-ffmpeg
+      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+
+      with:
+        path: |
+          /usr/local/bin/ffmpeg
+          /usr/local/bin/ffprobe
+        key: ${{ runner.os }}-ffmpeg-5.1.1
+    - name: Install FFmpeg if not cached
+      if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+      run: |
+        VERSION=6.0.1
+        RELEASE_NAME=ffmpeg-${VERSION}-amd64-static
+        wget --timeout=8 --tries=30 https://www.johnvansickle.com/ffmpeg/old-releases/${RELEASE_NAME}.tar.xz
+        tar -xf ${RELEASE_NAME}.tar.xz
+        mv ${RELEASE_NAME}/ffmpeg ${RELEASE_NAME}/ffprobe /usr/local/bin/
+        rm -rf ${RELEASE_NAME}
+    - name: Run notebooks
+      run: |
+        for file in $(find docs/ -name '*.md'); do
+           # if it doesn't have this header, then it's not an executable notebook
+           if [[ $(head -2 $file | tr '\n' ' ') == "--- jupytext: " ]]; then
+               # Set MAX_ITER to reduce the length some of the notebooks take.
+               MAX_ITER=10 jupytext --execute $file
+           fi
+        done
+    - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      with:
+        path: dist/*
+
+  publish:
+    name: Upload release to Test PyPI
+    needs: [build]
+    environment: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
+    steps:
+    - uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+      with:
+        name: artifact
+        path: dist
+    - name: Publish package to test pypi
+      if: github.event_name != 'release'
+      uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+      with:
+        repository-url: https://test.pypi.org/legacy/
+    - name: Publish package to real pypi
+      if: github.event_name == 'release' && github.event.action == 'published'
+      uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0

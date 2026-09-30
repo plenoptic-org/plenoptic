@@ -1,0 +1,62 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the preferred-citation metadata."
+title: "Plenoptic: A platform for synthesizing model-optimized visual stimuli"
+authors:
+  - family-names: Balzani
+    given-names: Edoardo
+    orcid: "https://orcid.org/0000-0002-3702-5856"
+  - family-names: Bonnen
+    given-names: Kathryn
+    orcid: "https://orcid.org/0000-0002-9210-8275"
+  - family-names: Broderick
+    given-names: William
+    orcid: "https://orcid.org/0000-0002-8999-9003"
+  - family-names: Dettki
+    given-names: Hanna
+    orcid: "https://orcid.org/0009-0006-7237-6121"
+  - family-names: De Wulf
+    given-names: Wolf
+    orcid: "https://orcid.org/0000-0002-0219-3120"
+  - family-names: Duong
+    given-names: Lyndon
+    orcid: "https://orcid.org/0000-0003-0575-1033"
+  - family-names: Fiquet
+    given-names: Pierre-Étienne
+    orcid: "https://orcid.org/0000-0002-8301-2220"
+  - family-names: Herrera-Esposito
+    given-names: Daniel
+    orcid: "https://orcid.org/0000-0001-8181-9787"
+  - family-names: Meyer
+    given-names: Emily E
+    orcid: "https://orcid.org/0009-0004-1302-1510"
+  - family-names: Parthasarathy
+    given-names: Nikhil
+    orcid: "https://orcid.org/0000-0003-2572-6492"
+  - family-names: Simoncelli
+    given-names: Eero
+    orcid: "https://orcid.org/0000-0002-1206-527X"
+  - family-names: Venditto
+    given-names: Sarah Jo
+    orcid: "https://orcid.org/0000-0003-4681-0538"
+  - family-names: Viejo
+    given-names: Guillaume
+    orcid: "https://orcid.org/0000-0002-2450-7397"
+  - family-names: Yerxa
+    given-names: Thomas
+    orcid: "https://orcid.org/0000-0003-2687-0816"
+  - family-names: Zhao
+    given-names: Xinyuan
+    orcid: "https://orcid.org/0000-0003-1770-631X"
+  - family-names: Zhu
+    given-names: Raffles Xingqi
+    orcid: "https://orcid.org/0009-0006-1930-8912"
+doi: 10.5281/zenodo.10151130
+repository-code: "https://github.com/plenoptic-org/plenoptic"
+url: "https://docs.plenoptic.org/"
+license: MIT
+keywords:
+  - neuroscience
+  - visual information processing
+  - machine learning
+  - explainability
+  - computational models

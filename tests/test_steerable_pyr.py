@@ -1,19 +1,37 @@
-import os.path as op
-import imageio
-import torch
-import plenoptic as po
-import matplotlib.pyplot as plt
-import pytest
-import pyrtools as pt
-import numpy as np
+from contextlib import nullcontext as does_not_raise
+from contextlib import suppress
 from itertools import product
-from plenoptic.tools.data import to_numpy
-from conftest import DEVICE, DATA_DIR, DTYPE
 
+import numpy as np
+import pyrtools as pt
+import pytest
+import torch
+
+import plenoptic as po
+from conftest import DEVICE, IMG_DIR
+
+ALL_SPYRS = [
+    f"{h}-{o}-{c}-{d}-{tf}"
+    for h, o, c, d, tf in product(
+        ["auto", 1, 3, 4, 5],
+        [1, 2, 3],
+        [True, False],
+        [True, False],
+        [True, False],
+    )
+] + [
+    # pyramid with order=0 can only be non-complex
+    f"{h}-0-False-{d}-{tf}"
+    for h, d, tf in product(
+        ["auto", 1, 3, 4, 5],
+        [True, False],
+        [True, False],
+    )
+]
 
 
 def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
-    '''
+    """
     function that checks if two sets of pyramid coefficients are the same
     We set an absolute and relative tolerance and the following function checks if
     abs(coeff1-coeff2) <= atol + rtol*abs(coeff1)
@@ -21,264 +39,699 @@ def check_pyr_coeffs(coeff_1, coeff_2, rtol=1e-3, atol=1e-3):
     coeff1: first dictionary of pyramid coefficients
     coeff2: second dictionary of pyramid coefficients
     Both coeffs must obviously have the same number of scales, orientations etc.
-    '''
+    """
+    # The keys of the coefficients from plenoptic and pyrtools differ now: pyrtool's
+    # keys are tuples indexing both the scale and orientation, while plenoptic's keys
+    # are int indexing the scale (and then the coefficients have an extra dimension for
+    # the orientations). the following functions convert back and forth between the two,
+    # for testing purposes
 
-    for k in coeff_1.keys():
+    def pyrtools_to_plenoptic(pyr_coeffs, plen_coeffs):
+        keys = [k for k in plen_coeffs if not isinstance(k, str)]
+        n_ori = plen_coeffs[keys[0]].shape[2]
+        coeffs = {
+            k: np.stack([pyr_coeffs[(k, i)] for i in range(n_ori)], axis=0).squeeze()
+            for k in keys
+        }
+        for k in ["residual_highpass", "residual_lowpass"]:
+            coeffs[k] = pyr_coeffs[k]
+        return coeffs
+
+    def plenoptic_to_pyrtools(plen_coeffs, pyr_coeffs):
+        keys = [k for k in plen_coeffs if not isinstance(k, str)]
+        n_ori = plen_coeffs[keys[0]].shape[2]
+        coeffs = {(k, i): plen_coeffs[k][:, :, i] for i in range(n_ori) for k in keys}
+        for k in ["residual_highpass", "residual_lowpass"]:
+            coeffs[k] = plen_coeffs[k]
+        return coeffs
+
+    # three possibilities: coeff_1 comes from pyrtools
+    if any([isinstance(k, tuple) for k in coeff_1]):
+        coeff_1_to_2 = pyrtools_to_plenoptic
+    # ... coeff_2 comes from pyrtools
+    elif any([isinstance(k, tuple) for k in coeff_2]):
+        coeff_1_to_2 = plenoptic_to_pyrtools
+    # ... or both come from plenoptic, in which case we don't have to do anything
+    else:
+
+        def coeff_1_to_2(coeffs_1, coeffs_2):
+            return coeffs_1
+
+    coeff_1 = coeff_1_to_2(coeff_1, coeff_2)
+    for k in coeff_1:
+        print(k, coeff_1[k].shape, coeff_2[k].shape)
         if torch.is_tensor(coeff_1[k]):
-            coeff_1_np = to_numpy(coeff_1[k].squeeze())
+            coeff_1_np = po.to_numpy(coeff_1[k].squeeze())
         else:
             coeff_1_np = coeff_1[k]
         if torch.is_tensor(coeff_2[k]):
-            coeff_2_np = to_numpy(coeff_2[k].squeeze())
+            coeff_2_np = po.to_numpy(coeff_2[k].squeeze())
         else:
             coeff_2_np = coeff_2[k]
-        
-        
+
         np.testing.assert_allclose(coeff_1_np, coeff_2_np, rtol=rtol, atol=atol)
 
 
 def check_band_energies(coeff_1, coeff_2, rtol=1e-4, atol=1e-4):
-    '''
+    """
     function that checks if the energy in each band of two pyramids are the same.
     We set an absolute and relative tolerance and the function checks for each band if
     abs(coeff_1-coeff_2) <= atol + rtol*abs(coeff_1)
     Args:
     coeff_1: first dictionary of torch tensors corresponding to each band
     coeff_2: second dictionary of torch tensors corresponding to each band
-    '''
+    """
 
     for i in range(len(coeff_1.items())):
         k1 = list(coeff_1.keys())[i]
         k2 = list(coeff_2.keys())[i]
-        band_1 = to_numpy(coeff_1[k1])
-        band_2 = to_numpy(coeff_2[k2])
+        band_1 = po.to_numpy(coeff_1[k1])
+        band_2 = po.to_numpy(coeff_2[k2])
         band_1 = band_1.squeeze()
         band_2 = band_2.squeeze()
 
-        np.testing.assert_allclose(np.sum(np.abs(band_1)**2),np.sum(np.abs(band_2)**2), rtol=rtol, atol=atol)
+        np.testing.assert_allclose(
+            np.sum(np.abs(band_1) ** 2),
+            np.sum(np.abs(band_2) ** 2),
+            rtol=rtol,
+            atol=atol,
+        )
 
 
-def check_parseval(im ,coeff, rtol=1e-4, atol=0):
-    '''
+def check_parseval(im, coeff, rtol=1e-4, atol=0):
+    """
     function that checks if the pyramid is parseval, i.e. energy of coeffs is
     the same as the energy in the original image.
     Args:
-    input image: image stimulus as torch.Tensor
+    input image: image stimulus as ``torch.Tensor``
     coeff: dictionary of torch tensors corresponding to each band
-    '''
+    """
     total_band_energy = 0
-    im_energy = np.sum(to_numpy(im)**2)
-    for k,v in coeff.items():
-        band = to_numpy(coeff[k])
+    im_energy = np.sum(po.to_numpy(im) ** 2)
+    for k, v in coeff.items():
+        band = po.to_numpy(coeff[k])
         band = band.squeeze()
 
-        total_band_energy += np.sum(np.abs(band)**2)
+        total_band_energy += np.sum(np.abs(band) ** 2)
 
     np.testing.assert_allclose(total_band_energy, im_energy, rtol=rtol, atol=atol)
 
 
-class TestSteerablePyramid(object):
-
-    @pytest.fixture(scope='class', params=[f'{im}-{shape}' for im in ['einstein', 'curie']
-                                           for shape in [None, 224, '128_1', '128_2']])
-    def img(self, request):
-        im, shape = request.param.split('-')
-        img = po.load_images(op.join(DATA_DIR, f'256/{im}.pgm')).to(DEVICE)
-        if shape == '224':
+class TestSteerablePyramid:
+    @pytest.fixture(
+        scope="class",
+        params=[
+            f"{im}-{shape}"
+            for im in ["einstein", "curie"]
+            for shape in [None, 224, "128_1", "128_2"]
+        ],
+    )
+    @classmethod
+    def img(cls, request):
+        im, shape = request.param.split("-")
+        img = po.load_images(IMG_DIR / "256" / f"{im}.pgm").to(DEVICE)
+        if shape == "224":
             img = img[..., :224, :224]
-        elif shape == '128_1':
+        elif shape == "128_1":
             img = img[..., :128, :]
-        elif shape == '128_2':
+        elif shape == "128_2":
             img = img[..., :128]
         return img
 
-    @pytest.fixture(scope='class', params=[f'{shape}' for shape in [None, 224, '128_1', '128_2' ]])
-    def multichannel_img(self, request):
+    @pytest.fixture(
+        scope="class",
+        params=[f"{shape}" for shape in [None, 224, "128_1", "128_2"]],
+    )
+    @classmethod
+    def multichannel_img(cls, color_img, request):
         shape = request.param
-        img = po.load_images(op.join(DATA_DIR, f'512/flowers.jpg'), as_gray=False).to(DEVICE)
-        if shape == '224':
-            img = img[..., :224, :224]
-        elif shape == '128_1':
-            img = img[..., :128, :]
-        elif shape == '128_2':
-            img = img[..., :128]
-        return img
+        if shape == "224":
+            color_img = color_img[..., :224, :224]
+        elif shape == "128_1":
+            color_img = color_img[..., :128, :]
+        elif shape == "128_2":
+            color_img = color_img[..., :128]
+        return color_img
 
     # WARNING: because this fixture requires the img fixture above, it should
     # only be used in tests that also use the img fixture. That is, tests where
     # you want to test both the einstein and curie images, as well as the
     # different sizes. Otherwise, this will generate a bunch of tests that use
     # the spyr with those strange shapes
-    @pytest.fixture(scope='class')
-    def spyr(self, img, request):
-        height, order, is_complex, downsample, tightframe = request.param.split('-')
-        try:
+    @pytest.fixture(scope="class")
+    @classmethod
+    def spyr(cls, img, request):
+        height, order, is_complex, downsample, tightframe = request.param.split("-")
+
+        with suppress(ValueError):
+            # then height = 'auto' and that's fine
             height = int(height)
-        except ValueError:
-            # then height = 'auto', and that's fine
-            pass
         # need to use eval to get from 'False' (string) to False (bool);
         # bool('False') == True, annoyingly enough
-        pyr = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], height, int(order), is_complex=eval(is_complex),
-                                              downsample=eval(downsample), tight_frame=eval(tightframe))
+        pyr = po.process.SteerablePyramidFreq(
+            img.shape[-2:],
+            height,
+            int(order),
+            is_complex=eval(is_complex),
+            downsample=eval(downsample),
+            tight_frame=eval(tightframe),
+        )
         pyr.to(DEVICE)
         return pyr
 
-    @pytest.fixture(scope='class')
-    def spyr_multi(self, multichannel_img, request):
-        height, order, is_complex, downsample, tightframe = request.param.split('-')
-        try:
+    @pytest.fixture(scope="class")
+    @classmethod
+    def spyr_multi(cls, multichannel_img, request):
+        height, order, is_complex, downsample, tightframe = request.param.split("-")
+
+        with suppress(ValueError):
+            # then height = 'auto' and that's fine
             height = int(height)
-        except ValueError:
-            # then height = 'auto', and that's fine
-            pass
         # need to use eval to get from 'False' (string) to False (bool);
         # bool('False') == True, annoyingly enough
-        pyr = po.simul.Steerable_Pyramid_Freq(multichannel_img.shape[-2:], height, int(order), is_complex=eval(is_complex),
-                                              downsample=eval(downsample), tight_frame=eval(tightframe))
+        pyr = po.process.SteerablePyramidFreq(
+            multichannel_img.shape[-2:],
+            height,
+            int(order),
+            is_complex=eval(is_complex),
+            downsample=eval(downsample),
+            tight_frame=eval(tightframe),
+        )
         pyr.to(DEVICE)
         return pyr
 
-    # can't use one of the spyr fixtures here because we need to instantiate separately for each of these shapes
-    @pytest.mark.parametrize("height", ['auto', 1, 3, 4, 5])
-    @pytest.mark.parametrize("order", [1, 2, 3])
-    @pytest.mark.parametrize('is_complex', [True, False])
-    @pytest.mark.parametrize("im_shape", [None, (255, 255), (256, 128), (128, 256), (255, 256),
-                                          (256, 255)])
+    # can't use one of the spyr fixtures here because we need to instantiate separately
+    # for each of these shapes
+    @pytest.mark.parametrize("height", ["auto", 1, 3, 4, 5])
+    @pytest.mark.parametrize("order", [0, 1, 2, 3])
+    @pytest.mark.parametrize("is_complex", [True, False])
+    @pytest.mark.parametrize(
+        "im_shape",
+        [None, (255, 255), (256, 128), (128, 256), (255, 256), (256, 255)],
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:Reconstruction will not be perfect with odd-sized images:UserWarning"
+    )
     def test_pyramid(self, basic_stim, height, order, is_complex, im_shape):
         if im_shape is not None:
-            basic_stim = basic_stim[..., :im_shape[0], :im_shape[1]]
-        spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=height, order=order,
-                                              is_complex=is_complex).to(DEVICE)
-        spc(basic_stim)
+            basic_stim = basic_stim[..., : im_shape[0], : im_shape[1]]
+        expectation = does_not_raise()
+        if order == 0 and is_complex:
+            expectation = pytest.raises(
+                ValueError, match="Complex pyramid cannot have order=0"
+            )
+        elif im_shape is not None and any([im_shape[0] % 2, im_shape[1] % 2]):
+            expectation = pytest.warns(
+                Warning, match="Reconstruction will not be perfect"
+            )
+        with expectation:
+            spc = po.process.SteerablePyramidFreq(
+                basic_stim.shape[-2:],
+                height=height,
+                order=order,
+                is_complex=is_complex,
+            ).to(DEVICE)
+            spc(basic_stim)
 
-    @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-{d}-True' for h, o, c, d in product(['auto', 1, 2, 3],
-                                                                                        [1, 2, 3],
-                                                                                        [True, False],
-                                                                                        [True, False])],
-                             indirect=True)
+    @pytest.mark.parametrize(
+        "spyr",
+        [
+            f"{h}-{o}-{c}-{d}-True"
+            for h, o, c, d in product(
+                ["auto", 1, 2, 3], [1, 2, 3], [True, False], [True, False]
+            )
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-{d}-True"
+            for h, d in product(["auto", 1, 2, 3], [True, False])
+        ],
+        indirect=True,
+    )
     def test_tight_frame(self, img, spyr):
         pyr_coeffs = spyr.forward(img)
         check_parseval(img, pyr_coeffs)
 
-    @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-True-{t}' for h, o, c, t in product([3, 4, 5],
-                                                                                      [1, 2, 3],
-                                                                                      [True, False],[True, False])],
-                             indirect=True)
+    @pytest.mark.parametrize(
+        "spyr",
+        [
+            f"{h}-{o}-{c}-True-{t}"
+            for h, o, c, t in product(
+                [3, 4, 5], [1, 2, 3], [True, False], [True, False]
+            )
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-True-{t}"
+            for h, t in product([3, 4, 5], [True, False])
+        ],
+        indirect=True,
+    )
     def test_not_downsample(self, img, spyr):
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
-        # height has k[0]==0)
-        height = max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
+        # height has k==0)
+        height = max([k for k in pyr_coeffs if isinstance(k, int)]) + 1
         # couldn't come up with a way to get this with fixtures, so we
         # instantiate it each time.
-        spyr_not_downsample = po.simul.Steerable_Pyramid_Freq(img.shape[-2:], height, spyr.order,
-                                                              is_complex=spyr.is_complex,
-                                                              downsample=False, tight_frame=spyr.tight_frame)
+        spyr_not_downsample = po.process.SteerablePyramidFreq(
+            img.shape[-2:],
+            height,
+            spyr.order,
+            is_complex=spyr.is_complex,
+            downsample=False,
+            tight_frame=spyr.tight_frame,
+        )
         spyr_not_downsample.to(DEVICE)
         pyr_coeffs_nd = spyr_not_downsample.forward(img)
         check_band_energies(pyr_coeffs, pyr_coeffs_nd)
 
-    @pytest.mark.parametrize("scales", [[0], [1], [0, 1, 2], [2], [], ['residual_highpass', 'residual_lowpass'],
-                                        ['residual_highpass', 0, 1, 'residual_lowpass']])
-    @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-False-False' for h, o, c in product([3, 4, 5],
-                                                                                        [1, 2, 3],
-                                                                                        [True, False])],
-                             indirect=True)
+    @pytest.mark.parametrize(
+        "scales",
+        [
+            [0],
+            [1],
+            [0, 1, 2],
+            [2],
+            None,
+            ["residual_highpass", "residual_lowpass"],
+            ["residual_highpass", 0, 1, "residual_lowpass"],
+        ],
+    )
+    @pytest.mark.parametrize(
+        "spyr",
+        [
+            f"{h}-{o}-{c}-False-False"
+            for h, o, c in product([3, 4, 5], [1, 2, 3], [True, False])
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-False-False"
+            for h in [3, 4, 5]
+        ],
+        indirect=True,
+    )
     def test_pyr_to_tensor(self, img, spyr, scales, rtol=1e-12, atol=1e-12):
         pyr_coeff_dict = spyr.forward(img, scales=scales)
-        if spyr.is_complex:
-            split_complex = [True, False]
-        else:
-            split_complex = [False]
-        for val in split_complex:
-            pyr_tensor, pyr_info = spyr.convert_pyr_to_tensor(pyr_coeff_dict, split_complex=val)
-            pyr_coeff_dict2 = spyr.convert_tensor_to_pyr(pyr_tensor, *pyr_info)
-            check_pyr_coeffs(pyr_coeff_dict, pyr_coeff_dict2)
+        split_complex = [True, False] if spyr.is_complex else [False]
 
-    @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-True-False' for h, o, c in product([3, 4, 5],
-                                                                                       [1, 2, 3],
-                                                                                       [True, False])],
-                             indirect=True)
+        for val in split_complex:
+            pyr_tensor, pyr_info = spyr.convert_pyr_to_tensor(
+                pyr_coeff_dict, split_complex=val
+            )
+            i = 0
+            for key, v in pyr_coeff_dict.items():
+                if isinstance(key, str):
+                    assert torch.equal(pyr_tensor[:, i].real, v[:, 0])
+                    i += 1
+                elif val:
+                    for k in range(spyr.num_orientations):
+                        assert torch.equal(pyr_tensor[:, i + k * 2], v[:, 0, k].real)
+                        assert torch.equal(
+                            pyr_tensor[:, i + k * 2 + 1], v[:, 0, k].imag
+                        )
+                    i += 2 * spyr.num_orientations
+                else:
+                    for k in range(spyr.num_orientations):
+                        assert torch.equal(pyr_tensor[:, i + k], v[:, 0, k])
+                    i += spyr.num_orientations
+            pyr_coeff_dict2 = spyr.convert_tensor_to_pyr(pyr_tensor, *pyr_info)
+            check_pyr_coeffs(pyr_coeff_dict, pyr_coeff_dict2, rtol, atol)
+
+    @pytest.mark.parametrize(
+        "scales",
+        [
+            [0],
+            [1],
+            [0, 1, 2],
+            [2],
+            None,
+            ["residual_highpass", "residual_lowpass"],
+            ["residual_highpass", 0, 1, "residual_lowpass"],
+        ],
+    )
+    @pytest.mark.parametrize(
+        "spyr_multi",
+        [
+            f"{h}-{o}-{c}-False-False"
+            for h, o, c in product([3, 4, 5], [1, 2, 3], [True, False])
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-False-False"
+            for h in [3, 4, 5]
+        ],
+        indirect=True,
+    )
+    def test_pyr_to_tensor_multichannel(
+        self, multichannel_img, spyr_multi, scales, rtol=1e-12, atol=1e-12
+    ):
+        pyr_coeff_dict = spyr_multi.forward(multichannel_img, scales=scales)
+        split_complex = [True, False] if spyr_multi.is_complex else [False]
+
+        for val in split_complex:
+            pyr_tensor, pyr_info = spyr_multi.convert_pyr_to_tensor(
+                pyr_coeff_dict, split_complex=val
+            )
+            # number of channels in pyr_tensor that correspond to each input channel
+            chan_len = pyr_tensor.shape[1] // multichannel_img.shape[1]
+            for chan in range(multichannel_img.shape[1]):
+                i = 0
+                for key, v in pyr_coeff_dict.items():
+                    if isinstance(key, str):
+                        j = 1
+                        assert torch.equal(
+                            pyr_tensor[:, i + chan_len * chan].real, v[:, chan]
+                        )
+                    elif val:
+                        j = spyr_multi.num_orientations
+                        for k in range(j):
+                            assert torch.equal(
+                                pyr_tensor[:, i + k * 2 + chan_len * chan],
+                                v[:, chan, k].real,
+                            )
+                            assert torch.equal(
+                                pyr_tensor[:, i + k * 2 + 1 + chan_len * chan],
+                                v[:, chan, k].imag,
+                            )
+                        j *= 2
+                    else:
+                        j = spyr_multi.num_orientations
+                        for k in range(j):
+                            assert torch.equal(
+                                pyr_tensor[:, i + k + chan_len * chan], v[:, chan, k]
+                            )
+                    i += j
+            pyr_coeff_dict2 = spyr_multi.convert_tensor_to_pyr(pyr_tensor, *pyr_info)
+            check_pyr_coeffs(pyr_coeff_dict, pyr_coeff_dict2, rtol, atol)
+
+    @pytest.mark.parametrize(
+        "spyr",
+        ALL_SPYRS,
+        indirect=True,
+    )
+    def test_residuals_real_valued(self, img, spyr):
+        pyr_coeff_dict = spyr.forward(img)
+        if pyr_coeff_dict["residual_highpass"].dtype.is_complex:
+            raise ValueError("Somehow residual_highpass is complex!")
+        if pyr_coeff_dict["residual_lowpass"].dtype.is_complex:
+            raise ValueError("Somehow residual_lowpass is complex!")
+        if (not spyr.downsample) and spyr.is_complex:
+            pyr_tensor, pyr_info = spyr.convert_pyr_to_tensor(
+                pyr_coeff_dict,
+                split_complex=False,
+            )
+            # residuals get cast to complex as part of the conversion to tensor (if the
+            # pyramid is complex and we set split_complex=False), but still should have
+            # no imaginary component
+            if not torch.equal(
+                pyr_tensor[:, 0].imag, torch.zeros_like(pyr_tensor[:, 0])
+            ):
+                raise ValueError(
+                    "Somehow residual_highpass has non-zero imaginary values after"
+                    " pyr_to_tensor!"
+                )
+            if not torch.equal(
+                pyr_tensor[:, -1].imag, torch.zeros_like(pyr_tensor[:, -1])
+            ):
+                raise ValueError(
+                    "Somehow residual_lowpass has non-zero imaginary values after "
+                    "pyr_to_tensor!"
+                )
+
+    @pytest.mark.parametrize(
+        "spyr",
+        [
+            f"{h}-{o}-{c}-True-False"
+            for h, o, c in product([3, 4, 5], [1, 2, 3], [True, False])
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-True-False"
+            for h in [3, 4, 5]
+        ],
+        indirect=True,
+    )
     def test_torch_vs_numpy_pyr(self, img, spyr):
         torch_spc = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
-        # height has k[0]==0)
-        height = max([k[0] for k in torch_spc.keys() if isinstance(k[0], int)]) + 1
-        pyrtools_sp = pt.pyramids.SteerablePyramidFreq(to_numpy(img.squeeze()), height=height, order=spyr.order,
-                                                       is_complex=spyr.is_complex)
+        # height has k==0)
+        height = max([k for k in torch_spc if isinstance(k, int)]) + 1
+        pyrtools_sp = pt.pyramids.SteerablePyramidFreq(
+            po.to_numpy(img.squeeze()),
+            height=height,
+            order=spyr.order,
+            is_complex=spyr.is_complex,
+        )
         pyrtools_spc = pyrtools_sp.pyr_coeffs
         check_pyr_coeffs(pyrtools_spc, torch_spc)
 
-    @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-{d}-{tf}' for h, o, c, d, tf in
-                                      product(['auto', 1, 3, 4, 5], [1, 2, 3],
-                                              [True, False], [True,False], [True,False])],
-                             indirect=True)
+    @pytest.mark.parametrize(
+        "spyr",
+        ALL_SPYRS,
+        indirect=True,
+    )
     def test_complete_recon(self, img, spyr):
         pyr_coeffs = spyr.forward(img)
-        recon = to_numpy(spyr.recon_pyr(pyr_coeffs))
-        np.testing.assert_allclose(recon, to_numpy(img), rtol=1e-4, atol=1e-4)
+        recon = po.to_numpy(spyr.recon_pyr(pyr_coeffs))
+        np.testing.assert_allclose(recon, po.to_numpy(img), rtol=1e-4, atol=1e-4)
+        recon = po.to_numpy(spyr.recon_pyr(pyr_coeffs))
+        # should be able to reconstruct from corresponding coefficients if we haven't
+        # called forward yet
+        spyr_copy = po.process.SteerablePyramidFreq(
+            img.shape[-2:],
+            spyr.num_scales,
+            spyr.order,
+            is_complex=spyr.is_complex,
+            downsample=spyr.downsample,
+            tight_frame=spyr.tight_frame,
+        )
+        spyr_copy.to(DEVICE)
+        np.testing.assert_array_equal(
+            recon, po.to_numpy(spyr_copy.recon_pyr(pyr_coeffs))
+        )
 
-    @pytest.mark.parametrize('spyr_multi', [f'{h}-{o}-{c}-{d}-{tf}' for h, o, c, d, tf in
-                                      product(['auto', 1, 3, 4, 5], [1, 2, 3],
-                                              [True, False], [True,False], [True,False])],
-                             indirect=True)
+    @pytest.mark.parametrize(
+        "spyr_multi",
+        ALL_SPYRS,
+        indirect=True,
+    )
     def test_complete_recon_multi(self, multichannel_img, spyr_multi):
         pyr_coeffs = spyr_multi.forward(multichannel_img)
-        recon = to_numpy(spyr_multi.recon_pyr(pyr_coeffs))
-        np.testing.assert_allclose(recon, to_numpy(multichannel_img), rtol=1e-4, atol=1e-4)
+        recon = po.to_numpy(spyr_multi.recon_pyr(pyr_coeffs))
+        np.testing.assert_allclose(
+            recon, po.to_numpy(multichannel_img), rtol=1e-4, atol=1e-4
+        )
 
-    @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-{d}-{tf}' for h, o, c, d, tf in
-                                      product(['auto'], [3], [True, False],
-                                              [True, False], [True, False])],
-                             indirect=True)
+    @pytest.mark.parametrize(
+        "spyr",
+        [
+            f"{h}-{o}-{c}-{d}-{tf}"
+            for h, o, c, d, tf in product(
+                ["auto"], [3], [True, False], [True, False], [True, False]
+            )
+        ],
+        indirect=True,
+    )
     def test_partial_recon(self, img, spyr):
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
-        # height has k[0]==0)
-        height = max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
-        pt_spyr = pt.pyramids.SteerablePyramidFreq(to_numpy(img.squeeze()), height=height, order=spyr.order,
-                                                   is_complex=spyr.is_complex)
-        recon_levels = [[0], [1,3], [1,3,4]]
-        recon_bands = [[1],[1,3]]
-        for levels, bands in product(['all'] + recon_levels, ['all'] + recon_bands):
-            po_recon = to_numpy(spyr.recon_pyr(pyr_coeffs, levels, bands).squeeze())
+        # height has k==0)
+        height = max([k for k in pyr_coeffs if isinstance(k, int)]) + 1
+        pt_spyr = pt.pyramids.SteerablePyramidFreq(
+            po.to_numpy(img.squeeze()),
+            height=height,
+            order=spyr.order,
+            is_complex=spyr.is_complex,
+        )
+        recon_levels = [[0], [1, 3], [1, 3, 4]]
+        recon_bands = [[1], [1, 3]]
+        for levels, bands in product(["all"] + recon_levels, ["all"] + recon_bands):
+            po_recon = po.to_numpy(spyr.recon_pyr(pyr_coeffs, levels, bands).squeeze())
             pt_recon = pt_spyr.recon_pyr(levels, bands)
-            np.testing.assert_allclose(po_recon, pt_recon,rtol=1e-4, atol=1e-4)
+            np.testing.assert_allclose(po_recon, pt_recon, rtol=1e-4, atol=1e-4)
 
-    @pytest.mark.parametrize('spyr', [f'{h}-{o}-{c}-True-False' for h, o, c in product(['auto', 1, 3, 4],
-                                                                                       [1, 2, 3],
-                                                                                       [True, False])],
-                             indirect=True)
+    @pytest.mark.parametrize(
+        "spyr",
+        [
+            f"{h}-{o}-{c}-True-False"
+            for h, o, c in product(["auto", 1, 3, 4], [1, 2, 3], [True, False])
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-True-False"
+            for h in [3, 4, 5]
+        ],
+        indirect=True,
+    )
     def test_recon_match_pyrtools(self, img, spyr, rtol=1e-6, atol=1e-6):
         # this should fail if and only if test_complete_recon does, but
         # may as well include it just in case
         pyr_coeffs = spyr.forward(img)
         # need to add 1 because our heights are 0-indexed (i.e., the lowest
-        # height has k[0]==0)
-        height = max([k[0] for k in pyr_coeffs.keys() if isinstance(k[0], int)]) + 1
-        pt_pyr = pt.pyramids.SteerablePyramidFreq(to_numpy(img.squeeze()), height=height, order=spyr.order,
-                                                  is_complex=spyr.is_complex)
+        # height has k==0)
+        height = max([k for k in pyr_coeffs if isinstance(k, int)]) + 1
+        pt_pyr = pt.pyramids.SteerablePyramidFreq(
+            po.to_numpy(img.squeeze()),
+            height=height,
+            order=spyr.order,
+            is_complex=spyr.is_complex,
+        )
         po_recon = po.to_numpy(spyr.recon_pyr(pyr_coeffs).squeeze())
         pt_recon = pt_pyr.recon_pyr()
         np.testing.assert_allclose(po_recon, pt_recon, rtol=rtol, atol=atol)
 
-    @pytest.mark.parametrize("scales", [[0], [4], [0, 1, 2], [0, 3, 4],
-                                        ['residual_highpass', 'residual_lowpass'],
-                                        ['residual_highpass', 0, 1, 'residual_lowpass']])
-    @pytest.mark.parametrize('spyr', [f'auto-3-{c}-{d}-False' for c, d in product([True, False],
-                                                                                  [True, False])],
-                             indirect=True)
+    @pytest.mark.parametrize(
+        "scales",
+        [
+            [0],
+            [4],
+            [0, 1, 2],
+            [0, 3, 4],
+            ["residual_highpass", "residual_lowpass"],
+            ["residual_highpass", 0, 1, "residual_lowpass"],
+        ],
+    )
+    @pytest.mark.parametrize(
+        "spyr",
+        [f"auto-3-{c}-{d}-False" for c, d in product([True, False], [True, False])],
+        indirect=True,
+    )
     def test_scales_arg(self, img, spyr, scales):
         pyr_coeffs = spyr.forward(img)
         reduced_pyr_coeffs = spyr.forward(img, scales)
         for k, v in reduced_pyr_coeffs.items():
             if (v != pyr_coeffs[k]).any():
-                raise Exception("Reduced pyr_coeffs should be same as original, but at least key "
-                                f"{k} is not")
+                raise Exception(
+                    "Reduced pyr_coeffs should be same as original, but at"
+                    f" least key {k} is not"
+                )
 
         # recon_pyr should always fail
-        with pytest.raises(Exception):
-            spyr.recon_pyr()
-        with pytest.raises(Exception):
-            spyr.recon_pyr(scales)
+        with pytest.raises(ValueError, match="scale.* not in pyr_coeffs"):
+            spyr.recon_pyr(reduced_pyr_coeffs)
+
+    @pytest.mark.parametrize("height", range(-1, 8))
+    def test_height_values(self, img, height):
+        if height < 0:
+            expectation = pytest.raises(
+                ValueError, match="Height must be a non-negative int"
+            )
+        elif height > np.log2(min(img.shape[-2:])) - 2:
+            expectation = pytest.raises(
+                ValueError, match="Cannot build pyramid higher than"
+            )
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            pyr = po.process.SteerablePyramidFreq(img.shape[-2:], height=height).to(
+                DEVICE
+            )
+            pyr(img)
+
+    @pytest.mark.parametrize("order", range(-1, 17))
+    def test_order_values(self, img, order):
+        if order in [-1, 16]:
+            expectation = pytest.raises(
+                ValueError, match="order must be an integer in the range"
+            )
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            pyr = po.process.SteerablePyramidFreq(img.shape[-2:], order=order).to(
+                DEVICE
+            )
+            pyr(img)
+
+    @pytest.mark.parametrize("order", range(0, 16))
+    def test_buffers(self, order):
+        pyr = po.process.SteerablePyramidFreq((256, 256), order=order)
+        buffers = [k for k, _ in pyr.named_buffers()]
+        names = ["lo0mask", "hi0mask"]
+        for s in range(pyr.num_scales):
+            names.extend(
+                [
+                    f"_himasks_scale_{s}",
+                    f"_lomasks_scale_{s}",
+                    f"_anglemasks_scale_{s}",
+                    f"_anglemasks_recon_scale_{s}",
+                ]
+            )
+        assert len(buffers) == len(names), (
+            "pyramid doesn't have the right number of buffers!"
+        )
+        assert set(buffers) == set(names), "pyramid doesn't have the right buffers!"
+
+    @pytest.mark.filterwarnings(
+        "ignore:Reconstruction will not be perfect with odd-sized images:UserWarning"
+    )
+    def test_img_shape_error(self, curie_img):
+        pyr = po.process.SteerablePyramidFreq((255, 255)).to(DEVICE)
+        with pytest.raises(
+            ValueError, match="Input tensor height/width.*does not match"
+        ):
+            pyr(curie_img)
+
+    @pytest.mark.parametrize("shape_type", ["tuple", "list", "torch.Size", "floats"])
+    def test_img_shape_cast(self, curie_img, shape_type):
+        # image shape will most likely be passed as tuple, list, or torch.Size objects,
+        # all of those should work. also, if they're floats that can be parsed as ints.
+        if shape_type == "tuple":
+            shape = (256, 256)
+        elif shape_type == "list":
+            shape = [256, 256]
+        elif shape_type == "torch.Size":
+            shape = curie_img.shape[-2:]
+        elif shape_type == "floats":
+            shape = (256.0, 256.0)
+        pyr = po.process.SteerablePyramidFreq(shape).to(DEVICE)
+        pyr(curie_img)
+
+    @pytest.mark.parametrize(
+        "error_type", ["length", "length_tensor", "floats", "other_dtype"]
+    )
+    def test_img_shape_error_init(self, curie_img, error_type):
+        if error_type == "length":
+            shape = (1, 1, 256, 256)
+            expect_str = "image_shape must be a tuple of length 2"
+        elif error_type == "length_tensor":
+            shape = curie_img.shape
+            expect_str = "image_shape must be a tuple of length 2"
+        elif error_type == "floats":
+            shape = (256.5, 256.6)
+            expect_str = "image_shape must be castable to ints"
+        elif error_type == "other_dtype":
+            shape = ("hi", "there")
+            expect_str = "image_shape must be castable to ints"
+        with pytest.raises(ValueError, match=expect_str):
+            po.process.SteerablePyramidFreq(shape)
+
+    @pytest.mark.parametrize(
+        "spyr",
+        [
+            f"{h}-{o}-{c}-{d}-{tf}"
+            for h, o, c, d, tf in product(
+                ["auto", 1, 2, 3],
+                [1, 2, 3],
+                [True, False],
+                [True, False],
+                [True, False],
+            )
+        ]
+        + [
+            # pyramid with order=0 can only be non-complex
+            f"{h}-0-False-{d}-{tf}"
+            for h, d, tf in product(["auto", 1, 2, 3], [True, False], [True, False])
+        ],
+        indirect=True,
+    )
+    def test_steer_coeffs(self, img, spyr):
+        pyr_coeffs = spyr(img)
+        if spyr.is_complex:
+            expectation = pytest.raises(
+                AssertionError, match="steering only implemented"
+            )
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            spyr.steer_coeffs(pyr_coeffs, torch.linspace(0, np.pi, 32))

@@ -6,87 +6,100 @@ on:
   pull_request:
     branches:
     - main
+# want pooch to raise an error if I've updated the file and forgot to update the
+# hash.
+env:
+  POOCH_ALLOW_UPDATES: false
+
+concurrency:
+  # from https://stackoverflow.com/a/72408109/4659293
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
 
 jobs:
-  # based on https://slashgear.github.io/how-to-split-test-by-folder-with-github-action/
-  get_test_scripts:
+  check_imports:
     runs-on: ubuntu-latest
-    outputs:
-      script: ${{ steps.get-scripts.outputs.script }}
+    name: Eager import to check they're all working correctly
     steps:
-    - uses: actions/checkout@v3
-    - id: get-scripts
-        # we cd into tests so that the output of this is just e.g.,
-        # "test_tools.py", not "tests/test_tools.py", because we want to run
-        # pytest from inside the tests/ dir for coverage to work properly (note
-        # this is different than for the notebooks)
-      run: "echo \"script=$(cd tests/ && ls test*py | jq -R -s -c 'split(\"\\n\")[:-1]')\"\
-        \ >> $GITHUB_OUTPUT\n"
-  get_notebooks:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - name: Install Python 3
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
+      with:
+        python-version: '3.12'
+        cache: pip
+        cache-dependency-path: setup.py
+    - name: Install dependencies
+      run: |
+        # using the --upgrade and --upgrade-strategy eager flags ensures that
+        # pip will always install the latest allowed version of all
+        # dependencies, to make sure the cache doesn't go stale
+        pip install --upgrade --upgrade-strategy eager .[docs] --extra-index-url https://download.pytorch.org/whl/cpu
+    - name: Check improts
+      run: |
+        EAGER_IMPORT=1 python -c "import plenoptic"
+  notebooks_cpu:
     runs-on: ubuntu-latest
-    outputs:
-      notebook: ${{ steps.get-notebooks.outputs.nb }}
-    steps:
-    - uses: actions/checkout@v3
-    - id: get-notebooks
-      run: "echo \"nb=$(ls examples/*ipynb | jq -R -s -c 'split(\"\\n\")[:-1]')\"\
-        \ >> $GITHUB_OUTPUT\n"
-  notebooks:
-    runs-on: ubuntu-latest
-    needs: [get_notebooks]
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9, '3.10']
-        notebook: ${{fromJson(needs.get_notebooks.outputs.notebook)}}
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
       fail-fast: false
     name: Execute notebooks
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
         cache-dependency-path: setup.py
-    - name: Setup FFmpeg
-      uses: FedericoCarboni/setup-ffmpeg@v2
+    - name: Load cached FFmpeg
+      id: cache-ffmpeg
+      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+
+      with:
+        path: |
+          /usr/local/bin/ffmpeg
+          /usr/local/bin/ffprobe
+        key: ${{ runner.os }}-ffmpeg-5.1.1
+    - name: Install FFmpeg if not cached
+      if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+      run: |
+        VERSION=6.0.1
+        RELEASE_NAME=ffmpeg-${VERSION}-amd64-static
+        wget --timeout=8 --tries=30 https://www.johnvansickle.com/ffmpeg/old-releases/${RELEASE_NAME}.tar.xz
+        tar -xf ${RELEASE_NAME}.tar.xz
+        mv ${RELEASE_NAME}/ffmpeg ${RELEASE_NAME}/ffprobe /usr/local/bin/
+        rm -rf ${RELEASE_NAME}
     - name: Install dependencies
-      # nbclient 0.5.5 is the first version that includes jupyter execute
       run: |
-        pip install --upgrade --upgrade-strategy eager .
-        pip install jupyter ipywidgets
-        pip install "nbclient>=0.5.5"
-    - name: Download TID2013 dataset
-      if: ${{ matrix.notebook == 'examples/04_Perceptual_distance.ipynb' }}
-      run: |
-        mkdir -p data
-        wget https://osf.io/7nfkz/download -O ./data/tid2013.rar
-        7z x ./data/tid2013.rar -o./data/tid2013/
+        pip install --upgrade --upgrade-strategy eager .[nb] --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Run notebooks
-      if: ${{ matrix.notebook != 'examples/Demo_Eigendistortion.ipynb' }}
-      run: jupyter execute ${{ matrix.notebook }}.ipynb --kernel_name=python3
-    - name: Run notebooks
-      if: ${{ matrix.notebook == 'examples/Demo_Eigendistortion.ipynb' }}
-      # this notebook takes much longer than the rest (if run to completion,
-      # ~1hr on a laptop, more than 5 hours on the Github runners). We use
-      # papermill's parameters to reduce the max number of steps for
-      # eigendistortion synthesis here (we want to test that each cell runs,
-      # but we don't need synthesis to go to completion)
       run: |
-        pip install --upgrade --upgrade-strategy eager papermill
-        papermill ${{ matrix.notebook }} examples/Demo_Eigendistortion_output.ipynb -p max_steps_frontend 10 -p max_steps_vgg 10 -k python3 --cwd examples/
-  tests:
+        for file in $(find docs/ -name '*.md'); do
+           # if it doesn't have this header, then it's not an executable notebook
+           if [[ $(head -2 $file | tr '\n' ' ') == "--- jupytext: " ]]; then
+               # Set MAX_ITER to reduce the length some of the notebooks take.
+               MAX_ITER=10 jupytext --execute $file
+           fi
+        done
+  doctests:
     runs-on: ubuntu-latest
-    needs: [get_test_scripts]
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9, '3.10']
-        test_script: ${{fromJson(needs.get_test_scripts.outputs.script)}}
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
       fail-fast: false
-    name: Run pytest scripts
+    name: Run doctests
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
     - name: Install Python 3
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -96,67 +109,109 @@ jobs:
         # using the --upgrade and --upgrade-strategy eager flags ensures that
         # pip will always install the latest allowed version of all
         # dependencies, to make sure the cache doesn't go stale
-        pip install --upgrade --upgrade-strategy eager .
-        pip install --upgrade --upgrade-strategy eager pytest-cov
-
-    - name: Run tests with pytest
-      if: ${{ matrix.test_script == 'test_display.py' }}
-        # we have two cores on the linux github action runners:
-        # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
+        pip install --upgrade --upgrade-strategy eager .[test] --extra-index-url https://download.pytorch.org/whl/cpu
+    - name: Run doctests with pytest
       run: |
-        pip install --upgrade --upgrade-strategy eager pytest-xdist
-        # for some reason, need to run this in the tests/ dir in order to get
-        # coverage to work (I couldn't get an analogous .coveragerc working in
-        # the root directory)
-        cd tests/ && pytest -n 2 --cov=plenoptic ${{ matrix.test_script }}
-        # generate the xml file and move it to root dir for codecov
-        coverage xml -o ../coverage.xml
-    - name: Run tests with pytest
-      if: ${{ matrix.test_script != 'test_display.py' }}
-        # only test_display should parallelize across the cores, the others get
-        # slowed down by it
-      run: |
-        # for some reason, need to run this in the tests/ dir in order to get
-        # coverage to work (I couldn't get an analogous .coveragerc working in
-        # the root directory)
-        cd tests/ && pytest --cov=plenoptic ${{ matrix.test_script }}
-        # generate the xml file and move it to root dir for codecov
-        coverage xml -o ../coverage.xml
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@858dd794fbb81941b6d60b0dca860878cba60fa9 # v3.1.1
-  all_tutorials_in_docs:
+        # 1. ignore warnings in doctests, since otherwise pytest fails (except
+        #    for our custom LoadWarning, which we do some specific working with).
+        # 2. for some reason, much quicker when run in sequence (-n 0) rather
+        #    than parallel.
+        # 3. import-mode=importlib works for doctests (avoiding an import path
+        #    error for src/plenoptic/conftest.py) but not for our regular tests
+        pytest -n 0 --import-mode=importlib --doctest-continue-on-failure --doctest-modules src/ -W "ignore" -W 'default::plenoptic.io.LoadWarning'
+  check_sphinx_references:
     runs-on: ubuntu-latest
-    name: Check that all tutorial notebooks are included in docs
-    needs: [get_notebooks]
+    name: Check sphinx references
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - name: Install Python 3
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
+      with:
+        python-version: '3.14'
+        cache: pip
+        cache-dependency-path: setup.py
+    - name: Install dependencies
+      run: |
+        # using the --upgrade and --upgrade-strategy eager flags ensures that
+        # pip will always install the latest allowed version of all
+        # dependencies, to make sure the cache doesn't go stale
+        pip install --upgrade --upgrade-strategy eager .[docs] --extra-index-url https://download.pytorch.org/whl/cpu
+    - name: Build docs (no notebooks)
+      run: |
+        # this is needed to create the sphinx obj.inv file. suppress warning
+        # from mystnb glue (because the notebooks aren't running, none of the
+        # glue'd variables have values)
+        make -C docs html O="-D suppress_warnings='mystnb.glue'"
+        python linting/check_markdown.py docs/
+  tests:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        notebook: ${{fromJson(needs.get_notebooks.outputs.notebook)}}
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
+      fail-fast: false
+    name: Run pytest scripts
     steps:
-    - uses: actions/checkout@v3
-    - name: Check for file
-      shell: bash
-      run: if [[ -z "$(grep ${{ matrix.notebook }} docs/tutorials/*nblink)" ]] ; then
-        exit 1; fi
-  no_extra_nblinks:
-    runs-on: ubuntu-latest
-    name: Check that we don't have any extra nblink files
-    steps:
-    - uses: actions/checkout@v3
-    - name: Check same number of nblink and notebooks
-      shell: bash
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - name: Install Python 3
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: pip
+        cache-dependency-path: setup.py
+    - name: Install dependencies
       run: |
-        n_nblink=0; for file in docs/tutorials/*nblink; do let "n_nblink+=1"; done;
-        n_ipynb=0; for file in examples/*ipynb; do let "n_ipynb+=1"; done;
-        if [[ $n_nblink != $n_ipynb ]]; then exit 1; fi;
+        # using the --upgrade and --upgrade-strategy eager flags ensures that
+        # pip will always install the latest allowed version of all
+        # dependencies, to make sure the cache doesn't go stale
+        pip install --upgrade --upgrade-strategy eager .[test] --extra-index-url https://download.pytorch.org/whl/cpu
+    - name: Run tests with pytest
+      run: |
+        pytest --cov-report xml
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+  check_urls:
+    runs-on: ubuntu-latest
+    name: Check all urls are valid
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - uses: urlstechie/urlchecker-action@b643b43e2ac605e1475331c7b67247d242b7dce4 # 0.0.34
+      with:
+        file_types: .md,.py,.rst
+        print_all: false
+        timeout: 5
+        retry_count: 3
+        exclude_urls: https://github.com/github-username/plenoptic.git
+  validate_switcher_json:
+    runs-on: ubuntu-latest
+    name: Validate version_switcher.json
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - run: |
+        cat docs/_static/version_switcher.json | jq
+
 
   check:
     if: always()
     needs:
-    - notebooks
+    - notebooks_cpu
+    - doctests
     - tests
+    - check_urls
+    - check_sphinx_references
     runs-on: ubuntu-latest
     steps:
     - name: Decide whether all tests and notebooks succeeded
-      uses: re-actors/alls-green@afee1c1eac2a506084c274e9c02c8e0687b48d9e # v1.2.2
+      uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # v1.2.2
       with:
         jobs: ${{ toJSON(needs) }}

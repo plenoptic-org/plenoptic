@@ -1,280 +1,481 @@
-# necessary to avoid issues with animate:
-# https://github.com/matplotlib/matplotlib/issues/10287/
+import functools
+import inspect
+import logging
+from contextlib import nullcontext as does_not_raise
+
+import einops
 import matplotlib as mpl
-# use the html backend, so we don't need to have ffmpeg
-mpl.rcParams['animation.writer'] = 'html'
-mpl.use('agg')
-import pytest
 import matplotlib.pyplot as plt
-import plenoptic as po
-import torch
-import os.path as op
 import numpy as np
 import pyrtools as pt
-from conftest import DEVICE, DATA_DIR
+import pytest
+import torch
+
+import plenoptic as po
+from conftest import DEVICE, IMG_DIR, ColorModel
+
+# use the html backend, so we don't need to have ffmpeg
+mpl.rcParams["animation.writer"] = "html"
+# necessary to avoid issues with animate:
+# https://github.com/matplotlib/matplotlib/issues/10287/
+mpl.use("agg")
 
 
-class TestDisplay(object):
+# following https://github.com/scverse/scanpy/issues/1662
+@pytest.fixture(autouse=True)
+def close_figures_on_teardown():
+    yield
+    plt.close("all")
 
-    def test_update_plot_line(self):
+
+# inspired by https://stackoverflow.com/a/59745629/4659293
+@pytest.fixture()
+def no_logs_warnings(caplog):
+    # want to raise an error if there's any logged warnings (or worse). this is intended
+    # to catch matplotlib warning about clipping RGB, which we handle ourselves
+    yield
+    warnings_and_more = [
+        record
+        for record in caplog.get_records("call")
+        if record.levelno >= logging.WARNING
+    ]
+    assert not warnings_and_more
+
+
+class TestDisplay:
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_line(self, rescale_ylim):
         x = np.linspace(0, 100)
         y1 = np.random.rand(*x.shape)
         y2 = np.random.rand(*x.shape)
         fig, ax = plt.subplots(1, 1)
-        ax.plot(x, y1, '-o', label='hi')
-        po.tools.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
+        ax.plot(x, y1, "-o", label="hi")
+        orig_ylim = ax.get_ylim()
+        po.plot.update_plot(
+            ax,
+            torch.as_tensor(y2, device=DEVICE).reshape(1, 1, len(x)),
+            rescale_ylim=rescale_ylim,
+        )
+        updated_ylim = ax.get_ylim()
         assert len(ax.lines) == 1, "Too many lines were plotted!"
         _, ax_y = ax.lines[0].get_data()
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update line correctly!")
-        plt.close('all')
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
 
-    @pytest.mark.parametrize('how', ['dict', 'tensor'])
-    def test_update_plot_line_multi_axes(self, how):
+    @pytest.mark.parametrize("how", ["dict", "tensor"])
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_line_multi_axes(self, how, rescale_ylim):
         x = np.linspace(0, 100)
         y1 = np.random.rand(*x.shape)
         y2 = np.random.rand(2, *y1.shape)
-        if how == 'tensor':
-            y2 = torch.tensor(y2).reshape(1, 2, *y1.shape)
-        elif how == 'dict':
-            y2 = {i: torch.tensor(y2[i]).reshape(1, 1, *y1.shape) for i in range(2)}
+        if how == "tensor":
+            y2 = torch.as_tensor(y2, device=DEVICE).reshape(1, 2, *y1.shape)
+        elif how == "dict":
+            y2 = {
+                i: torch.as_tensor(y2[i], device=DEVICE).reshape(1, 1, *y1.shape)
+                for i in range(2)
+            }
         fig, axes = plt.subplots(1, 2)
+        orig_ylim = []
         for ax in axes:
-            ax.plot(x, y1, '-o', label='hi')
-        po.tools.update_plot(axes, y2)
+            ax.plot(x, y1, "-o", label="hi")
+            orig_ylim.append(ax.get_ylim())
+        po.plot.update_plot(axes, y2, rescale_ylim=rescale_ylim)
         for i, ax in enumerate(axes):
             assert len(ax.lines) == 1, "Too many lines were plotted!"
             _, ax_y = ax.lines[0].get_data()
-            if how == 'tensor':
-                y_check = y2[0, i]
-            else:
-                y_check = y2[i]
-            if not np.allclose(ax_y, y_check):
-                raise Exception("Didn't update line correctly!")
-        plt.close('all')
+            y_check = y2[0, i] if how == "tensor" else y2[i]
 
-    @pytest.mark.parametrize('how', ['dict-single', 'dict-multi', 'tensor'])
-    def test_update_plot_line_multi_channel(self, how):
-        if how == 'dict-single':
-            n_data = 1
+            if not np.allclose(ax_y, po.to_numpy(y_check)):
+                raise Exception("Didn't update line correctly!")
+
+            updated_ylim = ax.get_ylim()
+            if rescale_ylim and np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
+            if not rescale_ylim and not np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
+
+    @pytest.mark.parametrize(
+        "model", ["frontend.LinearNonlinear.nograd"], indirect=True
+    )
+    @pytest.mark.parametrize("figsize", [None, (5, 5), (5.0, 5.0), (10, 5)])
+    @pytest.mark.parametrize("ax", [False, True])
+    def test_plot_representation_figsize(self, model, figsize, ax, einstein_img):
+        expectation = does_not_raise()
+        if ax:
+            fig, ax = plt.subplots(1, 1)
+            if figsize is not None:
+                expectation = pytest.raises(ValueError, match="figsize can't be set")
         else:
-            n_data = 2
+            ax = None
+        with expectation:
+            axes = po.plot.plot_representation(
+                data=model(einstein_img), ax=ax, figsize=figsize
+            )
+            axes[0].figure
+
+    @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
+    def test_plot_representation_illegal_direction(self, model, einstein_img):
+        with pytest.raises(ValueError, match="Don't know how to handle"):
+            po.plot.plot_representation(
+                data=model(einstein_img), axes_direction="bad_choice"
+            )
+
+    @pytest.mark.parametrize("model", ["frontend.OnOff.nograd"], indirect=True)
+    def test_plot_representation_direction(self, model, einstein_img):
+        vert_axes = po.plot.plot_representation(
+            data=model(einstein_img), axes_direction="vertical"
+        )
+        vert_axes = np.asarray([ax.get_position() for ax in vert_axes])
+        horiz_axes = po.plot.plot_representation(
+            data=model(einstein_img), axes_direction="horizontal"
+        )
+        horiz_axes = np.asarray([ax.get_position() for ax in horiz_axes])
+        # not sure why the order switches, but still
+        assert np.allclose(vert_axes[1], horiz_axes[0])
+        assert not np.allclose(vert_axes[0], horiz_axes[1])
+
+    @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_line_multi_channel(self, how, rescale_ylim):
+        n_data = 1 if how == "dict-single" else 2
+
         x = np.linspace(0, 100)
         y1 = np.random.rand(2, *x.shape)
         y2 = np.random.rand(n_data, *x.shape)
-        if how == 'tensor':
-            y2 = torch.tensor(y2).reshape(1, 2, len(x))
-        elif how == 'dict-multi':
-            y2 = {i: torch.tensor(y2[i]).reshape(1, 1, len(x)) for i in range(2)}
-        elif how == 'dict-single':
-            y2 = {0: torch.tensor(y2[0]).reshape(1, 1, len(x))}
+        if how == "tensor":
+            y2 = torch.as_tensor(y2, device=DEVICE).reshape(1, 2, len(x))
+        elif how == "dict-multi":
+            y2 = {
+                i: torch.as_tensor(y2[i], device=DEVICE).reshape(1, 1, len(x))
+                for i in range(2)
+            }
+        elif how == "dict-single":
+            y2 = {0: torch.as_tensor(y2[0], device=DEVICE).reshape(1, 1, len(x))}
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.plot(x, y1[i], label=i)
-        po.tools.update_plot(ax, y2)
+        orig_ylim = ax.get_ylim()
+        po.plot.update_plot(ax, y2, rescale_ylim=rescale_ylim)
         assert len(ax.lines) == 2, "Incorrect number of lines were plotted!"
         for i in range(2):
             _, ax_y = ax.lines[i].get_data()
-            if how == 'tensor':
+            if how == "tensor":
                 y_check = y2[0, i]
-            elif how == 'dict-multi':
+            elif how == "dict-multi":
                 y_check = y2[i]
-            elif how == 'dict-single':
+            elif how == "dict-single":
                 y_check = {0: y2[0], 1: y1[1]}[i]
-            if not np.allclose(ax_y, y_check):
+            if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update line correctly!")
-        plt.close('all')
+        updated_ylim = ax.get_ylim()
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
 
-    def test_update_plot_stem(self):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_stem(self, rescale_ylim):
         x = np.linspace(0, 100)
         y1 = np.random.rand(*x.shape)
         y2 = np.random.rand(*x.shape)
         fig, ax = plt.subplots(1, 1)
-        ax.stem(x, y1, '-o', label='hi', use_line_collection=True)
-        po.tools.update_plot(ax, torch.tensor(y2).reshape(1, 1, len(x)))
+        ax.stem(x, y1, "-o", label="hi")
+        orig_ylim = ax.get_ylim()
+        po.plot.update_plot(
+            ax,
+            torch.as_tensor(y2, device=DEVICE).reshape(1, 1, len(x)),
+            rescale_ylim=rescale_ylim,
+        )
         assert len(ax.containers) == 1, "Too many stems were plotted!"
         ax_y = ax.containers[0].markerline.get_ydata()
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update stems correctly!")
-        plt.close('all')
+        updated_ylim = ax.get_ylim()
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
 
-    @pytest.mark.parametrize('how', ['dict', 'tensor'])
-    def test_update_plot_stem_multi_axes(self, how):
+    @pytest.mark.parametrize("how", ["dict", "tensor"])
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_stem_multi_axes(self, how, rescale_ylim):
         x = np.linspace(0, 100)
         y1 = np.random.rand(*x.shape)
         y2 = np.random.rand(2, *y1.shape)
-        if how == 'tensor':
-            y2 = torch.tensor(y2).reshape(1, 2, *y1.shape)
-        elif how == 'dict':
-            y2 = {i: torch.tensor(y2[i]).reshape(1, 1, *y1.shape) for i in range(2)}
+        if how == "tensor":
+            y2 = torch.as_tensor(y2, device=DEVICE).reshape(1, 2, *y1.shape)
+        elif how == "dict":
+            y2 = {
+                i: torch.as_tensor(y2[i], device=DEVICE).reshape(1, 1, *y1.shape)
+                for i in range(2)
+            }
         fig, axes = plt.subplots(1, 2)
+        orig_ylim = []
         for ax in axes:
-            ax.stem(x, y1, label='hi', use_line_collection=True)
-        po.tools.update_plot(axes, y2)
+            ax.stem(x, y1, label="hi")
+            orig_ylim.append(ax.get_ylim())
+        po.plot.update_plot(axes, y2, rescale_ylim=rescale_ylim)
         for i, ax in enumerate(axes):
             assert len(ax.containers) == 1, "Too many stems were plotted!"
             ax_y = ax.containers[0].markerline.get_ydata()
-            if how == 'tensor':
-                y_check = y2[0, i]
-            else:
-                y_check = y2[i]
-            if not np.allclose(ax_y, y_check):
-                raise Exception("Didn't update stem correctly!")
-        plt.close('all')
+            y_check = y2[0, i] if how == "tensor" else y2[i]
 
-    @pytest.mark.parametrize('how', ['dict-single', 'dict-multi', 'tensor'])
-    def test_update_plot_stem_multi_channel(self, how):
-        if how == 'dict-single':
-            n_data = 1
-        else:
-            n_data = 2
+            if not np.allclose(ax_y, po.to_numpy(y_check)):
+                raise Exception("Didn't update stem correctly!")
+            updated_ylim = ax.get_ylim()
+            if rescale_ylim and np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
+            if not rescale_ylim and not np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
+
+    @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_stem_multi_channel(self, how, rescale_ylim):
+        n_data = 1 if how == "dict-single" else 2
+
         x = np.linspace(0, 100)
         y1 = np.random.rand(2, *x.shape)
         y2 = np.random.rand(n_data, *x.shape)
-        if how == 'tensor':
-            y2 = torch.tensor(y2).reshape(1, 2, len(x))
-        elif how == 'dict-multi':
-            y2 = {i: torch.tensor(y2[i]).reshape(1, 1, len(x)) for i in range(2)}
-        elif how == 'dict-single':
-            y2 = {0: torch.tensor(y2[0]).reshape(1, 1, len(x))}
+        if how == "tensor":
+            y2 = torch.as_tensor(y2, device=DEVICE).reshape(1, 2, len(x))
+        elif how == "dict-multi":
+            y2 = {
+                i: torch.as_tensor(y2[i], device=DEVICE).reshape(1, 1, len(x))
+                for i in range(2)
+            }
+        elif how == "dict-single":
+            y2 = {0: torch.as_tensor(y2[0], device=DEVICE).reshape(1, 1, len(x))}
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
-            ax.stem(x, y1[i], label=i, use_line_collection=True)
-        po.tools.update_plot(ax, y2)
+            ax.stem(x, y1[i], label=str(i))
+        orig_ylim = ax.get_ylim()
+        po.plot.update_plot(ax, y2, rescale_ylim=rescale_ylim)
         assert len(ax.containers) == 2, "Incorrect number of stems were plotted!"
         for i in range(2):
             ax_y = ax.containers[i].markerline.get_ydata()
-            if how == 'tensor':
+            if how == "tensor":
                 y_check = y2[0, i]
-            elif how == 'dict-multi':
+            elif how == "dict-multi":
                 y_check = y2[i]
-            elif how == 'dict-single':
+            elif how == "dict-single":
                 y_check = {0: y2[0], 1: y1[1]}[i]
-            if not np.allclose(ax_y, y_check):
+            if not np.allclose(ax_y, po.to_numpy(y_check)):
                 raise Exception("Didn't update stem correctly!")
-        plt.close('all')
+        updated_ylim = ax.get_ylim()
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
 
-    def test_update_plot_image(self):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_image(self, rescale_ylim):
         y1 = np.random.rand(1, 1, 100, 100)
         y2 = np.random.rand(*y1.shape)
         fig = pt.imshow(y1.squeeze())
         ax = fig.axes[0]
-        po.tools.update_plot(ax, torch.tensor(y2))
+        orig_ylim = ax.get_ylim()
+        po.plot.update_plot(
+            ax, torch.as_tensor(y2, device=DEVICE), rescale_ylim=rescale_ylim
+        )
         assert len(ax.images) == 1, "Too many images were plotted!"
         ax_y = ax.images[0].get_array().data
         if not np.allclose(ax_y, y2):
             raise Exception("Didn't update image correctly!")
-        plt.close('all')
+        updated_ylim = ax.get_ylim()
+        if not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot should never change imshow ylim!")
 
-    @pytest.mark.parametrize('how', ['dict', 'tensor'])
-    def test_update_plot_image_multi_axes(self, how):
+    @pytest.mark.parametrize("how", ["dict", "tensor"])
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_image_multi_axes(self, how, rescale_ylim):
         y1 = np.random.rand(1, 2, 100, 100)
         y2 = np.random.rand(1, 2, 100, 100)
-        if how == 'tensor':
-            y2 = torch.tensor(y2)
-        elif how == 'dict':
-            y2 = {i: torch.tensor(y2[0, i]).reshape(1, 1, 100, 100) for i in range(2)}
+        if how == "tensor":
+            y2 = torch.as_tensor(y2, device=DEVICE)
+        elif how == "dict":
+            y2 = {
+                i: torch.as_tensor(y2[0, i], device=DEVICE).reshape(1, 1, 100, 100)
+                for i in range(2)
+            }
         fig = pt.imshow([y for y in y1.squeeze()])
-        po.tools.update_plot(fig.axes, y2)
+        orig_ylim = fig.axes[0].get_ylim()
+        po.plot.update_plot(fig.axes, y2, rescale_ylim=rescale_ylim)
         for i, ax in enumerate(fig.axes):
             assert len(ax.images) == 1, "Too many lines were plotted!"
             ax_y = ax.images[0].get_array().data
-            if how == 'tensor':
-                y_check = y2[0, i]
-            else:
-                y_check = y2[i]
-            if not np.allclose(ax_y, y_check):
-                raise Exception("Didn't update image correctly!")
-        plt.close('all')
 
-    def test_update_plot_scatter(self):
+            y_check = y2[0, i] if how == "tensor" else y2[i]
+
+            if not np.allclose(ax_y, po.to_numpy(y_check)):
+                raise Exception("Didn't update image correctly!")
+        updated_ylim = fig.axes[0].get_ylim()
+        if not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot should never change imshow ylim!")
+
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_scatter(self, rescale_ylim):
         x1 = np.random.rand(100)
         x2 = np.random.rand(100)
         y1 = np.random.rand(*x1.shape)
         y2 = np.random.rand(*x2.shape)
         fig, ax = plt.subplots(1, 1)
         ax.scatter(x1, y1)
-        data = torch.stack((torch.tensor(x2), torch.tensor(y2)), -1).reshape(1, 1, len(x2), 2)
-        po.tools.update_plot(ax, data)
+        orig_ylim = ax.get_ylim()
+        data = torch.stack(
+            (torch.as_tensor(x2, device=DEVICE), torch.as_tensor(y2, device=DEVICE)), -1
+        ).reshape(1, 1, len(x2), 2)
+        po.plot.update_plot(ax, data, rescale_ylim=rescale_ylim)
         assert len(ax.collections) == 1, "Too many scatter plots created"
         ax_data = ax.collections[0].get_offsets()
-        if not np.allclose(ax_data, data):
+        if not np.allclose(ax_data, po.to_numpy(data)):
             raise Exception("Didn't update points of the scatter plot correctly!")
-        plt.close('all')
+        updated_ylim = ax.get_ylim()
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
 
-    @pytest.mark.parametrize('how', ['dict', 'tensor'])
-    def test_update_plot_scatter_multi_axes(self, how):
+    @pytest.mark.parametrize("how", ["dict", "tensor"])
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_scatter_multi_axes(self, how, rescale_ylim):
         x1 = np.random.rand(100)
         x2 = np.random.rand(2, 100)
         y1 = np.random.rand(*x1.shape)
         y2 = np.random.rand(2, *y1.shape)
-        if how == 'tensor':
-            data = torch.stack((torch.tensor(x2), torch.tensor(y2)), -1).reshape(1, 2, len(x1), 2)
-        elif how == 'dict':
-            data = {i: torch.stack((torch.tensor(x2[i]), torch.tensor(y2[i])), -1).reshape(1, 1, len(x1), 2) for i in range(2)}
+        if how == "tensor":
+            data = torch.stack(
+                (
+                    torch.as_tensor(x2, device=DEVICE),
+                    torch.as_tensor(y2, device=DEVICE),
+                ),
+                -1,
+            ).reshape(1, 2, len(x1), 2)
+        elif how == "dict":
+            data = {
+                i: torch.stack(
+                    (
+                        torch.as_tensor(x2[i], device=DEVICE),
+                        torch.as_tensor(y2[i], device=DEVICE),
+                    ),
+                    -1,
+                ).reshape(1, 1, len(x1), 2)
+                for i in range(2)
+            }
         fig, axes = plt.subplots(1, 2)
+        orig_ylim = []
         for ax in axes:
             ax.scatter(x1, y1)
-        po.tools.update_plot(axes, data)
+            orig_ylim.append(ax.get_ylim())
+        po.plot.update_plot(axes, data, rescale_ylim=rescale_ylim)
         for i, ax in enumerate(axes):
             assert len(ax.collections) == 1, "Too many scatter plots created"
             ax_data = ax.collections[0].get_offsets()
-            if how == 'tensor':
-                data_check = data[0, i]
-            else:
-                data_check = data[i]
-            if not np.allclose(ax_data, data_check):
-                raise Exception("Didn't update points of the scatter plot correctly!")
-        plt.close('all')
+            data_check = data[0, i] if how == "tensor" else data[i]
 
-    @pytest.mark.parametrize('how', ['dict-single', 'dict-multi', 'tensor'])
-    def test_update_plot_scatter_multi_channel(self, how):
-        if how == 'dict-single':
-            n_data = 1
-        else:
-            n_data = 2
+            if not np.allclose(ax_data, po.to_numpy(data_check)):
+                raise Exception("Didn't update points of the scatter plot correctly!")
+            updated_ylim = ax.get_ylim()
+            if rescale_ylim and np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
+            if not rescale_ylim and not np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
+
+    @pytest.mark.parametrize("how", ["dict-single", "dict-multi", "tensor"])
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_scatter_multi_channel(self, how, rescale_ylim):
+        n_data = 1 if how == "dict-single" else 2
         x1 = np.random.rand(2, 100)
         x2 = np.random.rand(n_data, 100)
         y1 = np.random.rand(*x1.shape)
         y2 = np.random.rand(*x2.shape)
-        if how == 'tensor':
-            data = torch.stack((torch.tensor(x2), torch.tensor(y2)), -1).reshape(1, 2, x1.shape[-1], 2)
-        elif how == 'dict-multi':
-            data = {i: torch.stack((torch.tensor(x2[i]), torch.tensor(y2[i])), -1).reshape(1, 1, x1.shape[-1], 2) for i in range(2)}
-        elif how == 'dict-single':
-            data = {0: torch.stack((torch.tensor(x2[0]), torch.tensor(y2[0])), -1).reshape(1, 1, x1.shape[-1], 2)}
+        if how == "tensor":
+            data = torch.stack(
+                (
+                    torch.as_tensor(x2, device=DEVICE),
+                    torch.as_tensor(y2, device=DEVICE),
+                ),
+                -1,
+            ).reshape(1, 2, x1.shape[-1], 2)
+        elif how == "dict-multi":
+            data = {
+                i: torch.stack(
+                    (
+                        torch.as_tensor(x2[i], device=DEVICE),
+                        torch.as_tensor(y2[i], device=DEVICE),
+                    ),
+                    -1,
+                ).reshape(1, 1, x1.shape[-1], 2)
+                for i in range(2)
+            }
+        elif how == "dict-single":
+            data = {
+                0: torch.stack(
+                    (
+                        torch.as_tensor(x2[0], device=DEVICE),
+                        torch.as_tensor(y2[0], device=DEVICE),
+                    ),
+                    -1,
+                ).reshape(1, 1, x1.shape[-1], 2)
+            }
         fig, ax = plt.subplots(1, 1)
         for i in range(2):
             ax.scatter(x1[i], y1[i], label=i)
-        po.tools.update_plot(ax, data)
+        orig_ylim = ax.get_ylim()
+        po.plot.update_plot(ax, data, rescale_ylim=rescale_ylim)
         assert len(ax.collections) == 2, "Incorrect number of scatter plots created"
         for i in range(2):
             ax_data = ax.collections[i].get_offsets()
-            if how == 'tensor':
+            if how == "tensor":
                 data_check = data[0, i]
-            elif how == 'dict-multi':
+            elif how == "dict-multi":
                 data_check = data[i]
-            elif how == 'dict-single':
-                tmp = torch.stack((torch.tensor(x1), torch.tensor(y1)), -1)
+            elif how == "dict-single":
+                tmp = torch.stack(
+                    (
+                        torch.as_tensor(x1, device=DEVICE),
+                        torch.as_tensor(y1, device=DEVICE),
+                    ),
+                    -1,
+                )
                 data_check = {0: data[0], 1: tmp[1]}[i]
-            if not np.allclose(ax_data, data_check):
+            if not np.allclose(ax_data, po.to_numpy(data_check)):
                 raise Exception("Didn't update points of the scatter plot correctly!")
+        updated_ylim = ax.get_ylim()
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
 
-    def test_update_plot_mixed_multi_axes(self):
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_mixed_multi_axes(self, rescale_ylim):
         x1 = np.linspace(0, 1, 100)
         x2 = np.random.rand(2, 100)
         y1 = np.random.rand(*x1.shape)
         y2 = np.random.rand(*x2.shape)
-        data = {0: torch.stack((torch.tensor(x2[0]), torch.tensor(y2[0])),
-                               -1).reshape(1, 1, x2.shape[-1], 2)}
-        data[1] = torch.tensor(y2[1]).reshape(1, 1, x2.shape[-1])
+        data = {
+            0: torch.stack(
+                (
+                    torch.as_tensor(x2[0], device=DEVICE),
+                    torch.as_tensor(y2[0], device=DEVICE),
+                ),
+                -1,
+            ).reshape(1, 1, x2.shape[-1], 2)
+        }
+        data[1] = torch.as_tensor(y2[1], device=DEVICE).reshape(1, 1, x2.shape[-1])
         fig, axes = plt.subplots(1, 2)
+        orig_ylim = []
         for i, ax in enumerate(axes):
             if i == 0:
                 ax.scatter(x1, y1)
             else:
                 ax.plot(x1, y1)
-        po.tools.update_plot(axes, data)
+            orig_ylim.append(ax.get_ylim())
+        po.plot.update_plot(axes, data, rescale_ylim=rescale_ylim)
         for i, ax in enumerate(axes):
             if i == 0:
                 assert len(ax.collections) == 1, "Too many scatter plots created"
@@ -284,24 +485,27 @@ class TestDisplay(object):
                 assert len(ax.collections) == 0, "Too many scatter plots created"
                 assert len(ax.lines) == 1, "Too many lines created"
                 _, ax_data = ax.lines[0].get_data()
-            if not np.allclose(ax_data, data[i]):
+            if not np.allclose(ax_data, po.to_numpy(data[i])):
                 raise Exception("Didn't update points of the scatter plot correctly!")
-        plt.close('all')
+            updated_ylim = ax.get_ylim()
+            if rescale_ylim and np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
+            if not rescale_ylim and not np.equal(orig_ylim[i], updated_ylim).all():
+                raise ValueError("Update plot didn't rescale_ylim successfully!")
 
-    @pytest.mark.parametrize('as_rgb', [True, False])
-    @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
-    @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
-    @pytest.mark.parametrize('is_complex', [False, 'logpolar', 'rectangular', 'polar'])
-    @pytest.mark.parametrize('mini_im', [True, False])
+    @pytest.mark.parametrize("as_rgb", [True, False])
+    @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
+    @pytest.mark.parametrize("batch_idx", [None, 0, [0, 1]])
+    @pytest.mark.parametrize("is_complex", [False, "logpolar", "rectangular", "polar"])
+    @pytest.mark.parametrize("mini_im", [True, False])
     # test the edge cases where we try to plot a tensor that's (b, c, 1, w) or
     # (b, c, h, 1)
-    @pytest.mark.parametrize('one_dim', [False, 'h', 'w'])
-    def test_imshow(self, as_rgb, channel_idx, batch_idx, is_complex, mini_im,
-                    one_dim):
-        fails = False
-        if one_dim == 'h':
+    @pytest.mark.parametrize("one_dim", [False, "h", "w"])
+    def test_imshow(self, as_rgb, channel_idx, batch_idx, is_complex, mini_im, one_dim):
+        expectation = does_not_raise()
+        if one_dim == "h":
             im_shape = [2, 4, 1, 5]
-        elif one_dim == 'w':
+        elif one_dim == "w":
             im_shape = [2, 4, 5, 1]
         else:
             im_shape = [2, 4, 5, 5]
@@ -323,15 +527,21 @@ class TestDisplay(object):
                 n_axes += 8
             # same number of batches and channels, then double the height and
             # width
-            shape = im_shape[:2] + [i*2 for i in im_shape[-2:]]
+            shape = im_shape[:2] + [i * 2 for i in im_shape[-2:]]
             im = [im, torch.rand(shape, dtype=dtype)]
         if not is_complex:
             # need to change this to one of the acceptable strings
-            is_complex = 'rectangular'
+            is_complex = "rectangular"
         if batch_idx is None and channel_idx is None and not as_rgb:
             # then we'd have a 4d array we want to plot in grayscale -- don't
             # know how to do that
-            fails = True
+            expectation = pytest.raises(
+                ValueError,
+                match=(
+                    "Don't know how to plot non-rgb images with more than one "
+                    "channel and batch"
+                ),
+            )
         else:
             if batch_idx is not None:
                 # then we're only plotting one of the two batches
@@ -342,7 +552,9 @@ class TestDisplay(object):
                 # if channel_idx is not None, then we don't have all the
                 # channels necessary for plotting RGB, so this will fail
                 if as_rgb:
-                    fails = True
+                    expectation = pytest.raises(
+                        ValueError, match="If as_rgb is True, then channel"
+                    )
             # when channel_idx=0, as_rgb does nothing, so don't want to
             # double-count
             elif as_rgb:
@@ -351,69 +563,87 @@ class TestDisplay(object):
                 n_axes /= 4
         if isinstance(batch_idx, list) or isinstance(channel_idx, list):
             # neither of these are supported
-            fails = True
-        if not fails:
-            fig = po.imshow(im, as_rgb=as_rgb, channel_idx=channel_idx,
-                            batch_idx=batch_idx, plot_complex=is_complex)
-            assert len(fig.axes) == n_axes, f"Created {len(fig.axes)} axes, but expected {n_axes}! Probably plotting color as grayscale or vice versa"
-            plt.close('all')
-        if fails:
-            with pytest.raises(Exception):
-                po.imshow(im, as_rgb=as_rgb, channel_idx=channel_idx,
-                          batch_idx=batch_idx, plot_complex=is_complex)
+            expectation = pytest.raises(
+                TypeError, match=r".* must be an int or None but got"
+            )
+        with expectation:
+            fig = po.plot.imshow(
+                im,
+                as_rgb=as_rgb,
+                channel_idx=channel_idx,
+                batch_idx=batch_idx,
+                plot_complex=is_complex,
+            )
+            assert len(fig.axes) == n_axes, (
+                f"Created {len(fig.axes)} axes, but expected {n_axes}!"
+                " Probably plotting color as grayscale or vice versa"
+            )
 
-    @pytest.fixture(scope='class', params=['complex', 'not-complex'])
-    def steerpyr(self, request):
-        if request.param == 'complex':
-            is_complex = True
-        elif request.param == 'not-complex':
+    def test_imshow_shape_fail(self, einstein_img):
+        with pytest.raises(ValueError, match="imshow only accepts images"):
+            po.plot.imshow(einstein_img.squeeze())
+
+    @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
+    @pytest.mark.parametrize("batch_idx", [None, 0, [0, 1]])
+    @pytest.mark.parametrize("show_residuals", [True, False])
+    @pytest.mark.parametrize(
+        "plot_complex", [False, "rectangular", "polar", "logpolar"]
+    )
+    def test_pyrshow(
+        self, channel_idx, batch_idx, show_residuals, plot_complex, curie_img
+    ):
+        if not plot_complex:
             is_complex = False
-        return po.simul.Steerable_Pyramid_Freq((32, 32), height=2, order=1, is_complex=is_complex)
-
-    @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
-    @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
-    @pytest.mark.parametrize('show_residuals', [True, False])
-    def test_pyrshow(self, steerpyr, channel_idx, batch_idx, show_residuals):
-        fails = False
+            # the default value to plot_complex
+            plot_complex = "rectangular"
+        else:
+            is_complex = True
+        steerpyr = po.process.SteerablePyramidFreq(
+            (32, 32), height=2, order=1, is_complex=is_complex
+        ).to(DEVICE)
+        expectation = does_not_raise()
         if not isinstance(channel_idx, int) or not isinstance(batch_idx, int):
-            fails = True
+            expectation = pytest.raises(TypeError, match=r".* must be an int but got")
         n_axes = 4
         if steerpyr.is_complex:
             n_axes *= 2
         if show_residuals:
             n_axes += 2
-        img = po.load_images(op.join(DATA_DIR, '256/curie.pgm'))
-        img = img[..., :steerpyr.lo0mask.shape[-2], :steerpyr.lo0mask.shape[-1]]
+        img = curie_img.clone()
+        img = img[..., : steerpyr.lo0mask.shape[-2], : steerpyr.lo0mask.shape[-1]]
         coeffs = steerpyr(img)
-        if not fails:
-            # unfortunately, can't figure out how to properly parametrize this
-            # and use the steerpyr fixture
-            for comp in ['rectangular', 'polar', 'logpolar']:
-                fig = po.pyrshow(coeffs, show_residuals=show_residuals,
-                                 plot_complex=comp, batch_idx=batch_idx,
-                                 channel_idx=channel_idx)
-                # get all the axes that have an image (so, get all non-empty
-                # axes)
-                axes = [ax for ax in fig.axes if ax.images]
-                if len(axes) != n_axes:
-                    raise Exception(f"Created {len(fig.axes)} axes, but expected {n_axes}!")
-                plt.close('all')
-        else:
-            with pytest.raises(TypeError):
-                po.pyrshow(coeffs, batch_idx=batch_idx, channel_idx=channel_idx)
+        with expectation:
+            fig = po.plot.pyrshow(
+                coeffs,
+                show_residuals=show_residuals,
+                plot_complex=plot_complex,
+                batch_idx=batch_idx,
+                channel_idx=channel_idx,
+            )
+            # get all the axes that have an image (so, get all non-empty
+            # axes)
+            axes = [ax for ax in fig.axes if ax.images]
+            if len(axes) != n_axes:
+                raise Exception(f"Created {len(fig.axes)} axes, but expected {n_axes}!")
 
-    def test_display_test_signals(self):
-        po.imshow(po.tools.make_synthetic_stimuli(128));
-        po.imshow(po.load_images(DATA_DIR + '/512'));
-        po.imshow(po.load_images(DATA_DIR + '/256'));
+    def test_display_test_signals(self, basic_stim):
+        po.plot.imshow(basic_stim)
 
-    @pytest.mark.parametrize('as_rgb', [True, False])
-    @pytest.mark.parametrize('channel_idx', [None, 0, [0, 1]])
-    @pytest.mark.parametrize('batch_idx', [None, 0, [0, 1]])
-    @pytest.mark.parametrize('is_complex', [False, 'logpolar', 'rectangular', 'polar'])
-    @pytest.mark.parametrize('mini_vid', [True, False])
+    def test_imshow_batch_idx_fail(self, einstein_img):
+        with pytest.raises(IndexError, match="batch_idx=1 is out of bounds"):
+            po.plot.imshow(einstein_img, batch_idx=1)
+
+    def test_imshow_channel_idx_fail(self, einstein_img):
+        with pytest.raises(IndexError, match="channel_idx=1 is out of bounds"):
+            po.plot.imshow(einstein_img, channel_idx=1)
+
+    @pytest.mark.parametrize("as_rgb", [True, False])
+    @pytest.mark.parametrize("channel_idx", [None, 0, [0, 1]])
+    @pytest.mark.parametrize("batch_idx", [None, 0, [0, 1]])
+    @pytest.mark.parametrize("is_complex", [False, "logpolar", "rectangular", "polar"])
+    @pytest.mark.parametrize("mini_vid", [True, False])
     def test_animshow(self, as_rgb, channel_idx, batch_idx, is_complex, mini_vid):
-        fails = False
+        expectation = does_not_raise()
         if is_complex:
             # this is 2 (the two complex components) * 4 (the four channels) *
             # 2 (the two batches)
@@ -436,11 +666,17 @@ class TestDisplay(object):
             vid = [vid, torch.rand(shape, dtype=dtype)]
         if not is_complex:
             # need to change this to one of the acceptable strings
-            is_complex = 'rectangular'
+            is_complex = "rectangular"
         if batch_idx is None and channel_idx is None and not as_rgb:
             # then we'd have a 4d array we want to plot in grayscale -- don't
             # know how to do that
-            fails = True
+            expectation = pytest.raises(
+                ValueError,
+                match=(
+                    "Don't know how to plot non-rgb images with more than one "
+                    "channel and batch"
+                ),
+            )
         else:
             if batch_idx is not None:
                 # then we're only plotting one of the two batches
@@ -451,7 +687,9 @@ class TestDisplay(object):
                 # if channel_idx is not None, then we don't have all the
                 # channels necessary for plotting RGB, so this will fail
                 if as_rgb:
-                    fails = True
+                    expectation = pytest.raises(
+                        ValueError, match="If as_rgb is True, then channel"
+                    )
             # when channel_idx=0, as_rgb does nothing, so don't want to
             # double-count
             elif as_rgb:
@@ -460,280 +698,1504 @@ class TestDisplay(object):
                 n_axes /= 4
         if isinstance(batch_idx, list) or isinstance(channel_idx, list):
             # neither of these are supported
-            fails = True
-        if not fails:
-            anim = po.animshow(vid, as_rgb=as_rgb, channel_idx=channel_idx,
-                               batch_idx=batch_idx, plot_complex=is_complex)
+            expectation = pytest.raises(
+                TypeError, match="must be an int or None but got"
+            )
+        with expectation:
+            anim = po.plot.animshow(
+                vid,
+                as_rgb=as_rgb,
+                channel_idx=channel_idx,
+                batch_idx=batch_idx,
+                plot_complex=is_complex,
+            )
             fig = anim._fig
-            assert len(fig.axes) == n_axes, f"Created {len(fig.axes)} axes, but expected {n_axes}! Probably plotting color as grayscale or vice versa"
-            plt.close('all')
-        if fails:
-            with pytest.raises(Exception):
-                po.animshow(vid, as_rgb=as_rgb, channel_idx=channel_idx,
-                            batch_idx=batch_idx, plot_complex=is_complex)
+            assert len(fig.axes) == n_axes, (
+                f"Created {len(fig.axes)} axes, but expected {n_axes}!"
+                " Probably plotting color as grayscale or vice versa"
+            )
+
+    def test_animshow_shape_fail(self, einstein_img):
+        with pytest.raises(ValueError, match="animshow only accepts videos"):
+            po.plot.animshow(einstein_img)
 
     def test_update_plot_shape_fail(self, einstein_img):
         # update_plot expects 3 or 4d data -- this checks that update_plot
         # fails with 2d data and raises the proper exception
-        fig = po.imshow(einstein_img)
-        with pytest.raises(Exception):
-            try:
-                po.tools.update_plot(fig.axes[0], einstein_img.squeeze())
-            except Exception as e:
-                assert '3 or 4 dimensional' in e.args[0], "WRONG EXCEPTION"
-                raise e
+        fig = po.plot.imshow(einstein_img)
+        with pytest.raises(ValueError, match="3 or 4 dimensional"):
+            po.plot.update_plot(fig.axes[0], einstein_img.squeeze())
 
-    def test_synthesis_plot_shape_fail(self, einstein_img):
-        # Synthesis plot_synthesis_status and animate expect 3 or 4d data --
-        # this checks that plot_synthesis_status() and animate() both fail with
-        # 2d data and raise the proper exception
-        class TestModel(po.simul.LinearNonlinear):
-            def __init__(self):
-                super().__init__((7, 7))
+    @pytest.mark.parametrize(
+        "pix_range",
+        [
+            "fine",
+            "all-bad-min",
+            "all-bad-max",
+            "all-bad-both",
+            "mixed-min",
+            "mixed-max",
+            "mixed-both",
+        ],
+    )
+    @pytest.mark.parametrize("as_rgb", [True, False])
+    @pytest.mark.parametrize(
+        "video_n,video_i", [(1, [0]), (2, [0]), (2, [1]), (2, [0, 1])]
+    )
+    def test_animshow_clipping(
+        self, pix_range, as_rgb, video_n, video_i, no_logs_warnings
+    ):
+        # with RGB float images, matplotlib will always clip them to lie between 0
+        # and 1 and raise a warning. because of how we animate, this warning gets
+        # raised on each frame. that's annoying, so we do the clipping ourselves,
+        # telling the user how much was lost.
+        n_frames = 5
+        tmp = [torch.rand((1, 3, n_frames, 10, 10)) for _ in range(video_n)]
+        if pix_range == "all-bad-min":
+            for i in video_i:
+                tmp[i] = po.process.rescale(tmp[i], -1, 0)
+        elif pix_range == "all-bad-max":
+            for i in video_i:
+                tmp[i] = po.process.rescale(tmp[i], 0, 2)
+        elif pix_range == "all-bad-both":
+            for i in video_i:
+                tmp[i] = po.process.rescale(tmp[i], -1, 2)
+        elif pix_range == "mixed-min":
+            for i in video_i:
+                t = tmp[i][:, :, ::2]
+                tmp[i][:, :, ::2] = po.process.rescale(t, -1, 0)
+        elif pix_range == "mixed-max":
+            for i in video_i:
+                t = tmp[i][:, :, ::2]
+                tmp[i][:, :, ::2] = po.process.rescale(t, 0, 2)
+        elif pix_range == "mixed-both":
+            for i in video_i:
+                t = tmp[i][:, :, ::2]
+                tmp[i][:, :, ::2] = po.process.rescale(t, -1, 2)
+        # no warning if all values lie between 0 and 1 or if we're animating it as
+        # grayscale
+        if pix_range == "fine" or not as_rgb:
+            po.plot.animshow(tmp, as_rgb=as_rgb)
+        else:
+            n_clip_min = einops.reduce(tmp, "v b c t h w -> v t", "min") < 0
+            n_clip_max = einops.reduce(tmp, "v b c t h w -> v t", "max") > 1
+            n_clip = torch.stack([n_clip_min, n_clip_max], axis=1).any(1).sum(-1)
+            if pix_range == "all-bad":
+                assert all([n_clip[i] == n_frames for i in video_i])
+            warning_msg = [f"{n_clip[i]} frames of video {i}" for i in video_i]
+            with pytest.warns(UserWarning) as record:
+                po.plot.animshow(tmp, as_rgb=as_rgb)
+            assert len(record) == len(warning_msg)
+            for r, msg in zip(record, warning_msg):
+                assert str(r.message).startswith(msg)
 
-            def forward(self, *args, **kwargs):
-                output = super().forward(*args, **kwargs)
-                return output.reshape(output.numel())
+    @pytest.mark.parametrize("zoom", [None, 0.5, 1, 3, 0, -1, 1.5, 1.1])
+    @pytest.mark.parametrize("func", ["imshow", "animshow"])
+    def test_zoom(self, zoom, func):
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+        if func == "imshow":
+            x = torch.rand(1, 1, 32, 32)
+            func = po.plot.imshow
+        elif func == "animshow":
+            x = torch.rand(1, 1, 10, 32, 32)
+            func = po.plot.animshow
+        if zoom is not None and zoom <= 0:
+            expectation = pytest.raises(ValueError, match="zoom must be positive")
+        elif zoom is not None and int(zoom * 32) != zoom * 32:
+            expectation = pytest.raises(
+                Exception, match=r"zoom \* signal.shape must result in integers"
+            )
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            func(x, ax=ax, zoom=zoom)
+            if zoom is None:
+                zoom = 12
+            zoom_title = float(ax.get_title().split("*")[1])
+            if zoom != zoom_title:
+                raise ValueError(
+                    f"Zoom didn't work as expected, expected {zoom} but"
+                    f" got {zoom_title}!"
+                )
 
-        model = TestModel().to(DEVICE)
-        met = po.synth.Metamer(einstein_img, model)
-        met.synthesize(max_iter=3, store_progress=True)
-        with pytest.raises(Exception):
-            try:
-                met.plot_synthesis_status()
-            except Exception as e:
-                assert '3 or 4 dimensional' in e.args[0], "WRONG EXCEPTION"
-                raise e
-        with pytest.raises(Exception):
-            try:
-                met.animate()
-            except Exception as e:
-                assert '3 or 4 dimensional' in e.args[0], "WRONG EXCEPTION"
-                raise e
+    def test_histogram_label_fail(self, einstein_img, curie_img):
+        with pytest.raises(ValueError, match="labels must have the same length"):
+            po.plot.histogram([einstein_img, curie_img], "einstein")
+
+    @pytest.mark.parametrize("batch_idx", [None, 0])
+    @pytest.mark.parametrize("channel_idx", [None, 0])
+    def test_histogram(self, einstein_img, curie_img, batch_idx, channel_idx):
+        po.plot.histogram(
+            [einstein_img, curie_img],
+            ["einstein", "curie"],
+            batch_idx=batch_idx,
+            channel_idx=channel_idx,
+        )
 
 
-def template_test_synthesis_all_plot(synthesis_object, iteration,
-                                     synthesized_signal, loss,
-                                     model_response_error,
-                                     pixel_values, fig_creation):
+def template_test_synthesis_all_plot(
+    synthesis_object,
+    iteration,
+    synth_image,
+    loss,
+    representation_error,
+    histogram,
+    fig_creation,
+):
     # template function to test whether we can plot all possible combinations
     # of plots. test_custom_fig tests whether these animate correctly. Any
     # synthesis object that has had synthesis() called should work with this
-    if sum([synthesized_signal, loss, model_response_error, pixel_values]) == 0:
+    if sum([synth_image, loss, representation_error, histogram]) == 0:
         # then there's nothing to plot here
         return
-    plot_choices = {'synthesized_signal': synthesized_signal,
-                    'loss': loss,
-                    'model_response_error': model_response_error,
-                    'pixel_values': pixel_values}
+    included_plots = []
     plot_kwargs = {}
-    try:
-        as_rgb = synthesis_object.target_signal.shape[1] > 1
-        plot_kwargs['plot_model_response_error_as_rgb'] = as_rgb
-    except AttributeError:
-        # MAD doesn't have a model_response_error plot
-        plot_choices.pop('model_response_error')
+    from plenoptic.plot import synthesis
+
+    expectation = does_not_raise()
+    if synth_image:
+        included_plots.append("synthesis_imshow")
+    if loss:
+        included_plots.append("synthesis_loss")
+    if representation_error:
+        included_plots.append("metamer_representation_error")
+        as_rgb = synthesis_object.image.shape[1] > 1
+        plot_kwargs["metamer_representation_error_kwargs"] = {"as_rgb": as_rgb}
+        # metamer_representation-error will pass vrange=indep0 by default, which will
+        # trigger the following warning if as_rgb=True. (users should probably just set
+        # as_rgb=False)
+        if as_rgb:
+            expectation = pytest.warns(
+                UserWarning, match="RGB images cannot have their vrange set"
+            )
+    if histogram:
+        included_plots.append("synthesis_histogram")
     width_ratios = {}
-    # need to figure out which plotting function to call
-    if isinstance(synthesis_object, po.synth.Metamer):
-        containing_file = po.synth.metamer
-    if isinstance(synthesis_object, po.synth.MADCompetition):
-        containing_file = po.synth.mad_competition
-    if fig_creation.startswith('auto'):
+    if fig_creation.startswith("auto"):
         fig = None
-        axes_idx = {}
-        if fig_creation.endswith('ratios'):
+        if fig_creation.endswith("ratios"):
             if loss:
-                width_ratios['loss'] = 2
-            elif synthesized_signal:
-                width_ratios['synthesized_signal'] = 2
-    elif fig_creation.startswith('pass'):
-        fig, axes, axes_idx = containing_file._setup_synthesis_fig(None, {}, None,
-                                                                   **plot_choices)
-        if fig_creation.endswith('without'):
-            axes_idx = {}
-    containing_file.plot_synthesis_status(synthesis_object, iteration=iteration, **plot_choices,
-                                          fig=fig,
-                                          axes_idx=axes_idx,
-                                          **plot_kwargs,
-                                          width_ratios=width_ratios)
-    plt.close('all')
+                width_ratios["synthesis_loss"] = 2
+            elif synth_image:
+                width_ratios["synthesis_imshow"] = 2
+    elif fig_creation == "pass-with":
+        fig, _ = synthesis._setup_synthesis_fig(
+            included_plots, synthesis_object, None, {}, None
+        )
+    elif fig_creation == "pass-without":
+        fig, axes = plt.subplots(1, 4)
+    with expectation:
+        fig = po.plot.synthesis_status(
+            synthesis_object,
+            iteration=iteration,
+            included_plots=included_plots,
+            fig=fig,
+            **plot_kwargs,
+            width_ratios=width_ratios,
+        )
 
 
-def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation,
-                                       tmp_path):
+def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp_path):
     # template function to test whether we can create our own figure and pass
     # it to the plotting and animating functions, specifying some or all of the
     # locations for the plots. Any synthesis object that has had synthesis()
     # called should work with this
     plot_kwargs = {}
-    try:
-        as_rgb = synthesis_object.target_signal.shape[1] > 1
-        plot_kwargs['plot_model_response_error_as_rgb'] = as_rgb
-        plot_kwargs['model_response_error'] = True
-    except AttributeError:
-        # Metamer calls it target_signal, MAD calls it reference_signal
-        pass
-    fig, axes = plt.subplots(3, 3, figsize=(35, 17))
-    axes_idx = {'synthesized_signal': 0, 'model_response_error': 8}
-    if '-' in fig_creation:
-        axes_idx['misc'] = [1, 4]
-    if not fig_creation.split('-')[-1] in ['without']:
-        axes_idx.update({'loss': 6, 'pixel_values': 7})
-    if fig_creation.endswith('extra'):
-        synthesized_signal = False
-    else:
-        synthesized_signal = True
+    included_plots = ["synthesis_imshow", "synthesis_histogram"]
     # need to figure out which plotting function to call
-    if isinstance(synthesis_object, po.synth.Metamer):
-        containing_file = po.synth.metamer
-    if isinstance(synthesis_object, po.synth.MADCompetition):
-        containing_file = po.synth.mad_competition
-    if func == 'plot' or fig_creation.endswith('preplot'):
-        fig, axes_idx = containing_file.plot_synthesis_status(synthesis_object,
-                                                              synthesized_signal=synthesized_signal,
-                                                              loss=True,
-                                                              pixel_values=True,
-                                                              fig=fig,
-                                                              axes_idx=axes_idx,
-                                                              **plot_kwargs)
-    if func == 'animate':
-        path = op.join(tmp_path, 'test_anim.html')
-        containing_file.animate(synthesis_object, synthesized_signal=synthesized_signal,
-                                loss=True,
-                                pixel_values=True, fig=fig,
-                                axes_idx=axes_idx,
-                                **plot_kwargs).save(path)
-        plt.close('all')
+    axes_idx = {"synthesis_imshow": 0}
+    expectation = does_not_raise()
+    if isinstance(synthesis_object, po.Metamer):
+        as_rgb = synthesis_object.image.shape[1] > 1
+        plot_kwargs["metamer_representation_error_kwargs"] = {"as_rgb": as_rgb}
+        included_plots.extend(["metamer_representation_error", "synthesis_loss"])
+        axes_idx["metamer_representation_error"] = 8
+        # metamer_representation-error will pass vrange=indep0 by default, which will
+        # trigger the following warning if as_rgb=True. (users should probably just set
+        # as_rgb=False)
+        if as_rgb:
+            expectation = pytest.warns(
+                UserWarning, match="RGB images cannot have their vrange set"
+            )
+    elif isinstance(synthesis_object, po.MADCompetition):
+        included_plots.append("synthesis_loss")
+    fig, axes = plt.subplots(3, 3, figsize=(35, 17))
+    if fig_creation == "custom-misc":
+        axes_idx["misc"] = 1
+    elif "-" in fig_creation:
+        axes_idx["misc"] = [1, 4]
+    if fig_creation.split("-")[-1] not in ["without"]:
+        if "synthesis_loss" in included_plots:
+            axes_idx["synthesis_loss"] = 6
+        if "synthesis_histogram" in included_plots:
+            axes_idx["synthesis_histogram"] = 7
+    with expectation:
+        if func == "plot":
+            fig = po.plot.synthesis_status(
+                synthesis_object,
+                included_plots=included_plots,
+                fig=fig,
+                axes_idx=axes_idx,
+                **plot_kwargs,
+            )
+        elif fig_creation.endswith("preplot"):
+            po.plot.imshow(
+                torch.rand_like(synthesis_object.image), ax=axes.flatten()[1]
+            )
+            po.plot.imshow(
+                torch.rand_like(synthesis_object.image), ax=axes.flatten()[4]
+            )
+        if func == "animate":
+            # animate closes the matplotlib figure itself, so don't need to do it here
+            path = tmp_path / "test_anim.html"
+            po.plot.synthesis_animate(
+                synthesis_object,
+                fig=fig,
+                axes_idx=axes_idx,
+                included_plots=included_plots,
+                **plot_kwargs,
+            ).save(path)
 
 
-class TestMADDisplay(object):
-
-    @pytest.fixture(scope='class', params=['rgb', 'grayscale'])
-    def synthesized_mad(self, request):
+class TestMADDisplay:
+    @pytest.fixture(scope="class", params=["rgb", "grayscale"])
+    @classmethod
+    def synthesized_mad(cls, request):
         # make the images really small so nothing takes as long
-        if request.param == 'rgb':
-            img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False).to(DEVICE)
+        if request.param == "rgb":
+            img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
             img = img[..., :16, :16]
         else:
-            img = po.load_images(op.join(DATA_DIR, '256/nuts.pgm')).to(DEVICE)
+            img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
             img = img[..., :16, :16]
+
         # to serve as a metric, need to return a single value, but SSIM and MSE
         # will return a separate value for each RGB channel. Additionally, MAD
         # requires metrics are *dis*-similarity metrics, so that they return 0
         # if two images are identical (SSIM normally returns 1)
         def rgb_ssim(*args, **kwargs):
             return 1 - po.metric.ssim(*args, **kwargs).mean()
+
         def rgb_mse(*args, **kwargs):
             return po.metric.mse(*args, **kwargs).mean()
-        mad = po.synth.MADCompetition(img, rgb_mse, rgb_ssim, 'min')
+
+        mad = po.MADCompetition(
+            img, rgb_mse, rgb_ssim, "min", metric_tradeoff_lambda=0.1
+        )
         mad.synthesize(max_iter=2, store_progress=True)
         return mad
 
-    @pytest.mark.parametrize('iteration', [None, 1, -1])
-    @pytest.mark.parametrize('synthesized_signal', [True, False])
-    @pytest.mark.parametrize('loss', [True, False])
-    @pytest.mark.parametrize('pixel_values', [True, False])
-    @pytest.mark.parametrize('fig_creation', ['auto', 'auto-ratios',
-                                              'pass-with', 'pass-without'])
-    def test_all_plot(self, synthesized_mad, iteration,
-                      synthesized_signal, loss,
-                      pixel_values, fig_creation):
+    @pytest.fixture(
+        scope="class", params=["rgb-5", "rgb-4", "grayscale-5", "grayscale-4"]
+    )
+    @classmethod
+    def synthesized_mad_store_progress(cls, request):
+        # make the images really small so nothing takes as long
+        img, max_iter = request.param.split("-")
+        if img == "rgb":
+            img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
+            img = img[..., :16, :16]
+        else:
+            img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
+            img = img[..., :16, :16]
+        img = torch.cat([img, img])
+
+        # to serve as a metric, need to return a single value, but SSIM and MSE
+        # will return a separate value for each RGB channel. Additionally, MAD
+        # requires metrics are *dis*-similarity metrics, so that they return 0
+        # if two images are identical (SSIM normally returns 1)
+        def rgb_ssim(*args, **kwargs):
+            return 1 - po.metric.ssim(*args, **kwargs).mean()
+
+        def rgb_mse(*args, **kwargs):
+            return po.metric.mse(*args, **kwargs).mean()
+
+        mad = po.MADCompetition(
+            img, rgb_mse, rgb_ssim, "min", metric_tradeoff_lambda=0.1
+        )
+        mad.synthesize(max_iter=int(max_iter), store_progress=2)
+        return mad
+
+    @pytest.mark.parametrize("iteration", [None, 1, -1])
+    @pytest.mark.parametrize("mad_imshow", [True, False])
+    @pytest.mark.parametrize("loss", [True, False])
+    @pytest.mark.parametrize("histogram", [True, False])
+    @pytest.mark.parametrize(
+        "fig_creation", ["auto", "auto-ratios", "pass-with", "pass-without"]
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    def test_all_plot(
+        self,
+        synthesized_mad,
+        iteration,
+        mad_imshow,
+        loss,
+        histogram,
+        fig_creation,
+    ):
         # tests whether we can plot all possible combinations of plots.
         # test_custom_fig tests whether these animate correctly.
-        template_test_synthesis_all_plot(synthesized_mad, iteration,
-                                         synthesized_signal, loss, False,
-                                         pixel_values, fig_creation)
+        template_test_synthesis_all_plot(
+            synthesized_mad,
+            iteration,
+            mad_imshow,
+            loss,
+            False,
+            histogram,
+            fig_creation,
+        )
 
-    @pytest.mark.parametrize('func', ['plot', 'animate'])
-    @pytest.mark.parametrize('fig_creation', ['custom', 'custom-misc', 'custom-without',
-                                              'custom-extra', 'custom-preplot'])
+    @pytest.mark.parametrize("func", ["plot", "animate"])
+    @pytest.mark.parametrize(
+        "fig_creation",
+        [
+            "custom",
+            "custom-misc",
+            "custom-without",
+            "custom-extra",
+            "custom-preplot",
+        ],
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:. frames of saved mad image clipped:UserWarning"
+    )
+    # Warning from matplotlib about creating legend with loc=best can be slow with lot
+    # of data, only shows up on GPU for one of the animate variants. unsure why
+    @pytest.mark.filterwarnings("ignore:Creating legend with loc:UserWarning")
     def test_custom_fig(self, synthesized_mad, func, fig_creation, tmp_path):
         # tests whether we can create our own figure and pass it to
         # MADCompetition's plotting and animating functions, specifying some or
         # all of the locations for the plots
-        template_test_synthesis_custom_fig(synthesized_mad, func, fig_creation, tmp_path)
+        template_test_synthesis_custom_fig(
+            synthesized_mad, func, fig_creation, tmp_path
+        )
 
-    @pytest.fixture(scope='class')
-    def all_mad(self):
+    @pytest.fixture(scope="class")
+    @classmethod
+    def all_mad(cls):
         # run synthesis for all 4 MAD images.
-        img = po.load_images(op.join(DATA_DIR, '256/nuts.pgm')).to(DEVICE)
+        img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
         img = img[..., :16, :16]
         model1 = po.metric.mse
+
         # MAD requires metrics are *dis*-similarity metrics, so that they
         # return 0 if two images are identical (SSIM normally returns 1)
-        model2 = lambda *args: 1 - po.metric.ssim(*args).mean()
-        mad = po.synth.MADCompetition(img, model1, model2, 'min')
+        def model2(*args):
+            return 1 - po.metric.ssim(*args).mean()
+
+        mad = po.MADCompetition(img, model1, model2, "min", metric_tradeoff_lambda=1)
         mad.synthesize(max_iter=2)
-        mad2 = po.synth.MADCompetition(img, model1, model2, 'max')
+        mad2 = po.MADCompetition(img, model1, model2, "max", metric_tradeoff_lambda=1)
         mad2.synthesize(max_iter=2)
-        mad3 = po.synth.MADCompetition(img, model2, model1, 'min')
+        mad3 = po.MADCompetition(img, model2, model1, "min", metric_tradeoff_lambda=1)
         mad3.synthesize(max_iter=2)
-        mad4 = po.synth.MADCompetition(img, model2, model1, 'max')
+        mad4 = po.MADCompetition(img, model2, model1, "max", metric_tradeoff_lambda=1)
         mad4.synthesize(max_iter=2)
         return mad, mad2, mad3, mad4
 
-    @pytest.mark.parametrize('func', ['loss', 'image'])
+    @pytest.mark.parametrize("func", ["loss", "image"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_helper_funcs(self, all_mad, func):
-        if func == 'loss':
-            func = po.synth.mad_competition.plot_loss_all
-        elif func == 'image':
-            func = po.synth.mad_competition.display_synthesized_signal_all
+        if func == "loss":
+            func = po.plot.mad_loss_all
+        elif func == "image":
+            func = po.plot.mad_imshow_all
         func(*all_mad)
 
+    @pytest.mark.parametrize("func", ["plot", "animate"])
+    # metamer_representation_error is an allowed value for metamer, but not MAD.
+    # the second is just a typo
+    @pytest.mark.parametrize(
+        "val", ["metamer_representation_error", "plot_synthesis_imshow"]
+    )
+    @pytest.mark.parametrize("variable", ["included_plots", "width_ratios", "axes_idx"])
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:. frames of saved mad image clipped:UserWarning"
+    )
+    def test_allowed_plots_exception(self, synthesized_mad, func, val, variable):
+        if func == "plot":
+            func = po.plot.synthesis_status
+        elif func == "animate":
+            func = po.plot.synthesis_animate
+        kwargs = {}
+        expectation_str = f"{variable} contained value"
+        if variable == "included_plots":
+            kwargs["included_plots"] = [val, "synthesis_loss"]
+        elif variable == "width_ratios":
+            kwargs["width_ratios"] = {val: 1, "synthesis_loss": 1}
+        elif variable == "axes_idx":
+            kwargs["axes_idx"] = {val: 0, "synthesis_loss": 1}
+        elif variable == "kwargs":
+            kwargs[f"{val}_kwargs"] = {"xlim": False}
+            expectation_str = "kwargs has additional keys"
+        with pytest.raises(ValueError, match=expectation_str):
+            func(synthesized_mad, **kwargs)
 
-class TestMetamerDisplay(object):
+    @pytest.mark.parametrize("iteration", [None, 0, -1, -10, 10, 2, 3, 4])
+    @pytest.mark.parametrize("batch_idx", [0, 1])
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings("ignore:loss iteration and iteration for:UserWarning")
+    def test_iteration(self, synthesized_mad_store_progress, iteration, batch_idx):
+        included_plots = [
+            "synthesis_imshow",
+            "synthesis_loss",
+            "synthesis_histogram",
+        ]
+        max_iter = len(synthesized_mad_store_progress.losses) - 1
+        if iteration in [-10, 10]:
+            expectation = pytest.raises(IndexError, match="iteration.*out of bounds")
+        else:
+            expectation = does_not_raise()
+            if max_iter == 5:
+                mad_iter = {None: 3, 0: 0, -1: 2, 2: 1, 3: 2, 4: 2}[iteration]
+            elif max_iter == 4:
+                mad_iter = {None: 2, 0: 0, -1: 2, 2: 1, 3: 2, 4: 2}[iteration]
+        with expectation:
+            fig = po.plot.synthesis_status(
+                synthesized_mad_store_progress,
+                iteration=iteration,
+                batch_idx=batch_idx,
+                included_plots=included_plots,
+            )
+            axes_img = fig.axes[0].images[0].get_array().data
+            img = synthesized_mad_store_progress.saved_mad_image[mad_iter, batch_idx]
+            img = einops.rearrange(po.to_numpy(img), "c h w -> h w c").squeeze()
+            # rgb images are clipped while plotting
+            if img.shape[-1] == 3:
+                img = img.clip(0, 1)
+            assert np.equal(axes_img, img).all(), "wrong saved mad_image plotted!"
 
-    @pytest.fixture(scope='class', params=['rgb', 'grayscale'])
-    def synthesized_met(self, request):
-        img= request.param
+    @pytest.mark.parametrize("iteration", [None, 2, -2])
+    @pytest.mark.parametrize("plot_penalties", [True, False])
+    @pytest.mark.parametrize("axes", [None, "axis", "list", "list-fail"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    def test_synthesis_loss(self, synthesized_mad, iteration, plot_penalties, axes):
+        expectation = does_not_raise()
+        if isinstance(axes, str):
+            if axes == "list":
+                n_axes = 3 if plot_penalties else 2
+            elif axes == "list-fail":
+                n_axes = 2 if plot_penalties else 3
+                expectation = pytest.raises(
+                    ValueError, match="ax is a list of the wrong length"
+                )
+            elif axes == "axis":
+                n_axes = 1
+            fig, axes = plt.subplots(1, n_axes)
+        with expectation:
+            po.plot.synthesis_loss(synthesized_mad, iteration, plot_penalties, axes)
+
+    @pytest.mark.parametrize("iteration", [None, 2, -2])
+    @pytest.mark.parametrize("axes", [None, "axis"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    def test_synthesis_histogram(self, synthesized_mad, iteration, axes):
+        if axes == "axis":
+            fig, axes = plt.subplots(1, 1)
+        po.plot.synthesis_histogram(synthesized_mad, iteration=iteration, ax=axes)
+
+    @pytest.mark.parametrize("iteration", [None, 2, -2])
+    @pytest.mark.parametrize("axes", [None, "axis"])
+    @pytest.mark.parametrize("distortion_scale", [1, 5])
+    @pytest.mark.parametrize("batch_idx", [None, 0])
+    @pytest.mark.parametrize("process_image", [None, "clip", "multiply"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    def test_synthesis_imshow(
+        self,
+        synthesized_mad,
+        batch_idx,
+        distortion_scale,
+        process_image,
+        iteration,
+        axes,
+    ):
+        expectation = does_not_raise()
+        if distortion_scale != 5:
+            expectation = pytest.raises(
+                ValueError,
+                match="If synthesis_object is type.*, distortion_scale cannot be set",
+            )
+        if axes == "axis":
+            fig, axes = plt.subplots(1, 1)
+        if batch_idx is None:
+            expectation = pytest.raises(ValueError, match="batch_idx must be")
+        else:
+            data_batch_idx = batch_idx
+        if synthesized_mad.image.shape[1] == 3:
+            # then this will create an RGB image, and the image array we retrieve from
+            # matplotlib will have the dimensions in a different order. also,
+            # matplotlib automatically clips all RGB images to 0, 1
+            def rearrange_dims(x):
+                return torch.movedim(x, 0, 2).clip(0, 1)
+        else:
+
+            def rearrange_dims(x):
+                return x
+
+        if process_image == "clip":
+
+            def process_image(x):
+                return x.clip(0, 1)
+
+            def data_process_image(x):
+                return rearrange_dims(process_image(x))
+        elif process_image == "multiply":
+
+            def process_image(x):
+                return 5 * x
+
+            def data_process_image(x):
+                return rearrange_dims(process_image(x))
+        else:
+            data_process_image = rearrange_dims
+        with expectation:
+            ax = po.plot.synthesis_imshow(
+                synthesized_mad,
+                batch_idx=batch_idx,
+                distortion_scale=distortion_scale,
+                iteration=iteration,
+                ax=axes,
+                process_image=process_image,
+            )
+            if iteration is None:
+                expected_image = synthesized_mad.mad_image
+            else:
+                expected_image = synthesized_mad.saved_mad_image[iteration]
+            expected_image = po.to_numpy(
+                data_process_image(expected_image[data_batch_idx]).squeeze()
+            )
+            plotted_image = ax.images[0].get_array().data
+            if not np.array_equal(expected_image, plotted_image):
+                raise ValueError("plotted image wrong!")
+
+    @pytest.mark.parametrize("func", ["animate", "plot"])
+    @pytest.mark.parametrize("variable", ["width_ratios", "axes_idx"])
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    @pytest.mark.filterwarnings(
+        "ignore:. frames of saved mad image clipped:UserWarning"
+    )
+    def test_plot_consistency(self, synthesized_mad, func, variable):
+        if func == "plot":
+            func = po.plot.synthesis_status
+        elif func == "animate":
+            func = po.plot.synthesis_animate
+        kwargs = {variable: {"synthesis_histogram": 1}}
+        if variable == "axes_idx":
+            kwargs[variable]["misc"] = 2
+        with pytest.raises(ValueError, match=f"{variable} contains keys"):
+            func(synthesized_mad, included_plots=["synthesis_imshow"], **kwargs)
+
+    @pytest.mark.parametrize(
+        "pix_range",
+        [
+            "fine",
+            "all-bad-min",
+            "all-bad-max",
+            "all-bad-both",
+            "mixed-min",
+            "mixed-max",
+            "mixed-both",
+        ],
+    )
+    @pytest.mark.parametrize("process_image", [None, "rescale"])
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    def test_animate_clipping(
+        self, synthesized_mad_store_progress, pix_range, process_image, no_logs_warnings
+    ):
+        # with RGB float images, matplotlib will always clip them to lie between 0
+        # and 1 and raise a warning. because of how we animate, this warning gets
+        # raised on each frame. that's annoying, so we do the clipping ourselves,
+        # telling the user how much was lost.
+        # here, we manually overwrite saved_mad_image so we know what it looks like
+        saved_mad = synthesized_mad_store_progress.saved_mad_image
+        if process_image == "rescale":
+            # this is a way to avoid the warning: pass an argument that will do the
+            # proper remapping for you
+            process_image = functools.partial(po.process.rescale, a=0, b=1)
+        if pix_range == "fine":
+            saved_mad = po.process.rescale(saved_mad, 0, 1)
+        elif pix_range == "all-bad-min":
+            saved_mad = po.process.rescale(saved_mad, -1, 0)
+        elif pix_range == "all-bad-max":
+            saved_mad = po.process.rescale(saved_mad, 0, 2)
+        elif pix_range == "all-bad-both":
+            saved_mad = po.process.rescale(saved_mad, -1, 2)
+        elif pix_range == "mixed-min":
+            saved_mad[::2] = po.process.rescale(saved_mad[::2], -1, 0)
+            saved_mad[1::2] = po.process.rescale(saved_mad[1::2], 0, 1)
+        elif pix_range == "mixed-max":
+            saved_mad[::2] = po.process.rescale(saved_mad[::2], 0, 2)
+            saved_mad[1::2] = po.process.rescale(saved_mad[1::2], 0, 1)
+        elif pix_range == "mixed-both":
+            saved_mad[::2] = po.process.rescale(saved_mad[::2], -1, 2)
+            saved_mad[1::2] = po.process.rescale(saved_mad[1::2], 0, 1)
+        as_rgb = synthesized_mad_store_progress.image.shape[1] != 1
+        if not as_rgb or pix_range == "fine" or process_image:
+            expectation = does_not_raise()
+        else:
+            n_clip_min = einops.reduce(saved_mad, "t b c h w -> t", "min") < 0
+            n_clip_max = einops.reduce(saved_mad, "t b c h w -> t", "max") > 1
+            n_clip = torch.stack([n_clip_min, n_clip_max]).any(0).sum()
+            if pix_range == "all-bad":
+                assert all(
+                    [n_clip == len(synthesized_mad_store_progress.saved_mad_image)]
+                )
+            msg = f"{n_clip} frames of saved mad image"
+            expectation = pytest.warns(UserWarning, match=msg)
+        # last index here is the metamer attribute, which we need for computing the
+        # clipped frames above, but should leave out of the _saved_mad_image attribute
+        synthesized_mad_store_progress._saved_mad_image = saved_mad[:-1]
+        synthesized_mad_store_progress._mad_image = saved_mad[-1]
+        with expectation:
+            po.plot.synthesis_animate(
+                synthesized_mad_store_progress, process_image=process_image
+            )
+
+
+class TestMetamerDisplay:
+    @pytest.fixture(scope="class", params=["rgb", "grayscale"])
+    @classmethod
+    def synthesized_met_nostore(cls, request):
+        img = request.param
         # make the images really small so nothing takes as long
-        if img == 'rgb':
-            img = po.load_images(op.join(DATA_DIR, 'color_wheel.jpg'), False).to(DEVICE)
+        if img == "rgb":
+            img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
             img = img[..., :16, :16]
         else:
-            img = po.load_images(op.join(DATA_DIR, '256/nuts.pgm')).to(DEVICE)
+            img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
             img = img[..., :16, :16]
+
         #  height=1 and order=0 to limit the time this takes, and then we
         #  only return one of the tensors so that everything is easy for
         #  plotting code to figure out (if we downsampled and were on an
         #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
         #  we'd have the residuals and one filter output for each channel,
         #  and our code doesn't know how to handle that)
-        class SPyr(po.simul.Steerable_Pyramid_Freq):
+        class SPyr(po.process.SteerablePyramidFreq):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+
             def forward(self, *args, **kwargs):
-                return super().forward(*args, **kwargs)[(0, 0)]
-        model = SPyr(img.shape[-2:], height=1, order=0).to(DEVICE)
-        met = po.synth.Metamer(img, model)
+                return super().forward(*args, **kwargs)[0][:, :, 0]
+
+        model = SPyr(img.shape[-2:], height=1, order=1).to(DEVICE)
+        met = po.Metamer(img, model)
+        met.synthesize(max_iter=2, store_progress=False)
+        return met
+
+    @pytest.fixture(scope="class", params=["rgb", "grayscale"])
+    @classmethod
+    def synthesized_met(cls, request):
+        img = request.param
+        # make the images really small so nothing takes as long
+        if img == "rgb":
+            img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
+            img = img[..., :16, :16]
+        else:
+            img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
+            img = img[..., :16, :16]
+
+        #  height=1 and order=0 to limit the time this takes, and then we
+        #  only return one of the tensors so that everything is easy for
+        #  plotting code to figure out (if we downsampled and were on an
+        #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
+        #  we'd have the residuals and one filter output for each channel,
+        #  and our code doesn't know how to handle that)
+        class SPyr(po.process.SteerablePyramidFreq):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+            def forward(self, *args, **kwargs):
+                return super().forward(*args, **kwargs)[0][:, :, 0]
+
+        model = SPyr(img.shape[-2:], height=1, order=1).to(DEVICE)
+        met = po.Metamer(img, model)
         met.synthesize(max_iter=2, store_progress=True)
+        return met
+
+    @pytest.fixture(scope="class", params=["rgb", "grayscale"])
+    @classmethod
+    def synthesized_met_3d(cls, request):
+        img = request.param
+        # make the images really small so nothing takes as long
+        if img == "rgb":
+            img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
+            img = img[..., :16, :16]
+        else:
+            img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
+            img = img[..., :16, :16]
+
+        #  height=1 and order=0 to limit the time this takes, and then we
+        #  only return one of the tensors so that everything is easy for
+        #  plotting code to figure out (if we downsampled and were on an
+        #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
+        #  we'd have the residuals and one filter output for each channel,
+        #  and our code doesn't know how to handle that)
+        class SPyr(po.process.SteerablePyramidFreq):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+            def forward(self, *args, **kwargs):
+                return super().forward(*args, **kwargs)[0][:, :, 0].flatten(-2, -1)
+
+        model = SPyr(img.shape[-2:], height=1, order=1).to(DEVICE)
+        met = po.Metamer(img, model)
+        met.synthesize(max_iter=2, store_progress=True)
+        return met
+
+    @pytest.fixture(
+        scope="class", params=["rgb-5", "rgb-4", "grayscale-5", "grayscale-4"]
+    )
+    @classmethod
+    def synthesized_met_store_progress(cls, request):
+        img, max_iter = request.param.split("-")
+        # make the images really small so nothing takes as long
+        if img == "rgb":
+            img = po.load_images(IMG_DIR / "256" / "color_wheel.jpg", False).to(DEVICE)
+            img = img[..., :16, :16]
+        else:
+            img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
+            img = img[..., :16, :16]
+        img = torch.cat([img, img])
+
+        #  height=1 and order=0 to limit the time this takes, and then we
+        #  only return one of the tensors so that everything is easy for
+        #  plotting code to figure out (if we downsampled and were on an
+        #  RGB image, we'd have a tensor of shape [1, 9, h, w], because
+        #  we'd have the residuals and one filter output for each channel,
+        #  and our code doesn't know how to handle that)
+        class SPyr(po.process.SteerablePyramidFreq):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+            def forward(self, *args, **kwargs):
+                return super().forward(*args, **kwargs)[0][:, :, 0]
+
+        model = SPyr(img.shape[-2:], height=1, order=1).to(DEVICE)
+        met = po.Metamer(img, model)
+        met.synthesize(max_iter=int(max_iter), store_progress=2)
         return met
 
     # mix together func and iteration, because iteration doesn't make sense to
     # pass to animate
-    @pytest.mark.parametrize('iteration', [None, 1, -1])
-    @pytest.mark.parametrize('synthesized_signal', [True, False])
-    @pytest.mark.parametrize('loss', [True, False])
-    @pytest.mark.parametrize('model_response_error', [True, False])
-    @pytest.mark.parametrize('pixel_values', [True, False])
-    @pytest.mark.parametrize('fig_creation', ['auto', 'auto-ratios',
-                                              'pass-with', 'pass-without'])
-    def test_all_plot(self, synthesized_met, iteration, synthesized_signal, loss,
-                      model_response_error, pixel_values, fig_creation):
+    @pytest.mark.parametrize("iteration", [None, 1, -1])
+    @pytest.mark.parametrize("metamer_imshow", [True, False])
+    @pytest.mark.parametrize("loss", [True, False])
+    @pytest.mark.parametrize("representation_error", [True, False])
+    @pytest.mark.parametrize("histogram", [True, False])
+    @pytest.mark.parametrize(
+        "fig_creation", ["auto", "auto-ratios", "pass-with", "pass-without"]
+    )
+    def test_all_plot(
+        self,
+        synthesized_met,
+        iteration,
+        metamer_imshow,
+        loss,
+        representation_error,
+        histogram,
+        fig_creation,
+    ):
         # tests whether we can plot all possible combinations of plots.
         # test_custom_fig tests whether these animate correctly.
-        template_test_synthesis_all_plot(synthesized_met, iteration,
-                                         synthesized_signal, loss,
-                                         model_response_error, pixel_values,
-                                         fig_creation)
+        template_test_synthesis_all_plot(
+            synthesized_met,
+            iteration,
+            metamer_imshow,
+            loss,
+            representation_error,
+            histogram,
+            fig_creation,
+        )
 
-    @pytest.mark.parametrize('func', ['plot', 'animate'])
-    @pytest.mark.parametrize('fig_creation', ['custom', 'custom-misc', 'custom-without',
-                                              'custom-extra', 'custom-preplot'])
+    @pytest.mark.parametrize("func", ["plot", "animate"])
+    @pytest.mark.parametrize(
+        "fig_creation",
+        [
+            "custom",
+            "custom-misc",
+            "custom-without",
+            "custom-extra",
+            "custom-preplot",
+        ],
+    )
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
     def test_custom_fig(self, synthesized_met, func, fig_creation, tmp_path):
         # tests whether we can create our own figure and pass it to Metamer's
         # plotting and animating functions, specifying some or all of the
         # locations for the plots
-        template_test_synthesis_custom_fig(synthesized_met, func, fig_creation,
-                                           tmp_path)
+        template_test_synthesis_custom_fig(
+            synthesized_met, func, fig_creation, tmp_path
+        )
+
+    # mix together func and iteration, because iteration doesn't make sense to
+    # pass to animate
+    @pytest.mark.parametrize("metamer_imshow", [True, False])
+    @pytest.mark.parametrize("loss", [True, False])
+    @pytest.mark.parametrize("representation_error", [True, False])
+    @pytest.mark.parametrize("histogram", [True, False])
+    @pytest.mark.parametrize(
+        "fig_creation", ["auto", "auto-ratios", "pass-with", "pass-without"]
+    )
+    def test_all_plot_nostore(
+        self,
+        synthesized_met_nostore,
+        metamer_imshow,
+        loss,
+        representation_error,
+        histogram,
+        fig_creation,
+    ):
+        # tests whether we can plot all possible combinations of plots.
+        # test_custom_fig tests whether these animate correctly.
+        template_test_synthesis_all_plot(
+            synthesized_met_nostore,
+            iteration=None,
+            synth_image=metamer_imshow,
+            loss=loss,
+            representation_error=representation_error,
+            histogram=histogram,
+            fig_creation=fig_creation,
+        )
+
+    @pytest.mark.parametrize("func", ["plot"])
+    @pytest.mark.parametrize(
+        "fig_creation",
+        [
+            "custom",
+            "custom-misc",
+            "custom-without",
+            "custom-extra",
+            "custom-preplot",
+        ],
+    )
+    def test_custom_fig_nostore(
+        self, synthesized_met_nostore, func, fig_creation, tmp_path
+    ):
+        # tests whether we can create our own figure and pass it to Metamer's
+        # plotting and animating functions, specifying some or all of the
+        # locations for the plots
+        template_test_synthesis_custom_fig(
+            synthesized_met_nostore, func, fig_creation, tmp_path
+        )
+
+    @pytest.mark.parametrize("func", ["plot", "animate"])
+    # this not allowed value is just a typo
+    @pytest.mark.parametrize("val", ["plot_metamer"])
+    @pytest.mark.parametrize(
+        "variable", ["included_plots", "width_ratios", "axes_idx", "kwargs"]
+    )
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
+    def test_allowed_plots_exception(self, synthesized_met, func, val, variable):
+        if func == "plot":
+            func = po.plot.synthesis_status
+        elif func == "animate":
+            func = po.plot.synthesis_animate
+        kwargs = {}
+        expectation_str = f"{variable} contained value"
+        if variable == "included_plots":
+            kwargs["included_plots"] = [val, "synthesis_loss"]
+        elif variable == "width_ratios":
+            kwargs["width_ratios"] = {val: 1, "synthesis_loss": 1}
+        elif variable == "axes_idx":
+            kwargs["axes_idx"] = {val: 0, "synthesis_loss": 1}
+        elif variable == "kwargs":
+            kwargs[f"{val}_kwargs"] = {"xlim": False}
+            expectation_str = "kwargs has additional keys"
+        with pytest.raises(ValueError, match=expectation_str):
+            func(synthesized_met, **kwargs)
+
+    @pytest.mark.parametrize("iteration", [None, 0, -1, -10, 10, 2, 3, 4])
+    @pytest.mark.parametrize("batch_idx", [0, 1])
+    @pytest.mark.filterwarnings("ignore:loss iteration and iteration for:UserWarning")
+    def test_iteration(self, synthesized_met_store_progress, iteration, batch_idx):
+        included_plots = [
+            "synthesis_imshow",
+            "synthesis_loss",
+            "metamer_representation_error",
+            "synthesis_histogram",
+        ]
+        max_iter = len(synthesized_met_store_progress.losses) - 1
+        if iteration in [-10, 10]:
+            expectation = pytest.raises(IndexError, match="iteration.*out of bounds")
+        else:
+            expectation = does_not_raise()
+            if max_iter == 5:
+                met_iter = {None: 3, 0: 0, -1: 2, 2: 1, 3: 2, 4: 2}[iteration]
+            elif max_iter == 4:
+                met_iter = {None: 2, 0: 0, -1: 2, 2: 1, 3: 2, 4: 2}[iteration]
+        with expectation:
+            fig = po.plot.synthesis_status(
+                synthesized_met_store_progress,
+                iteration=iteration,
+                batch_idx=batch_idx,
+                included_plots=included_plots,
+            )
+            axes_img = fig.axes[0].images[0].get_array().data
+            img = synthesized_met_store_progress.saved_metamer[met_iter, batch_idx]
+            img = einops.rearrange(po.to_numpy(img), "c h w -> h w c").squeeze()
+            # rgb images are clipped while plotting
+            if img.shape[-1] == 3:
+                img = img.clip(0, 1)
+            assert np.equal(axes_img, img).all(), "wrong saved metamer plotted!"
+
+    def test_iteration_fail(self, synthesized_met_nostore):
+        with pytest.raises(IndexError, match="When synthesis_object.store_progress"):
+            po.plot.synthesis_imshow(synthesized_met_nostore, iteration=2)
+
+    def test_animate_fail(self, synthesized_met_nostore):
+        with pytest.raises(ValueError, match="When synthesis_object.store_progress"):
+            po.plot.synthesis_animate(synthesized_met_nostore)
+
+    @pytest.mark.parametrize("iteration", [None, 2, -2])
+    @pytest.mark.parametrize("plot_penalties", [True, False])
+    @pytest.mark.parametrize("axes", [None, "axis", "list"])
+    def test_synthesis_loss(
+        self, synthesized_met_nostore, iteration, plot_penalties, axes
+    ):
+        expectation = does_not_raise()
+        if isinstance(axes, str):
+            if axes == "list":
+                n_axes = 2
+                expectation = pytest.raises(
+                    ValueError, match="if synthesis_object is a Metamer"
+                )
+            elif axes == "axis":
+                n_axes = 1
+            fig, axes = plt.subplots(1, n_axes)
+        with expectation:
+            po.plot.synthesis_loss(
+                synthesized_met_nostore, iteration, plot_penalties, axes
+            )
+
+    @pytest.mark.parametrize("iteration", [None, 2, -2])
+    @pytest.mark.parametrize("axes", [None, "axis"])
+    def test_synthesis_histogram(self, synthesized_met, iteration, axes):
+        if axes == "axis":
+            fig, axes = plt.subplots(1, 1)
+        po.plot.synthesis_histogram(synthesized_met, iteration=iteration, ax=axes)
+
+    @pytest.mark.parametrize("iteration", [None, 2, -2])
+    @pytest.mark.parametrize("axes", [None, "axis"])
+    @pytest.mark.parametrize("distortion_scale", [1, 5])
+    @pytest.mark.parametrize("batch_idx", [None, 0])
+    @pytest.mark.parametrize("process_image", [None, "clip", "multiply"])
+    def test_synthesis_imshow(
+        self,
+        synthesized_met,
+        batch_idx,
+        distortion_scale,
+        process_image,
+        iteration,
+        axes,
+    ):
+        expectation = does_not_raise()
+        if distortion_scale != 5:
+            expectation = pytest.raises(
+                ValueError,
+                match="If synthesis_object is type.*, distortion_scale cannot be set",
+            )
+        if axes == "axis":
+            fig, axes = plt.subplots(1, 1)
+        if batch_idx is None:
+            expectation = pytest.raises(ValueError, match="batch_idx must be")
+        else:
+            data_batch_idx = batch_idx
+        if synthesized_met.image.shape[1] == 3:
+            # then this will create an RGB image, and the image array we retrieve from
+            # matplotlib will have the dimensions in a different order. also,
+            # matplotlib automatically clips all RGB images to 0, 1
+            def rearrange_dims(x):
+                return torch.movedim(x, 0, 2).clip(0, 1)
+        else:
+
+            def rearrange_dims(x):
+                return x
+
+        if process_image == "clip":
+
+            def process_image(x):
+                return x.clip(0, 1)
+
+            def data_process_image(x):
+                return rearrange_dims(process_image(x))
+        elif process_image == "multiply":
+
+            def process_image(x):
+                return 5 * x
+
+            def data_process_image(x):
+                return rearrange_dims(process_image(x))
+        else:
+            data_process_image = rearrange_dims
+        with expectation:
+            ax = po.plot.synthesis_imshow(
+                synthesized_met,
+                batch_idx=batch_idx,
+                distortion_scale=distortion_scale,
+                iteration=iteration,
+                ax=axes,
+                process_image=process_image,
+            )
+            if iteration is None:
+                expected_image = synthesized_met.metamer
+            else:
+                expected_image = synthesized_met.saved_metamer[iteration]
+            expected_image = po.to_numpy(
+                data_process_image(expected_image[data_batch_idx]).squeeze()
+            )
+            plotted_image = ax.images[0].get_array().data
+            if not np.array_equal(expected_image, plotted_image):
+                raise ValueError("plotted image wrong!")
+
+    def test_synthesis_animate_default(self):
+        # in synthesis_animate, we raise a warning if user tries to set rescale_ylim
+        # for a metamer_representation_error plot that uses image data. that check
+        # hardcodes the value to against as "rescale", so this test checks that it's
+        # correct.
+        signature = inspect.signature(po.plot.synthesis_animate)
+        if signature.parameters["rescale_ylim"].default != "rescale":
+            raise ValueError(
+                "synthesis_animate rescale_ylim arg default changed! update check"
+            )
+
+    @pytest.mark.parametrize(
+        "rescale_ylim", [False, "rescale", "rescale10", (0, 1), "something_weird"]
+    )
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
+    def test_rescale_ylim_4d(self, synthesized_met, rescale_ylim):
+        # these are the allowed values: rescale (default) and False (what we do:
+        # nothing)
+        if rescale_ylim in [False, "rescale"]:
+            expectation = does_not_raise()
+        else:
+            expectation = pytest.raises(
+                ValueError, match="Looks like representation is image-like"
+            )
+        with expectation:
+            po.plot.synthesis_animate(synthesized_met, rescale_ylim=rescale_ylim)
+
+    @pytest.mark.parametrize(
+        "rescale_ylim", [False, "rescale", "rescale1", (0, 1), "something_weird"]
+    )
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
+    def test_rescale_ylim_3d(self, synthesized_met_3d, rescale_ylim):
+        if rescale_ylim in [False, "rescale", "rescale1"]:
+            expectation = does_not_raise()
+        else:
+            expectation = pytest.raises(
+                ValueError, match="Don't know how to handle rescale_ylim="
+            )
+        with expectation:
+            po.plot.synthesis_animate(synthesized_met_3d, rescale_ylim=rescale_ylim)
+
+    @pytest.mark.parametrize("func", ["animate", "plot"])
+    @pytest.mark.parametrize("variable", ["width_ratios", "axes_idx"])
+    @pytest.mark.filterwarnings("ignore:. frames of saved metamer clipped:UserWarning")
+    def test_plot_consistency(self, synthesized_met, func, variable):
+        if func == "plot":
+            func = po.plot.synthesis_status
+        elif func == "animate":
+            func = po.plot.synthesis_animate
+        kwargs = {variable: {"synthesis_histogram": 1}}
+        if variable == "axes_idx":
+            kwargs[variable]["misc"] = 2
+        with pytest.raises(ValueError, match=f"{variable} contains keys"):
+            func(synthesized_met, included_plots=["synthesis_imshow"], **kwargs)
+
+    @pytest.mark.parametrize(
+        "pix_range",
+        [
+            "fine",
+            "all-bad-min",
+            "all-bad-max",
+            "all-bad-both",
+            "mixed-min",
+            "mixed-max",
+            "mixed-both",
+        ],
+    )
+    @pytest.mark.parametrize("process_image", [None, "rescale"])
+    def test_animate_clipping(
+        self, synthesized_met_store_progress, pix_range, process_image, no_logs_warnings
+    ):
+        # with RGB float images, matplotlib will always clip them to lie between 0
+        # and 1 and raise a warning. because of how we animate, this warning gets
+        # raised on each frame. that's annoying, so we do the clipping ourselves,
+        # telling the user how much was lost.
+        # here, we manually overwrite saved_metamer so we know what it looks like
+        saved_met = synthesized_met_store_progress.saved_metamer
+        if process_image == "rescale":
+            # this is a way to avoid the warning: pass an argument that will do the
+            # proper remapping for you
+            process_image = functools.partial(po.process.rescale, a=0, b=1)
+        if pix_range == "fine":
+            saved_met = po.process.rescale(saved_met, 0, 1)
+        elif pix_range == "all-bad-min":
+            saved_met = po.process.rescale(saved_met, -1, 0)
+        elif pix_range == "all-bad-max":
+            saved_met = po.process.rescale(saved_met, 0, 2)
+        elif pix_range == "all-bad-both":
+            saved_met = po.process.rescale(saved_met, -1, 2)
+        elif pix_range == "mixed-min":
+            saved_met[::2] = po.process.rescale(saved_met[::2], -1, 0)
+            saved_met[1::2] = po.process.rescale(saved_met[1::2], 0, 1)
+        elif pix_range == "mixed-max":
+            saved_met[::2] = po.process.rescale(saved_met[::2], 0, 2)
+            saved_met[1::2] = po.process.rescale(saved_met[1::2], 0, 1)
+        elif pix_range == "mixed-both":
+            saved_met[::2] = po.process.rescale(saved_met[::2], -1, 2)
+            saved_met[1::2] = po.process.rescale(saved_met[1::2], 0, 1)
+        as_rgb = synthesized_met_store_progress.image.shape[1] != 1
+        if not as_rgb or pix_range == "fine" or process_image:
+            expectation = does_not_raise()
+        else:
+            n_clip_min = einops.reduce(saved_met, "t b c h w -> t", "min") < 0
+            n_clip_max = einops.reduce(saved_met, "t b c h w -> t", "max") > 1
+            n_clip = torch.stack([n_clip_min, n_clip_max]).any(0).sum()
+            if pix_range == "all-bad":
+                assert all(
+                    [n_clip == len(synthesized_met_store_progress.saved_metamer)]
+                )
+            msg = f"{n_clip} frames of saved metamer"
+            expectation = pytest.warns(UserWarning, match=msg)
+        # last index here is the metamer attribute, which we need for computing the
+        # clipped frames above, but should leave out of the _saved_metamer attribute
+        synthesized_met_store_progress._saved_metamer = saved_met[:-1]
+        synthesized_met_store_progress._metamer = saved_met[-1]
+        with expectation:
+            po.plot.synthesis_animate(
+                synthesized_met_store_progress, process_image=process_image
+            )
+
+
+class TestEigendistortionDisplay:
+    @pytest.fixture(
+        scope="class",
+        params=[
+            "OnOff-power-2",
+            "OnOff-randomized_svd-2",
+            "Color-power-2",
+            "Color-randomized_svd-2",
+            "OnOff-power-3",
+            "OnOff-randomized_svd-3",
+            "Color-power-3",
+            "Color-randomized_svd-3",
+        ],
+    )
+    @classmethod
+    def synthesized_eig(cls, request, einstein_img, color_img):
+        model, method, k = request.param.split("-")
+        if model == "OnOff":
+            model = po.models.OnOff((31, 31), pretrained=True, cache_filt=True).to(
+                DEVICE
+            )
+        elif model == "Color":
+            model = ColorModel().to(DEVICE)
+        po.remove_grad(model)
+        model.eval()
+        img = einstein_img if model.__class__ == po.models.OnOff else color_img
+        img = po.process.center_crop(img, 20)
+        eigendist = po.Eigendistortion(img, model)
+        eigendist.synthesize(k=int(k), method=method, max_iter=10)
+        return eigendist
+
+    @pytest.mark.filterwarnings(
+        "ignore:Randomized SVD complete!:UserWarning",
+    )
+    def test_display(self, synthesized_eig):
+        po.plot.synthesis_imshow(synthesized_eig, batch_idx=0)
+        po.plot.synthesis_imshow(synthesized_eig, batch_idx=1)
+
+        # power method has top and bottom k eigendists
+        if not (synthesized_eig.eigenindex < 3).all():
+            po.plot.synthesis_imshow(synthesized_eig, batch_idx=-1)
+            po.plot.synthesis_imshow(synthesized_eig, batch_idx=-2)
+            # randomized svd only has top k not bottom k eigendists
+        else:
+            with pytest.raises(ValueError, match="eigenindex must be the index"):
+                po.plot.synthesis_imshow(synthesized_eig, batch_idx=-1)
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    @pytest.mark.parametrize("distortion_scale", [1, [1], [1, 10], [1, 10, 10]])
+    @pytest.mark.parametrize("eigenindex", [0, [0, -1], [0, -1, 5]])
+    @pytest.mark.filterwarnings(
+        "ignore:Adding 0.5 to distortion:UserWarning",
+    )
+    def test_display_all(self, synthesized_eig, distortion_scale, eigenindex):
+        expectation = does_not_raise()
+        if isinstance(eigenindex, list):
+            if 5 in eigenindex:
+                expectation = pytest.raises(
+                    ValueError, match="eigenindex must be the index"
+                )
+                # this will get raised first
+            if isinstance(distortion_scale, list) and len(distortion_scale) != len(
+                eigenindex
+            ):
+                expectation = pytest.raises(
+                    ValueError, match="If distortion_scale is a list"
+                )
+        elif isinstance(distortion_scale, list) and len(distortion_scale) != 1:
+            expectation = pytest.raises(
+                ValueError, match="If distortion_scale is a list"
+            )
+        with expectation:
+            po.plot.eigendistortion_imshow_all(
+                synthesized_eig,
+                eigenindex=eigenindex,
+                distortion_scale=distortion_scale,
+            )
+
+    @pytest.mark.parametrize(
+        "synthesized_eig",
+        [
+            "OnOff-power-2",
+            "Color-power-2",
+        ],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("iteration", [None, 2])
+    @pytest.mark.parametrize("batch_idx", [None, 0, -1, "last"])
+    @pytest.mark.parametrize("axes", [None, "axis"])
+    @pytest.mark.filterwarnings(
+        "ignore:Randomized SVD complete!:UserWarning",
+    )
+    def test_synthesis_histogram(self, synthesized_eig, batch_idx, iteration, axes):
+        expectation = does_not_raise()
+        if iteration is not None:
+            expectation = pytest.raises(
+                ValueError, match="When synthesis_object is an Eigendistortion"
+            )
+        if axes == "axis":
+            fig, axes = plt.subplots(1, 1)
+        if batch_idx == "last":
+            batch_idx = synthesized_eig.eigenindex[-1]
+        with expectation:
+            po.plot.synthesis_histogram(
+                synthesized_eig, batch_idx=batch_idx, iteration=iteration, ax=axes
+            )
+
+    @pytest.mark.parametrize(
+        "synthesized_eig",
+        [
+            "OnOff-power-2",
+            "Color-power-2",
+        ],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("iteration", [None, 2])
+    @pytest.mark.parametrize("axes", [None, "axis"])
+    @pytest.mark.parametrize("distortion_scale", [1, 5])
+    @pytest.mark.parametrize("batch_idx", [None, 0, -1, "last"])
+    @pytest.mark.parametrize("process_image", [None, "clip", "multiply"])
+    @pytest.mark.filterwarnings(
+        "ignore:Randomized SVD complete!:UserWarning",
+    )
+    def test_synthesis_imshow(
+        self,
+        synthesized_eig,
+        batch_idx,
+        distortion_scale,
+        process_image,
+        iteration,
+        axes,
+    ):
+        expectation = does_not_raise()
+        if iteration is not None:
+            expectation = pytest.raises(
+                ValueError, match="When synthesis_object is an Eigendistortion"
+            )
+        if axes == "axis":
+            fig, axes = plt.subplots(1, 1)
+        if batch_idx == "last":
+            batch_idx = synthesized_eig.eigenindex[-1]
+            data_batch_idx = -1
+        elif batch_idx is None:
+            expectation = pytest.raises(ValueError, match="batch_idx must be")
+        else:
+            data_batch_idx = batch_idx
+        if synthesized_eig.image.shape[1] == 3:
+            # then this will create an RGB image, and the image array we retrieve from
+            # matplotlib will have the dimensions in a different order. also,
+            # matplotlib automatically clips all RGB images to 0, 1
+            def rearrange_dims(x):
+                return torch.movedim(x, 0, 2).clip(0, 1)
+        else:
+
+            def rearrange_dims(x):
+                return x
+
+        if process_image == "clip":
+
+            def process_image(x):
+                return x.clip(0, 1)
+
+            def data_process_image(x):
+                return rearrange_dims(process_image(x))
+        elif process_image == "multiply":
+
+            def process_image(x):
+                return 5 * x
+
+            def data_process_image(x):
+                return rearrange_dims(process_image(x))
+        else:
+            data_process_image = rearrange_dims
+        with expectation:
+            ax = po.plot.synthesis_imshow(
+                synthesized_eig,
+                batch_idx=batch_idx,
+                distortion_scale=distortion_scale,
+                iteration=iteration,
+                ax=axes,
+                process_image=process_image,
+            )
+            expected_image = (
+                synthesized_eig.image
+                + distortion_scale * synthesized_eig.eigendistortions
+            )
+            expected_image = po.to_numpy(
+                data_process_image(expected_image[data_batch_idx]).squeeze()
+            )
+            plotted_image = ax.images[0].get_array().data
+            if not np.array_equal(expected_image, plotted_image):
+                raise ValueError("plotted image wrong!")
+
+    def test_synthesis_imshow_default(self):
+        # in synthesis_imshow, we do not allow distortion_scale to be changed if
+        # synthesis_object is not eigendistortion. that check hardcodes the value to
+        # check against as 5, so this test checks that it's correct.
+        signature = inspect.signature(po.plot.synthesis_imshow)
+        if signature.parameters["distortion_scale"].default != 5.0:
+            raise ValueError(
+                "synthesis_imshow distortion_scale arg default changed! update check"
+            )
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    def test_synthesis_loss(self, synthesized_eig):
+        with pytest.raises(TypeError, match="synthesis_object must be a"):
+            po.plot.synthesis_loss(synthesized_eig)
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    def test_synthesis_animate(self, synthesized_eig):
+        with pytest.raises(TypeError, match="synthesis_object must be a"):
+            po.plot.synthesis_animate(synthesized_eig)
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    @pytest.mark.parametrize("imshow", [True, False])
+    @pytest.mark.parametrize("histogram", [True, False])
+    @pytest.mark.parametrize(
+        "fig_creation", ["auto", "auto-ratios", "pass-with", "pass-without"]
+    )
+    def test_all_plot(
+        self,
+        synthesized_eig,
+        imshow,
+        histogram,
+        fig_creation,
+    ):
+        # tests whether we can plot all possible combinations of plots.
+        # test_custom_fig tests whether these animate correctly.
+        template_test_synthesis_all_plot(
+            synthesized_eig,
+            None,
+            imshow,
+            False,
+            False,
+            histogram,
+            fig_creation,
+        )
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    @pytest.mark.parametrize(
+        "fig_creation",
+        [
+            "custom",
+            "custom-misc",
+            "custom-without",
+            "custom-extra",
+            "custom-preplot",
+        ],
+    )
+    def test_custom_fig(self, synthesized_eig, fig_creation, tmp_path):
+        # tests whether we can create our own figure and pass it to Eigendistortion's
+        # plotting and animating functions, specifying some or all of the locations for
+        # the plots
+        template_test_synthesis_custom_fig(
+            synthesized_eig, "plot", fig_creation, tmp_path
+        )
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    # first is allowed for other synthesis objects, but not eigendistortions, second is
+    # just a typo
+    @pytest.mark.parametrize("val", ["synthesis_loss", "plot_synthesis_imshow"])
+    @pytest.mark.parametrize(
+        "variable", ["included_plots", "width_ratios", "axes_idx", "kwargs"]
+    )
+    def test_allowed_plots_exception(self, synthesized_eig, val, variable):
+        kwargs = {}
+        expectation_str = f"{variable} contained value"
+        if variable == "included_plots":
+            kwargs["included_plots"] = [val, "synthesis_histogram"]
+        elif variable == "width_ratios":
+            kwargs["width_ratios"] = {val: 1, "synthesis_histogram": 1}
+        elif variable == "axes_idx":
+            kwargs["axes_idx"] = {val: 0, "synthesis_histogram": 1}
+        elif variable == "kwargs":
+            kwargs[f"{val}_kwargs"] = {"xlim": False}
+            expectation_str = "kwargs has additional keys"
+        with pytest.raises(ValueError, match=expectation_str):
+            po.plot.synthesis_status(synthesized_eig, **kwargs)
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    @pytest.mark.parametrize("variable", ["width_ratios", "axes_idx"])
+    def test_plot_consistency(self, synthesized_eig, variable):
+        kwargs = {variable: {"synthesis_histogram": 1}}
+        if variable == "axes_idx":
+            kwargs[variable]["misc"] = 2
+        with pytest.raises(ValueError, match=f"{variable} contains keys"):
+            po.plot.synthesis_status(
+                synthesized_eig, included_plots=["synthesis_imshow"], **kwargs
+            )

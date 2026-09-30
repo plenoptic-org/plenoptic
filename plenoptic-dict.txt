@@ -1,0 +1,3 @@
+plenpotic->plenoptic
+plentopic->plenoptic
+plenopitc->plenoptic

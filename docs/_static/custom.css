@@ -1,0 +1,17 @@
+/* adapted from nbsphinx, to make stderr background red */
+div.cell_output.container div.output .highlight, div.cell_output.container div.output pre {
+    background: unset;
+}
+video {
+    height: 100%;
+    width: 100%;
+}
+
+a.reference.binder::before {
+    background-image: url("binder.ico");
+    background-size: 20px 20px;
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    content: "";
+}

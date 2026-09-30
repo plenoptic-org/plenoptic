@@ -1,0 +1,41 @@
+import pytest
+from torch import Tensor
+
+import plenoptic as po
+
+
+@pytest.mark.parametrize(
+    "item_name",
+    dir(po.data),
+)
+def test_data_module(item_name):
+    """Test that data module works."""
+    if item_name == "DOWNLOADABLE_FILES":
+        assert isinstance(eval(f"po.data.{item_name}"), list)
+    elif item_name == "fetch_data":
+        assert callable(eval(f"po.data.{item_name}"))
+    else:
+        try:
+            # most of the images don't need any arguments
+            assert isinstance(eval(f"po.data.{item_name}()"), Tensor)
+        except TypeError:
+            # the others only need a size
+            assert isinstance(eval(f"po.data.{item_name}(256)"), Tensor)
+            assert isinstance(eval(f"po.data.{item_name}(256)"), Tensor)
+
+
+@pytest.mark.parametrize(
+    "item_name, img_shape",
+    [
+        ("color_wheel", (1, 3, 600, 600)),
+        ("parrot", (1, 1, 254, 266)),
+        ("curie", (1, 1, 256, 256)),
+        ("einstein", (1, 1, 256, 256)),
+        ("reptile_skin", (1, 1, 256, 256)),
+        ("macaque", (1, 3, 1500, 1085)),
+    ],
+)
+def test_data_get_shape(item_name, img_shape):
+    """Check if the shape of the retrieved image matches the expected dimensions."""
+    img = eval(f"po.data.{item_name}()")
+    assert all(shp == img_shape[i] for i, shp in enumerate(img.shape))

@@ -1,114 +1,202 @@
-# we do this to enable deterministic behavior on the gpu, see
-# https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility for
-# details
-from conftest import DEVICE, DATA_DIR
-from test_metric import osf_download
-import os.path as op
-import scipy.io as sio
-import pyrtools as pt
-from plenoptic.simulate.canonical_computations import gaussian1d, circular_gaussian2d
-import plenoptic as po
-import torch
-import numpy as np
-import pytest
+from collections import OrderedDict
+from contextlib import nullcontext as does_not_raise
+
+import einops
 import matplotlib.pyplot as plt
-from packaging import version
-import os
-os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+import numpy as np
+import pyrtools as pt
+import pytest
+import scipy.io as sio
+import torch
+import torchvision
+from timm.data import resolve_data_config
+from timm.data.transforms_factory import create_transform
 
+import plenoptic as po
+from conftest import DEVICE, IMG_DIR
 
-@pytest.fixture()
-def image_input():
-    return torch.rand(1, 1, 100, 100)
+ALL_MODELS = [
+    "LPyr",
+    "SPyr",
+    "frontend.LinearNonlinear.nograd",
+    "frontend.LuminanceGainControl.nograd",
+    "frontend.LuminanceContrastGainControl.nograd",
+    "frontend.OnOff.nograd",
+    "naive.Identity",
+    "naive.Linear.nograd",
+    "naive.Gaussian.nograd",
+    "naive.CenterSurround.nograd",
+    "PortillaSimoncelli",
+]
 
 
 @pytest.fixture()
 def portilla_simoncelli_matlab_test_vectors():
-    return osf_download('portilla_simoncelli_matlab_test_vectors.tar.gz')
+    return po.data.fetch_data("portilla_simoncelli_matlab_test_vectors.tar.gz")
 
 
 @pytest.fixture()
 def portilla_simoncelli_test_vectors():
-    return osf_download('portilla_simoncelli_test_vectors.tar.gz')
-
-
-def get_portilla_simoncelli_synthesize_filename(torch_version=None):
-    """Helper function to get pathname.
-
-    We can't call fixtures directly (feature removed in pytest 4.0), so we use
-    this helper function to get the name, which we use in
-    tests/utils.update_ps_synthesis_test_file()
-
-    """
-    if torch_version is None:
-        # the bit after the + defines the CUDA version used (if any), which
-        # doesn't appear to be relevant for this.
-        torch_version = torch.__version__.split('+')[0]
-    # following https://stackoverflow.com/a/11887885 for how to compare version
-    # strings
-    if version.parse(torch_version) < version.parse('1.12') or DEVICE.type == 'cuda':
-        torch_version = ''
-    # going from 1.11 to 1.12 only changes this synthesis output on cpu, not
-    # gpu
-    else:
-        torch_version = '_torch_v1.12.0'
-    # synthesis gives differnet outputs on cpu vs gpu, so we have two different
-    # versions to test against
-    name_template = 'portilla_simoncelli_synthesize{gpu}{torch_version}.npz'
-    if DEVICE.type == 'cpu':
-        gpu = ''
-    elif DEVICE.type == 'cuda':
-        gpu = '_gpu'
-    return name_template.format(gpu=gpu, torch_version=torch_version)
+    return po.data.fetch_data("portilla_simoncelli_test_vectors_refactor.tar.gz")
 
 
 @pytest.fixture()
-def portilla_simoncelli_synthesize(torch_version=None):
-    return osf_download(get_portilla_simoncelli_synthesize_filename(torch_version))
+def portilla_simoncelli_synthesize():
+    return po.data.fetch_data(
+        "portilla_simoncelli_synthesize_torch_v1.12.0_ps-refactor-2.npz"
+    )
 
 
 @pytest.fixture()
 def portilla_simoncelli_scales():
-    return osf_download('portilla_simoncelli_scales.npz')
+    # During PS refactor, we changed the structure of the
+    # _representation_scales attribute, so have a different file to test
+    # against
+    return po.data.fetch_data("portilla_simoncelli_scales_ps-refactor.npz")
 
 
-class TestNonLinearities(object):
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+@pytest.mark.skipif(DEVICE.type == "cpu", reason="Can only test on cuda")
+def test_cuda(model, einstein_img):
+    model.cuda()
+    model(einstein_img)
+    # make sure it ends on same device it started, since it might be a fixture
+    model.to(DEVICE)
+
+
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+@pytest.mark.skipif(DEVICE.type == "cpu", reason="Can only test on cuda")
+def test_cpu_and_back(model, einstein_img):
+    model.cpu()
+    model.cuda()
+    model(einstein_img)
+    # make sure it ends on same device it started, since it might be a fixture
+    model.to(DEVICE)
+
+
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+@pytest.mark.skipif(DEVICE.type == "cpu", reason="Can only test on cuda")
+def test_cuda_and_back(model, einstein_img):
+    model.cuda()
+    model.cpu()
+    model(einstein_img.cpu())
+    # make sure it ends on same device it started, since it might be a fixture
+    einstein_img.to(DEVICE)
+    model.to(DEVICE)
+
+
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+def test_cpu(model, einstein_img):
+    model.cpu()
+    model(einstein_img.cpu())
+    # make sure it ends on same device it started, since it might be a fixture
+    einstein_img.to(DEVICE)
+    model.to(DEVICE)
+
+
+@pytest.mark.parametrize("model", ALL_MODELS, indirect=True)
+def test_validate_model(model):
+    po.validate.validate_model(model, device=DEVICE, image_shape=(1, 1, 256, 256))
+
+
+# following https://github.com/scverse/scanpy/issues/1662
+@pytest.fixture
+def close_figures_on_teardown():
+    yield
+    plt.close("all")
+
+
+class TestNonLinearities:
     def test_rectangular_to_polar_dict(self, basic_stim):
-        spc = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
-                                              order=1, is_complex=True, tight_frame=True).to(DEVICE)
+        spc = po.process.SteerablePyramidFreq(
+            basic_stim.shape[-2:],
+            height=5,
+            order=1,
+            is_complex=True,
+            tight_frame=True,
+        ).to(DEVICE)
         y = spc(basic_stim)
-        energy, state = po.simul.non_linearities.rectangular_to_polar_dict(y, residuals=True)
-        y_hat = po.simul.non_linearities.polar_to_rectangular_dict(energy, state, residuals=True)
-        for key in y.keys():
-            assert torch.norm(y[key] - y_hat[key]) < 1e-5
+        energy, state = po.process.rectangular_to_polar_dict(y, residuals=True)
+        y_hat = po.process.polar_to_rectangular_dict(energy, state)
+        for key in y:
+            diff = y[key] - y_hat[key]
+            assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-5
 
-    def test_local_gain_control(self):
-        x = torch.randn((10, 1, 256, 256), device=DEVICE)
-        norm, direction = po.simul.non_linearities.local_gain_control(x)
-        x_hat = po.simul.non_linearities.local_gain_release(norm, direction)
-        assert torch.norm(x - x_hat) < 1e-4
+    @pytest.mark.parametrize("ndim", [4, 5])
+    def test_local_gain_control(self, ndim):
+        if ndim == 4:
+            shape = [10, 1, 256, 256]
+        elif ndim == 5:
+            shape = [10, 1, 1, 256, 256]
+        x = torch.randn(shape, device=DEVICE)
+        norm, direction = po.process.local_gain_control(x)
+        x_hat = po.process.local_gain_release(norm, direction)
+        diff = x - x_hat
+        assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-4
+
+    def test_local_gain_control_spyr(self, basic_stim):
+        spr = po.process.SteerablePyramidFreq(
+            basic_stim.shape[-2:],
+            height=5,
+            order=1,
+            is_complex=False,
+            tight_frame=True,
+        ).to(DEVICE)
+        x = spr(basic_stim)
+        norm, direction = po.process.local_gain_control(x[0])
+        x_hat = po.process.local_gain_release(norm, direction)
+        diff = x[0] - x_hat
+        assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-4
+
+    @pytest.mark.parametrize("ndim", [3, 6])
+    def test_local_gain_release_fail(self, ndim):
+        if ndim == 3:
+            shape = [2, 10, 256, 256]
+        elif ndim == 6:
+            shape = [2, 10, 1, 1, 1, 256, 256]
+        x, y = torch.randn(shape, device=DEVICE)
+        with pytest.raises(ValueError, match="Tensor must have 4 or 5"):
+            norm, direction = po.process.local_gain_release(x, y)
+
+    @pytest.mark.parametrize("ndim", [3, 6])
+    def test_local_gain_control_fail(self, ndim):
+        if ndim == 3:
+            shape = [10, 256, 256]
+        elif ndim == 6:
+            shape = [10, 1, 1, 1, 256, 256]
+        x = torch.randn(shape, device=DEVICE)
+        with pytest.raises(ValueError, match="Tensor must have 4 or 5"):
+            norm, direction = po.process.local_gain_control(x)
 
     def test_local_gain_control_dict(self, basic_stim):
-        spr = po.simul.Steerable_Pyramid_Freq(basic_stim.shape[-2:], height=5,
-                                              order=1, is_complex=False, tight_frame=True).to(DEVICE)
+        spr = po.process.SteerablePyramidFreq(
+            basic_stim.shape[-2:],
+            height=5,
+            order=1,
+            is_complex=False,
+            tight_frame=True,
+        ).to(DEVICE)
         y = spr(basic_stim)
-        energy, state = po.simul.non_linearities.local_gain_control_dict(y, residuals=True)
-        y_hat = po.simul.non_linearities.local_gain_release_dict(energy, state, residuals=True)
-        for key in y.keys():
-            assert torch.norm(y[key] - y_hat[key]) < 1e-5
+        energy, state = po.process.local_gain_control_dict(y, residuals=True)
+        y_hat = po.process.local_gain_release_dict(energy, state, residuals=True)
+        for key in y:
+            diff = y[key] - y_hat[key]
+            assert torch.linalg.vector_norm(diff.flatten(), ord=2) < 1e-5
 
 
-class TestLaplacianPyramid(object):
-
-    def test_grad(self, basic_stim):
-        lpyr = po.simul.LaplacianPyramid().to(DEVICE)
-        y = lpyr.forward(basic_stim)
+class TestLaplacianPyramid:
+    def test_gradient_flow(self):
+        lpyr = po.process.LaplacianPyramid().to(DEVICE)
+        img = torch.ones(1, 1, 100, 100).to(DEVICE).requires_grad_()
+        y = lpyr.forward(img)
         assert y[0].requires_grad
 
     @pytest.mark.parametrize("n_scales", [3, 4, 5, 6])
     def test_synthesis(self, curie_img, n_scales):
-        img = curie_img[:, :, 0:253, 0:234]  # Original 256x256 shape is not good for testing padding
-        lpyr = po.simul.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
+        img = curie_img[
+            :, :, 0:253, 0:234
+        ]  # Original 256x256 shape is not good for testing padding
+        lpyr = po.process.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
         y = lpyr.forward(img)
         img_recon = lpyr.recon_pyr(y)
         assert torch.allclose(img, img_recon)
@@ -116,7 +204,7 @@ class TestLaplacianPyramid(object):
     @pytest.mark.parametrize("n_scales", [3, 4, 5, 6])
     def test_match_pyrtools(self, curie_img, n_scales):
         img = curie_img[:, :, 0:253, 0:234]
-        lpyr_po = po.simul.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
+        lpyr_po = po.process.LaplacianPyramid(n_scales=n_scales).to(DEVICE)
         y_po = lpyr_po(img)
         lpyr_pt = pt.pyramids.LaplacianPyramid(img.squeeze().cpu(), height=n_scales)
         y_pt = [lpyr_pt.pyr_coeffs[(i, 0)] for i in range(n_scales)]
@@ -124,15 +212,15 @@ class TestLaplacianPyramid(object):
         for x_po, x_pt in zip(y_po, y_pt):
             x_po = x_po.squeeze().detach().cpu().numpy()
             assert np.abs(x_po - x_pt)[:-2, :-2].max() < 1e-5
-            # The pyrtools implementation `pt.upConv performs`` padding after upsampling.
-            # Our implementation `po.tools.upsample_convolve`` performs padding before upsampling,
-            # and, depending on the parity of the image, sometimes performs additional zero padding
-            # after upsampling up to one row/column. This causes inconsistency on the right and
-            # bottom edges, so they are exluded in the comparison.
+            # The pyrtools implementation `pt.upConv performs`` padding after
+            # upsampling. Our implementation `po.process.upsample_convolve``
+            # performs padding before upsampling, and, depending on the parity of
+            # the image, sometimes performs additional zero padding after upsampling
+            # up to one row/column. This causes inconsistency on the right and
+            # bottom edges, so they are excluded in the comparison.
 
 
 class TestFrontEnd:
-
     all_models = [
         "frontend.LinearNonlinear",
         "frontend.LuminanceGainControl",
@@ -152,25 +240,65 @@ class TestFrontEnd:
         assert y.requires_grad
 
     def test_onoff(self):
-        mdl = po.simul.OnOff(7, pretrained=False).to(DEVICE)
+        po.models.OnOff(7, pretrained=False).to(DEVICE)
 
     @pytest.mark.parametrize("kernel_size", [7, 31])
     @pytest.mark.parametrize("cache_filt", [False, True])
+    @pytest.mark.filterwarnings(
+        "ignore:pretrained is True but cache_filt is False:UserWarning"
+    )
     def test_pretrained_onoff(self, kernel_size, cache_filt):
         if kernel_size != 31:
-            with pytest.raises(AssertionError):
-                mdl = po.simul.OnOff(kernel_size, pretrained=True, cache_filt=cache_filt).to(DEVICE)
+            with pytest.raises(ValueError):
+                po.models.OnOff(kernel_size, pretrained=True, cache_filt=cache_filt).to(
+                    DEVICE
+                )
         else:
-            mdl = po.simul.OnOff(kernel_size, pretrained=True, cache_filt=cache_filt).to(DEVICE)
+            po.models.OnOff(kernel_size, pretrained=True, cache_filt=cache_filt).to(
+                DEVICE
+            )
 
     @pytest.mark.parametrize("model", all_models, indirect=True)
-    def test_frontend_display_filters(self, model):
-        fig = model.display_filters()
-        plt.close(fig)
+    def test_frontend_display_filters(self, model, close_figures_on_teardown):
+        model.display_filters()
+
+    @pytest.mark.parametrize("mdl", all_models)
+    def test_kernel_size(self, mdl, einstein_img):
+        kernel_size = 31
+        if mdl == "frontend.LinearNonlinear":
+            model = po.models.LinearNonlinear(
+                kernel_size, pretrained=True, cache_filt=True
+            ).to(DEVICE)
+            model2 = po.models.LinearNonlinear(
+                (kernel_size, kernel_size), pretrained=True, cache_filt=True
+            ).to(DEVICE)
+        elif mdl == "frontend.LuminanceGainControl":
+            model = po.models.LuminanceGainControl(
+                kernel_size, pretrained=True, cache_filt=True
+            ).to(DEVICE)
+            model2 = po.models.LuminanceGainControl(
+                (kernel_size, kernel_size), pretrained=True, cache_filt=True
+            ).to(DEVICE)
+        elif mdl == "frontend.LuminanceContrastGainControl":
+            model = po.models.LuminanceContrastGainControl(
+                kernel_size, pretrained=True, cache_filt=True
+            ).to(DEVICE)
+            model2 = po.models.LuminanceContrastGainControl(
+                (kernel_size, kernel_size), pretrained=True, cache_filt=True
+            ).to(DEVICE)
+        elif mdl == "frontend.OnOff":
+            model = po.models.OnOff(kernel_size, pretrained=True, cache_filt=True).to(
+                DEVICE
+            )
+            model2 = po.models.OnOff(
+                (kernel_size, kernel_size), pretrained=True, cache_filt=True
+            ).to(DEVICE)
+        assert torch.allclose(model(einstein_img), model2(einstein_img)), (
+            "Kernels somehow different!"
+        )
 
 
-class TestNaive(object):
-
+class TestNaive:
     all_models = [
         "naive.Identity",
         "naive.Linear",
@@ -184,131 +312,516 @@ class TestNaive(object):
         y = model(img)
         assert y.requires_grad
 
+    @pytest.mark.parametrize(
+        "mdl", ["naive.Linear", "naive.Gaussian", "naive.CenterSurround"]
+    )
+    def test_kernel_size(self, mdl, einstein_img):
+        kernel_size = 10
+        if mdl == "naive.Gaussian":
+            model = po.models.Gaussian(kernel_size, 1.0).to(DEVICE)
+            model2 = po.models.Gaussian((kernel_size, kernel_size), 1.0).to(DEVICE)
+        elif mdl == "naive.Linear":
+            model = po.models.Linear(kernel_size).to(DEVICE)
+            model2 = po.models.Linear((kernel_size, kernel_size)).to(DEVICE)
+        elif mdl == "naive.CenterSurround":
+            model = po.models.CenterSurround(kernel_size).to(DEVICE)
+            model2 = po.models.CenterSurround((kernel_size, kernel_size)).to(DEVICE)
+        assert torch.allclose(model(einstein_img), model2(einstein_img)), (
+            "Kernels somehow different!"
+        )
+
     @pytest.mark.parametrize("mdl", ["naive.Gaussian", "naive.CenterSurround"])
     @pytest.mark.parametrize("cache_filt", [False, True])
     def test_cache_filt(self, cache_filt, mdl):
         img = torch.ones(1, 1, 100, 100).to(DEVICE).requires_grad_()
         if mdl == "naive.Gaussian":
-            model = po.simul.Gaussian((31, 31), 1., cache_filt=cache_filt).to(DEVICE)
+            model = po.models.Gaussian((31, 31), 1.0, cache_filt=cache_filt).to(DEVICE)
         elif mdl == "naive.CenterSurround":
-            model = po.simul.CenterSurround((31, 31), cache_filt=cache_filt).to(DEVICE)
-
-        y = model(img)  # forward pass should cache filt if True
-
+            model = po.models.CenterSurround((31, 31), cache_filt=cache_filt).to(DEVICE)
+        model(img)  # forward pass should cache filt if True
         if cache_filt:
             assert model._filt is not None
         else:
             assert model._filt is None
 
-    @pytest.mark.parametrize("center_std", [1., torch.tensor([1., 2.])])
+    @pytest.mark.parametrize("center_std", [1.0, torch.as_tensor([1.0, 2.0])])
     @pytest.mark.parametrize("out_channels", [1, 2, 3])
     @pytest.mark.parametrize("on_center", [True, [True, False]])
     def test_CenterSurround_channels(self, center_std, out_channels, on_center):
         if not isinstance(center_std, float) and len(center_std) != out_channels:
-            with pytest.raises(AssertionError):
-                model = po.simul.CenterSurround((31, 31), center_std=center_std, out_channels=out_channels)
+            with pytest.raises(
+                ValueError, match=r"If non-scalar, len\(center_std\) must equal"
+            ):
+                po.models.CenterSurround(
+                    (31, 31), center_std=center_std, out_channels=out_channels
+                )
         else:
-            model = po.simul.CenterSurround((31, 31), center_std=center_std, out_channels=out_channels)
+            po.models.CenterSurround(
+                (31, 31), center_std=center_std, out_channels=out_channels
+            )
+
+    @pytest.mark.parametrize(
+        "amplitude_ratio,expectation",
+        [
+            (0, pytest.raises(ValueError, match=".*must at least be 1")),
+            (1, does_not_raise()),
+            (1.0, does_not_raise()),
+            (torch.as_tensor(1, dtype=int), does_not_raise()),
+            (torch.as_tensor(1.0), does_not_raise()),
+            (torch.as_tensor(1.0), does_not_raise()),
+            (torch.as_tensor([1.0]), does_not_raise()),
+            (
+                torch.as_tensor([1, 2]),
+                pytest.raises(ValueError, match=".*must be a scalar"),
+            ),
+            ([1, 2], pytest.raises(ValueError, match=".*must be a scalar")),
+        ],
+    )
+    def test_CenterSurround_amplitude_ratio(self, amplitude_ratio, expectation):
+        with expectation:
+            po.models.CenterSurround(31, amplitude_ratio=amplitude_ratio)
 
     def test_linear(self, basic_stim):
-        model = po.simul.Linear().to(DEVICE)
+        model = po.models.Linear().to(DEVICE)
         assert model(basic_stim).requires_grad
 
-    def test_linear_metamer(self, einstein_img):
-        model = po.simul.Linear().to(DEVICE)
-        M = po.synth.Metamer(einstein_img, model)
-        M.synthesize(max_iter=3)
+    @pytest.mark.parametrize("how", ["out_channels", "center_std"])
+    def test_CenterSurround_on_center_size(self, how):
+        if how == "out_channels":
+            out_channels = 1
+            std = 1
+            txt = r"len\(on_center\) must equal out_channels"
+        elif how == "center_std":
+            out_channels = None
+            std = [1, 2, 3]
+            txt = r"If non-scalar, len\(center_std\) must equal out_channels"
+        with pytest.raises(ValueError, match=txt):
+            po.models.CenterSurround(
+                31, on_center=[True, False], center_std=std, out_channels=out_channels
+            )
+
+    def test_CenterSurround_std_size(self):
+        with pytest.raises(
+            ValueError,
+            match=r"If non-scalar, len\(surround_std\) must equal len\(center_std\)",
+        ):
+            po.models.CenterSurround(31, center_std=[1, 2], surround_std=[1, 2, 3])
 
 
-class TestPortillaSimoncelli(object):
+def convert_matlab_ps_rep_to_dict(
+    vec: torch.Tensor,
+    n_scales: int,
+    n_orientations: int,
+    spatial_corr_width: int,
+    use_true_correlations: bool,
+) -> OrderedDict:
+    """Converts matlab vector of statistics to a dictionary.
+
+    The matlab (and old plenoptic) PS representation includes a bunch of
+    unnecessary and redundant stats, which are removed in our current
+    implementation. This function converts that representation into a
+    dictionary, which we then restrict to only those stats we now compute, so
+    we can compare
+
+    Parameters
+    ----------
+    vec
+        1d vector of statistics.
+    n_scales, n_orientations, spatial_corr_width, use_true_correlations
+        Arguments used to initialize PS model
+
+    Returns
+    -------
+    Dictionary of representation, with informative keys.
+
+    """
+    rep = OrderedDict()
+    rep["pixel_statistics"] = OrderedDict()
+    rep["pixel_statistics"] = vec[..., :6]
+
+    n_filled = 6
+
+    # magnitude_means
+    rep["magnitude_means"] = OrderedDict()
+    keys = (
+        ["residual_highpass"]
+        + [(sc, ori) for sc in range(n_scales) for ori in range(n_orientations)]
+        + ["residual_lowpass"]
+    )
+    for ii, k in enumerate(keys):
+        rep["magnitude_means"][k] = vec[..., n_filled + ii]
+    n_filled += ii + 1
+
+    # auto_correlation_magnitude
+    nn = (
+        spatial_corr_width,
+        spatial_corr_width,
+        n_scales,
+        n_orientations,
+    )
+    # in the plenoptic version, auto_correlation_magnitude shape has n_scales and
+    # n_orientations flipped relative to the matlab representation
+    rep["auto_correlation_magnitude"] = (
+        vec[..., n_filled : (n_filled + np.prod(nn))]
+        .unflatten(-1, nn)
+        .transpose(-1, -2)
+    )
+    n_filled += np.prod(nn)
+
+    # skew_reconstructed & kurtosis_reconstructed
+    nn = n_scales + 1
+    rep["skew_reconstructed"] = vec[..., n_filled : (n_filled + nn)]
+    n_filled += nn
+
+    rep["kurtosis_reconstructed"] = vec[..., n_filled : (n_filled + nn)]
+    n_filled += nn
+
+    # auto_correlation_reconstructed
+    nn = (spatial_corr_width, spatial_corr_width, (n_scales + 1))
+    rep["auto_correlation_reconstructed"] = vec[
+        ..., n_filled : (n_filled + np.prod(nn))
+    ].unflatten(-1, nn)
+    n_filled += np.prod(nn)
+
+    if use_true_correlations:
+        nn = n_scales + 1
+        rep["std_reconstructed"] = vec[..., n_filled : (n_filled + nn)]
+        n_filled += nn
+    else:
+        # place a dummy entry, so the order of keys is correct
+        rep["std_reconstructed"] = []
+
+    # cross_orientation_correlation_magnitude
+    nn = (n_orientations, n_orientations, (n_scales + 1))
+    rep["cross_orientation_correlation_magnitude"] = vec[
+        ..., n_filled : (n_filled + np.prod(nn))
+    ].unflatten(-1, nn)
+    n_filled += np.prod(nn)
+
+    if use_true_correlations:
+        nn = (n_orientations, n_scales)
+        rep["magnitude_std"] = vec[..., n_filled : (n_filled + np.prod(nn))].unflatten(
+            -1, nn
+        )
+        n_filled += np.prod(nn)
+    else:
+        # place a dummy entry, so the order of keys is correct
+        rep["magnitude_std"] = []
+
+    # cross_scale_correlation_magnitude
+    nn = (n_orientations, n_orientations, n_scales)
+    rep["cross_scale_correlation_magnitude"] = vec[
+        ..., n_filled : (n_filled + np.prod(nn))
+    ].unflatten(-1, nn)
+    n_filled += np.prod(nn)
+
+    # cross_orientation_correlation_real
+    nn = (
+        max(2 * n_orientations, 5),
+        max(2 * n_orientations, 5),
+        (n_scales + 1),
+    )
+    rep["cross_orientation_correlation_real"] = vec[
+        ..., n_filled : (n_filled + np.prod(nn))
+    ].unflatten(-1, nn)
+    n_filled += np.prod(nn)
+
+    # cross_scale_correlation_real
+    nn = (2 * n_orientations, max(2 * n_orientations, 5), n_scales)
+    rep["cross_scale_correlation_real"] = vec[
+        ..., n_filled : (n_filled + np.prod(nn))
+    ].unflatten(-1, nn)
+    n_filled += np.prod(nn)
+
+    # var_highpass_residual
+    rep["var_highpass_residual"] = vec[..., n_filled]
+
+    return rep
+
+
+def construct_normalizing_dict(
+    plen_ps: po.models.PortillaSimoncelli, img: torch.Tensor
+) -> dict[str, torch.Tensor]:
+    """Construct dictionary to normalize covariances in PS representation.
+
+    The matlab code computes covariances instead of correlations for the
+    cross-orientation and cross-scale correlations. Here, we construct the
+    tensors required to normalize those covariances to correlations, which are
+    the outer product of the variances of the tensors that created them (which
+    are intermediaries and not present in the final PS model output)
+
+    """
+    coeffs = plen_ps._compute_pyr_coeffs(img)[1]
+    mags, reals = plen_ps._compute_intermediate_representations(coeffs)
+    doub_mags, doub_sep = plen_ps._double_phase_pyr_coeffs(coeffs)
+    mags_var = torch.stack([m.var((-2, -1), correction=0) for m in mags], -1)
+
+    normalizing_dict = {}
+    com = einops.einsum(mags_var, mags_var, "b c o1 s, b c o2 s -> b c o1 o2 s")
+    normalizing_dict["cross_orientation_correlation_magnitude"] = com.pow(0.5)
+
+    if plen_ps.n_scales > 1:
+        doub_mags_var = torch.stack(
+            [m.var((-2, -1), correction=0) for m in doub_mags], -1
+        )
+        reals_var = torch.stack([r.var((-2, -1), correction=0) for r in reals], -1)
+        doub_sep_var = torch.stack(
+            [s.var((-2, -1), correction=0) for s in doub_sep], -1
+        )
+        csm = einops.einsum(
+            mags_var[..., :-1],
+            doub_mags_var,
+            "b c o1 s, b c o2 s -> b c o1 o2 s",
+        )
+        normalizing_dict["cross_scale_correlation_magnitude"] = csm.pow(0.5)
+        csr = einops.einsum(
+            reals_var[..., :-1],
+            doub_sep_var,
+            "b c o1 s, b c o2 s -> b c o1 o2 s",
+        )
+        normalizing_dict["cross_scale_correlation_real"] = csr.pow(0.5)
+    else:
+        normalizing_dict["cross_scale_correlation_magnitude"] = 1
+        normalizing_dict["cross_scale_correlation_real"] = 1
+
+    return normalizing_dict
+
+
+def remove_redundant_and_normalize(
+    matlab_rep: OrderedDict,
+    use_true_correlations: bool,
+    plen_ps: po.models.PortillaSimoncelli,
+    normalizing_dict: dict,
+) -> torch.Tensor:
+    """Remove redundant stats from dictionary of representation, and normalize
+    correlations
+
+    Redundant stats fall in two categories: those that are not included at all
+    anymore (e.g., magnitude means, extra zero placeholders), and those that
+    are computed automatically (because of how the computation works) and then
+    discarded (e.g., symmetries in autocorrelation). This function removes both.
+
+    Additionally, if ``use_true_correlations=False``, we normalize the
+    correlations. The matlab PS code did not do so, so that, e.g., the center
+    value of the autocorrelations was the corresponding variance (rather than
+    being normalized to 1). Originally, we supported both normalized and
+    un-normalized, but now we only support the normalized version. Thus, to
+    compare with the matlab outputs (and older plenoptic versions), need to
+    normalize the auto- and cross-correlations.
+
+    We also grab the center values of auto_correlation_reconstructed and
+    create the new statistic std_reconstructed, as this information is
+    important.
+
+    Finally, we take the negative of half the cross_scale_correlation_real.
+    When doubling the phase, Portilla-Simoncelli accidentally calculated the
+    negative of the real component: they called atan2(real, imag), whereas
+    atan2 receives the y-value (thus, the imaginary component) first. This
+    caused the correlations between the real coefficients on one scale and the
+    real coefficients on the next to be negative where they should be positive,
+    and vice versa (this doesn't affect the magnitudes or the imaginary
+    components on the next scale).
+
+    """
+    # Remove those stats that are not included at all.
+    matlab_rep.pop("magnitude_means")
+    matlab_rep.pop("cross_orientation_correlation_real")
+
+    # Remove the 0 placeholders
+    matlab_rep["cross_scale_correlation_magnitude"] = matlab_rep[
+        "cross_scale_correlation_magnitude"
+    ][..., :-1]
+    matlab_rep["cross_orientation_correlation_magnitude"] = matlab_rep[
+        "cross_orientation_correlation_magnitude"
+    ][..., :-1]
+    matlab_rep["cross_scale_correlation_real"] = matlab_rep[
+        "cross_scale_correlation_real"
+    ][..., : plen_ps.n_orientations, :, :-1]
+    # if there are two orientations, there's some more 0 placeholders
+    if plen_ps.n_orientations == 2:
+        matlab_rep["cross_scale_correlation_real"] = matlab_rep[
+            "cross_scale_correlation_real"
+        ][..., :-1, :]
+    # See docstring for why we make these specific stats negative
+    matlab_rep["cross_scale_correlation_real"][
+        ..., : plen_ps.n_orientations, :
+    ] = -matlab_rep["cross_scale_correlation_real"][..., : plen_ps.n_orientations, :]
+
+    if not use_true_correlations:
+        # Create std_reconstructed
+        ctr_ind = plen_ps.spatial_corr_width // 2
+        var_recon = matlab_rep["auto_correlation_reconstructed"][
+            ..., ctr_ind, ctr_ind, :
+        ].clone()
+        matlab_rep["std_reconstructed"] = var_recon**0.5
+
+        # Normalize the autocorrelations using their center values
+        matlab_rep["auto_correlation_reconstructed"] /= var_recon
+        acm_ctr = matlab_rep["auto_correlation_magnitude"][
+            ..., ctr_ind, ctr_ind, :, :
+        ].clone()
+        matlab_rep["auto_correlation_magnitude"] /= acm_ctr
+
+        # Create magnitude_std
+        diag = torch.arange(plen_ps.n_orientations)
+        var_mags = matlab_rep["cross_orientation_correlation_magnitude"][
+            ..., diag, diag, :
+        ]
+        matlab_rep["magnitude_std"] = var_mags.pow(0.5)
+
+        # The cross-correlations are normalized by the outer product of the
+        # variances of the tensors that create them. We have created these and
+        # saved them in normalizing dict, which we use here
+        crosscorr_keys = [
+            "cross_scale_correlation_real",
+            "cross_scale_correlation_magnitude",
+            "cross_orientation_correlation_magnitude",
+        ]
+        for k in crosscorr_keys:
+            matlab_rep[k] = matlab_rep[k] / normalizing_dict[k]
+
+    # Finally, turn dict back into vector, removing redundant stats
+    return plen_ps.convert_to_tensor(matlab_rep)
+
+
+class TestPortillaSimoncelli:
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
-    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
-    @pytest.mark.parametrize("use_true_correlations", [True, False])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
     def test_portilla_simoncelli(
         self,
         n_scales,
         n_orientations,
         spatial_corr_width,
-        use_true_correlations,
+        einstein_img,
     ):
-        im_shape = (256, 256)
-        x = po.tools.make_synthetic_stimuli().to(DEVICE)
-        x = x.unsqueeze(0).unsqueeze(0)
-        if im_shape is not None:
-            x = x[0, 0, : im_shape[0], : im_shape[1]]
-        ps = po.simul.PortillaSimoncelli(
-            x.shape[-2:],
+        ps = po.models.PortillaSimoncelli(
+            einstein_img.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
-            use_true_correlations=use_true_correlations,
         ).to(DEVICE)
-        ps(x[0, :, :, :])
+        ps(einstein_img)
 
-    # tests for whether output matches the original matlab output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
+    # tests for whether output matches the original matlab output.  This implicitly
+    # tests that Portilla_simoncelli.forward() returns an object of the correct size.
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
     @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
-    @pytest.mark.parametrize("im_shape", [(256, 256)])
     @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
-    def test_ps_torch_v_matlab(self, n_scales, n_orientations,
-                               spatial_corr_width, im_shape, im,
-                               portilla_simoncelli_matlab_test_vectors):
-
-        torch.set_default_dtype(torch.float64)
-        x = plt.imread(op.join(DATA_DIR, f"256/{im}.pgm")).copy()
-        im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0).to(DEVICE)
-        ps = po.simul.PortillaSimoncelli(
-            x.shape[-2:],
-            n_scales=n_scales,
-            n_orientations=n_orientations,
-            spatial_corr_width=spatial_corr_width,
-            use_true_correlations=False,
-        ).to(DEVICE)
-        python_vector = po.to_numpy(ps(im0))
-
-        matlab = sio.loadmat(f"{portilla_simoncelli_matlab_test_vectors}/"
-                             f"{im}-scales{n_scales}-ori{n_orientations}"
-                             f"-spat{spatial_corr_width}.mat")
-        matlab_vector = matlab["params_vector"].flatten()
-
-        np.testing.assert_allclose(
-            python_vector.squeeze(), matlab_vector.squeeze(), rtol=1e-4, atol=1e-4
+    @pytest.mark.filterwarnings("ignore:input_tensor range is:UserWarning")
+    def test_ps_torch_v_matlab(
+        self,
+        n_scales,
+        n_orientations,
+        spatial_corr_width,
+        im,
+        portilla_simoncelli_matlab_test_vectors,
+    ):
+        # the matlab outputs were computed on images with values between 0 and
+        # 255 (not 0 and 1, which is what po.load_images does by default). Note
+        # that for the einstein-9-2-4, einstein-9-3-4, einstein-9-4-4,
+        # multiplying by 255 before converting to float64 (rather than
+        # converting to float64 and then multiplying by 255) matters, because
+        # floating points are fun.
+        im0 = 255 * po.load_images(IMG_DIR / "256" / f"{im}.pgm")
+        im0 = im0.to(torch.float64).to(DEVICE)
+        ps = (
+            po.models.PortillaSimoncelli(
+                im0.shape[-2:],
+                n_scales=n_scales,
+                n_orientations=n_orientations,
+                spatial_corr_width=spatial_corr_width,
+            )
+            .to(DEVICE)
+            .to(torch.float64)
         )
+        python_vector = ps(im0)
 
-    # tests for whether output matches the saved python output.  This implicitly tests that Portilla_simoncelli.forward() returns an object of the correct size.
+        matlab_rep = sio.loadmat(
+            f"{portilla_simoncelli_matlab_test_vectors}/"
+            f"{im}-scales{n_scales}-ori{n_orientations}"
+            f"-spat{spatial_corr_width}.mat"
+        )
+        matlab_rep = (
+            torch.from_numpy(matlab_rep["params_vector"].flatten())
+            .unsqueeze(0)
+            .unsqueeze(0)
+        )
+        matlab_rep = convert_matlab_ps_rep_to_dict(
+            matlab_rep.to(DEVICE),
+            n_scales,
+            n_orientations,
+            spatial_corr_width,
+            False,
+        )
+        norm_dict = construct_normalizing_dict(ps, im0)
+        matlab_rep = remove_redundant_and_normalize(matlab_rep, False, ps, norm_dict)
+        matlab_rep = po.to_numpy(matlab_rep).squeeze()
+        python_vector = po.to_numpy(python_vector).squeeze()
+
+        np.testing.assert_allclose(python_vector, matlab_rep, rtol=1e-4, atol=1e-4)
+
+    # tests for whether output matches the saved python output. This implicitly
+    # tests that Portilla_simoncelli.forward() returns an object of the correct
+    # size.
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
-    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
-    @pytest.mark.parametrize("use_true_correlations", [False, True])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
     @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
-    def test_ps_torch_output(self, n_scales, n_orientations,
-                             spatial_corr_width, im, use_true_correlations,
-                             portilla_simoncelli_test_vectors):
+    def test_ps_torch_output(
+        self,
+        n_scales,
+        n_orientations,
+        spatial_corr_width,
+        im,
+        portilla_simoncelli_test_vectors,
+    ):
+        im0 = po.load_images(IMG_DIR / "256" / f"{im}.pgm")
+        im0 = im0.to(torch.float64).to(DEVICE)
+        ps = (
+            po.models.PortillaSimoncelli(
+                im0.shape[-2:],
+                n_scales=n_scales,
+                n_orientations=n_orientations,
+                spatial_corr_width=spatial_corr_width,
+            )
+            .to(DEVICE)
+            .to(torch.float64)
+        )
+        output = ps(im0)
 
-        torch.set_default_dtype(torch.float64)
-        x = plt.imread(op.join(DATA_DIR, f"256/{im}.pgm")).copy() / 255
-        im0 = torch.Tensor(x).unsqueeze(0).unsqueeze(0).to(DEVICE)
-        ps = po.simul.PortillaSimoncelli(
-            x.shape[-2:],
+        saved = np.load(
+            f"{portilla_simoncelli_test_vectors}/"
+            f"{im}_scales-{n_scales}_ori-{n_orientations}_"
+            f"spat-{spatial_corr_width}.npy"
+        )
+
+        output = po.to_numpy(output)
+        np.testing.assert_allclose(output, saved, rtol=1e-5, atol=1e-5)
+
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
+    def test_ps_convert(
+        self, n_scales, n_orientations, spatial_corr_width, einstein_img
+    ):
+        ps = po.models.PortillaSimoncelli(
+            einstein_img.shape[-2:],
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
-            use_true_correlations=use_true_correlations,
         ).to(DEVICE)
-        output = po.to_numpy(ps(im0))
-
-        saved = np.load(f"{portilla_simoncelli_test_vectors}/"
-                        f"{im}-scales{n_scales}-ori{n_orientations}-"
-                        f"spat{spatial_corr_width}-corr{use_true_correlations}.npy")
-
-        np.testing.assert_allclose(
-            output.squeeze(), saved.squeeze(), rtol=1e-5, atol=1e-5
+        rep = ps(einstein_img)
+        assert torch.all(rep == ps.convert_to_tensor(ps.convert_to_dict(rep))), (
+            "Convert to tensor or dict is broken!"
         )
 
-    def test_ps_synthesis(self, portilla_simoncelli_synthesize,
-                          run_test=True):
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning",
+        "ignore:input_tensor range is:UserWarning",
+    )
+    def test_ps_synthesis(self, portilla_simoncelli_synthesize, run_test=True):
         """Test PS texture metamer synthesis.
 
         Parameters
@@ -333,116 +846,1047 @@ class TestPortillaSimoncelli(object):
         # versions change. you probably only need to store the most recent
         # version, because that's what we test against.
         torch.use_deterministic_algorithms(True)
-        torch.set_default_dtype(torch.float64)
         with np.load(portilla_simoncelli_synthesize) as f:
-            im = f['im']
-            im_init = f['im_init']
-            im_synth = f['im_synth']
-            rep_synth = f['rep_synth']
+            im = f["im"]
+            im_init = f["im_init"]
+            im_synth = f["im_synth"]
+            rep_synth = f["rep_synth"]
 
-        im0 = torch.tensor(im).unsqueeze(0).unsqueeze(0).to(DEVICE)
-        model = po.simul.PortillaSimoncelli(im0.shape[-2:],
-                                            n_scales=4,
-                                            n_orientations=4,
-                                            spatial_corr_width=9,
-                                            use_true_correlations=True).to(DEVICE)
+        im0 = torch.as_tensor(im).unsqueeze(0).unsqueeze(0).to(DEVICE).to(torch.float64)
+        model = (
+            po.models.PortillaSimoncelli(
+                im0.shape[-2:],
+                n_scales=4,
+                n_orientations=4,
+                spatial_corr_width=9,
+            )
+            .to(DEVICE)
+            .to(torch.float64)
+        )
 
-        po.tools.set_seed(1)
-        im_init = torch.tensor(im_init).unsqueeze(0).unsqueeze(0)
-        met = po.synth.Metamer(im0, model, initial_image=im_init,
-                               loss_function=po.tools.optim.l2_norm,
-                               range_penalty_lambda=0)
-
-        coarse_to_fine_kwargs = {'change_scale_criterion': None,
-                                 'ctf_iters_to_check': 15}
+        po.set_seed(1)
+        im_init = torch.as_tensor(im_init).unsqueeze(0).unsqueeze(0)
+        met = po.MetamerCTF(
+            im0,
+            model,
+            loss_function=po.loss.l2_norm,
+            penalty_lambda=0,
+            coarse_to_fine="together",
+        )
         # this is the same as the default optimizer, but we explicitly
         # instantiate it anyway, in case we change the defaults at some point
-        optim = torch.optim.Adam([met.synthesized_signal], lr=.01,
-                                 amsgrad=True)
-        output = met.synthesize(max_iter=200, optimizer=optim,
-                                coarse_to_fine='together',
-                                coarse_to_fine_kwargs=coarse_to_fine_kwargs)
+        met.setup(
+            initial_image=im_init,
+            optimizer=torch.optim.Adam,
+            optimizer_kwargs={"lr": 0.01, "amsgrad": True},
+        )
 
+        met.synthesize(
+            max_iter=200,
+            change_scale_criterion=None,
+            ctf_iters_to_check=15,
+        )
+
+        output = met.metamer
         if run_test:
             np.testing.assert_allclose(
-                po.to_numpy(output).squeeze(), im_synth.squeeze(), rtol=1e-4, atol=1e-4,
+                po.to_numpy(output).squeeze(),
+                im_synth.squeeze(),
+                rtol=1e-4,
+                atol=1e-4,
             )
 
             np.testing.assert_allclose(
-                po.to_numpy(model(output)).squeeze(), rep_synth.squeeze(), rtol=1e-4, atol=1e-4
+                po.to_numpy(model(output)).squeeze(),
+                rep_synth.squeeze(),
+                rtol=1e-4,
+                atol=1e-4,
             )
         else:
             return met
 
-
     @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
     @pytest.mark.parametrize("n_orientations", [2, 3, 4])
-    @pytest.mark.parametrize("spatial_corr_width", [3, 5, 7, 9])
-    @pytest.mark.parametrize("use_true_correlations", [False, True])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
     def test_portilla_simoncelli_scales(
         self,
         n_scales,
         n_orientations,
         spatial_corr_width,
-        use_true_correlations,
-        portilla_simoncelli_scales
+        portilla_simoncelli_scales,
     ):
-        with np.load(portilla_simoncelli_scales) as f:
-            key = f'scale_{n_scales}_ori_{n_orientations}_width_{spatial_corr_width}_corr_{use_true_correlations}'
+        with np.load(portilla_simoncelli_scales, allow_pickle=True) as f:
+            key = f"scale-{n_scales}_ori-{n_orientations}_width-{spatial_corr_width}"
             saved = f[key]
 
-        model = po.simul.PortillaSimoncelli(
+        model = po.models.PortillaSimoncelli(
             [256, 256],
             n_scales=n_scales,
             n_orientations=n_orientations,
             spatial_corr_width=spatial_corr_width,
-            use_true_correlations=use_true_correlations).to(DEVICE)
+        ).to(DEVICE)
 
-        output = model._get_representation_scales()
+        output = model._representation_scales
 
-        for (oo, ss) in zip(output, saved):
-            if str(oo) != ss:
-                raise ValueError("Scales do not match.")
-            
-    @pytest.mark.parametrize("im_shape", [(256,256), (128,256)])
-    def test_ps_expand(self, im_shape):
-        mult = 4
-        
-        im = po.tools.make_synthetic_stimuli().to(DEVICE)
-        im = im[0,0,:im_shape[0], :im_shape[1]]
-        out_im = po.simul.PortillaSimoncelli(im_shape).expand(im, mult)
-        
-        assert out_im.shape == (im_shape[0] * mult, im_shape[1] * mult)
+        np.testing.assert_equal(output, saved)
+
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("img_size", [255, 254, 252, 160])
+    def test_other_size_images(self, n_scales, img_size):
+        im0 = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
+        im0 = im0[..., :img_size, :img_size]
+        if any([(img_size / 2**i) % 2 for i in range(n_scales)]):
+            expectation = pytest.raises(
+                ValueError,
+                match=(
+                    "Because of how the Portilla-Simoncelli model handles multiscale"
+                ),
+            )
+        else:
+            expectation = does_not_raise()
+        with expectation:
+            model = po.models.PortillaSimoncelli(
+                im0.shape[-2:],
+                n_scales=n_scales,
+            ).to(DEVICE)
+            model(im0)
+
+    @pytest.mark.parametrize("img_size", [160, 128])
+    def test_nonsquare_images(self, img_size):
+        im0 = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
+        im0 = im0[..., :img_size]
+        model = po.models.PortillaSimoncelli(
+            im0.shape[-2:],
+            # with height 4, spatial_corr_width=9 is too big for final scale
+            # and image size 128
+            spatial_corr_width=7,
+        ).to(DEVICE)
+        model(im0)
+
+    @pytest.mark.parametrize("batch_channel", [(1, 3), (2, 1), (2, 3)])
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
+    def test_multibatchchannel(
+        self,
+        batch_channel,
+        n_scales,
+        n_orientations,
+        spatial_corr_width,
+        einstein_img,
+    ):
+        model = po.models.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+        ).to(DEVICE)
+        rep = model(einstein_img.repeat((*batch_channel, 1, 1)))
+        if rep.shape[:2] != batch_channel:
+            raise ValueError(
+                "Output doesn't have same number of batch/channel dims as input!"
+            )
+
+    @pytest.mark.parametrize("input_type", ["tensor", "dict"])
+    @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
+    def test_plot_representation(
+        self,
+        input_type,
+        batch_channel,
+        n_scales,
+        n_orientations,
+        spatial_corr_width,
+        einstein_img,
+        close_figures_on_teardown,
+    ):
+        model = po.models.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+        ).to(DEVICE)
+        rep = model(einstein_img.repeat((*batch_channel, 1, 1)))
+        if input_type == "dict":
+            rep = model.convert_to_dict(rep)
+        fig, _ = model.plot_representation(rep, title="Representation")
+
+    @pytest.mark.parametrize("model", ["PortillaSimoncelli"], indirect=True)
+    @pytest.mark.parametrize("error_type", ["add", "remove"])
+    def test_plot_representation_bad_keys(
+        self, model, einstein_img, error_type, close_figures_on_teardown
+    ):
+        rep = model.convert_to_dict(model(einstein_img))
+        if error_type == "add":
+            rep["bad_key"] = torch.rand(1, 1, 100)
+            expectation = pytest.raises(
+                ValueError, match="representation contains additional keys"
+            )
+        elif error_type == "remove":
+            rep.pop("pixel_statistics")
+            expectation = pytest.raises(
+                KeyError, match="representation is missing keys"
+            )
+        with expectation:
+            model.plot_representation(rep)
+
+    @pytest.mark.parametrize("figsize", [None, (5, 5), (5.0, 5.0), (10, 5)])
+    @pytest.mark.parametrize("ax", [False, True])
+    def test_plot_representation_figsize(
+        self, figsize, ax, einstein_img, close_figures_on_teardown
+    ):
+        expectation = does_not_raise()
+        if ax:
+            fig, ax = plt.subplots(1, 1)
+            if figsize is not None:
+                expectation = pytest.raises(ValueError, match="figsize can't be set")
+        else:
+            ax = None
+        model = po.models.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+        ).to(DEVICE)
+        with expectation:
+            fig, _ = model.plot_representation(
+                model(einstein_img),
+                title="Representation",
+                figsize=figsize,
+                ax=ax,
+            )
+
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    @pytest.mark.parametrize("input_type", ["tensor", "dict"])
+    def test_update_plot(
+        self, einstein_img, input_type, rescale_ylim, close_figures_on_teardown
+    ):
+        model = po.models.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+        ).to(DEVICE)
+        fig, axes = model.plot_representation(model(einstein_img))
+        orig_y = axes[0].containers[0].markerline.get_ydata()
+        orig_ylim = axes[0].get_ylim()
+        img = po.load_images(IMG_DIR / "256" / "nuts.pgm").to(DEVICE)
+        rep = model(img)
+        if input_type == "dict":
+            rep = model.convert_to_dict(rep)
+        artists = model.update_plot(axes, rep, rescale_ylim=rescale_ylim)
+        updated_y = artists[0].get_ydata()
+        updated_ylim = axes[0].get_ylim()
+        if np.equal(orig_y, updated_y).all():
+            raise ValueError("Update plot didn't run successfully!")
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+
+    @pytest.mark.parametrize("batch_channel", [(1, 1), (1, 3), (2, 1), (2, 3)])
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
+    def test_plot_representation_dim_assumption(
+        self,
+        batch_channel,
+        n_scales,
+        n_orientations,
+        spatial_corr_width,
+        einstein_img,
+    ):
+        # there's an assumption I make in plot_representation that I want to
+        # ensure is tested
+        model = po.models.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+        ).to(DEVICE)
+        rep = model(einstein_img.repeat((*batch_channel, 1, 1)))
+        rep = model.convert_to_dict(rep[0].unsqueeze(0).mean(1, keepdim=True))
+        if any([v.ndim < 3 for v in rep.values()]):
+            raise ValueError("Somehow this doesn't have at least 3 dimensions!")
+        if any([v.shape[:2] != (1, 1) for v in rep.values()]):
+            raise ValueError("Somehow this has an extra batch or channel!")
+
+    # fft doesn't support float16, so we can't support it
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+    def test_dtypes(self, dtype, einstein_img):
+        model = po.models.PortillaSimoncelli(einstein_img.shape[-2:]).to(DEVICE)
+        model(einstein_img.to(dtype))
+
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
+    def test_scales_shapes(
+        self, n_scales, n_orientations, spatial_corr_width, einstein_img
+    ):
+        # test that the shapes we use to assign scale labels to each statistic
+        # and determine redundant stats are accurate
+        model = po.models.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+        ).to(DEVICE)
+        # this hack is to prevent model from removing redundant stats
+        model._necessary_stats_mask = None
+        rep = model(einstein_img)
+        # and then we get them back into their original shapes
+        unpacked_rep = einops.unpack(rep, model._pack_info, "b c *")
+        # because _necessary_stats_dict is an ordered dictionary, its elements
+        # will be in the same order as in unpackaged_rep
+        for unp_v, dict_v in zip(unpacked_rep, model._necessary_stats_dict.values()):
+            # when we have a single scale, _necessary_stats_dict will contain
+            # keys for the cross_scale correlations, but there are no
+            # corresponding values. Thus, skip.
+            if dict_v.nelement() == 0:
+                continue
+            # ignore batch and channel
+            unp_v = unp_v[0, 0]
+            if not unp_v.shape:
+                # then this is var_residual_highpass, which has a single element
+                np.testing.assert_equal(unp_v.nelement(), dict_v.nelement())
+            else:
+                np.testing.assert_equal(unp_v.shape, dict_v.shape)
+
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
+    @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
+    def test_redundancies(self, n_scales, n_orientations, spatial_corr_width, im):
+        # test that the computed statistics have the redundancies we think they
+        # do
+        im = po.load_images(IMG_DIR / "256" / f"{im}.pgm")
+        im = im.to(torch.float64).to(DEVICE)
+        model = po.models.PortillaSimoncelli(
+            im.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+        ).to(DEVICE)
+        # this hack is to prevent model from removing redundant stats
+        model._necessary_stats_mask = None
+        rep = model(im)
+        # and then we get them back into their original shapes (with lots of
+        # redundancies)
+        unpacked_rep = einops.unpack(rep, model._pack_info, "b c *")
+        for unp_v, (k, nec_v) in zip(unpacked_rep, model._necessary_stats_dict.items()):
+            # find the redundant values for this stat
+            red_v = torch.logical_not(nec_v)
+            # then there are no redundant values here
+            if red_v.sum() == 0:
+                continue
+            unp_vals = []
+            mask_vals = []
+            ctr_vals = []
+            for sc in range(red_v.shape[-1]):
+                red_idx = torch.stack(torch.where(red_v[..., sc]), -1)
+                if red_idx.shape[-1] == 3:
+                    # auto_correlation_magnitude has an extra dimension
+                    # compared to the others ignore batch and channel
+                    assert k == "auto_correlation_magnitude", (
+                        f"Somehow got extra dimension for {k}!"
+                    )
+                    # then drop the duplicates
+                    red_idx = torch.unique(red_idx[..., :2], dim=0)
+                val = unp_v[0, 0, ..., sc]
+                if k == "cross_orientation_correlation_magnitude":
+                    # Symmetry M_{i,j} = M_{j,i}.
+                    for i in red_idx:
+                        unp_vals.append(val[i[0], i[1]])
+                        mask_vals.append(val[i[1], i[0]])
+                elif k.startswith("auto_correlation"):
+                    # center values of autocorrelations should be 1
+                    ctr_vals.append(
+                        val[
+                            model.spatial_corr_width // 2,
+                            model.spatial_corr_width // 2,
+                        ]
+                    )
+                    # Symmetry M_{i,j} = M_{n-i+1, n-j+1}
+                    for i in red_idx:
+                        unp_vals.append(val[i[0], i[1]])
+                        # need to change where we index into depending on
+                        # whether spatial_corr_width (and thus the shape of
+                        # val) is even or odd
+                        offset = 0 if not spatial_corr_width % 2 else 1
+
+                        mask_vals.append(val[-(i[0] + offset), -(i[1] + offset)])
+                else:
+                    raise ValueError(f"stat {k} unexpectedly has redundant values!")
+            # and check for equality
+            if ctr_vals:
+                ctr_vals = torch.stack(ctr_vals)
+                torch.equal(ctr_vals, torch.ones_like(ctr_vals))
+            unp_vals = torch.stack(unp_vals)
+            mask_vals = torch.stack(mask_vals)
+            torch.testing.assert_close(unp_vals, mask_vals, atol=1e-6, rtol=1e-7)
+
+    @pytest.mark.parametrize("n_scales", [1, 2, 3, 4])
+    @pytest.mark.parametrize("n_orientations", [2, 3, 4])
+    @pytest.mark.parametrize("spatial_corr_width", range(3, 10))
+    @pytest.mark.parametrize("im", ["curie", "einstein", "metal", "nuts"])
+    def test_crosscorrs(self, n_scales, n_orientations, spatial_corr_width, im):
+        # test that cross-correlations we compute are actual cross correlations
+        im = po.load_images(IMG_DIR / "256" / f"{im}.pgm")
+        im = im.to(torch.float64).to(DEVICE)
+        model = po.models.PortillaSimoncelli(
+            im.shape[-2:],
+            n_scales=n_scales,
+            n_orientations=n_orientations,
+            spatial_corr_width=spatial_corr_width,
+        ).to(DEVICE)
+        # this hack is to prevent model from removing redundant stats, which
+        # insert NaNs, making the comparison difficult
+        model._necessary_stats_mask = None
+        rep = model(im)
+        # and then we get them back into their original shapes (with lots of
+        # redundancies)
+        unpacked_rep = einops.unpack(rep, model._pack_info, "b c *")
+        keys = list(model._necessary_stats_dict.keys())
+        # need to get the intermediates necessary for testing
+        # cross-correlations
+        coeffs = model._compute_pyr_coeffs(im)[1]
+        mags, reals = model._compute_intermediate_representations(coeffs)
+        doub_mags, doub_sep = model._double_phase_pyr_coeffs(coeffs)
+        # the cross-orientation correlations
+        torch_corrs = []
+        for m in mags:
+            m = einops.rearrange(m, "b c o h w -> (b c o) (h w)")
+            torch_corrs.append(torch.corrcoef(m).unsqueeze(0).unsqueeze(0))
+        torch_corr = torch.stack(torch_corrs, -1)
+        idx = keys.index("cross_orientation_correlation_magnitude")
+        torch.testing.assert_close(unpacked_rep[idx], torch_corr, atol=0, rtol=1e-12)
+        # only have cross-scale correlations when there's more than one scale
+        if n_scales > 1:
+            # cross-scale magnitude correlations
+            torch_corrs = []
+            for m, d in zip(mags[:-1], doub_mags):
+                concat = torch.cat([m, d], dim=2)
+                concat = einops.rearrange(concat, "b c o h w -> (b c o) (h w)")
+                # this matrix contains the 4 sub-matrices, each of shape
+                # (n_orientations, n_orientations), only one of which we want:
+                # the correlations between the magnitudes at this scale and the
+                # doubled ones at the next scale.
+                c = torch.corrcoef(concat)[:n_orientations, n_orientations:]
+                torch_corrs.append(c.unsqueeze(0).unsqueeze(0))
+            torch_corr = torch.stack(torch_corrs, -1)
+            idx = keys.index("cross_scale_correlation_magnitude")
+            torch.testing.assert_close(
+                unpacked_rep[idx], torch_corr, atol=0, rtol=1e-12
+            )
+            # cross-scale real correlations
+            torch_corrs = []
+            for r, s in zip(reals[:-1], doub_sep):
+                concat = torch.cat([r, s], dim=2)
+                concat = einops.rearrange(concat, "b c o h w -> (b c o) (h w)")
+                # this matrix contains the 4 sub-matrices, only one of which we
+                # want: the correlations between the real coeffs at this scale
+                # and the doubled real and imaginary coeffs at the next scale.
+                # the reals have n_orientations orientations, while the
+                # doub_sep have twice that (because they contain both the real
+                # and imaginary)
+                c = torch.corrcoef(concat)[:n_orientations, n_orientations:]
+                torch_corrs.append(c.unsqueeze(0).unsqueeze(0))
+            torch_corr = torch.stack(torch_corrs, -1)
+            idx = keys.index("cross_scale_correlation_real")
+            torch.testing.assert_close(
+                unpacked_rep[idx], torch_corr, atol=1e-5, rtol=2e-5
+            )
+
+    def test_convert_to_dict_error_diff_model(self, einstein_img):
+        ps = po.models.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=4,
+        ).to(DEVICE)
+        rep = ps(einstein_img)
+        ps = po.models.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+            n_scales=2,
+        ).to(DEVICE)
+        with pytest.raises(
+            ValueError, match="representation tensor is the wrong length"
+        ):
+            ps.convert_to_dict(rep)
+
+    def test_convert_to_dict_error(self, einstein_img):
+        ps = po.models.PortillaSimoncelli(
+            einstein_img.shape[-2:],
+        ).to(DEVICE)
+        rep = ps(einstein_img)
+        with pytest.raises(
+            ValueError, match="representation tensor is the wrong length"
+        ):
+            ps.convert_to_dict(rep[..., :-10])
 
 
 class TestFilters:
-    @pytest.mark.parametrize("std", [5., torch.tensor(1., device=DEVICE), -1., 0.])
+    @pytest.mark.parametrize(
+        "std", [5.0, torch.as_tensor(1.0, device=DEVICE), -1.0, 0.0]
+    )
     @pytest.mark.parametrize("kernel_size", [(31, 31), (3, 2), (7, 7), 5])
     @pytest.mark.parametrize("out_channels", [1, 3, 10])
     def test_circular_gaussian2d_shape(self, std, kernel_size, out_channels):
-        if std <= 0.:
-            with pytest.raises(AssertionError):
-                circular_gaussian2d((7, 7), std)
+        if std <= 0.0:
+            with pytest.raises(ValueError, match="std must be positive"):
+                po.process.circular_gaussian2d((7, 7), std)
         else:
-            filt = circular_gaussian2d(kernel_size, std, out_channels)
+            filt = po.process.circular_gaussian2d(kernel_size, std, out_channels)
             if isinstance(kernel_size, int):
                 kernel_size = (kernel_size, kernel_size)
             assert filt.shape == (out_channels, 1, *kernel_size)
             assert filt.sum().isclose(torch.ones(1, device=DEVICE) * out_channels)
 
     def test_circular_gaussian2d_wrong_std_length(self):
-        std = torch.tensor([1., 2.], device=DEVICE)
+        std = torch.as_tensor([1.0, 2.0], device=DEVICE)
         out_channels = 3
-        with pytest.raises(AssertionError):
-            circular_gaussian2d((7, 7), std, out_channels)
+        with pytest.raises(ValueError, match=r"If non-scalar, len\(std\) must equal"):
+            po.process.circular_gaussian2d((7, 7), std, out_channels)
 
-    @pytest.mark.parametrize("kernel_size", [5, 11, 20])
-    @pytest.mark.parametrize("std", [1., 20., 0.])
-    def test_gaussian1d(self, kernel_size, std):
-        if std <= 0:
-            with pytest.raises(AssertionError):
-                gaussian1d(kernel_size, std)
+    @pytest.mark.parametrize(
+        "std,expectation",
+        [
+            (1.0, does_not_raise()),
+            (20.0, does_not_raise()),
+            (0.0, pytest.raises(ValueError, match="std must be positive")),
+            (1, does_not_raise()),
+            (
+                [1, 1],
+                pytest.raises(
+                    ValueError,
+                    match=r"If non-scalar, len\(std\) must equal out_channels",
+                ),
+            ),
+            (torch.tensor(1), does_not_raise()),
+            (torch.tensor([1]), does_not_raise()),
+            (
+                torch.tensor([1, 1]),
+                pytest.raises(
+                    ValueError,
+                    match=r"If non-scalar, len\(std\) must equal out_channels",
+                ),
+            ),
+        ],
+    )
+    def test_circular_gaussian2d_std(self, std, expectation):
+        with expectation:
+            filt = po.process.circular_gaussian2d((31, 31), std, out_channels=1)
+            assert filt.sum().isclose(torch.ones(1, device=DEVICE))
+            assert filt.shape[-2:] == torch.Size((31, 31))
+
+    def test_circular_gaussian2d_std_out_channel(self):
+        filt = po.process.circular_gaussian2d((31, 31), [2, 3, 4])
+        assert filt.sum().isclose(3 * torch.ones(1, device=DEVICE))
+        assert filt.shape[-2:] == torch.Size((31, 31))
+
+    @pytest.mark.parametrize(
+        "kernel_size,expectation",
+        [
+            (
+                31.0,
+                pytest.raises(ValueError, match="kernel_size must be integer-valued"),
+            ),
+            (31, does_not_raise()),
+            (0, pytest.raises(ValueError, match="kernel_size must be positive")),
+            ([31, 31], does_not_raise()),
+            ((31, 31), does_not_raise()),
+            (torch.tensor(31), does_not_raise()),
+            (torch.tensor([31, 31]), does_not_raise()),
+            (
+                torch.tensor([31.0, 31.0]),
+                pytest.raises(ValueError, match="kernel_size must be integer-valued"),
+            ),
+        ],
+    )
+    def test_circular_gaussian2d_kernel_size(self, kernel_size, expectation):
+        with expectation:
+            filt = po.process.circular_gaussian2d(kernel_size, 2)
+            assert filt.sum().isclose(torch.ones(1, device=DEVICE))
+            if isinstance(kernel_size, int):
+                kernel_size = (kernel_size, kernel_size)
+            elif torch.is_tensor(kernel_size) and kernel_size.numel() == 1:
+                kernel_size = kernel_size.repeat(2)
+            assert filt.shape[-2:] == torch.Size(kernel_size)
+
+    @pytest.mark.parametrize(
+        "out_channels,expectation",
+        [
+            (
+                0,
+                pytest.raises(
+                    ValueError, match="out_channels must be positive integer"
+                ),
+            ),
+            (
+                1.0,
+                pytest.raises(
+                    ValueError, match="out_channels must be positive integer"
+                ),
+            ),
+            (1, does_not_raise()),
+            (2, does_not_raise()),
+            (
+                [2, 2],
+                pytest.raises(TypeError, match=".*not supported between instances"),
+            ),
+            (
+                torch.tensor([2, 2]),
+                pytest.raises(RuntimeError, match="Boolean value of Tensor"),
+            ),
+        ],
+    )
+    def test_circular_gaussian2d_out_channels(self, out_channels, expectation):
+        with expectation:
+            po.process.circular_gaussian2d((31, 31), 2, out_channels)
+
+    def test_circular_gaussian2d_multichannel_indep(self, color_img):
+        # check that the following is equivalent to independently convolving each
+        # channel with each filter
+        filt = po.process.circular_gaussian2d(31, [2, 10], 2)
+        img = po.data.color_wheel(as_gray=False)
+        output = torch.nn.functional.conv2d(img, filt.repeat(3, 1, 1, 1), groups=3)
+        test = []
+        for ch in range(3):
+            for f in range(2):
+                test.append(
+                    torch.nn.functional.conv2d(img[:, ch : ch + 1], filt[f : f + 1])
+                )
+        test = torch.concat(test, dim=1)
+        assert torch.allclose(test, output)
+
+
+class TestDeepNetFeatures:
+    @pytest.fixture
+    def torchvision_img(self):
+        transform = torchvision.models.ResNet50_Weights.IMAGENET1K_V1.transforms()
+        # this model requires a 3d input, and expects it to have a certain input size.
+        return po.process.center_crop(
+            po.data.einstein(False).to(DEVICE), transform.crop_size[0]
+        )
+
+    @pytest.fixture
+    def timm_img(self, timm_resnet50):
+        timm_transform = create_transform(
+            **resolve_data_config(timm_resnet50.pretrained_cfg, model=timm_resnet50)
+        )
+        timm_crop = timm_transform.transforms[1]
+        return timm_crop(po.data.einstein(False).to(DEVICE))
+
+    def test_images(self, torchvision_img, timm_img):
+        # test images are the same, regardless whether we used timm or torchvision to
+        # get config
+        assert torch.equal(torchvision_img, timm_img)
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+            # fc layer has a different dimensionality than the convolutional layers
+            "torchvision_resnet50-fc",
+            "timm_resnet50-layer2",
+            "torchvision_resnet50-layer2,layer4",
+            "torchvision_resnet50-layer2,fc",
+            "timm_resnet50-layer2,layer4",
+        ],
+        indirect=True,
+    )
+    def test_valid(self, model, torchvision_img):
+        po.validate.validate_model(
+            model, torchvision_img.shape, device=torchvision_img.device
+        )
+
+    def test_training_warning(self):
+        # if input model is in training mode, DeepNetFeatures should warn and stay in
+        # training mode
+        weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        tv_model = torchvision.models.resnet50(weights=weights)
+        with pytest.warns(UserWarning, match="model is in training mode"):
+            model = po.models.DeepNetFeatures(tv_model, "layer2")
+        assert model.training, "mode should match that of model"
+        # should be able to switch to eval
+        model.eval()
+        assert not model.training, "mode should switch"
+        assert not model.extractor.training, "mode should switch underlying model"
+
+    def test_eval(self):
+        # if input model is in eval mode, DeepNetFeatures should stay in eval mode
+        weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        tv_model = torchvision.models.resnet50(weights=weights).eval()
+        model = po.models.DeepNetFeatures(tv_model, "layer2")
+        assert not model.training, "mode should match that of model"
+
+    def test_notraining(self):
+        # if model doesn't have training attribute, feature extraction will raise an
+        # error
+        weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        tv_model = torchvision.models.resnet50(weights=weights)
+        # remove training attribute from this instance
+        tv_model.__dict__.pop("training")
+        with pytest.raises(
+            AttributeError, match=".*object has no attribute 'training'"
+        ):
+            po.models.DeepNetFeatures(tv_model, "layer2")
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+            "timm_resnet50-layer2",
+        ],
+        indirect=True,
+    )
+    def test_convert_to_dict_error(self, model, torchvision_img):
+        rep = model(torchvision_img)
+        weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        tv_model = torchvision.models.resnet50(weights=weights).eval()
+        new_model = po.models.DeepNetFeatures(tv_model, "layer2")
+        new_model.to(DEVICE)
+        with pytest.raises(ValueError, match="Call forward or convert_to_tensor"):
+            new_model.convert_to_dict(rep)
+        new_model(torchvision_img)
+        new_model.convert_to_dict(rep)
+
+    @pytest.mark.parametrize(
+        ["model", "model2"],
+        (
+            ["torchvision_resnet50-layer2", "timm_resnet50-layer2"],
+            ["torchvision_resnet50-layer2,layer4", "timm_resnet50-layer2,layer4"],
+        ),
+        indirect=True,
+    )
+    @pytest.mark.parametrize("seed", [None, 0, 1, 2, 3, 4])
+    def test_models_equal(self, model, model2, torchvision_img, seed):
+        if seed is None:
+            img = torchvision_img
         else:
-            filt = gaussian1d(kernel_size, std)
-            assert filt.sum().isclose(torch.ones(1))
-            assert filt.shape == torch.Size([kernel_size])
+            po.set_seed(seed)
+            img = torch.rand_like(torchvision_img)
+        assert torch.allclose(model(img), model2(img))
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+            "timm_resnet50-layer2",
+            "torchvision_resnet50-layer2,layer4",
+            "timm_resnet50-layer2,layer4",
+        ],
+        indirect=True,
+    )
+    def test_convert(self, model, torchvision_img):
+        rep = model(torchvision_img)
+        assert torch.all(rep == model.convert_to_tensor(model.convert_to_dict(rep))), (
+            "Convert to tensor or dict is broken!"
+        )
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+            "timm_resnet50-layer2",
+            "torchvision_resnet50-layer2,layer4",
+            "timm_resnet50-layer2,layer4",
+        ],
+        indirect=True,
+    )
+    def test_convert_to_dict(self, model, torchvision_img):
+        rep = model.convert_to_dict(model(torchvision_img))
+        feature_extractor_out = model.extractor(model.transform(torchvision_img))
+        assert set(rep.keys()) == set(feature_extractor_out.keys())
+        for k, v in rep.items():
+            assert torch.equal(v, feature_extractor_out[k])
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+            "timm_resnet50-layer2",
+            "torchvision_resnet50-layer2,layer4",
+            "timm_resnet50-layer2,layer4",
+        ],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("input_type", ["tensor", "dict"])
+    @pytest.mark.parametrize("axis", ["existing", None])
+    @pytest.mark.parametrize("ylim", [False, None, (0, 1)])
+    @pytest.mark.parametrize("plot_func", ["model", "display"])
+    def test_plot_representation(
+        self,
+        model,
+        input_type,
+        axis,
+        ylim,
+        plot_func,
+        torchvision_img,
+        close_figures_on_teardown,
+    ):
+        rep = model(torchvision_img)
+        if input_type == "dict":
+            rep = model.convert_to_dict(rep)
+        if axis == "existing":
+            _, axis = plt.subplots(1, 1)
+        if plot_func == "model":
+            _, axes = model.plot_representation(
+                rep, ax=axis, title="Representation", ylim=ylim
+            )
+        elif plot_func == "display":
+            axes = po.plot.plot_representation(
+                model, rep, ax=axis, title="Representation", ylim=ylim
+            )
+        if not isinstance(rep, dict):
+            rep = model.convert_to_dict(rep)
+        layers = ["layer2", "layer2", "layer4", "layer4"]
+        for i, (ax, layer) in enumerate(zip(axes, layers)):
+            ax_ylim = ax.get_ylim()
+            if i % 2 == 0:
+                # then this is an image axis, so ylim should correspond to the size of
+                # the image
+                assert ax_ylim[0] == rep[layer].shape[-1] - 0.5
+                assert ax_ylim[1] == -0.5
+            else:
+                # then this is the stem plot
+                if ylim is False:
+                    # in this case ymin is just below 0, ymax is something positive
+                    assert ax_ylim[0] < 0
+                    assert abs(ax_ylim[0]) < ax_ylim[1]
+                    assert ax_ylim[1] > 0
+                elif ylim is None:
+                    # in this case ymin and ymax are symmetric about 0
+                    assert ax_ylim[0] < 0
+                    assert abs(ax_ylim[0]) == ax_ylim[1]
+                    assert ax_ylim[1] > 0
+                else:
+                    # in this case ymin and ymax are set explicitly
+                    assert ax_ylim[0] == ylim[0]
+                    assert ax_ylim[1] == ylim[1]
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            # fc layer has a different dimensionality than the convolutional layers
+            "torchvision_resnet50-fc",
+        ],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("input_type", ["tensor", "dict"])
+    @pytest.mark.parametrize("axis", ["existing", None])
+    @pytest.mark.parametrize("ylim", [False, None, (0, 1)])
+    @pytest.mark.parametrize("plot_func", ["model", "display"])
+    def test_plot_representation_2d_only(
+        self,
+        model,
+        input_type,
+        axis,
+        ylim,
+        plot_func,
+        torchvision_img,
+        close_figures_on_teardown,
+    ):
+        rep = model(torchvision_img)
+        if input_type == "dict":
+            rep = model.convert_to_dict(rep)
+        if axis == "existing":
+            _, axis = plt.subplots(1, 1)
+        if plot_func == "model":
+            _, axes = model.plot_representation(
+                rep, ax=axis, title="Representation", ylim=ylim
+            )
+        elif plot_func == "display":
+            axes = po.plot.plot_representation(
+                model, rep, ax=axis, title="Representation", ylim=ylim
+            )
+        if not isinstance(rep, dict):
+            rep = model.convert_to_dict(rep)
+        assert len(axes) == 1
+        ax_ylim = axes[0].get_ylim()
+        # then this is the stem plot
+        if ylim is False:
+            # in this case ymin is just below 0, ymax is something positive
+            assert ax_ylim[0] < 0
+            assert abs(ax_ylim[0]) < ax_ylim[1]
+            assert ax_ylim[1] > 0
+        elif ylim is None:
+            # in this case ymin and ymax are symmetric about 0
+            assert ax_ylim[0] < 0
+            assert abs(ax_ylim[0]) == ax_ylim[1]
+            assert ax_ylim[1] > 0
+        else:
+            # in this case ymin and ymax are set explicitly
+            assert ax_ylim[0] == ylim[0]
+            assert ax_ylim[1] == ylim[1]
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2,fc",
+        ],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("input_type", ["tensor", "dict"])
+    @pytest.mark.parametrize("axis", ["existing", None])
+    @pytest.mark.parametrize("ylim", [False, None, (0, 1)])
+    @pytest.mark.parametrize("plot_func", ["model", "display"])
+    def test_plot_representation_2d_mixed(
+        self,
+        model,
+        input_type,
+        axis,
+        ylim,
+        plot_func,
+        torchvision_img,
+        close_figures_on_teardown,
+    ):
+        rep = model(torchvision_img)
+        if input_type == "dict":
+            rep = model.convert_to_dict(rep)
+        if axis == "existing":
+            _, axis = plt.subplots(1, 1)
+        if plot_func == "model":
+            _, axes = model.plot_representation(
+                rep, ax=axis, title="Representation", ylim=ylim
+            )
+        elif plot_func == "display":
+            axes = po.plot.plot_representation(
+                model, rep, ax=axis, title="Representation", ylim=ylim
+            )
+        if not isinstance(rep, dict):
+            rep = model.convert_to_dict(rep)
+        layers = ["layer2", "layer2", "fc"]
+        for i, (ax, layer) in enumerate(zip(axes, layers)):
+            ax_ylim = ax.get_ylim()
+            if i == 0:
+                # then this is an image axis, so ylim should correspond to the size of
+                # the image
+                assert ax_ylim[0] == rep[layer].shape[-1] - 0.5
+                assert ax_ylim[1] == -0.5
+            else:
+                # then this is the stem plot
+                if ylim is False:
+                    # in this case ymin is just below 0, ymax is something positive
+                    assert ax_ylim[0] < 0
+                    assert abs(ax_ylim[0]) < ax_ylim[1]
+                    assert ax_ylim[1] > 0
+                elif ylim is None:
+                    # in this case ymin and ymax are symmetric about 0
+                    assert ax_ylim[0] < 0
+                    assert abs(ax_ylim[0]) == ax_ylim[1]
+                    assert ax_ylim[1] > 0
+                else:
+                    # in this case ymin and ymax are set explicitly
+                    assert ax_ylim[0] == ylim[0]
+                    assert ax_ylim[1] == ylim[1]
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+            "timm_resnet50-layer2",
+            "torchvision_resnet50-layer2,layer4",
+            "timm_resnet50-layer2,layer4",
+        ],
+        indirect=True,
+    )
+    def test_plot_representation_3d(
+        self, model, torchvision_img, close_figures_on_teardown
+    ):
+        rep = model.convert_to_dict(model(torchvision_img))
+        # change this from 4d to 3d, so we can test this case.
+        rep["layer2"] = rep["layer2"].mean(-1)
+        model.plot_representation(rep)
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+        ],
+        indirect=True,
+    )
+    def test_plot_representation_invalid(
+        self, model, torchvision_img, close_figures_on_teardown
+    ):
+        rep = model.convert_to_dict(model(torchvision_img))
+        # change this from 4d to 5d, so we can test the failure.
+        rep["layer2"] = rep["layer2"].unsqueeze(1)
+        with pytest.raises(ValueError, match="Only 2, 3, or 4d data"):
+            model.plot_representation(rep)
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "torchvision_resnet50-layer2",
+            "timm_resnet50-layer2",
+            "torchvision_resnet50-layer2,layer4",
+            "torchvision_resnet50-layer2,fc",
+            "timm_resnet50-layer2,layer4",
+        ],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("input_type", ["tensor", "dict"])
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot(
+        self,
+        model,
+        input_type,
+        rescale_ylim,
+        torchvision_img,
+        close_figures_on_teardown,
+    ):
+        rep = model(torchvision_img)
+        fig, axes = model.plot_representation(rep, title="Representation")
+        orig_img = axes[0].images[0].get_array()
+        orig_img_ylim = axes[0].get_ylim()
+        orig_y = axes[1].containers[0].markerline.get_ydata()
+        orig_ylim = axes[1].get_ylim()
+        rep = model(torch.rand_like(torchvision_img))
+        if input_type == "dict":
+            rep = model.convert_to_dict(rep)
+        artists = model.update_plot(axes, rep, rescale_ylim=rescale_ylim)
+        updated_img = artists[0].get_array()
+        updated_img_ylim = axes[0].get_ylim()
+        updated_y = artists[1].get_ydata()
+        updated_ylim = axes[1].get_ylim()
+        if np.equal(orig_img, updated_img).all():
+            raise ValueError("Update plot didn't run successfully!")
+        if np.equal(orig_y, updated_y).all():
+            raise ValueError("Update plot didn't run successfully!")
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not np.equal(orig_img_ylim, updated_img_ylim).all():
+            raise ValueError("Image ylim should never change!")
+
+    @pytest.mark.parametrize(
+        "model",
+        [
+            # fc layer has a different dimensionality than the convolutional layers
+            "torchvision_resnet50-fc",
+        ],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("input_type", ["tensor", "dict"])
+    @pytest.mark.parametrize("rescale_ylim", [True, False])
+    def test_update_plot_2d_only(
+        self,
+        model,
+        input_type,
+        rescale_ylim,
+        torchvision_img,
+        close_figures_on_teardown,
+    ):
+        # with 2d rep only, no image created, so slightly different test
+        rep = model(torchvision_img)
+        fig, axes = model.plot_representation(rep, title="Representation")
+        orig_y = axes[0].containers[0].markerline.get_ydata()
+        orig_ylim = axes[0].get_ylim()
+        rep = model(torch.rand_like(torchvision_img))
+        if input_type == "dict":
+            rep = model.convert_to_dict(rep)
+        artists = model.update_plot(axes, rep, rescale_ylim=rescale_ylim)
+        updated_y = artists[0].get_ydata()
+        updated_ylim = axes[0].get_ylim()
+        if np.equal(orig_y, updated_y).all():
+            raise ValueError("Update plot didn't run successfully!")
+        if rescale_ylim and np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
+        if not rescale_ylim and not np.equal(orig_ylim, updated_ylim).all():
+            raise ValueError("Update plot didn't rescale_ylim successfully!")
