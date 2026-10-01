@@ -270,6 +270,9 @@ def construct_mask(x, include):
     return spyr_power(mask).to(bool)
 ```
 
+Add a hidden cell which runs a brief test on this, comparing results against
+cached test files
+
 ```{code-cell} ipython3
 mask = construct_mask(img, "vertical")
 if mask.sum() == 0 or (~mask).sum() == 0:
@@ -286,7 +289,7 @@ def penalty(x):
 
 ```{code-cell} ipython3
 met_penalty = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=1e-1
+    img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.1
 )
 ```
 
