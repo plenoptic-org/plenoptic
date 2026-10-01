@@ -31,22 +31,17 @@ Run it in your browser: **{binder}`Original_MAD.ipynb`**!
 
 :::
 
+(original-mad)=
 # Reproducing Wang and Simoncelli, 2008 (MAD Competition)
 
 Goal here is to reproduce original MAD Competition results, as generated using the [matlab code](https://github.com/LabForComputationalVision/MAD_Competition) originally provided by Zhou Wang and then modified by the authors. MAD Competition is a synthesis method for efficiently computing two models, by generating sets of images that minimize/maximize one model's loss while holding the other's constant. For more details, see the [](mad-nb) and [](mad-concept) notebooks.
 
 ```{code-cell} ipython3
 # Download some data we'll need for this notebook
-import contextlib
-import os
-
 import plenoptic as po
 
-# the contextlib.redirect_stderr here is so that we don't print out the progressbar.
-# If you would like to see it, remove this line.
-with contextlib.redirect_stderr(open(os.devnull, "w")):
-    po.data.fetch_data("MAD_results.tar.gz")
-    po.data.fetch_data("ssim_images.tar.gz")
+po.data.fetch_data("MAD_results.tar.gz")
+po.data.fetch_data("ssim_images.tar.gz")
 ```
 
 ## SSIM

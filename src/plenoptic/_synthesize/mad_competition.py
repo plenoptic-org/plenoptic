@@ -93,6 +93,10 @@ class MADCompetition(_OptimizedSynthesis):
     :func:`~plenoptic.metric.ssim` is a similarity metric, and thus 0 corresponds to
     "completely different" and 1 "identical".
 
+    .. attention::
+       For all of these examples, synthesis has not been run to completion. These
+       examples just demonstrate basic usage.
+
     .. plot::
       :context: reset
 
@@ -103,14 +107,17 @@ class MADCompetition(_OptimizedSynthesis):
       ...     return 1 - po.metric.ssim(x, y, weighted=True, pad="reflect")
       >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "max", 1e6)
       >>> mad.synthesize(200)
-      >>> fig, axes = plt.subplots(1, 3, figsize=(16, 4), width_ratios=[1, 1, 2])
-      >>> po.plot.imshow(img, ax=axes[0], title="Target image")
-      <Figure size ... with 3 Axes>
-      >>> axes[0].xaxis.set_visible(False)
-      >>> axes[0].yaxis.set_visible(False)
-      >>> po.plot.synthesis_status(mad, fig=fig, axes_idx={"misc": 0})
+      >>> # Define a helper function for this, since we'll use it in the other examples
+      >>> def example_figure(mad):
+      ...     fig, axes = plt.subplots(1, 3, figsize=(16, 4), width_ratios=[1, 1, 2])
+      ...     po.plot.imshow(img, ax=axes[0], title="Target image")
+      ...     axes[0].xaxis.set_visible(False)
+      ...     axes[0].yaxis.set_visible(False)
+      ...     po.plot.synthesis_status(mad, fig=fig, axes_idx={"misc": 0})
+      ...     fig.subplots_adjust(wspace=0.3)
+      ...     return fig
+      >>> example_figure(mad)
       <Figure size ...>
-      >>> fig.subplots_adjust(wspace=0.3)
 
     If :attr:`metric_tradeoff_lambda` is not specified, we will attempt to select a
     reasonable value based on the values of the two metrics comparing ``image``
@@ -130,14 +137,47 @@ class MADCompetition(_OptimizedSynthesis):
 
       >>> mad = po.MADCompetition(img, dissimilarity, po.metric.mse, "min", 1e6)
       >>> mad.synthesize(200)
-      >>> fig, axes = plt.subplots(1, 3, figsize=(16, 4), width_ratios=[1, 1, 2])
-      >>> po.plot.imshow(img, ax=axes[0], title="Target image")
-      <Figure size ... with 3 Axes>
-      >>> axes[0].xaxis.set_visible(False)
-      >>> axes[0].yaxis.set_visible(False)
-      >>> po.plot.synthesis_status(mad, fig=fig, axes_idx={"misc": 0})
+      >>> example_figure(mad)
       <Figure size ...>
-      >>> fig.subplots_adjust(wspace=0.3)
+
+    Change the penalty function. A penalty function must accept one tensor and return a
+    scalar. See :ref:`how-to-penalty` for more information about penalty functions. Note
+    the different ranges in the title of the subplots showing the MAD images in the
+    following two examples.
+
+    .. plot::
+      :context: close-figs
+
+      >>> # Penalty encourages metamer pixel values to lie between 0.1 and 0.9
+      >>> def penalty(x):
+      ...     return po.regularize.penalize_range(x, [0.1, 0.9])
+      >>> penalty(img)
+      tensor(9.6853)
+      >>> mad = po.MADCompetition(
+      ...     img, dissimilarity, po.metric.mse, "min", 1e6, penalty_function=penalty
+      ... )
+      >>> mad.synthesize(200)
+      >>> example_figure(mad)
+      <Figure size ...>
+
+    Change the contribution of the penalty to the objective function.
+    :attr:`penalty_lambda` must be a non-negative scalar.
+
+    .. plot::
+      :context: close-figs
+
+      >>> mad = po.MADCompetition(
+      ...     img,
+      ...     dissimilarity,
+      ...     po.metric.mse,
+      ...     "min",
+      ...     1e6,
+      ...     penalty_function=penalty,
+      ...     penalty_lambda=0.01,
+      ... )
+      >>> mad.synthesize(200)
+      >>> example_figure(mad)
+      <Figure size ...>
     """
 
     def __init__(
