@@ -36,9 +36,12 @@ These datasets all consist of 142 `(x, y)` points, and all have the same mean an
 
 In this notebook, we will visualize the original datasaurus dozen, implement a model to compute the relevant statistics, and demonstrate that they are metamers for that model. We will then visualize a new set of metamers, synthesized using plenoptic's {class}`~plenoptic.Metamer` using the {attr}`~plenoptic.Metamer.penalty_function` argument to steer synthesis towards visually-interesting results. The other notebooks in this series demonstrate how to synthesize each of those metamers individually.
 
-```{code-cell} ipython3
-import itertools
+:::{warning}
+This notebook requires the optional dependency `altair`, which can be installed with `pip`.
+:::
 
+```{code-cell} ipython3
+import altair as alt
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -72,10 +75,19 @@ The following cell defines helper functions to visualize and animate the dataset
 ```{code-cell} ipython3
 :tags: [hide-input]
 
+def single_scatter(xy, ax, title=None, xlim=(0, 100), ylim=(0, 100), **scatter_kwargs):
+    scatter_kwargs.setdefault("s", 5)
+    ax.scatter(*xy, **scatter_kwargs)
+    if title is not None:
+        ax.set_title(title)
+    ax.set_aspect(1)
+    ax.set(xlim=xlim, ylim=ylim)
+    return ax
+
+
 def plot_datasaurus(data, categories, ax_size=2, scatter_kwargs=None, fig=None):
     if scatter_kwargs is None:
         scatter_kwargs = {}
-    scatter_kwargs.setdefault("s", 5)
     n_rows = min(3, len(data) - 1)
     n_cols = int(max(np.ceil((len(data) - 1) / n_rows + 1), 2))
     if fig is None:
@@ -92,10 +104,11 @@ def plot_datasaurus(data, categories, ax_size=2, scatter_kwargs=None, fig=None):
         axes[2, 0].set_visible(False)
     axes = [dino_ax] + [ax for ax in axes[:, 1:].T.flatten()]
     for xy, title, ax in zip(data, categories, axes):
-        ax.scatter(*xy, **scatter_kwargs)
-        ax.set_title(title)
-        ax.set_aspect(1)
-    ax.set(xlim=(0, 100), ylim=(0, 100))
+        single_scatter(xy, ax, title, **scatter_kwargs)
+        ax.xaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+        ax.xaxis.set_minor_locator(mpl.ticker.AutoLocator())
+        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+        ax.yaxis.set_minor_locator(mpl.ticker.AutoLocator())
     for ax in axes[len(data) :]:
         ax.set_visible(False)
     return fig, axes
@@ -110,67 +123,76 @@ def update_datasaurus(data, axes):
     return artists
 
 
-def plot_datasaurus_rep(data, categories, model, ax_size=2, aspect=1.3, fig=None):
-    n_rows = min(3, len(data) - 1)
-    n_cols = int(max(np.ceil((len(data) - 1) / n_rows + 1), 2))
+def single_pair_plot(fig, gs, idx, wspace, xy, rep, title, rep_ylims):
+    sgs = gs[idx[0], idx[1]].subgridspec(1, 3, width_ratios=[8, 5, 3], wspace=wspace)
+    data_ax = fig.add_subplot(sgs[0])
+    single_scatter(xy, data_ax)
+    rep_ax = [fig.add_subplot(sgs[j]) for j in [1, 2]]
+    rep_ax[0].set_title(title, size="x-large", x=0)
+    rep_ax = model.plot_representation(rep, rep_ax)
+    model.plot_representation(rep_data[0], rep_ax, "lines")
+    for j, (ax, ylim) in enumerate(zip(rep_ax, rep_ylims)):
+        ax_ylim = ax.get_ylim()
+        rep_ylims[j] = [min(ax_ylim[0], ylim[0]), max(ax_ylim[1], ylim[1])]
+    data_ax.xaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+    data_ax.xaxis.set_minor_locator(mpl.ticker.AutoLocator())
+    data_ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+    data_ax.yaxis.set_minor_locator(mpl.ticker.AutoLocator())
+    for ax in rep_ax:
+        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+        ax.yaxis.set_minor_locator(mpl.ticker.AutoLocator())
+    return data_ax, rep_ax, rep_ylims
+
+
+def paired_plot(
+    data, model, titles=[], ax_size=2, rep_aspect=1.3, plot_all=False, fig=None
+):
+    if not plot_all:
+        n_cols = len(data)
+        n_rows = 1
+        height_factor = 1
+        first_ax_row = 0
+    else:
+        n_rows = 3
+        n_cols = int(np.ceil((len(data) - 1) / n_rows + 1))
+        height_factor = 1.2
+        first_ax_row = 1
     if fig is None:
         fig = plt.figure(
-            figsize=(ax_size * n_cols * aspect, ax_size * n_rows), layout="compressed"
+            figsize=(2.5 * ax_size * n_cols, height_factor * n_rows * ax_size),
+            layout="compressed",
         )
-    gs = fig.add_gridspec(n_rows, n_cols, wspace=0.25)
-    return_axes = []
-    turn_off_axes = []
-    if n_rows > 1:
-        turn_off_axes.append(0)
-    if n_rows > 2:
-        turn_off_axes.append(2)
-    data_idx = 0
-    ylims = [[0, 0], [0, 0]]
-    for j, i in itertools.product(range(n_cols), range(n_rows)):
-        if j == 0 and i in turn_off_axes:
-            continue
-        else:
-            try:
-                y = data[data_idx]
-                title = categories[data_idx]
-            except IndexError:
-                continue
-            sgs = gs[i, j].subgridspec(1, 2, width_ratios=[5, 3], wspace=0.15)
-            plot_axes = [fig.add_subplot(sgs[i]) for i in range(2)]
-            plot_axes[0].set_title(title, x=1)
-            plot_axes = model.plot_representation(y, plot_axes)
-            model.plot_representation(data[0], plot_axes, "lines")
-            for i, (ax, ylim) in enumerate(zip(plot_axes, ylims)):
-                ax_ylim = ax.get_ylim()
-                ylims[i] = [min(ax_ylim[0], ylim[0]), max(ax_ylim[1], ylim[1])]
-            if j == 0:
-                try:
-                    fig.set_layout_engine("none")
-                except AttributeError:
-                    # then this is a subfigure
-                    fig.figure.set_layout_engine("none")
-            else:
-                for ax in plot_axes:
-                    ax.set(yticklabels=[], xticklabels=[])
-        data_idx += 1
-        return_axes.append(plot_axes)
-    # small adjustment so that dino plots don't overlap with yticklabels
-    ax = return_axes[0][0]
-    pos = [p for p in ax.get_position().bounds]
-    pos[0] -= return_axes[0][1].get_position().bounds[2] / 1.2
-    ax.set_position(pos)
-    for axes in return_axes:
-        for ax, ylim in zip(axes, ylims):
+    gs = fig.add_gridspec(
+        n_rows, n_cols, wspace=0.1, hspace=0.4, width_ratios=[1.1] + (n_cols - 1) * [1]
+    )
+    rep_data = model(data)
+    rep_ylims = [[0, 0], [0, 0]]
+    data_ax, rep_ax, rep_ylims = single_pair_plot(
+        fig, gs, [first_ax_row, 0], 0.35, data[0], rep_data[0], titles[0], rep_ylims
+    )
+    data_axes = [data_ax]
+    rep_axes = [rep_ax]
+    fig.set_layout_engine("none")
+    for i, (xy, rep, title) in enumerate(zip(data[1:], rep_data[1:], titles[1:])):
+        data_ax, rep_ax, rep_ylims = single_pair_plot(
+            fig,
+            gs,
+            (i // (n_cols - 1), 1 + i % (n_cols - 1)),
+            0.15,
+            xy,
+            rep,
+            title,
+            rep_ylims,
+        )
+        data_axes.append(data_ax)
+        rep_axes.append(rep_ax)
+        data_ax.set(yticklabels=[], xticklabels=[])
+        for ax in rep_ax:
+            ax.set(yticklabels=[])
+    for axes in rep_axes:
+        for ax, ylim in zip(axes, rep_ylims):
             ax.set_ylim(ylim)
-    return fig, return_axes
-
-
-def update_datasaurus_rep(data, axes, model):
-    artists = []
-    for d, axs in zip(data, axes):
-        artists.append(_update_stem(axs[0].containers[0], d[:5]))
-        artists.append(_update_stem(axs[1].containers[0], d[5:]))
-    return artists
+    return fig, data_axes, rep_axes
 ```
 
 ```{code-cell} ipython3
@@ -301,13 +323,13 @@ class DatasaurusModel(torch.nn.Module):
             fig = axes[0].figure
 
         labels = [
-            "x mean",
-            "y mean",
-            "x std",
-            "y std",
-            "linreg intercept",
-            "linreg slope",
-            "correlation",
+            r"$\bar{x}$",  # noqa: RUF027
+            r"$\bar{y}$",  # noqa: RUF027
+            r"$\sigma_x$",
+            r"$\sigma_y$",
+            r"$\beta_0$",
+            r"$\beta_1$",
+            "$r$",
             "$R^2$",
         ]
         cutoff = 5
@@ -325,7 +347,7 @@ class DatasaurusModel(torch.nn.Module):
                 ax.stem(y)
             elif style == "lines":
                 ax.hlines(y, x - linewidth / 2, x + linewidth / 2, "k", "--")
-            ax.set_xticks(x, labs, rotation=30, ha="right")
+            ax.set_xticks(x, labs)
         return axes
 ```
 
@@ -341,13 +363,31 @@ the reduced model finds good solutions for the simpler penalties such as [](ds_c
 
 :::
 
-Let's use our model and one of our plotting helper functions to visualize the model output on the datasaurus dozen:
+Now that we have the model, we can compute the error in each of these statistics and
 
 ```{code-cell} ipython3
-# expand folded cell above to see definition of this model
 model = DatasaurusModel(data.shape[1], data.dtype)
-rep_fig = plt.figure(figsize=(ax_size * n_cols, ax_size * n_rows))
-plot_datasaurus_rep(model(data), categories, model, fig=rep_fig);
+rep_data = model(data)
+target = rep_data[0].unsqueeze(0)
+rep_data = rep_data
+met_mse = (target - rep_data).pow(2).mean(-1)
+order = torch.argsort(met_mse)
+data = data[order]
+categories = categories[order]
+met_mse = met_mse[order]
+titles = np.asarray(
+    [categories[0]]
+    + [f"{c} $-$ Stats MSE: {e:.4f}" for c, e in zip(categories[1:], met_mse[1:])]
+)
+```
+
+```{code-cell} ipython3
+idx = [0, 1, -1]
+paired_plot(data[idx], model, titles[idx], 2.5);
+```
+
+```{code-cell} ipython3
+paired_plot(data, model, titles, 2.5, plot_all=True);
 ```
 
 The plot layout is the same as the first plot: the subplot on the far left corresponds to the dino dataset, and the others correspond to the metameric datasets. For each dataset, we're plotting the model output as two stem plots, based on their approximate magnitude: the means, standard deviations, and intercept of the linear regression in the first, and the slope of the linear regression, correlation, and coefficient of determination ($R^2$) of the linear regression in the second. Each subplot also shows the values for the dino dataset as dashed horizontal lines.
@@ -454,13 +494,87 @@ for t in titles:
 cached_metamers = torch.stack([data[0], *cached_metamers])
 titles = ["dino (target)"] + titles
 saved_metamers = torch.stack(saved_metamers)
+```
 
-ax_size = 3
-n_cols, n_rows = (5, 3)
-fig = plt.figure(figsize=(ax_size * n_cols, ax_size * n_rows * 2))
-subfigs = fig.subfigures(2, 1, hspace=-0.2)
-plot_datasaurus(cached_metamers, titles, fig=subfigs[0])
-plot_datasaurus_rep(model(cached_metamers), titles, model, fig=subfigs[1]);
+```{code-cell} ipython3
+plot_datasaurus(cached_metamers, titles, 3);
+```
+
+```{code-cell} ipython3
+cached_rep = model(cached_metamers)
+plen_met_mse = (cached_rep[:1] - cached_rep).pow(2).mean(-1)
+```
+
+```{code-cell} ipython3
+def name_map(x):
+    if x == "high_lines":
+        x = "hwidelines"
+    elif x == "wide_lines":
+        x = "vwidelines"
+    else:
+        x = x.replace("_", "")
+    return x
+
+
+alt_data = [
+    {"source": "original", "Stats MSE": m.item(), "dataset": name_map(c)}
+    for m, c in zip(met_mse, categories)
+]
+alt_data += [
+    {"source": "plenoptic", "Stats MSE": m.item(), "dataset": c}
+    for m, c in zip(plen_met_mse, titles)
+]
+alt_data = alt.Data(values=alt_data)
+```
+
+```{code-cell} ipython3
+alt_points = []
+for d, c in zip(po.to_numpy(data), categories):
+    for x, y in d.T:
+        alt_points.append(
+            {"source": "original", "x": x, "y": y, "dataset": name_map(c)}
+        )
+for d, c in zip(po.to_numpy(cached_metamers), titles):
+    for x, y in d.T:
+        alt_points.append({"source": "plenoptic", "x": x, "y": y, "dataset": c})
+alt_points = alt.Data(values=alt_points)
+```
+
+```{code-cell} ipython3
+selection = alt.selection_point(
+    fields=["dataset"], nearest=True, on="pointerover", empty=False, clear="pointerout"
+)
+base = alt.Chart(alt_data).encode(
+    x=alt.X("dataset:N", sort=titles),
+)
+bars = base.mark_bar().encode(
+    y=alt.Y("Stats MSE:Q"),
+    color="source:N",
+    xOffset="source:N",
+)
+tt = (
+    base.transform_pivot("source", "Stats MSE", groupby=["dataset"])
+    .mark_rule(strokeWidth=50)
+    .encode(
+        opacity=alt.when(selection).then(alt.value(0.3)).otherwise(alt.value(0)),
+        tooltip=["original:Q", "plenoptic:Q"],
+    )
+    .add_params(selection)
+)
+
+scatter = (
+    alt.Chart(alt_points, height=200, width=200)
+    .mark_point(filled=True)
+    .encode(
+        x=alt.X("x:Q").scale(domain=(0, 100)),
+        y=alt.Y("y:Q").scale(domain=(0, 100)),
+        color=alt.Color("source:N"),
+        column=alt.Column("source:N", title=""),
+    )
+    .facet(alt.Facet("dataset:N", title="", header=alt.Header(labelFontSize=0)))
+    .transform_filter(selection)
+)
+((bars + tt) | scatter).configure(autosize=alt.AutoSizeParams(resize=True))
 ```
 
 As in the above plots, the leftmost subplot corresponds to our target, the dino dataset. Each of the remaining ones shows a distinct metameric dataset, with the top figure showing the datasets themselves, and the bottom showing their representation (with the dino's representation shown as dashed horizontal lines on each plot). Several things to note:
@@ -489,28 +603,20 @@ Okay, now let's see a video of the synthesis process! The following is laid out 
 ```{code-cell} ipython3
 :tags: [hide-input]
 
-ax_size = 3
-n_cols, n_rows = (5, 3)
-fig = plt.figure(figsize=(ax_size * n_cols, ax_size * n_rows * 2))
-subfigs = fig.subfigures(2, 1, hspace=-0.2)
 init_metamers = torch.cat([data[:1], saved_metamers[:, 0]])
-_, data_axes = plot_datasaurus(init_metamers, titles, fig=subfigs[0])
-_, rep_axes = plot_datasaurus_rep(model(init_metamers), titles, model, fig=subfigs[1])
+fig, data_axes = plot_datasaurus(init_metamers, titles, 3)
 fig.set_layout_engine("none")
 
 ani_data = po.to_numpy(saved_metamers)
-ani_rep = po.to_numpy(torch.func.vmap(model)(saved_metamers))
 
 
 # Update the data for each saved iteration.
 def animate(frame):
     i = 0
-    for dax, rax in zip(data_axes, rep_axes):
+    for dax in data_axes:
         if dax.get_title() in ["", "dino (target)"]:
             continue
         dax.collections[0].set_offsets(saved_metamers[i, frame].T)
-        _update_stem(rax[0].containers[0], ani_rep[i, frame, :5])
-        _update_stem(rax[1].containers[0], ani_rep[i, frame, 5:])
         i += 1
 
 
