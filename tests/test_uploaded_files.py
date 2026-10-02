@@ -1023,7 +1023,7 @@ class TestTutorialNotebooks:
                 datasaurus,
                 datasaurus_model,
                 penalty_function=penalty,
-                penalty_lambda=0.0001,
+                penalty_lambda=0.00005,
             )
             met.setup(
                 initial_image=100 * torch.rand_like(datasaurus),
@@ -1042,7 +1042,7 @@ class TestTutorialNotebooks:
                 datasaurus,
                 datasaurus_model,
                 penalty_function=penalty,
-                penalty_lambda=0.0001,
+                penalty_lambda=0.00005,
             )
             with pytest.warns(UserWarning, match="You will need to call setup"):
                 met_up.load(
@@ -1707,7 +1707,7 @@ class TestTutorialNotebooks:
                 datasaurus,
                 datasaurus_model,
                 penalty_function=penalty,
-                penalty_lambda=0.001,
+                penalty_lambda=0.0005,
             )
             met.setup(
                 initial_image=100 * torch.rand_like(datasaurus),
@@ -1726,7 +1726,7 @@ class TestTutorialNotebooks:
                 datasaurus,
                 datasaurus_model,
                 penalty_function=penalty,
-                penalty_lambda=0.001,
+                penalty_lambda=0.0005,
             )
             with pytest.warns(UserWarning, match="You will need to call setup"):
                 met_up.load(
@@ -1867,7 +1867,7 @@ class TestTutorialNotebooks:
                 datasaurus,
                 datasaurus_model,
                 penalty_function=penalty,
-                penalty_lambda=0.001,
+                penalty_lambda=0.0005,
             )
             met.setup(
                 initial_image=100 * torch.rand_like(datasaurus),
@@ -1886,7 +1886,7 @@ class TestTutorialNotebooks:
                 datasaurus,
                 datasaurus_model,
                 penalty_function=penalty,
-                penalty_lambda=0.001,
+                penalty_lambda=0.0005,
             )
             with pytest.warns(UserWarning, match="You will need to call setup"):
                 met_up.load(
