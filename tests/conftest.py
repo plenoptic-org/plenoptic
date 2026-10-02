@@ -67,6 +67,11 @@ def color_img():
 
 
 @pytest.fixture(scope="package")
+def color_img_small(color_img):
+    return po.process.shrink(color_img, 4)
+
+
+@pytest.fixture(scope="package")
 def parrot_square():
     img = po.load_images(IMG_DIR / "mixed" / "Parrot.png").to(DEVICE)
     return po.process.center_crop(img, 254)
