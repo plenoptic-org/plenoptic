@@ -442,8 +442,18 @@ def animate(i):
     _update_stem(rep_axes[1].containers[0], ani_rep[i, 5:])
 
 
-ani = mpl.animation.FuncAnimation(fig, animate, range(len(plot_data)), repeat=False)
+# In order to avoid this potentially taking a long time, make sure we animate at most 50
+# frames
+total_frames = 50
+frame_step = max(len(plot_data) // total_frames, 1)
+ani = mpl.animation.FuncAnimation(
+    fig, animate, range(0, len(plot_data), frame_step), repeat=False
+)
 plt.close(fig)
+
+# This will view the video if running in a jupyter notebook. If you are running outside
+# of a notebook (e.g., in ipython), first save it and then open it with something that
+# can view video files (e.g., your browser) by running: ani.save("ds_index.mp4")
 ani
 ```
 
@@ -620,10 +630,18 @@ def animate(frame):
         i += 1
 
 
+# In order to avoid this potentially taking a long time, make sure we animate at most 50
+# frames
+total_frames = 50
+frame_step = max(saved_metamers.shape[1] // total_frames, 1)
 ani = mpl.animation.FuncAnimation(
-    fig, animate, range(saved_metamers.shape[1]), repeat=False
+    fig, animate, range(0, range(saved_metamers.shape[1]), frame_step), repeat=False
 )
 plt.close(fig)
+
+# This will view the video if running in a jupyter notebook. If you are running outside
+# of a notebook (e.g., in ipython), first save it and then open it with something that
+# can view video files (e.g., your browser) by running: ani.save("ds_index.mp4")
 ani
 ```
 
