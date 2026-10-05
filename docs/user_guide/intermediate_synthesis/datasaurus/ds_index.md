@@ -36,12 +36,7 @@ These datasets all consist of 142 `(x, y)` points, and all have the same mean an
 
 In this notebook, we will visualize the original datasaurus dozen, implement a model to compute the relevant statistics, and demonstrate that they are metamers for that model. We will then visualize a new set of metamers, synthesized using plenoptic's {class}`~plenoptic.Metamer` using the {attr}`~plenoptic.Metamer.penalty_function` argument to steer synthesis towards visually-interesting results. The other notebooks in this series demonstrate how to synthesize each of those metamers individually.
 
-:::{warning}
-This notebook requires the optional dependency `altair`, which can be installed with `pip`.
-:::
-
 ```{code-cell} ipython3
-import altair as alt
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -510,12 +505,21 @@ saved_metamers = torch.stack(saved_metamers)
 plot_datasaurus(cached_metamers, titles, 3);
 ```
 
-```{code-cell} ipython3
-cached_rep = model(cached_metamers)
-plen_met_mse = (cached_rep[:1] - cached_rep).pow(2).mean(-1)
-```
+:::{warning}
+The following cell requires an additional package `altair`, which can be installed with `pip`.
+:::
 
 ```{code-cell} ipython3
+:tags: [hide-input]
+
+import altair as alt
+
+# Compute the error for the plenoptic metamers
+cached_rep = model(cached_metamers)
+plen_met_mse = (cached_rep[:1] - cached_rep).pow(2).mean(-1)
+
+
+# Map between the original names and the ones we use
 def name_map(x):
     if x == "high_lines":
         x = "hwidelines"
@@ -526,6 +530,8 @@ def name_map(x):
     return x
 
 
+# Create the data object containing errors needed for Altair to plot. They also accept
+# pandas dataframes, but that would be another dependency.
 alt_data = [
     {"source": "original", "Stats MSE": m.item(), "dataset": name_map(c)}
     for m, c in zip(met_mse, categories)
@@ -535,9 +541,8 @@ alt_data += [
     for m, c in zip(plen_met_mse, titles)
 ]
 alt_data = alt.Data(values=alt_data)
-```
 
-```{code-cell} ipython3
+# Create data object containing datasets
 alt_points = []
 for d, c in zip(po.to_numpy(data), categories):
     for x, y in d.T:
@@ -548,23 +553,28 @@ for d, c in zip(po.to_numpy(cached_metamers), titles):
     for x, y in d.T:
         alt_points.append({"source": "plenoptic", "x": x, "y": y, "dataset": c})
 alt_points = alt.Data(values=alt_points)
-```
 
-```{code-cell} ipython3
+# Create altair chart
 selection = alt.selection_point(
     fields=["dataset"], nearest=True, on="pointerover", empty=False, clear="pointerout"
 )
 base = alt.Chart(alt_data).encode(
     x=alt.X("dataset:N", sort=titles),
 )
-bars = base.mark_bar().encode(
-    y=alt.Y("Stats MSE:Q"),
-    color="source:N",
-    xOffset="source:N",
+bars = (
+    base.mark_bar()
+    .encode(
+        y=alt.Y("Stats MSE:Q"),
+        color="source:N",
+        xOffset="source:N",
+    )
+    .properties(
+        width=alt.Step(18),
+    )
 )
 tt = (
     base.transform_pivot("source", "Stats MSE", groupby=["dataset"])
-    .mark_rule(strokeWidth=50)
+    .mark_rule(strokeWidth=45)
     .encode(
         opacity=alt.when(selection).then(alt.value(0.3)).otherwise(alt.value(0)),
         tooltip=["original:Q", "plenoptic:Q"],
@@ -584,7 +594,7 @@ scatter = (
     .facet(alt.Facet("dataset:N", title="", header=alt.Header(labelFontSize=0)))
     .transform_filter(selection)
 )
-((bars + tt) | scatter).configure(autosize=alt.AutoSizeParams(resize=True))
+((bars + tt) & scatter).configure(autosize=alt.AutoSizeParams(resize=True))
 ```
 
 As in the above plots, the leftmost subplot corresponds to our target, the dino dataset. Each of the remaining ones shows a distinct metameric dataset, with the top figure showing the datasets themselves, and the bottom showing their representation (with the dino's representation shown as dashed horizontal lines on each plot). Several things to note:
