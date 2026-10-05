@@ -384,11 +384,12 @@ paired_plot(data[idx], model, titles[idx], 2.5);
 ```
 
 ```{code-cell} ipython3
-:tags: [hide-cell]
-:mystnb:
-:  code_prompt_show: "Show plots for all datasets"
-:  code_prompt_hide: "Hide plots for all datasets"
-
+---
+tags: [hide-cell]
+mystnb:
+  code_prompt_show: Show plots for all datasets
+  code_prompt_hide: Hide plots for all datasets
+---
 paired_plot(data, model, titles, 2.5, plot_all=True);
 ```
 
