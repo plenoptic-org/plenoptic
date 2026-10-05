@@ -635,7 +635,7 @@ def animate(frame):
 total_frames = 50
 frame_step = max(saved_metamers.shape[1] // total_frames, 1)
 ani = mpl.animation.FuncAnimation(
-    fig, animate, range(0, range(saved_metamers.shape[1]), frame_step), repeat=False
+    fig, animate, range(0, saved_metamers.shape[1], frame_step), repeat=False
 )
 plt.close(fig)
 
