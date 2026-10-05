@@ -30,6 +30,8 @@ These pages assume familiarity with the basics of using penalty function in meta
 
 :::
 
+## The Datasaurus dozen
+
 The [Datasaurus dozen](https://en.wikipedia.org/wiki/Datasaurus_dozen) consists of thirteen datasets with very different visual appearances but nearly-identical simple descriptive statistics. It was created by {cite:alp}`Matejka2017-same-stats` to highlight the importance of visualizing your data and was inspired by the earlier [Anscombe's Quartet](https://en.wikipedia.org/wiki/Anscombe's_quartet).
 
 These datasets all consist of 142 `(x, y)` points, and all have the same mean and standard deviation (for both x and y), correlation between x and y, linear regression line, and coefficient of determination for that linear regression. Put another way, despite consisting of a different set of values, these datasets all have the same set of summary statistics -- that is, they are model metamers!
@@ -395,6 +397,8 @@ This is a very different procedure than plenoptic's metamer synthesis! Important
 
 There is one additional wrinkle: as the authors point out, it's fairly straightforward to generate random datasets whose statistics match --- the difficulty lies in finding datasets that are "clearly different and identifiably distinct" while having the same statistical properties.
 
+## Using plenoptic to synthesize new metameric datasets
+
 Using plenoptic, we can generate metameric datasets in a relatively straightforward manner, though note that even in this simple case, we have to tweak the penalty. As plenoptic was largely developed to work on images, the default {attr}`~plenoptic.Metamer.penalty_function` is {func}`~plenoptic.regularize.penalize_range` which, with its default values, encourages values to lie between 0 and 1. For this synthesis problem, we instead want the values to lie between 0 and 100, so we write a custom `penalty` which calls {func}`~plenoptic.regularize.penalize_range` while specifying an allowed range of `(0, 100)`.
 
 ```{code-cell} ipython3
@@ -457,6 +461,8 @@ In the video above, the leftmost plot shows the metameric dataset over synthesis
 We can see that our synthesis procedure fairly quickly finds a metamer, starting from uniformly-distributed dots with x and y values between 0 and 100. However, the metamer doesn't look all that interesting: it still looks like a fairly random smattering of dots.
 
 In order to find "clearly different and identifiably distinct" datasets, we need to do something more. Specifically, we can use {attr}`~plenoptic.Metamer.penalty_function` to bias the synthesis procedure. In this case, we can create penalty functions that encourage the dataset to have specific shapes. By passing them to {class}`~plenoptic.Metamer` at initialization, we can try to find datasets that are both `DatasaurusModel` metamers and "identifiably distinct".
+
+### Penalties!
 
 The other notebooks in this section demonstrate how to do this, for a wide variety of shapes. First, let's see what they look like. The following hidden cell loads in the cached metamers and creates figures showing the datasets and their representations, laid out like the above ones:
 
@@ -655,7 +661,9 @@ plt.close(fig)
 ani
 ```
 
-Now that we've seen that plenoptic can create these metameric datasets, you are encouraged to peruse the following notebooks for details. With the exception of [](ds_star.md) and [](ds_plenoptic_logo.md) (as mentioned above), the only difference between their synthesis is the definition of the penalty function.
+## Example notebooks
+
+Now that we've seen that plenoptic can create these metameric datasets, you are encouraged to peruse the following notebooks for details.
 
 :::{admonition} Synthesis efficiency
 :class: attention
@@ -666,21 +674,213 @@ We thus haven't paid much attention to efficiency in the definitions of the pena
 
 :::
 
-The following notebooks are roughly ordered by complexity.
+The following notebooks are roughly ordered by complexity. The first one, [](ds_plenoptic_logo.md), does not have a penalty function and thus allows us to more easily visualize the effect of the optimizers and statistic redundancies. The last one, [](ds_star.md), uses a penalty that is more difficult to match while also matching the target statistics and thus uses a two-stage synthesis method. The remaining notebooks only differ in which penalty they use and are broken into groups based on the type of computations their penalty functions perform.
 
-<!--
-The notebooks are grouped into:
-- no penalty
-- circle penalty
-- lines penalty
-- cluster distance penalty
-- cluster distance and lines penalties
-- star, which requires two stages.
--->
+### Optimizers and Redundancies
 
-::::{card}
+::::{grid} auto
+:gutter: 1
+
+:::{grid-item-card}
+:link: ds_plenoptic_logo
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py plenoptic_logo
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+::::
+
+### Circular Penalties
+
+::::{grid} auto
+:gutter: 1
+
+:::{grid-item-card}
+:link: ds_circle
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py circle
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+
+:::{grid-item-card}
+:link: ds_bullseye
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py bullseye
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+
+:::{grid-item-card}
+:link: ds_away
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py away
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+
+:::{grid-item-card}
+:link: ds_dots
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py dots
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+::::
+
+### Line-based penalties
+
+::::{grid} auto
+:gutter: 1
+
+:::{grid-item-card}
+:link: ds_hlines
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py hlines
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+
+:::{grid-item-card}
+:link: ds_vlines
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py vlines
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+
+:::{grid-item-card}
+:link: ds_xshape
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py xshape
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+
+:::{grid-item-card}
+:link: ds_slantup
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py slantup
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+
+:::{grid-item-card}
+:link: ds_slantdown
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py slantdown
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+::::
+
+### Cluster Distance Penalties
+
+::::{grid} auto
+:gutter: 1
+
+:::{grid-item-card}
+:link: ds_polygons
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py polygons
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+
+:::{grid-item-card}
+:link: ds_oval
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py oval
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+::::
+
+### Line + Cluster Distance Penalties
+
+::::{grid} auto
+:gutter: 1
+
+:::{grid-item-card}
+:link: ds_hwidelines
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py hwidelines
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+
+:::{grid-item-card}
+:link: ds_vwidelines
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py vwidelines
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+::::
+
+### Two-stage synthesis
+
+::::{grid} auto
+:gutter: 1
+
+:::{grid-item-card}
+:link: ds_star
+:link-type: doc
+
+```{eval-rst}
+.. plot:: scripts/datasaurus.py star
+  :class: datasaurus-card
+  :include-source: false
+```
+:::
+::::
+
+
 :::{toctree}
 :maxdepth: 1
+:hidden:
 
 ds_plenoptic_logo.md
 
@@ -704,4 +904,3 @@ ds_vwidelines.md
 ds_star.md
 
 :::
-::::
