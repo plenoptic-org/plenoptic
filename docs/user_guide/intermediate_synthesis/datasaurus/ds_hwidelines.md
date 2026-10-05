@@ -170,13 +170,13 @@ class DatasaurusModel(torch.nn.Module):
             fig = axes[0].figure
 
         labels = [
-            "x mean",
-            "y mean",
-            "x std",
-            "y std",
-            "linreg intercept",
-            "linreg slope",
-            "correlation",
+            r"$\bar{x}$",  # noqa: RUF027
+            r"$\bar{y}$",  # noqa: RUF027
+            r"$\sigma_x$",
+            r"$\sigma_y$",
+            r"$\beta_0$",
+            r"$\beta_1$",
+            "$r$",
             "$R^2$",
         ]
         cutoff = 5
@@ -194,7 +194,7 @@ class DatasaurusModel(torch.nn.Module):
                 ax.stem(y)
             elif style == "lines":
                 ax.hlines(y, x - linewidth / 2, x + linewidth / 2, "k", "--")
-            ax.set_xticks(x, labs, rotation=30, ha="right")
+            ax.set_xticks(x, labs)
         return axes
 ```
 
@@ -345,8 +345,18 @@ def animate(i):
     _update_stem(rep_axes[1].containers[0], ani_rep[i, 5:])
 
 
-ani = mpl.animation.FuncAnimation(fig, animate, range(len(plot_data)), repeat=False)
+# In order to avoid this potentially taking a long time, make sure we animate at most 50
+# frames
+total_frames = 50
+frame_step = max(len(plot_data) // total_frames, 1)
+ani = mpl.animation.FuncAnimation(
+    fig, animate, range(0, len(plot_data), frame_step), repeat=False
+)
 plt.close(fig)
+
+# This will view the video if running in a jupyter notebook. If you are running outside
+# of a notebook (e.g., in ipython), first save it and then open it with something that
+# can view video files (e.g., your browser) by running: ani.save("ds_hwidelines.mp4")
 ani
 ```
 
