@@ -7,7 +7,7 @@ If you are new to plenoptic and/or stimulus synthesis, you are encouraged to fir
 
 All users are encouraged to read the introductions for the [synthesis method](synthesis-index) or [model / metric](models-metrics-index) they would like to use.
 
-The [](intermed-index) section includes topics that may interest users once they are familiar with basic synthesis.
+The [](penalty-index) section includes discussions of how to use different penalty functions in order to bias the synthesis procedure and examples of what this can achieve.
 
 The [](reproduce-index) section includes examples of how to use plenoptic to reproduce results from published papers.
 
@@ -40,14 +40,14 @@ models_and_metrics/portilla_simoncelli/ps_index.md
 
 ::::{card}
 
-(intermed-index)=
+(penalty-index)=
 :::{toctree}
 :maxdepth: 2
-:caption: Intermediate usage
+:caption: Using penalty functions
 :glob:
 
-intermediate_synthesis/*
-intermediate_synthesis/datasaurus/ds_index
+penalties/*
+penalties/datasaurus/ds_index
 :::
 ::::
 
