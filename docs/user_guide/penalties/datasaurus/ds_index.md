@@ -34,7 +34,7 @@ These pages assume familiarity with the basics of using penalty function in meta
 
 The [Datasaurus dozen](https://en.wikipedia.org/wiki/Datasaurus_dozen) consists of thirteen datasets with very different visual appearances but nearly-identical simple descriptive statistics. It was created by {cite:alp}`Matejka2017-same-stats` to highlight the importance of visualizing your data and was inspired by the earlier [Anscombe's Quartet](https://en.wikipedia.org/wiki/Anscombe's_quartet).
 
-These datasets all consist of 142 `(x, y)` points, and all have the same mean and standard deviation (for both x and y), correlation between x and y, linear regression line, and coefficient of determination for that linear regression. Put another way, despite consisting of a different set of values, these datasets all have the same set of summary statistics -- that is, they are model metamers!
+These datasets all consist of 142 `(x, y)` points, and all have the same mean and standard deviation (for both x and y; $\bar{x},\bar{y}$ and $\sigma_x,\sigma_y$), correlation between x and y ($r$), linear regression line (with parameters $\beta_0,\beta_1$), and coefficient of determination ($R^2$) for that linear regression. Put another way, if we define a model $M(\vec{x},\vec{y})=[\bar{x},\bar{y},\sigma_x,\sigma_y,r,\beta_0,\beta_1,R^2]$, then these datasets all have different values for $\vec{x},\vec{y}$ but identical model outputs -- they're model metamers!
 
 In this notebook, we will visualize the original datasaurus dozen, implement a model to compute the relevant statistics, and demonstrate that they are metamers for that model. We will then visualize a new set of metamers, synthesized using plenoptic's {class}`~plenoptic.Metamer` using the {attr}`~plenoptic.Metamer.penalty_function` argument to steer synthesis towards visually-interesting results. The other notebooks in this series demonstrate how to synthesize each of those metamers individually.
 
@@ -201,7 +201,7 @@ plot_datasaurus(data, categories, fig=data_fig);
 
 In the above figure, the leftmost subplot shows the original dino dataset. The other twelve subplots show each of the twelve metameric datasets from {cite:alp}`Matejka2017-same-stats`, as can also be seen in [the wikipedia article](https://en.wikipedia.org/wiki/Datasaurus_dozen).
 
-The following cell defines the model that computes the summary statistics for us to match: the mean and standard deviation of both dimensions, the correlation between them, the slope and intercept from linear regression, and the corresponding coefficient of determination. We also define a `plot_representation` <!-- skip-lint --> function to visualize these eight numbers, as we'll see below. This cell is hidden because the plotting functionality is complicated, feel free to expand if you'd like to see how it's implemented.
+The following cell defines the model that computes the summary statistics for us to match, as well as a `plot_representation` <!-- skip-lint --> method to visualize them. As discussed at the beginning of this notebook, the matched statistics are: the mean and standard deviation of both dimensions ($\bar{x},\bar{y}$ and $\sigma_x,\sigma_y$), correlation between x and y ($r$), the slope and intercept from linear regression ($\beta_0,\beta_1$), and the corresponding coefficient of determination ($R^2$). These statistics are not all independent of each other; the final three statistics are redundant, but we include them because doing so seems to improve synthesis performance. See the dropdown below or more details.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -348,15 +348,17 @@ class DatasaurusModel(torch.nn.Module):
         return axes
 ```
 
-:::{admonition} Redundant statistics?
+:::{admonition} Redundant statistics
 :class: dropdown note
 
-Our `DatasaurusModel` contains redundant statistics: the slope and intercept of the best-fit line and the corresponding coefficient of determination provide no additional constraints over the other five statistics. Put another way, it is impossible to generate a dataset that has matched means, variances, and correlation of x and y without also matching the remaining three statistics. (The demonstration of this fact is left as an exercise to the reader.)
+Our `DatasaurusModel` contains redundant statistics: the slope and intercept of the best-fit line and the corresponding coefficient of determination provide no additional constraints over the other five statistics. This is because they can be computed directly from the other statistics:
+- The slope of the best-fit line [can be written as](https://en.wikipedia.org/wiki/Simple_linear_regression#Formulation_and_computation): $\beta_1=\frac{\cov(x,y)}{\sigma_x^2}=r\frac{\sigma_y}{\sigma_x}$
+- The intercept of that line [can be written as]([can be written as](https://en.wikipedia.org/wiki/Simple_linear_regression#Formulation_and_computation)): $\beta_0=\bar{y}-\beta_1\bar{x}=\bar{y}-r(\frac{\sigma_y}{\sigma_x})\bar{x}$
+- For [linear least squares with an intercept and slope](https://en.wikipedia.org/wiki/Coefficient_of_determination#As_squared_correlation_coefficient), $R^2=r^2$, the squared Pearson correlation coefficient.
 
-However, in practice, we find that adding those redundant statistics makes the optimization easier: it converges faster and results in a solution that better balances the metamer loss and penalty.
+Thus, matching $[\bar{x},\bar{y},\sigma_x,\sigma_y,r]$ also matches $[\beta_0,\beta_1,R^2]$. However, in practice, we find that including those redundant statistics in the model makes the optimization easier: it converges faster and results in a solution that better balances the metamer loss and penalty. See [](ds_plenoptic_logo.md) for a demonstration, and try it on other datasets for yourself! We have noticed that the reduced model finds good solutions for the simpler penalties such as [](ds_circle.md) and [](ds_away.md), and has difficulty for the more complex ones such as [](ds_slantup.md) and [](ds_vwidelines.md).
 
-If you would like to see for yourself, try removing the corresponding computations from the `forward` <!-- skip-lint --> method of `DatasaurusModel` and running synthesis yourself:
-the reduced model finds good solutions for the simpler penalties such as [](ds_circle.md) and [](ds_away.md), and has difficulty for the more complex ones such as [](ds_slantup.md) and [](ds_vwidelines.md). Note that if you wish to create the plots and movies shown in these notebooks, so that you can see for yourself that the redundant statistics are also matched, you should use the existing `DatasaurusModel` to do so. See [](ps-mag-means) for a similar example and discussion for the {class}`~plenoptic.models.PortillaSimoncelli` model.
+See [](ps-mag-means) for a similar example and discussion for the {class}`~plenoptic.models.PortillaSimoncelli` model.
 
 :::
 
