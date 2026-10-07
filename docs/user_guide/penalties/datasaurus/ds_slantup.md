@@ -54,7 +54,7 @@ torch.use_deterministic_algorithms(True)
 
 # Model definition, as in top-level notebook
 class DatasaurusModel(torch.nn.Module):
-    def __init__(self, n_pts=None, dtype=None):
+    def __init__(self, n_pts=None, dtype=None, include_redundant_stats=True):
         """
         Create model to measure datasaurus stats.
 
@@ -66,6 +66,9 @@ class DatasaurusModel(torch.nn.Module):
         dtype
             dtype for the dataset we'll use the model for. Used to cache
             a corresponding vector of ones for computing linear regression.
+        include_redundant_stats
+            Whether to include the redundant stats (linear regression slope and
+            intercept, coefficient of determination).
         """
         super().__init__()
         # cache ones to save time
@@ -73,6 +76,7 @@ class DatasaurusModel(torch.nn.Module):
             self._ones = torch.ones(n_pts, dtype=dtype)
         else:
             self._ones = None
+        self.include_redundant_stats = include_redundant_stats
         # This model has no trainable parameters, so it's always in eval mode
         self.eval()
 
@@ -109,11 +113,13 @@ class DatasaurusModel(torch.nn.Module):
         stats = []
         stats.append(data.mean(-1))
         stats.append(data.std(-1))
-        solution = torch.func.vmap(lambda x: self._compute_linreg(*x))(data)
-        stats.append(solution)
+        if not self.drop_redundant_stats:
+            solution = torch.func.vmap(lambda x: self._compute_linreg(*x))(data)
+            stats.append(solution)
         crosscorr = torch.func.vmap(lambda x: torch.corrcoef(x)[0, 1])(data)
         stats.append(crosscorr.unsqueeze(-1))
-        stats.append(self._vmap_coeff_determination(data, solution))
+        if not self.drop_redundant_stats:
+            stats.append(self._vmap_coeff_determination(data, solution))
         return torch.cat(stats, -1)
 
     def plot_representation(self, data, ax=None, style="stem", figsize=(6, 3)):
@@ -152,14 +158,16 @@ class DatasaurusModel(torch.nn.Module):
             # number of orientations and then another one to add an
             # extra column for the mean luminance plot
             fig = plt.figure(figsize=figsize, layout="constrained")
-            gs = mpl.gridspec.GridSpec(1, 2, fig, width_ratios=[5, 3])
+            gs = mpl.gridspec.GridSpec(1, 2, fig, width_ratios=[5, 3], wspace=0.35)
             axes = [fig.add_subplot(gs[0, i]) for i in range(2)]
         elif isinstance(ax, mpl.axes.Axes) or len(ax) == 1:
             # want to make sure the axis we're taking over is basically invisible.
             ax = po.plot.display._clean_up_axes(
                 ax, False, ["top", "right", "bottom", "left"], ["x", "y"]
             )
-            gs = ax.get_subplotspec().subgridspec(1, 2, width_ratios=[5, 3])
+            gs = ax.get_subplotspec().subgridspec(
+                1, 2, width_ratios=[5, 3], wspace=0.35
+            )
             fig = ax.figure
             axes = [fig.add_subplot(gs[0, i]) for i in range(2)]
         else:
@@ -216,9 +224,14 @@ for i, title in enumerate(["dino (target)", "slant_up"]):
     axes[i, 0].set_aspect(1)
     model.plot_representation(model(d), axes[i, 1:])
     model.plot_representation(model(data)[0], axes[i, 1:], "lines")
-    if i == 0:
-        axes[i, 1].set(xticklabels=[])
-        axes[i, 2].set(xticklabels=[])
+for ax in axes[:, 0]:
+    ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+    ax.xaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+    ax.yaxis.set_minor_locator(mpl.ticker.AutoLocator())
+    ax.xaxis.set_minor_locator(mpl.ticker.AutoLocator())
+for ax in axes[:, 1:].flatten():
+    ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+    ax.yaxis.set_minor_locator(mpl.ticker.AutoLocator())
 ```
 
 Our intended shape here, as can be seen above, is five parallel lines with a positive slope, roughly evenly distributed across the plot. To encourage metamer synthesis to find such a dataset, we create several functions (all of these show up in other notebooks in this series and so may look familiar):
@@ -290,47 +303,86 @@ met.synthesize(50, store_progress=True)
 :tags: [hide-input]
 
 # use one of our helper functions here.
-from plenoptic.plot.display import _update_stem
+import matplotlib as mpl
 
-# Initialize figure by plotting the first iteration
-fig, axes = plt.subplots(
-    1, 3, figsize=(8, 3), width_ratios=[5, 5, 3], layout="compressed"
-)
-plot_data = met.saved_metamer
-ani_data = po.to_numpy(plot_data)
-ani_rep = po.to_numpy(model(plot_data))
-path = axes[0].scatter(*ani_data[0])
-xs = np.asarray([0, 100])
-for inter in intercepts:
-    axes[0].plot(xs, predict_line(xs, inter, slope), "k--", zorder=0)
-axes[0].set(xlim=(0, 100), ylim=(0, 100))
-axes[0].set_aspect(1)
-
-rep_axes = model.plot_representation(model(data)[0], axes[1:], "lines")
-model.plot_representation(ani_rep[0], rep_axes)
-fig.set_layout_engine("none")
+from plenoptic.plot.display import _rescale_ylim, _update_stem
 
 
-# Update the data for each saved iteration.
-def animate(i):
-    path.set_offsets(ani_data[i].T)
-    _update_stem(rep_axes[0].containers[0], ani_rep[i, :5])
-    _update_stem(rep_axes[1].containers[0], ani_rep[i, 5:])
+def animate_datasaurus_metamer(
+    met, model=None, initial_ylim=None, n_frames=50, highlight_swap_frame=None
+):
+    if model is None:
+        model = met.model
+    # Initialize figure by plotting the first iteration
+    fig, axes = plt.subplots(
+        1,
+        3,
+        figsize=(8, 3),
+        width_ratios=[5, 5, 3],
+        layout="compressed",
+        gridspec_kw={"wspace": 0.3},
+    )
+    plot_data = met.saved_metamer
+    ani_data = po.to_numpy(plot_data)
+    ani_rep = po.to_numpy(model(plot_data))
+    path = axes[0].scatter(*ani_data[0])
+    axes[0].set(xlim=(0, 100), ylim=(0, 100))
+    axes[0].set_aspect(1)
+    axes[0].yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+    axes[0].xaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+    axes[0].yaxis.set_minor_locator(mpl.ticker.AutoLocator())
+    axes[0].xaxis.set_minor_locator(mpl.ticker.AutoLocator())
+
+    rep_axes = model.plot_representation(model(data)[0], axes[1:], "lines")
+    model.plot_representation(ani_rep[0], rep_axes)
+    if initial_ylim is not None:
+        rep_axes[1].set(ylim=initial_ylim)
+    for ax in rep_axes:
+        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+        ax.yaxis.set_minor_locator(mpl.ticker.AutoLocator())
+    fig.set_layout_engine("none")
+
+    # In order to avoid this potentially taking a long time, make sure we animate at
+    # most n_frames
+    frame_step = max(len(plot_data) // n_frames, 1)
+    frames = range(0, len(plot_data), frame_step)
+    rescale_frames = list(frames)[::10][3:-1]
+    if highlight_swap_frame is not None:
+        color = "#ffff8144"
+        default_color = fig.axes[1].get_facecolor()
+        fig.axes[1].set_facecolor(color)
+        fig.axes[2].set_facecolor(color)
+        fig.suptitle("Phase 1: match statistics")
+
+    # Update the data for each saved iteration.
+    def animate(i):
+        path.set_offsets(ani_data[i].T)
+        _update_stem(rep_axes[0].containers[0], ani_rep[i, :5])
+        _update_stem(rep_axes[1].containers[0], ani_rep[i, 5:])
+        if initial_ylim is not None and i in rescale_frames:
+            _rescale_ylim(rep_axes[1], ani_rep[i, 5:])
+        color_now = fig.axes[0].get_facecolor()
+        if (
+            highlight_swap_frame is not None
+            and i > highlight_swap_frame
+            and color_now == default_color
+        ):
+            fig.axes[0].set_facecolor(color)
+            fig.axes[1].set_facecolor(default_color)
+            fig.axes[2].set_facecolor(default_color)
+            fig.suptitle("Phase 2: match penalty")
+
+    ani = mpl.animation.FuncAnimation(fig, animate, frames, repeat=False)
+    plt.close(fig)
+
+    # This will view the video if running in a jupyter notebook. If you are running
+    # outside of a notebook (e.g., in ipython), first save it and then open it with
+    # something that can view video files (e.g., your browser) by running:
+    # ani.save("ds_plenoptic_logo.mp4")
+    return ani
 
 
-# In order to avoid this potentially taking a long time, make sure we animate at most 50
-# frames
-total_frames = 50
-frame_step = max(len(plot_data) // total_frames, 1)
-ani = mpl.animation.FuncAnimation(
-    fig, animate, range(0, len(plot_data), frame_step), repeat=False
-)
-plt.close(fig)
-
-# This will view the video if running in a jupyter notebook. If you are running outside
-# of a notebook (e.g., in ipython), first save it and then open it with something that
-# can view video files (e.g., your browser) by running: ani.save("ds_slantup.mp4")
-ani
+animate_datasaurus_metamer(met, highlight_swap_frame=12)
 ```
 
 In the video of the synthesis above, we can see the dataset first shifting itself to become metameric, before moving the points around and then condensing into lines. However, like [](ds_circle.md), the points do not land exactly on their targets. Analagously to [](ds_circle.md), the points do form perfect parallel lines, but their intercepts do not align exactly with the targets.
