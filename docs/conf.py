@@ -177,7 +177,7 @@ html_theme_options = {
         # https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-suppress_warnings)
         "[!a]?[!p]?[!i]**": ["page-toc"],
         "api/**": [],
-        "user_guide/intermediate_synthesis/datasaurus/ds_index": [],
+        "user_guide/penalties/datasaurus/ds_index": [],
     },
     "show_nav_level": 1,
     "header_links_before_dropdown": 4,
