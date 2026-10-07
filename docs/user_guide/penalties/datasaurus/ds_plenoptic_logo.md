@@ -54,7 +54,7 @@ torch.use_deterministic_algorithms(True)
 
 # Model definition, as in top-level notebook
 class DatasaurusModel(torch.nn.Module):
-    def __init__(self, n_pts=None, dtype=None):
+    def __init__(self, n_pts=None, dtype=None, drop_redundant_stats=False):
         """
         Create model to measure datasaurus stats.
 
@@ -73,6 +73,7 @@ class DatasaurusModel(torch.nn.Module):
             self._ones = torch.ones(n_pts, dtype=dtype)
         else:
             self._ones = None
+        self.drop_redundant_stats = drop_redundant_stats
         # This model has no trainable parameters, so it's always in eval mode
         self.eval()
 
@@ -109,11 +110,13 @@ class DatasaurusModel(torch.nn.Module):
         stats = []
         stats.append(data.mean(-1))
         stats.append(data.std(-1))
-        solution = torch.func.vmap(lambda x: self._compute_linreg(*x))(data)
-        stats.append(solution)
+        if not self.drop_redundant_stats:
+            solution = torch.func.vmap(lambda x: self._compute_linreg(*x))(data)
+            stats.append(solution)
         crosscorr = torch.func.vmap(lambda x: torch.corrcoef(x)[0, 1])(data)
         stats.append(crosscorr.unsqueeze(-1))
-        stats.append(self._vmap_coeff_determination(data, solution))
+        if not self.drop_redundant_stats:
+            stats.append(self._vmap_coeff_determination(data, solution))
         return torch.cat(stats, -1)
 
     def plot_representation(self, data, ax=None, style="stem", figsize=(6, 3)):
@@ -218,45 +221,54 @@ met.synthesize(50, store_progress=True)
 :tags: [hide-input]
 
 # use one of our helper functions here.
-from plenoptic.plot.display import _update_stem
-
-# Initialize figure by plotting the first iteration
-fig, axes = plt.subplots(
-    1, 3, figsize=(8, 3), width_ratios=[5, 5, 3], layout="compressed"
-)
-plot_data = met.saved_metamer
-ani_data = po.to_numpy(plot_data)
-ani_rep = po.to_numpy(model(plot_data))
-path = axes[0].scatter(*ani_data[0])
-axes[0].set(xlim=(0, 100), ylim=(0, 100))
-axes[0].set_aspect(1)
-
-rep_axes = model.plot_representation(model(data)[0], axes[1:], "lines")
-model.plot_representation(ani_rep[0], rep_axes)
-fig.set_layout_engine("none")
+from plenoptic.plot.display import _rescale_ylim, _update_stem
 
 
-# Update the data for each saved iteration.
-def animate(i):
-    path.set_offsets(ani_data[i].T)
-    _update_stem(rep_axes[0].containers[0], ani_rep[i, :5])
-    _update_stem(rep_axes[1].containers[0], ani_rep[i, 5:])
+def animate_datasaurus_metamer(met, model=None, initial_ylim=None, n_frames=50):
+    if model is None:
+        model = met.model
+    # Initialize figure by plotting the first iteration
+    fig, axes = plt.subplots(
+        1, 3, figsize=(8, 3), width_ratios=[5, 5, 3], layout="compressed"
+    )
+    plot_data = met.saved_metamer
+    ani_data = po.to_numpy(plot_data)
+    ani_rep = po.to_numpy(model(plot_data))
+    path = axes[0].scatter(*ani_data[0])
+    axes[0].set(xlim=(0, 100), ylim=(0, 100))
+    axes[0].set_aspect(1)
+
+    rep_axes = model.plot_representation(model(data)[0], axes[1:], "lines")
+    model.plot_representation(ani_rep[0], rep_axes)
+    if initial_ylim is not None:
+        rep_axes[1].set(ylim=initial_ylim)
+    fig.set_layout_engine("none")
+
+    # In order to avoid this potentially taking a long time, make sure we animate at
+    # most n_frames
+    frame_step = max(len(plot_data) // n_frames, 1)
+    frames = range(0, len(plot_data), frame_step)
+    rescale_frames = list(frames)[::10][3:-1]
+
+    # Update the data for each saved iteration.
+    def animate(i):
+        path.set_offsets(ani_data[i].T)
+        _update_stem(rep_axes[0].containers[0], ani_rep[i, :5])
+        _update_stem(rep_axes[1].containers[0], ani_rep[i, 5:])
+        if initial_ylim is not None and i in rescale_frames:
+            _rescale_ylim(rep_axes[1], ani_rep[i, 5:])
+
+    ani = mpl.animation.FuncAnimation(fig, animate, frames, repeat=False)
+    plt.close(fig)
+
+    # This will view the video if running in a jupyter notebook. If you are running
+    # outside of a notebook (e.g., in ipython), first save it and then open it with
+    # something that can view video files (e.g., your browser) by running:
+    # ani.save("ds_plenoptic_logo.mp4")
+    return ani
 
 
-# In order to avoid this potentially taking a long time, make sure we animate at most 50
-# frames
-total_frames = 50
-frame_step = max(len(plot_data) // total_frames, 1)
-ani = mpl.animation.FuncAnimation(
-    fig, animate, range(0, len(plot_data), frame_step), repeat=False
-)
-plt.close(fig)
-
-# This will view the video if running in a jupyter notebook. If you are running outside
-# of a notebook (e.g., in ipython), first save it and then open it with something that
-# can view video files (e.g., your browser) by running:
-# ani.save("ds_plenoptic_logo.mp4")
-ani
+animate_datasaurus_metamer(met)
 ```
 
 This dataset starts out as the plenoptic logo, roughly centered and axes-aligned. To become a metamer, the dataset gets squished and sheared so that it ends up looking like a rotated but still roughly centered version of the logo.
@@ -290,4 +302,88 @@ if os.environ.get("DATASAURUS_CHECK", False):
         1e-7,
         "metamer has different {error_type}! Update the OSF version.",
     )
+```
+
+## Different optimizers
+
+```{code-cell} ipython3
+met = po.Metamer(data[0], model, penalty_function=penalty)
+met.setup(initial_image=logo, optimizer=torch.optim.Adam, optimizer_kwargs={"lr": 0.1})
+met.synthesize(400, store_progress=True)
+```
+
+```{code-cell} ipython3
+animate_datasaurus_metamer(met)
+```
+
+```{code-cell} ipython3
+met = po.Metamer(data[0], model, penalty_function=penalty)
+met.setup(initial_image=logo, optimizer_kwargs={"lr": 1}, optimizer=torch.optim.SGD)
+met.synthesize(3000, store_progress=True)
+```
+
+```{code-cell} ipython3
+animate_datasaurus_metamer(met)
+```
+
+## Remove redundant stats
+
+```{code-cell} ipython3
+reduced_model = DatasaurusModel(data.shape[1], data.dtype, True)
+```
+
+```{code-cell} ipython3
+met = po.Metamer(data[0], reduced_model, penalty_function=penalty)
+met.setup(initial_image=logo, optimizer=torch.optim.LBFGS)
+met.synthesize(50, store_progress=True)
+```
+
+```{code-cell} ipython3
+animate_datasaurus_metamer(met, model, (-1, 1))
+```
+
+```{code-cell} ipython3
+met = po.Metamer(data[0], reduced_model, penalty_function=penalty)
+met.setup(initial_image=logo, optimizer=torch.optim.Adam, optimizer_kwargs={"lr": 1})
+met.synthesize(500, store_progress=True, stop_criterion=1e-7)
+```
+
+```{code-cell} ipython3
+animate_datasaurus_metamer(
+    met,
+    model,
+)
+```
+
+```{code-cell} ipython3
+met = po.Metamer(data[0], reduced_model, penalty_function=penalty)
+met.setup(initial_image=logo, optimizer_kwargs={"lr": 50}, optimizer=torch.optim.SGD)
+met.synthesize(6000, store_progress=True, stop_criterion=1e-8)
+```
+
+```{code-cell} ipython3
+animate_datasaurus_metamer(met, model, n_frames=100)
+```
+
+## Custom loss
+
+Setting custom loss can help!
+
+```{code-cell} ipython3
+weight = torch.ones_like(reduced_model(data[0])).squeeze()
+weight[-1] = 10
+
+
+def custom_loss(x, y):
+    return po.loss.mse(weight * x, weight * y)
+```
+
+```{code-cell} ipython3
+met = po.Metamer(data[0], reduced_model, custom_loss, penalty_function=penalty)
+met.setup(initial_image=logo, optimizer_kwargs={"lr": 50}, optimizer=torch.optim.SGD)
+met.synthesize(200, store_progress=True, stop_criterion=1e-8)
+```
+
+```{code-cell} ipython3
+animate_datasaurus_metamer(met, model)
 ```
