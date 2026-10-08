@@ -338,7 +338,7 @@ def animate_datasaurus_metamer(
     return ani
 
 
-animate_datasaurus_metamer(met)
+animate_datasaurus_metamer(met, highlight_swap_frame=12)
 ```
 
 In the video of the synthesis above, we can see the dataset shifting itself to become metameric and then breaking the points out into small groups of six and distributing them across the plot. Towards the end of the video, they have largely coalesced into little regular hexagons.

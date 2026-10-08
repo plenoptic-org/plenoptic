@@ -345,7 +345,7 @@ def animate_datasaurus_metamer(
     return ani
 
 
-animate_datasaurus_metamer(met)
+animate_datasaurus_metamer(met, highlight_swap_frame=12)
 ```
 
 In the video of the synthesis above, we can see the dataset shifting itself to become metameric and then the points starting to push away from each other. Both penalties are computed using neighborhood sizes of 3, but triangles are not readily visible (unlike [](ds_polygons.md), where hexagons were clearly visible). Instead, the points have formed an oval located in the center of the plot.

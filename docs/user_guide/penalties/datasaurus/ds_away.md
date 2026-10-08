@@ -350,7 +350,7 @@ def animate_datasaurus_metamer(
     return ani
 
 
-animate_datasaurus_metamer(met)
+animate_datasaurus_metamer(met, highlight_swap_frame=14)
 ```
 
 In the video of synthesis above, we can see the dataset first becomes metameric (the stem heads quickly align themselves with the horizontal dashed lines in the second and third plots) and then the points gradually move away from the penalty's center (marked with a red plus sign). You can see that, as points get moved away from the center, other points farther away shift around (generally, moving closer) in order to keep the model's statistics identical.

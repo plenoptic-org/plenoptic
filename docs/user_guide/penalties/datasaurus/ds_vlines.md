@@ -385,7 +385,7 @@ def animate_datasaurus_metamer(
     return ani
 
 
-animate_datasaurus_metamer(met)
+animate_datasaurus_metamer(met, highlight_swap_frame=14)
 ```
 
 In the video of the synthesis above, we can see the dataset first shifting itself to become metameric, before moving the points around and then condensing into vertical lines. However, like [](ds_circle.md), the points do not land exactly on their targets. Analagously to [](ds_circle.md), the points do form perfect vertical lines, but their x-values do not align exactly with the targets.

@@ -418,7 +418,7 @@ def animate_datasaurus_metamer(
     return ani
 
 
-animate_datasaurus_metamer(met)
+animate_datasaurus_metamer(met, highlight_swap_frame=12)
 ```
 
 In the video of the synthesis above, we can see the dataset first shifting itself to become metameric, before moving the points into the horizontal regions defined by our penalty. Almost all points end up lying in these regions, which is a success! However, the they do still end up clumping together somewhat, so the `centroid_penalty` and `polygon_penalty` have not been perfectly met. They are doing something important, however, which can be seen by removing them from the definition of `penalty` above.

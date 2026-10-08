@@ -390,7 +390,7 @@ def animate_datasaurus_metamer(
     return ani
 
 
-animate_datasaurus_metamer(met)
+animate_datasaurus_metamer(met, highlight_swap_frame=13)
 ```
 
 In the video of synthesis above, we can see the dataset first becomes metameric (the stem heads quickly align themselves with the horizontal dashed lines in the second and third plots) and then the points gradually forming themselves into the x-shape, aligning with the dashed black lines.
