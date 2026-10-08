@@ -75,7 +75,6 @@ The following cell defines helper functions to visualize and animate the dataset
 :tags: [hide-input]
 
 def single_scatter(xy, ax, title=None, xlim=(0, 100), ylim=(0, 100), **scatter_kwargs):
-    scatter_kwargs.setdefault("s", 5)
     ax.scatter(*xy, **scatter_kwargs)
     if title is not None:
         ax.set_title(title)
