@@ -54,7 +54,7 @@ torch.use_deterministic_algorithms(True)
 
 # Model definition, as in top-level notebook
 class DatasaurusModel(torch.nn.Module):
-    def __init__(self, n_pts=None, dtype=None):
+    def __init__(self, n_pts=None, dtype=None, include_redundant_stats=True):
         """
         Create model to measure datasaurus stats.
 
@@ -66,6 +66,9 @@ class DatasaurusModel(torch.nn.Module):
         dtype
             dtype for the dataset we'll use the model for. Used to cache
             a corresponding vector of ones for computing linear regression.
+        include_redundant_stats
+            Whether to include the redundant stats (linear regression slope and
+            intercept, coefficient of determination).
         """
         super().__init__()
         # cache ones to save time
@@ -73,6 +76,7 @@ class DatasaurusModel(torch.nn.Module):
             self._ones = torch.ones(n_pts, dtype=dtype)
         else:
             self._ones = None
+        self.include_redundant_stats = include_redundant_stats
         # This model has no trainable parameters, so it's always in eval mode
         self.eval()
 
@@ -109,11 +113,13 @@ class DatasaurusModel(torch.nn.Module):
         stats = []
         stats.append(data.mean(-1))
         stats.append(data.std(-1))
-        solution = torch.func.vmap(lambda x: self._compute_linreg(*x))(data)
-        stats.append(solution)
+        if self.include_redundant_stats:
+            solution = torch.func.vmap(lambda x: self._compute_linreg(*x))(data)
+            stats.append(solution)
         crosscorr = torch.func.vmap(lambda x: torch.corrcoef(x)[0, 1])(data)
         stats.append(crosscorr.unsqueeze(-1))
-        stats.append(self._vmap_coeff_determination(data, solution))
+        if self.include_redundant_stats:
+            stats.append(self._vmap_coeff_determination(data, solution))
         return torch.cat(stats, -1)
 
     def plot_representation(self, data, ax=None, style="stem", figsize=(6, 3)):
@@ -152,14 +158,16 @@ class DatasaurusModel(torch.nn.Module):
             # number of orientations and then another one to add an
             # extra column for the mean luminance plot
             fig = plt.figure(figsize=figsize, layout="constrained")
-            gs = mpl.gridspec.GridSpec(1, 2, fig, width_ratios=[5, 3])
+            gs = mpl.gridspec.GridSpec(1, 2, fig, width_ratios=[5, 3], wspace=0.35)
             axes = [fig.add_subplot(gs[0, i]) for i in range(2)]
         elif isinstance(ax, mpl.axes.Axes) or len(ax) == 1:
             # want to make sure the axis we're taking over is basically invisible.
             ax = po.plot.display._clean_up_axes(
                 ax, False, ["top", "right", "bottom", "left"], ["x", "y"]
             )
-            gs = ax.get_subplotspec().subgridspec(1, 2, width_ratios=[5, 3])
+            gs = ax.get_subplotspec().subgridspec(
+                1, 2, width_ratios=[5, 3], wspace=0.35
+            )
             fig = ax.figure
             axes = [fig.add_subplot(gs[0, i]) for i in range(2)]
         else:
@@ -192,7 +200,22 @@ class DatasaurusModel(torch.nn.Module):
             elif style == "lines":
                 ax.hlines(y, x - linewidth / 2, x + linewidth / 2, "k", "--")
             ax.set_xticks(x, labs)
+            ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+            ax.yaxis.set_minor_locator(mpl.ticker.AutoLocator())
         return axes
+
+
+def single_scatter(xy, ax, title=None, xlim=(0, 100), ylim=(0, 100), **scatter_kwargs):
+    ax.scatter(*xy, **scatter_kwargs)
+    if title is not None:
+        ax.set_title(title)
+    ax.set_aspect(1)
+    ax.set(xlim=xlim, ylim=ylim)
+    ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+    ax.xaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+    ax.yaxis.set_minor_locator(mpl.ticker.AutoLocator())
+    ax.xaxis.set_minor_locator(mpl.ticker.AutoLocator())
+    return ax
 ```
 
 The following plot shows the `h_lines` dataset from the original datasaurus dozen, along with its representation.
@@ -210,15 +233,9 @@ fig, axes = plt.subplots(
 )
 for i, title in enumerate(["dino (target)", "h_lines"]):
     d = data[categories == title].squeeze()
-    axes[i, 0].scatter(*d)
-    axes[i, 0].set_title(title)
-    axes[i, 0].set(xlim=(0, 100), ylim=(0, 100))
-    axes[i, 0].set_aspect(1)
+    single_scatter(d, axes[i, 0], title)
     model.plot_representation(model(d), axes[i, 1:])
     model.plot_representation(model(data)[0], axes[i, 1:], "lines")
-    if i == 0:
-        axes[i, 1].set(xticklabels=[])
-        axes[i, 2].set(xticklabels=[])
 ```
 
 Our intended shape here, as can be seen above, is five horizontal lines, roughly evenly distributed across the plot. To encourage metamer synthesis to find such a dataset, we create several functions (all of these show up in other notebooks in this series and so may look familiar):
