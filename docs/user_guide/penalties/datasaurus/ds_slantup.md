@@ -310,8 +310,18 @@ met.synthesize(50, store_progress=True)
 from plenoptic.plot.display import _rescale_ylim, _update_stem
 
 
+def penalty_draw(ax):
+    xs = np.asarray([0, 100])
+    for inter in intercepts:
+        ax.plot(xs, predict_line(xs, inter, slope), "k--", zorder=0)
+
+
 def animate_datasaurus_metamer(
-    met, model=None, initial_ylim=None, n_frames=50, highlight_swap_frame=None
+    met,
+    model=None,
+    initial_ylim=None,
+    n_frames=50,
+    highlight_swap_frame=None,
 ):
     if model is None:
         model = met.model
@@ -328,9 +338,7 @@ def animate_datasaurus_metamer(
     ani_data = po.to_numpy(plot_data)
     ani_rep = po.to_numpy(model(plot_data))
     data_ax = single_scatter(ani_data[0], axes[0])
-    xs = np.asarray([0, 100])
-    for inter in intercepts:
-        data_ax.plot(xs, predict_line(xs, inter, slope), "k--", zorder=0)
+    penalty_draw(data_ax)
 
     rep_axes = model.plot_representation(model(data)[0], axes[1:], "lines")
     model.plot_representation(ani_rep[0], rep_axes)

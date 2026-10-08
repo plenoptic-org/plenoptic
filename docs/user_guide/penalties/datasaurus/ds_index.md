@@ -452,9 +452,7 @@ fig, axes = plt.subplots(
 plot_data = met.saved_metamer
 ani_data = po.to_numpy(plot_data)
 ani_rep = po.to_numpy(model(plot_data))
-path = axes[0].scatter(*ani_data[0])
-axes[0].set(xlim=(0, 100), ylim=(0, 100))
-axes[0].set_aspect(1)
+data_ax = single_scatter(ani_data[0], axes[0])
 
 rep_axes = model.plot_representation(model(data)[0], axes[1:], "lines")
 model.plot_representation(ani_rep[0], rep_axes)
@@ -463,7 +461,7 @@ fig.set_layout_engine("none")
 
 # Update the data for each saved iteration.
 def animate(i):
-    path.set_offsets(ani_data[i].T)
+    data_ax.collections[0].set_offsets(ani_data[i].T)
     _update_stem(rep_axes[0].containers[0], ani_rep[i, :5])
     _update_stem(rep_axes[1].containers[0], ani_rep[i, 5:])
 
