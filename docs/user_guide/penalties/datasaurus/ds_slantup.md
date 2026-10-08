@@ -113,12 +113,12 @@ class DatasaurusModel(torch.nn.Module):
         stats = []
         stats.append(data.mean(-1))
         stats.append(data.std(-1))
-        if not self.drop_redundant_stats:
+        if self.include_redundant_stats:
             solution = torch.func.vmap(lambda x: self._compute_linreg(*x))(data)
             stats.append(solution)
         crosscorr = torch.func.vmap(lambda x: torch.corrcoef(x)[0, 1])(data)
         stats.append(crosscorr.unsqueeze(-1))
-        if not self.drop_redundant_stats:
+        if self.include_redundant_stats:
             stats.append(self._vmap_coeff_determination(data, solution))
         return torch.cat(stats, -1)
 
@@ -200,7 +200,22 @@ class DatasaurusModel(torch.nn.Module):
             elif style == "lines":
                 ax.hlines(y, x - linewidth / 2, x + linewidth / 2, "k", "--")
             ax.set_xticks(x, labs)
+            ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+            ax.yaxis.set_minor_locator(mpl.ticker.AutoLocator())
         return axes
+
+
+def single_scatter(xy, ax, title=None, xlim=(0, 100), ylim=(0, 100), **scatter_kwargs):
+    ax.scatter(*xy, **scatter_kwargs)
+    if title is not None:
+        ax.set_title(title)
+    ax.set_aspect(1)
+    ax.set(xlim=xlim, ylim=ylim)
+    ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+    ax.xaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
+    ax.yaxis.set_minor_locator(mpl.ticker.AutoLocator())
+    ax.xaxis.set_minor_locator(mpl.ticker.AutoLocator())
+    return ax
 ```
 
 The following plot shows the `slant_up` dataset from the original datasaurus dozen, along with its representation.
@@ -218,20 +233,9 @@ fig, axes = plt.subplots(
 )
 for i, title in enumerate(["dino (target)", "slant_up"]):
     d = data[categories == title].squeeze()
-    axes[i, 0].scatter(*d)
-    axes[i, 0].set_title(title)
-    axes[i, 0].set(xlim=(0, 100), ylim=(0, 100))
-    axes[i, 0].set_aspect(1)
+    single_scatter(d, axes[i, 0], title)
     model.plot_representation(model(d), axes[i, 1:])
     model.plot_representation(model(data)[0], axes[i, 1:], "lines")
-for ax in axes[:, 0]:
-    ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
-    ax.xaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
-    ax.yaxis.set_minor_locator(mpl.ticker.AutoLocator())
-    ax.xaxis.set_minor_locator(mpl.ticker.AutoLocator())
-for ax in axes[:, 1:].flatten():
-    ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
-    ax.yaxis.set_minor_locator(mpl.ticker.AutoLocator())
 ```
 
 Our intended shape here, as can be seen above, is five parallel lines with a positive slope, roughly evenly distributed across the plot. To encourage metamer synthesis to find such a dataset, we create several functions (all of these show up in other notebooks in this series and so may look familiar):
@@ -303,8 +307,6 @@ met.synthesize(50, store_progress=True)
 :tags: [hide-input]
 
 # use one of our helper functions here.
-import matplotlib as mpl
-
 from plenoptic.plot.display import _rescale_ylim, _update_stem
 
 
@@ -317,29 +319,23 @@ def animate_datasaurus_metamer(
     fig, axes = plt.subplots(
         1,
         3,
-        figsize=(8, 3),
+        figsize=(9, 3),
         width_ratios=[5, 5, 3],
         layout="compressed",
-        gridspec_kw={"wspace": 0.3},
+        gridspec_kw={"wspace": 0.25},
     )
     plot_data = met.saved_metamer
     ani_data = po.to_numpy(plot_data)
     ani_rep = po.to_numpy(model(plot_data))
-    path = axes[0].scatter(*ani_data[0])
-    axes[0].set(xlim=(0, 100), ylim=(0, 100))
-    axes[0].set_aspect(1)
-    axes[0].yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
-    axes[0].xaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
-    axes[0].yaxis.set_minor_locator(mpl.ticker.AutoLocator())
-    axes[0].xaxis.set_minor_locator(mpl.ticker.AutoLocator())
+    data_ax = single_scatter(ani_data[0], axes[0])
+    xs = np.asarray([0, 100])
+    for inter in intercepts:
+        data_ax.plot(xs, predict_line(xs, inter, slope), "k--", zorder=0)
 
     rep_axes = model.plot_representation(model(data)[0], axes[1:], "lines")
     model.plot_representation(ani_rep[0], rep_axes)
     if initial_ylim is not None:
         rep_axes[1].set(ylim=initial_ylim)
-    for ax in rep_axes:
-        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(1))
-        ax.yaxis.set_minor_locator(mpl.ticker.AutoLocator())
     fig.set_layout_engine("none")
 
     # In order to avoid this potentially taking a long time, make sure we animate at
@@ -356,7 +352,7 @@ def animate_datasaurus_metamer(
 
     # Update the data for each saved iteration.
     def animate(i):
-        path.set_offsets(ani_data[i].T)
+        data_ax.collections[0].set_offsets(ani_data[i].T)
         _update_stem(rep_axes[0].containers[0], ani_rep[i, :5])
         _update_stem(rep_axes[1].containers[0], ani_rep[i, 5:])
         if initial_ylim is not None and i in rescale_frames:
