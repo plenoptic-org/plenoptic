@@ -350,6 +350,7 @@ class DatasaurusModel(torch.nn.Module):
         return axes
 ```
 
+(datasaurus-redundant-stats)=
 :::{admonition} Redundant statistics
 :class: dropdown note
 

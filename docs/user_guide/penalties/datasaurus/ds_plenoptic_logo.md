@@ -22,9 +22,7 @@ Run it in your browser: **{binder}`ds_plenoptic_logo.ipynb`**!
 
 # plenoptic logo
 
-In this notebook, we will create a datasaurus metamer starting from the plenoptic logo. Unlike the other examples, we will not add any penalty to encourage any particular shape; it is thus the simplest notebook in this series.
-
-This notebook is intentionally brief: most of the code is hidden (you can expand the cells if you would like to see more details), and we only explain the penalty. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
+In this notebook, we will create a datasaurus metamer starting from the plenoptic logo. Unlike the other examples, we will not add a custom penalty to encourage a particular shape. Instead, we first show the metameric dataset that results when using the same set-up as the other notebooks in this series, and then demonstrate the effect of changing the optimizer and of the inclusion of the redundant statistics in the model. See [](datasaurus-index) for an overview of the datasaurus dozen dataset and these redundant statistics.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -54,7 +52,7 @@ torch.use_deterministic_algorithms(True)
 
 # Model definition, as in top-level notebook
 class DatasaurusModel(torch.nn.Module):
-    def __init__(self, n_pts=None, dtype=None, drop_redundant_stats=False):
+    def __init__(self, n_pts=None, dtype=None, include_redundant_stats=True):
         """
         Create model to measure datasaurus stats.
 
@@ -73,7 +71,7 @@ class DatasaurusModel(torch.nn.Module):
             self._ones = torch.ones(n_pts, dtype=dtype)
         else:
             self._ones = None
-        self.drop_redundant_stats = drop_redundant_stats
+        self.include_redundant_stats = include_redundant_stats
         # This model has no trainable parameters, so it's always in eval mode
         self.eval()
 
@@ -110,12 +108,12 @@ class DatasaurusModel(torch.nn.Module):
         stats = []
         stats.append(data.mean(-1))
         stats.append(data.std(-1))
-        if not self.drop_redundant_stats:
+        if self.include_redundant_stats:
             solution = torch.func.vmap(lambda x: self._compute_linreg(*x))(data)
             stats.append(solution)
         crosscorr = torch.func.vmap(lambda x: torch.corrcoef(x)[0, 1])(data)
         stats.append(crosscorr.unsqueeze(-1))
-        if not self.drop_redundant_stats:
+        if self.include_redundant_stats:
             stats.append(self._vmap_coeff_determination(data, solution))
         return torch.cat(stats, -1)
 
@@ -200,6 +198,8 @@ class DatasaurusModel(torch.nn.Module):
 
 For this example, the interesting thing is the initial shape of the dataset, the plenoptic logo. Setting the initial arrangement of dots is not something the original datasaurus dozen algorithm in {cite:alp}`Matejka2017-same-stats` was able to do! Our penalty is simply a constraint on the range, requiring all points to lie between 0 and 100. In the other notebooks in this series, this penalty will be combined with other functions to encourage different shapes.
 
+(lbfgs-full-model)=
+
 ```{code-cell} ipython3
 data = torch.load(po.data.fetch_data("datasaurus.tar.gz") / "datasaurus.pt")
 model = DatasaurusModel(data.shape[1], data.dtype)
@@ -273,7 +273,7 @@ animate_datasaurus_metamer(met)
 
 This dataset starts out as the plenoptic logo, roughly centered and axes-aligned. To become a metamer, the dataset gets squished and sheared so that it ends up looking like a rotated but still roughly centered version of the logo.
 
-You can see that this happens very quickly --- without any additional constraints, metamers for this model are not difficult to find! As you move through the other notebooks in this series, you'll see that often the dataset first becomes metameric (with the stem heads moving to the dashed horizontal lines), and then, gradually, its points shift around to take the intended shape. Some of these shapes are more or less difficult than others.
+You can see that this happens very quickly --- without any additional constraints, metamers for this model are not difficult to find! The rest of this notebook investigates the effect of the optimization algorithm and the model's redundant statistics on the synthesis process and resulting metamers.
 
 ```{code-cell} ipython3
 :tags: [remove-cell]
@@ -306,84 +306,115 @@ if os.environ.get("DATASAURUS_CHECK", False):
 
 ## Different optimizers
 
-```{code-cell} ipython3
-met = po.Metamer(data[0], model, penalty_function=penalty)
-met.setup(initial_image=logo, optimizer=torch.optim.Adam, optimizer_kwargs={"lr": 0.1})
-met.synthesize(400, store_progress=True)
-```
+In the above example, as in the other notebooks in this series, we use the {class}`torch.optim.LBFGS` optimizer. This [optimization algorithm](https://en.wikipedia.org/wiki/Limited-memory_BFGS) approximates the second derivative (the Hessian matrix) of the parameters in order to find the optimum solution, rather than just using the first derivative (the gradient). LBFGS thus requires more memory than gradient-only methods such as {class}`torch.optim.Adam`, and each iteration requires more time, but it often finds a better solution in fewer iterations, leading to a faster overall synthesis procedure.
 
-```{code-cell} ipython3
-animate_datasaurus_metamer(met)
-```
+:::{admonition} What optimizer should I use?
+:class: note
+
+In this example and several others in the documentation (e.g., [the PortillaSimoncelli texture model](ps-basic-synthesis)), we use {class}`torch.optim.LBFGS`, whereas in others we use {class}`torch.optim.Adam` (the default for {class}`~plenoptic.Metamer` and {class}`~plenoptic.MADCompetition`). In our experience, {class}`~torch.optim.LBFGS` does not work for all synthesis problems (it is more likely to get stuck), but when it does work, it finds a better solution faster.
+
+In your own problems, we thus recommend trying both optimizers and seeing how they behave. Remember that you may have to tweak the optimizer's hyper-parameters! In the following, we change the learning rate, and you can also see examples of how to set the other hyper-parameters for {class}`torch.optim.LBFGS` in [](ps-basic-synthesis).
+
+:::
+
+However, other optimizers are also able to solve this problem in a reasonable amount of time and they find different solutions. Additionally, because of the ease of plotting this dataset, the movies we create allow us to visualize how the different optimizers behave.
+
+First, let us use {class}`torch.optim.SGD`, [stochastic gradient descent](https://en.wikipedia.org/wiki/Stochastic_gradient_descent) (though technically, since we are computing the gradient on the entire dataset at once instead of on multiple mini-batches / sub-samples, plenoptic performs regular gradient descent):
 
 ```{code-cell} ipython3
 met = po.Metamer(data[0], model, penalty_function=penalty)
 met.setup(initial_image=logo, optimizer_kwargs={"lr": 1}, optimizer=torch.optim.SGD)
 met.synthesize(3000, store_progress=True)
-```
-
-```{code-cell} ipython3
 animate_datasaurus_metamer(met)
 ```
 
-## Remove redundant stats
+In the above video, we can see that the points in the dataset move almost directly towards their final locations (rather than rotating around, as in the {class}`~torch.optim.LBFGS` synthesis), since {class}`~torch.optim.SGD` doesn't do anything beyond updating the points based directly on the gradient required to minimize the loss. The resulting metamer looks different but is of comparable quality --- this shouldn't be surprising, as there are many different metamers for this problem and, in this high-dimensional non-convex optimization problem, no guarantee that different optimizers will find identical solutions!
+
+Note also that we needed to increase the learning rate by a factor of 100, from 0.01 to 1 and the number of iterations from 50 to 3000: gradient-based methods such as {class}`~torch.optim.SGD` only have information about the magnitude of the gradient at the location they are evaluating, whereas, because {class}`~torch.optim.LBFGS` approximates the second derivative, it has information about how the gradient is changing, allowing it to make larger changes in each iteration where possible.
+
+Now, let's use {class}`torch.optim.Adam`, the [Adaptive Moment Estimation](https://en.wikipedia.org/wiki/Stochastic_gradient_descent#Adam) algorithm. Adam is a variant of stochastic gradient descent which keeps a running average of both the gradients and their second moments which decay over time (so that recent estimates matter more). The algorithm uses these running averages to compute a form of "signal-to-noise ratio", which is used to scale the optimizer's step sizes, resulting in smaller steps as the optimizer approaches an optimum.
 
 ```{code-cell} ipython3
-reduced_model = DatasaurusModel(data.shape[1], data.dtype, True)
+met = po.Metamer(data[0], model, penalty_function=penalty)
+met.setup(initial_image=logo, optimizer=torch.optim.Adam, optimizer_kwargs={"lr": 0.1})
+met.synthesize(400, store_progress=True)
+animate_datasaurus_metamer(met)
 ```
+
+In the above we can see the effect of this property, which the algorithm's author refer to as "automatic annealing": even with a smaller learning rate than the {class}`~torch.optim.SGD` example above, {class}`~torch.optim.Adam` finds a solution faster, though not as fast as {class}`~torch.optim.LBFGS`. This metamer, unlike the previous two, also appears "broken": the circle containing $\theta$ is split and the central square is completely flattened.
+
+Examining these two examples highlights another property of the course of synthesis when using {class}`~torch.optim.LBFGS`: the points appear to rotate into place. This property is consistent across the metamers found in the other notebooks in this series. This is because, whereas the gradient-based methods update the points by applying some scalar multiplied by the gradient, LBFGS updates them using a matrix (the second derivative) multiplied by the gradient. Generally speaking, matrices can be thought of as performing [geometric transformations](https://en.wikipedia.org/wiki/Transformation_matrix), and so this update rule appears as a combination of rotation, stretching, and shearing.
+
+## Remove redundant stats
+
+In this next section, we'll see what happens when we remove the redundant statistics from our model ($\beta_0,\beta_1,R^2$; revisit [here](datasaurus-redundant-stats) for more details).
+
+```{code-cell} ipython3
+reduced_model = DatasaurusModel(
+    data.shape[1], data.dtype, include_redundant_stats=False
+)
+print(f"Full model output: {model(data[0])}")
+print(f"Reduced model output: {reduced_model(data[0])}")
+```
+
+Because these removed statistics are redundant, any metamer for `reduced_model` will also be a metamer for `model` <!-- skip-lint -->. We can see that in the video below, where the stem plots do eventually align on the dashed horizontal lines for all eight of our statistics:
 
 ```{code-cell} ipython3
 met = po.Metamer(data[0], reduced_model, penalty_function=penalty)
 met.setup(initial_image=logo, optimizer=torch.optim.LBFGS)
 met.synthesize(50, store_progress=True)
-```
-
-```{code-cell} ipython3
 animate_datasaurus_metamer(met, model, (-1, 1))
 ```
+
+The above shows the result of using {class}`torch.optim.LBFGS` with the same hyper-parameters as metamer synthesis for [the full model](lbfgs-full-model). While this example does eventually find a good metamer, synthesis takes a different trajectory than the full model's and it takes longer to do so. Notice that the means and standard deviations are still matched fairly quickly, but the Pearson correlation $r$ and thus the redundant stats take a good deal longer.
+
+This pattern holds, and is in fact exaggerated, when using {class}`torch.optim.SGD` or {class}`torch.optim.Adam` to synthesis metamers for the reduced model. Let's first examine Adam:
 
 ```{code-cell} ipython3
 met = po.Metamer(data[0], reduced_model, penalty_function=penalty)
 met.setup(initial_image=logo, optimizer=torch.optim.Adam, optimizer_kwargs={"lr": 1})
 met.synthesize(500, store_progress=True, stop_criterion=1e-7)
+animate_datasaurus_metamer(met, model)
 ```
 
-```{code-cell} ipython3
-animate_datasaurus_metamer(
-    met,
-    model,
-)
-```
+Here, we needed to increase both the number of synthesis iterations and the optimizer's learning rate, while reducing the `stop_criterion` to ensure that metamer synthesis continues to run to a lower loss value.
+
+The same is true for SGD:
 
 ```{code-cell} ipython3
 met = po.Metamer(data[0], reduced_model, penalty_function=penalty)
 met.setup(initial_image=logo, optimizer_kwargs={"lr": 50}, optimizer=torch.optim.SGD)
 met.synthesize(6000, store_progress=True, stop_criterion=1e-8)
-```
-
-```{code-cell} ipython3
 animate_datasaurus_metamer(met, model, n_frames=100)
 ```
 
-## Custom loss
+Here we needed to increase learning rate from 1 to 50 and to run synthesis for 6000 iterations. In the resulting video, the metamer matches the means and standard deviations almost immediately (within the first hundred or so iterations), but takes a very long time to match the Pearson correlation.
 
-Setting custom loss can help!
+## Using a custom loss
+
+Comparing the videos for the SGD and Adam examples with and without the redundant statistics, it is striking how all metamer syntheses quickly match the means and standard deviations, but the Pearson correlation takes much longer to match when the redundant statistics are removed. Looking at the above plots, we can see that the error between the initial and target $r$ has a much smaller magnitude than for the other four non-redundant statistics. As the loss for these synthesis examples is simply {func}`~plenoptic.loss.mse`, the mean-squared error on the model outputs, the contribution of $r$ to the gradient is thus much smaller than that of the other statistics, leading to it being de-prioritized. If we look back at the [definition of the redundant statistics](datasaurus-redundant-stats), we can see that all three of them include $r$, effectively amplifying the contribution of $r$ to the gradient.
+
+With this understanding, a simple solution comes to mind: we need to increase the contribution of $r$ to the gradient. The most straight-forward way to do so is to increase its effect on the loss, which we can do by multiplying its value by a large scalar. Inspired by the [](ps-loss-function) we recommend for {class}`~plenoptic.models.PortillaSimoncelli`, let's write a custom loss function:
 
 ```{code-cell} ipython3
 weight = torch.ones_like(reduced_model(data[0])).squeeze()
 weight[-1] = 10
+print(f"{weight=}")
 
 
 def custom_loss(x, y):
     return po.loss.mse(weight * x, weight * y)
 ```
 
+The above custom loss computes the mean-squared error between the re-weighted output of the reduced model: we multiply each statistic by 1 except for $r$, which we multiply by 10. In the following block, we use this loss with {class}`torch.optim.SGD`:
+
 ```{code-cell} ipython3
 met = po.Metamer(data[0], reduced_model, custom_loss, penalty_function=penalty)
 met.setup(initial_image=logo, optimizer_kwargs={"lr": 50}, optimizer=torch.optim.SGD)
 met.synthesize(200, store_progress=True, stop_criterion=1e-8)
-```
-
-```{code-cell} ipython3
 animate_datasaurus_metamer(met, model)
 ```
+
+With the custom loss and the same learning rate as before, we need fewer than 200 iterations to find a good solution, as opposed to the 6000 iterations we need with the standard {func}`~plenoptic.loss.mse` as the loss function.
+
+In this notebook, we've demonstrated the creation of a simple datasaurus metamer, and further investigating the effect of the optimizer and the model's redundant statistics. The rest of the notebooks in this series use the "standard setup" shown in the first example: {class}`~torch.optim.LBFGS` and the model including the redundant statistics. They focus on the definition of different penalty functions to intentionally shape the resulting metamer, instead of the unintended effects shown here. You are encouraged to try changing the problem in those notebooks, as done here, though note that you may end up in a situation where it is much harder to successfully find a model metamer!
