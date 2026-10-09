@@ -91,7 +91,7 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     reasonable (you could also use :func:`plenoptic.process.rescale` to linearly rescale
     the image to that same range).
 
-    >>> import imageio
+    >>> import imageio.v3 as iio
     >>> import numpy as np
     >>> # Load in an example metamer synthesis
     >>> img = po.data.einstein()
@@ -102,7 +102,7 @@ def to_numpy(x: Tensor | np.ndarray, squeeze: bool = False) -> np.ndarray:
     >>> met.load(po.data.fetch_data("example_metamer_gaussian.pt"))
     >>> met_squeezed = po.to_numpy(met.metamer, squeeze=True)
     >>> met_squeezed = po.convert_float_to_int(np.clip(met_squeezed, 0, 1))
-    >>> imageio.v3.imwrite("example_metamer_gaussian.png", met_squeezed)
+    >>> iio.imwrite("example_metamer_gaussian.png", met_squeezed)
     """
     with contextlib.suppress(AttributeError):
         # if this fails, it's already a numpy array
@@ -186,7 +186,8 @@ def load_images(
       >>> po.plot.imshow(imgs, title=titles)
       <PyrFigure size ... with 5 Axes>
 
-    Sort the images by the second letter of their filename:
+    Specify ``sorted_key`` in order to sort in some other way. E.g., sort the
+    images by the second letter of their filename:
 
     .. plot::
 
@@ -304,6 +305,40 @@ def convert_float_to_int(
     ------
     ValueError
         If ``image`` max is greater than 1.
+
+    Examples
+    --------
+    .. plot::
+      :context: reset
+
+       >>> import plenoptic as po
+       >>> img = po.data.einstein()
+       >>> img.min(), img.max()
+       (tensor(0.0039), tensor(1.))
+       >>> int_img = po.convert_float_to_int(po.to_numpy(img))
+       >>> int_img.min(), int_img.max()
+       (np.uint8(1), np.uint8(255))
+
+    Input ``image`` must be a numpy array, not a torch tensor:
+
+    >>> po.convert_float_to_int(img)
+    Traceback (most recent call last):
+    AttributeError: 'Tensor' object has no attribute 'astype'...
+
+    Integer images can be saved to disk in a standard image format, once
+    they are the proper shape (2d for grayscale, 3d for color):
+
+    .. plot::
+      :context: close-figs
+
+       >>> import imageio.v3 as iio
+       >>> import pyrtools as pt
+       >>> int_img = int_img.squeeze()
+       >>> int_img.shape
+       (256, 256)
+       >>> iio.imwrite("test.png", int_img)
+       >>> pt.imshow(iio.imread("test.png"))
+       <PyrFigure size 256x320 with 1 Axes>
     """
     if image.max() > 1:
         raise ValueError(

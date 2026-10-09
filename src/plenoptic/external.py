@@ -50,6 +50,8 @@ def plot_MAD_results(
     This code can probably be adapted to other uses, but requires that
     all images are the same size and assumes they're all 64 x 64 pixels.
 
+    See :ref:`original-mad` for more details.
+
     Parameters
     ----------
     original_image
@@ -91,6 +93,37 @@ def plot_MAD_results(
     ------
     ValueError
         If ``original_image`` takes an illegal value.
+
+    Examples
+    --------
+    .. plot::
+      :context: reset
+
+      >>> import plenoptic as po
+      >>> fig, results = po.external.plot_MAD_results(
+      ...     "samp6", [128], vrange="row1", zoom=3
+      ... )
+
+    The returned results dictionary can be examined for more detail. Keys give noise
+    level and values are dictionaries:
+
+    >>> results["L128"]
+    {'FIX_MSE': 127.99999999999999,
+     'FIX_SSIM': 0.8183184633106257,
+     'mse_fixmse_maxssim': array([...]),
+     'ssim_fixmse_maxssim': array([...]),
+     'mse_fixmse_minssim': array([...]),
+     'ssim_fixmse_minssim': array([...]),
+     'maxssim': 0.99290440833461,
+     'minssim': 0.7441473913547447,
+     'mse_fixssim_minmse': array([...]),
+     'ssim_fixssim_minmse': array([...]),
+     'mse_fixssim_maxmse': array([...]),
+     'ssim_fixssim_maxmse': array([...]),
+     'minmse': 107.03801518643529,
+     'maxmse': 1046.4212142210524,
+     'noise_level': 128,
+     'original_image': 'samp6'}
     """
     if results_dir is None:
         results_dir = fetch_data("MAD_results.tar.gz")
@@ -153,7 +186,9 @@ def plot_MAD_results(
         vrange_list = []
         for i in range(len(images) // 5):
             vr, cmap = pt.tools.display.colormap_range(
-                images[5 * i : 5 * (i + 1)], vrange.replace("row", "auto")
+                images[5 * i : 5 * (i + 1)],
+                contains_rgb=5 * [False],
+                vrange=vrange.replace("row", "auto"),
             )
             vrange_list.extend(vr)
     else:

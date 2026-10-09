@@ -177,17 +177,20 @@ Like the paper, we do find better results when we use a learning-rate scheduler 
 Now, let's visualize the metamers for each of these layers:
 
 ```{code-cell} ipython3
-fig, axes = plt.subplots(1, 3, figsize=(14, 5))
-for ax, met, target_layer in zip(axes, metamers, layers):
-    _ = po.plot.synthesis_imshow(met, ax=ax, title=target_layer, zoom=1)
+fig, axes = plt.subplots(1, 4, figsize=(19, 5))
+po.plot.imshow(img, ax=axes[0], title="Target image", zoom=1, as_rgb=True)
+axes[0].xaxis.set_visible(False)
+axes[0].yaxis.set_visible(False)
+for ax, met, target_layer in zip(axes[1:], metamers, layers):
+    _ = po.plot.synthesis_imshow(met, ax=ax, title=f"{target_layer} metamer", zoom=1)
 ```
 
-In the above figure, we can see that our metamers look similar to those in {cite:alp}`Feather2023-model-metam`, figure 2e: the layer 2 metamer looks almost identical to the target image, the layer 3 metamer starts to add RGB noise, and the layer 4 has started to lose much of the structure in random RGB noise.
+In the above figure, we can see that our metamers look similar to those in {cite:alp}`Feather2023-model-metam`, figure 2e: the layer 2 metamer looks almost identical to the target image (shown in the left-most plot), the layer 3 metamer starts to add RGB noise, and the layer 4 has started to lose much of the structure in random RGB noise.
 
 (feather-synthesis-success)=
 ## Synthesis success?
 
-As indicated in the table above, the examples shown in the notebook only ran for 12,000 iterations of synthesis, whereas the metamers in {cite:alp}`Feather2023-model-metam` ran for twice that. Due to differences in the optimization procedure, it's not easy to directly interpret what this means. What we would like to know is whether synthesis has succeeded in these examples. The metamer loss (as stored in {attr}`plenoptic.Metamer.losses`) measures the difference between the target image and the model metamer, but is difficult to interpret. Is $10^{-6}$ small enough?
+As indicated in the table above, the examples shown in the notebook only ran for 12,000 iterations of synthesis, whereas the metamers in {cite:alp}`Feather2023-model-metam` ran for twice that. Due to differences in the optimization procedure, it's not easy to directly interpret what this means for metamer quality. What we would like to know is whether synthesis has succeeded in these examples. The metamer loss (as stored in {attr}`plenoptic.Metamer.losses`) measures the difference between the target image and the model metamer, but is difficult to interpret. Is (for example) $10^{-4}$ small enough or does it need to be lower?
 
 :::{seealso}
 
