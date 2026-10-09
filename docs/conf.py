@@ -177,8 +177,9 @@ html_theme_options = {
         # https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-suppress_warnings)
         "[!a]?[!p]?[!i]**": ["page-toc"],
         "api/**": [],
+        "user_guide/penalties/datasaurus/ds_index": [],
     },
-    "show_nav_level": 2,
+    "show_nav_level": 1,
     "header_links_before_dropdown": 4,
     "navbar_align": "left",
     "navbar_start": ["navbar-logo", "version-switcher"],
@@ -288,6 +289,7 @@ binder_url = f"https://mybinder.org/v2/gh/plenoptic-org/plenoptic-binder/{tag}?u
 plot_include_source = True
 plot_html_show_source_link = False
 plot_rcparams = {"savefig.bbox": "tight", "figure.dpi": 72}
+plot_html_show_formats = False
 
 # MYST
 

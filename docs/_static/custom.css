@@ -15,3 +15,13 @@ a.reference.binder::before {
     height: 20px;
     content: "";
 }
+
+div.sd-card-body:has(figure):has(img.datasaurus-card) {
+    margin: 0;
+    padding: 0;
+}
+
+figure:has(img.datasaurus-card) {
+    margin: 0;
+    padding: 0;
+}
