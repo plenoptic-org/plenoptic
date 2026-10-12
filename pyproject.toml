@@ -54,6 +54,7 @@ docs = [
      "jupytext",
      "sphobjinv",
      "sphinx-togglebutton",
+     "altair>=6.2.2",
 ]
 
 test = [
@@ -82,6 +83,7 @@ nb = [
     "torchvision>=0.3",
     "jupytext",
     "myst-nb",
+    "altair>=6.2.2",
 ]
 
 [project.urls]

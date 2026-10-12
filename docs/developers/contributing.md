@@ -604,7 +604,22 @@ We have a linter that checks the conditions above.
 
 `pytest` does not run the tests found under `TestTutorialNotebooks` by default,
 since they take a long time. In order to run them, you must explicitly set the
-environment variable `RUN_REGRESSION_SYNTH=1` when calling pytest.
+environment variable `RUN_REGRESSION_SYNTH=1` when calling pytest and have a GPU
+available.
+
+An alternative method is used for the series of datasaurus notebooks found in
+`docs/user_guide/intermediate_synthesis/datasaurus/`. The synthesis calls in
+those notebooks do not take long to run, and so happen in the notebook. However,
+we still wish to check them for reproducibility, and we cannot guarantee
+reproducibility across devices (in particular, synthesis run on the Jenkins node
+and the Github Actions runner give different results). We have a [removed
+cell](https://myst-nb.readthedocs.io/en/latest/render/hiding.html#remove-parts-of-cells)
+at the bottom of the notebook which checks the notebook's synthesis against the
+cached file created by the tests, but it is only run if the environmental
+variable `DATASAURUS_CHECK` is set. This is done in `jenkins/Jenkinsfile`, so
+during the actual build of the documentation, but will not be done when the
+notebooks are run on the Github Action runners for other tests or when run
+locally.
 
 #### Use `MAX_ITER` environmental variable
 
