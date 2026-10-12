@@ -46,6 +46,7 @@ If your object was saved in plenoptic 1.1 or earlier:
 
 ```python
 import torch
+
 plen_object = torch.load("saved_plen_object.pt", weights_only=False)
 ```
 
@@ -55,6 +56,7 @@ If your object was saved in plenoptic 1.2 or later, `weights_only=False` is unne
 
 ```python
 import torch
+
 plen_object = torch.load("saved_plen_object.pt")
 ```
 
@@ -72,6 +74,7 @@ In order to make an object compatible with future releases, you can either load 
 
 ```python
 import torch
+
 old_save = torch.load("old_save.pt")
 old_save["_current_loss"] = None
 torch.save(old_save, "old_save.pt")
@@ -101,6 +104,7 @@ If you called {func}`~plenoptic.Metamer.synthesize` with the optional `store_pro
 met.load("old_metamer_object.pt")
 
 import torch
+
 # saved_metamer is always on cpu, so if your metamer is on the GPU, you'll need to move it there
 saved_mets = met.saved_metamer.to(met.image.device)
 penalties = torch.func.vmap(met.penalty_function)(saved_mets)
@@ -138,6 +142,7 @@ In order to make an object compatible with future releases, you can either load 
 
 ```python
 import torch
+
 old_save = torch.load("old_save.pt")
 old_save["_current_ref_metric"] = None
 old_save["_current_opt_metric"] = None
