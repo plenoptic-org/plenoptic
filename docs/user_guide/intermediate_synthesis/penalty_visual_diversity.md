@@ -49,12 +49,27 @@ plt.rcParams["figure.dpi"] = 72
 cached_metamers = po.data.fetch_data("visual_diversity_penalty.tar.gz")
 ```
 
-I think don't show the MSE heatmaps or the loss plots
+- for experiments, we often need to generate many metamers, and it is typical to generate multiple metamers with the same model+target for different repeats
+- often, synthesis initialized with different samples of noise (Feather, Portilla, Wallis, Freeman), often Gaussian uniform / white noise (Gatys just says white noise but torch style transfer tutorial uses randn (also checked their code), Broderick uses rand)
+- and so these repeats use independent samples of noise
+- here, we use LG model and demonstrate that this procedure leads to two metamers that are perceptually very similar (as pointed out by Wallis, Broderick)
+- one way of addressing this (as used by Broderick) is to use different initializations, which does succeed in this
+- here, present another way of doing so: using a custom penalty function to incentive the two metamers to be as different as possible, for some measure of "different"
+    - this can be combined with different initializations, as we show
+- we present two examples:
+    - encourage their spatial frequency content to be as different as possible in specific steerpyr bands
+    - use an image quality metric to be make them as different as possible
+- try other bands! try other metrics!
+- in both cases, transforming distance to penalty by using exp(-x), as in original example
+- when initializing with Curie, that metamer is generally darker, we often see a high-frequency ghost of her face, and we don't have the high frequencies present in the noise-initialized metamer
+- vertical penalty organizes the high frequencies in one of the metamers into vertical bands, whereas the other one looks a lot like the un-penalized metamer
+- low penalty makes one super dark while the other is much brighter, has these white splotches, and looks to have a 2 cycles / image gradient subtly overlaid
+    - only one where Curie-init'ed metamer isn't darker, though that may(?) change with different white noise initializations?
+- DISTS arranges noise into a glyph like pattern (may have to zoom into see), while other stays more or less untouched
+    - DISTS requires two-stage synthesis, more complex. only show how the second step is initialized here, original is like the un-penalized synthesis, see dropdown for details
 
-- Can find different looking metamers with different initializations
 - What adding penalty does is adds an additional constraint and so shrink the "good solution set" to somewhere else
-- This interacts with the initialization point! you could use two different initializations with any of these penalties
-  - show curie initialization for one of the steerpyr inits, which doesn't do much, compared to the dists one
+- initializatnoi point is "start in different space", penalty is "shrink acceptable solution set"
 
 ## Metamer synthesis without custom model
 
