@@ -102,6 +102,7 @@ img = img.repeat(2, 1, 1, 1)
 ```{code-cell} ipython3
 met = po.Metamer(img, model, po.loss.l2_norm)
 met.load(cached_metamers / "vis_div_penalty_basic.pt", map_location="cpu")
+create_metamer_figure(met);
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -121,10 +122,6 @@ torch.use_deterministic_algorithms(True)
 :::
 
 ```{code-cell} ipython3
-create_metamer_figure(met);
-```
-
-```{code-cell} ipython3
 curie = po.process.blur_downsample(po.data.curie())
 white_noise = torch.rand_like(curie)
 init_img = torch.cat([white_noise, curie])
@@ -134,6 +131,7 @@ po.plot.imshow(init_img, zoom=2);
 ```{code-cell} ipython3
 met = po.Metamer(img, model, po.loss.l2_norm)
 met.load(cached_metamers / "vis_div_penalty_basic_curie.pt", map_location="cpu")
+create_metamer_figure(met);
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -152,10 +150,6 @@ po.set_seed(0)
 torch.use_deterministic_algorithms(True)
 ```
 :::
-
-```{code-cell} ipython3
-create_metamer_figure(met);
-```
 
 # Power mask
 
@@ -192,6 +186,13 @@ def construct_mask(x, include):
 ```{code-cell} ipython3
 mask = construct_mask(img, "vertical")
 original_coeffs = spyr_power(img)
+
+
+def penalty(x):
+    penalty = spyr_power(x)
+    penalty = mask * (penalty / original_coeffs)
+    penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
+    return po.regularize.penalize_range(x) + penalty
 ```
 
 ```{code-cell} ipython3
@@ -206,21 +207,11 @@ assert (saved_mask == mask).all()
 ```
 
 ```{code-cell} ipython3
-def penalty(x):
-    penalty = spyr_power(x)
-    penalty = mask * (penalty / original_coeffs)
-    penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
-    return po.regularize.penalize_range(x) + penalty
-```
-
-```{code-cell} ipython3
 met = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.1
 )
-```
-
-```{code-cell} ipython3
 met.load(cached_metamers / "vis_div_penalty_vertical.pt", map_location="cpu")
+create_metamer_figure(met);
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -239,18 +230,13 @@ torch.use_deterministic_algorithms(True)
 ```
 :::
 
-```{code-cell} ipython3
-create_metamer_figure(met);
-```
 
 ```{code-cell} ipython3
 met = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.1
 )
-```
-
-```{code-cell} ipython3
 met.load(cached_metamers / "vis_div_penalty_vertical_curie.pt", map_location="cpu")
+create_metamer_figure(met);
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -271,12 +257,15 @@ torch.use_deterministic_algorithms(True)
 :::
 
 ```{code-cell} ipython3
-create_metamer_figure(met);
-```
-
-```{code-cell} ipython3
 mask = construct_mask(img, "low")
 original_coeffs = spyr_power(img)
+
+
+def penalty(x):
+    penalty = spyr_power(x)
+    penalty = mask * (penalty / original_coeffs)
+    penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
+    return po.regularize.penalize_range(x) + penalty
 ```
 
 ```{code-cell} ipython3
@@ -291,21 +280,11 @@ assert (saved_mask == mask).all()
 ```
 
 ```{code-cell} ipython3
-def penalty(x):
-    penalty = spyr_power(x)
-    penalty = mask * (penalty / original_coeffs)
-    penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
-    return po.regularize.penalize_range(x) + penalty
-```
-
-```{code-cell} ipython3
 met = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.07
 )
-```
-
-```{code-cell} ipython3
 met.load(cached_metamers / "vis_div_penalty_low.pt", map_location="cpu")
+create_metamer_figure(met);
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -324,18 +303,13 @@ torch.use_deterministic_algorithms(True)
 ```
 :::
 
-```{code-cell} ipython3
-create_metamer_figure(met);
-```
 
 ```{code-cell} ipython3
 met = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.05
 )
-```
-
-```{code-cell} ipython3
 met.load(cached_metamers / "vis_div_penalty_low_curie.pt", map_location="cpu")
+create_metamer_figure(met);
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -355,9 +329,6 @@ torch.use_deterministic_algorithms(True)
 ```
 :::
 
-```{code-cell} ipython3
-create_metamer_figure(met);
-```
 
 # Distance
 
@@ -379,10 +350,8 @@ def penalty(x):
 met_penalty = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.5
 )
-```
-
-```{code-cell} ipython3
 met_penalty.load(cached_metamers / "vis_div_penalty_dists.pt", map_location="cpu")
+create_metamer_figure(met_penalty);
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -412,18 +381,13 @@ torch.use_deterministic_algorithms(True)
 ```
 :::
 
-```{code-cell} ipython3
-create_metamer_figure(met_penalty);
-```
 
 ```{code-cell} ipython3
 met_penalty = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.5
 )
-```
-
-```{code-cell} ipython3
 met_penalty.load(cached_metamers / "vis_div_penalty_dists_curie.pt", map_location="cpu")
+create_metamer_figure(met_penalty);
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -453,7 +417,3 @@ po.set_seed(0)
 torch.use_deterministic_algorithms(True)
 ```
 :::
-
-```{code-cell} ipython3
-create_metamer_figure(met_penalty);
-```
