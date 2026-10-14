@@ -1065,7 +1065,6 @@ class TestTutorialNotebooks:
             compare_metamers(met, met_up)
 
         def test_basic_curie(self, lg_model, img, init_img, vis_div_penalty):
-            po.set_seed(0)
             torch.use_deterministic_algorithms(True)
             torch.save(
                 torch.random.get_rng_state(),
@@ -1126,7 +1125,6 @@ class TestTutorialNotebooks:
             compare_metamers(met, met_up)
 
         def test_vertical_curie(self, lg_model, pyr, img, init_img, vis_div_penalty):
-            po.set_seed(0)
             torch.use_deterministic_algorithms(True)
             torch.save(
                 torch.random.get_rng_state(),
@@ -1209,7 +1207,6 @@ class TestTutorialNotebooks:
             compare_metamers(met, met_up)
 
         def test_low_curie(self, lg_model, pyr, img, init_img, vis_div_penalty):
-            po.set_seed(0)
             torch.use_deterministic_algorithms(True)
             torch.save(
                 torch.random.get_rng_state(),
@@ -1293,7 +1290,6 @@ class TestTutorialNotebooks:
 
         @pytest.mark.filterwarnings("ignore:input_tensor range is.*:UserWarning")
         def test_dists_curie(self, lg_model, dists, img, init_img, vis_div_penalty):
-            po.set_seed(0)
             torch.use_deterministic_algorithms(True)
             torch.save(
                 torch.random.get_rng_state(),
