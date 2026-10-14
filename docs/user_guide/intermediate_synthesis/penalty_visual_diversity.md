@@ -28,14 +28,15 @@ Run it in your browser: **{binder}`penalty_visual_diversity.ipynb`**!
 :::{admonition} pyiqa
 :class: attention
 
-This notebook uses an additional package, [pyiqa](https://iqa-pytorch.readthedocs.io/), for their pytorch implementation of the DISTS image quality metric ([original publication](https://www.cns.nyu.edu/pub/lcv/ding20a-preprint.pdf)). Install it in your environment in order to run the notebook successfully.
+The last section of this notebook uses an additional package, [pyiqa](https://iqa-pytorch.readthedocs.io/), for their pytorch implementation of the DISTS image quality metric ([original publication](https://www.cns.nyu.edu/pub/lcv/ding20a-preprint.pdf)). Install it in your environment in order to run the full notebook successfully.
+
+You'll still be able to run the first several sections without it.
 
 :::
 
 ```{code-cell} ipython3
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import pyiqa
 import torch
 
 import plenoptic as po
@@ -245,7 +246,6 @@ torch.use_deterministic_algorithms(True)
 ```
 :::
 
-
 ```{code-cell} ipython3
 met = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.1
@@ -318,7 +318,6 @@ torch.use_deterministic_algorithms(True)
 ```
 :::
 
-
 ```{code-cell} ipython3
 met = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.05
@@ -347,7 +346,16 @@ torch.use_deterministic_algorithms(True)
 
 # Distance
 
+:::{admonition} pyiqa
+:class: attention
+
+`pyiqa` must be installed in your environment to run the rest of this notebook.
+
+:::
+
 ```{code-cell} ipython3
+import pyiqa
+
 metric = pyiqa.create_metric("dists", device=img.device, as_loss=True)
 po.remove_grad(metric)
 metric.to(img.dtype)
@@ -395,7 +403,6 @@ po.set_seed(0)
 torch.use_deterministic_algorithms(True)
 ```
 :::
-
 
 ```{code-cell} ipython3
 met_penalty = po.Metamer(
