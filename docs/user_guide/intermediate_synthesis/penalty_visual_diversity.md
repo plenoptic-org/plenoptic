@@ -33,14 +33,10 @@ This notebook uses an additional package, [pyiqa](https://iqa-pytorch.readthedoc
 :::
 
 ```{code-cell} ipython3
-import itertools
 
-import einops
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import numpy as np
 import pyiqa
-import seaborn as sns
 import torch
 
 import plenoptic as po
@@ -50,12 +46,6 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
-# On a cpu, we won't run this to completion (takes too long). If you would like to run
-# it to completion on a local CPU-only device, increase the value from 100 below
-MAX_ITER = 100 if DEVICE.type == "cpu" else 2000
-# hard-code this...
-N_IMGS = 2
-
 cached_metamers = po.data.fetch_data("visual_diversity_penalty.tar.gz")
 ```
 
@@ -64,136 +54,31 @@ cached_metamers = po.data.fetch_data("visual_diversity_penalty.tar.gz")
 ```{code-cell} ipython3
 :tags: [hide-input]
 
-def pairwise_image_mse(imgs):
-    """Get pair-wise MSE between images, along batch dimension."""
-    n = imgs.shape[0]
-    idx = itertools.combinations(range(n), 2)
-    mse = torch.nan * torch.zeros((n, n))
-    for i, j in idx:
-        mse[j, i] = po.loss.mse(imgs[i], imgs[j])
-    return po.to_numpy(mse)
-
-
-def drop_all_nans(matrix, label_x=None, label_y=None):
-    # find the rows/cols that are all nans...
-    col = np.isnan(matrix).sum(0) == matrix.shape[0]
-    row = np.isnan(matrix).sum(1) == matrix.shape[1]
-    # ... and drop them
-    matrix = matrix[~row][:, ~col]
-    if label_x is not None:
-        label_x = np.asarray(label_x)[~col]
-    if label_y is not None:
-        label_y = np.asarray(label_y)[~row]
-    return matrix, label_x, label_y
-
-
 def create_metamer_figure(met):
-    n_cols = len(met.image) + 2
+    n_cols = len(met.image) + 1
     zoom = 256 // met.image.shape[-1]
-    fig = plt.figure(figsize=(5 * n_cols + 2, 16))
-    gs = mpl.gridspec.GridSpec(3, n_cols, figure=fig)
-    im_axes = [fig.add_subplot(gs[0, i]) for i in range(N_IMGS + 1)]
-    im_axes += [fig.add_subplot(gs[1, i]) for i in range(N_IMGS + 1)]
+    fig = plt.figure(figsize=(5 * n_cols + 2, 11))
+    gs = mpl.gridspec.GridSpec(2, n_cols, figure=fig)
+    im_axes = [fig.add_subplot(gs[0, i]) for i in range(n_cols)]
+    im_axes += [fig.add_subplot(gs[1, i]) for i in range(n_cols)]
     # met.image has more than one dimension, but they're all identical, so just use the
     # first. image[:1] is the same as image[0], but preserves the number of dimensions.
     imgs = torch.cat([met.image[:1], met.metamer])
-    # concatenate the representation of those images
+    # get the representation of those images
     reps = met.model(imgs)
-    titles = ["Target image"] + [f"Model metamer[{i}]" for i in range(N_IMGS)]
+    titles = ["Target image"] + [
+        f"Model metamer[{i}]" for i in range(met.metamer.shape[0])
+    ]
     titles += ["Representation of target"] + [
-        f"Representation of metamer[{i}]" for i in range(N_IMGS)
+        f"Representation of metamer[{i}]" for i in range(met.metamer.shape[0])
     ]
     for ax, im, t in zip(im_axes, torch.cat([imgs, reps]), titles):
+        # ensure all have the same vrange
         vr = (0, 1) if "Representation" not in t else (0.68, 0.71)
         po.plot.imshow(im.unsqueeze(0), ax=ax, title=t, zoom=zoom, vrange=vr)
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
-    imgs_mse = pairwise_image_mse(imgs)
-    reps_mse = pairwise_image_mse(reps)
-    labels = ["Target"] + [f"Metamer[{i}]" for i in range(N_IMGS)]
-    imgs_mse, labels_x, labels_y = drop_all_nans(imgs_mse, labels, labels)
-    reps_mse = drop_all_nans(reps_mse)[0]
-    ax = fig.add_subplot(gs[0, -1])
-    sns.heatmap(
-        imgs_mse,
-        ax=ax,
-        annot=True,
-        xticklabels=labels_x,
-        yticklabels=labels_y,
-        vmin=0,
-        vmax=0.25,
-        cmap="Reds",
-    )
-    ax.set_title("MSE of Images")
-    ax = fig.add_subplot(gs[1, -1])
-    sns.heatmap(
-        reps_mse,
-        ax=ax,
-        annot=True,
-        xticklabels=labels_x,
-        yticklabels=labels_y,
-        vmin=0,
-        vmax=2e-8,
-        cmap="Reds",
-    )
-    ax.set_title("MSE of Representations")
-    po.plot.synthesis_loss(met, ax=fig.add_subplot(gs[2, 0:2]), plot_penalties=True)
     return fig
-
-
-def summarize_power(image, original_coeffs=None, mask=None):
-    power = spyr_power(image)
-    if original_coeffs is None:
-        original_coeffs = torch.ones_like(power)
-    if mask is None:
-        mask = torch.ones_like(power)
-    return (mask * (power / original_coeffs)).diff(dim=0)
-
-
-def rearrange_power(power):
-    place_holder = torch.ones(
-        1, pyr.num_orientations - 1, dtype=power.dtype, device=power.device
-    )
-    hi = power[:, 0] * place_holder
-    lo = power[:, -1] * place_holder
-    power = torch.cat([hi, power, lo], -1)
-    power = einops.rearrange(
-        power, "b (s o) -> b s o", o=pyr.num_orientations
-    ).squeeze()
-    return po.to_numpy(power)
-
-
-def power_difference(image, original_coeffs=None, mask=None, how_mask="annot"):
-    power = summarize_power(image, original_coeffs)
-    power = rearrange_power(power)
-    heatmap_kwargs = {}
-    vmin = min(power.min(), 0)
-    vmax = max(power.max(), 0)
-    if mask is not None:
-        mask = rearrange_power(mask.sum(0, keepdim=True)).astype(bool)
-        if how_mask == "annot":
-            tmp = np.empty(mask.shape).astype(str)
-            tmp[~mask] = "X"
-            tmp[mask] = ""
-            heatmap_kwargs.update({"annot": tmp, "fmt": ""})
-        elif how_mask == "mask":
-            heatmap_kwargs["mask"] = ~mask
-            vmin = min(power[mask].min(), 0)
-            vmax = max(power[mask].max(), 0)
-        else:
-            raise ValueError(f"{how_mask=}!")
-    ax = sns.heatmap(
-        power,
-        square=True,
-        center=0,
-        cmap="RdBu_r",
-        vmin=vmin,
-        vmax=vmax,
-        yticklabels=pyr(img).keys(),
-        **heatmap_kwargs,
-    )
-    ax.set(xlabel="Orientation", ylabel="Scale")
-    return ax
 ```
 
 ```{code-cell} ipython3
@@ -204,7 +89,7 @@ po.remove_grad(model)
 model.to(DEVICE).to(torch.float64)
 img = po.data.einstein().to(DEVICE).to(torch.float64)
 img = po.process.blur_downsample(img)
-img = img.repeat(N_IMGS, 1, 1, 1)
+img = img.repeat(2, 1, 1, 1)
 ```
 
 ```{code-cell} ipython3
@@ -227,7 +112,7 @@ I think don't show the MSE heatmaps or the loss plots
 curie = po.process.blur_downsample(po.data.curie())
 white_noise = torch.rand_like(curie)
 init_img = torch.cat([white_noise, curie])
-po.plot.imshow(init_img);
+po.plot.imshow(init_img, zoom=2);
 ```
 
 ```{code-cell} ipython3
@@ -276,8 +161,6 @@ cached test files
 
 ```{code-cell} ipython3
 mask = construct_mask(img, "vertical")
-if mask.sum() == 0 or (~mask).sum() == 0:
-    raise ValueError()
 original_coeffs = spyr_power(img)
 ```
 
@@ -307,10 +190,6 @@ met_penalty.load(cached_metamers / "vis_div_penalty_vertical.pt", map_location="
 ```
 
 ```{code-cell} ipython3
-power_difference(met_penalty.metamer, original_coeffs, mask, "annot");
-```
-
-```{code-cell} ipython3
 create_metamer_figure(met_penalty);
 ```
 
@@ -327,17 +206,11 @@ met_penalty.load(
 ```
 
 ```{code-cell} ipython3
-power_difference(met_penalty.metamer, original_coeffs, mask, "annot");
-```
-
-```{code-cell} ipython3
 create_metamer_figure(met_penalty);
 ```
 
 ```{code-cell} ipython3
 mask = construct_mask(img, "low")
-if mask.sum() == 0 or (~mask).sum() == 0:
-    raise ValueError()
 original_coeffs = spyr_power(img)
 ```
 
@@ -367,10 +240,6 @@ met_penalty.load(cached_metamers / "vis_div_penalty_low.pt", map_location="cpu")
 ```
 
 ```{code-cell} ipython3
-power_difference(met_penalty.metamer, original_coeffs, mask, "annot");
-```
-
-```{code-cell} ipython3
 create_metamer_figure(met_penalty);
 ```
 
@@ -382,10 +251,6 @@ met_penalty = po.Metamer(
 
 ```{code-cell} ipython3
 met_penalty.load(cached_metamers / "vis_div_penalty_low_curie.pt", map_location="cpu")
-```
-
-```{code-cell} ipython3
-power_difference(met_penalty.metamer, original_coeffs, mask, "annot");
 ```
 
 ```{code-cell} ipython3

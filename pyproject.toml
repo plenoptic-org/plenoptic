@@ -83,8 +83,8 @@ nb = [
     "nbclient>=0.5.5",
     "torchvision>=0.3",
     "jupytext",
-    "seaborn",
     "myst-nb",
+    "pyiqa>=0.1.16",
 ]
 
 [project.urls]
