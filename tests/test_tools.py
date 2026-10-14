@@ -103,24 +103,15 @@ class TestData:
         with pytest.raises(ValueError, match="When paths argument is"):
             imgs = po.load_images(imgs, sorted_key=lambda x: x.name[1])
 
-    # these two warnings are triggered during a call to pkg_resources from imageio. The
-    # first one only happens if either sphinxcontrib-apidoc or sphinxcontrib-jsmath is
-    # also in your environment (they will be if your environment includes sphinx, which
-    # also gets installed by numpydoc). hopefully, should be fixed:
-    # https://github.com/imageio/imageio/issues/1137
-    @pytest.mark.filterwarnings(
-        "ignore:Deprecated call to `pkg_resources:DeprecationWarning"
-    )
-    @pytest.mark.filterwarnings(
-        "ignore:pkg_resources is deprecated as an API:UserWarning"
-    )
-    @pytest.mark.filterwarnings(
-        "ignore:pkg_resources is deprecated as an API:DeprecationWarning"
-    )
     def test_load_images_some_non_image(self):
         test_dir = po.data.fetch_data("load_image_test.tar.gz")
         warn = pytest.warns(UserWarning, match="Unable to load in file")
-        with warn:
+        # imageio 2.38.0 adds this warning, which we hit because when imageio can't
+        # figure out the right plugin it cycles through all of them (and DICOM raises
+        # this warning). This warning will thus not be raised when imageio is older than
+        # that
+        iio_warn = pytest.warns(DeprecationWarning, match="The legacy `DICOM` plugin")
+        with warn, iio_warn:
             po.load_images(test_dir)
 
     def test_load_image_notfound(self, tmp_path):

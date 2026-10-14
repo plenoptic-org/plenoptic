@@ -74,7 +74,11 @@ class Metamer(_OptimizedSynthesis):
 
     Examples
     --------
-    Synthesize and visualize a metamer for a simple model:
+    Synthesize and visualize a metamer for a simple model.
+
+    .. attention::
+       For all of these examples, synthesis has not been run to completion. These
+       examples just demonstrate basic usage.
 
     .. plot::
       :context: reset
@@ -86,12 +90,70 @@ class Metamer(_OptimizedSynthesis):
       >>> po.remove_grad(model)
       >>> met = po.Metamer(img, model)
       >>> met.synthesize(110)
-      >>> fig, axes = plt.subplots(1, 4, figsize=(16, 4))
-      >>> po.plot.imshow(img, ax=axes[0], title="Target image")
-      <Figure size ... with 4 Axes>
-      >>> axes[0].xaxis.set_visible(False)
-      >>> axes[0].yaxis.set_visible(False)
-      >>> po.plot.synthesis_status(met, fig=fig, axes_idx={"misc": 0})
+      >>> # Define a helper function for this, since we'll use it in the other examples
+      >>> def example_figure(met):
+      ...     fig, axes = plt.subplots(1, 4, figsize=(22, 5))
+      ...     po.plot.imshow(img, ax=axes[0], title="Target image")
+      ...     axes[0].xaxis.set_visible(False)
+      ...     axes[0].yaxis.set_visible(False)
+      ...     po.plot.synthesis_status(
+      ...         met,
+      ...         fig=fig,
+      ...         axes_idx={"misc": 0},
+      ...     )
+      ...     return fig
+      >>> example_figure(met)
+      <Figure size ...>
+
+    Change the loss function. A loss function must accept two tensors and return a
+    scalar. Note that metamer and synthesis efficiency change when using a different
+    loss function.
+
+    .. plot::
+      :context: close-figs
+
+      >>> po.loss.l2_norm(img, 2 * img)
+      tensor(123.5844)
+      >>> met = po.Metamer(img, model, loss_function=po.loss.l2_norm)
+      >>> met.synthesize(50)
+      >>> example_figure(met)
+      <Figure size ...>
+
+    Change the penalty function. A penalty function must accept one tensor and return a
+    scalar. See :ref:`how-to-penalty` for more information about penalty functions. Note
+    the different ranges in the title of the subplots showing the metamers in the
+    following two examples.
+
+    .. plot::
+      :context: close-figs
+
+      >>> # Penalty encourages metamer pixel values to lie between 0.3 and 0.7
+      >>> def penalty(x):
+      ...     return po.regularize.penalize_range(x, [0.3, 0.7])
+      >>> penalty(img)
+      tensor(213.6589)
+      >>> met = po.Metamer(
+      ...     img, model, loss_function=po.loss.l2_norm, penalty_function=penalty
+      ... )
+      >>> met.synthesize(50)
+      >>> example_figure(met)
+      <Figure size ...>
+
+    Change the contribution of the penalty to the objective function.
+    :attr:`penalty_lambda` must be a non-negative scalar.
+
+    .. plot::
+      :context: close-figs
+
+      >>> met = po.Metamer(
+      ...     img,
+      ...     model,
+      ...     loss_function=po.loss.l2_norm,
+      ...     penalty_function=penalty,
+      ...     penalty_lambda=0.2,
+      ... )
+      >>> met.synthesize(50)
+      >>> example_figure(met)
       <Figure size ...>
     """
 
