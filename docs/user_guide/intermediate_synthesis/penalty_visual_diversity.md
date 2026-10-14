@@ -33,7 +33,6 @@ This notebook uses an additional package, [pyiqa](https://iqa-pytorch.readthedoc
 :::
 
 ```{code-cell} ipython3
-
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pyiqa
@@ -65,7 +64,7 @@ I think don't show the MSE heatmaps or the loss plots
 def create_metamer_figure(met):
     n_cols = len(met.image) + 1
     zoom = 256 // met.image.shape[-1]
-    fig = plt.figure(figsize=(5 * n_cols + 2, 11))
+    fig = plt.figure(figsize=(5.2 * n_cols, 10.4))
     gs = mpl.gridspec.GridSpec(2, n_cols, figure=fig)
     im_axes = [fig.add_subplot(gs[0, i]) for i in range(n_cols)]
     im_axes += [fig.add_subplot(gs[1, i]) for i in range(n_cols)]
@@ -115,7 +114,7 @@ met.synthesize(1000, stop_criterion=1e-16)
 
 Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
 
-```{python}
+```{code-block} python
 po.set_seed(0)
 torch.use_deterministic_algorithms(True)
 ```
@@ -148,12 +147,11 @@ met.synthesize(1000, stop_criterion=1e-16)
 
 Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
 
-```{python}
+```{code-block} python
 po.set_seed(0)
 torch.use_deterministic_algorithms(True)
 ```
 :::
-
 
 ```{code-cell} ipython3
 create_metamer_figure(met);
@@ -216,13 +214,13 @@ def penalty(x):
 ```
 
 ```{code-cell} ipython3
-met_penalty = po.Metamer(
+met = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.1
 )
 ```
 
 ```{code-cell} ipython3
-met_penalty.load(cached_metamers / "vis_div_penalty_vertical.pt", map_location="cpu")
+met.load(cached_metamers / "vis_div_penalty_vertical.pt", map_location="cpu")
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -235,28 +233,26 @@ met.synthesize(1000, stop_criterion=1e-16)
 
 Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
 
-```{python}
+```{code-block} python
 po.set_seed(0)
 torch.use_deterministic_algorithms(True)
 ```
 :::
 
-
 ```{code-cell} ipython3
-create_metamer_figure(met_penalty);
+create_metamer_figure(met);
 ```
 
 ```{code-cell} ipython3
-met_penalty = po.Metamer(
+met = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.1
 )
 ```
 
 ```{code-cell} ipython3
-met_penalty.load(
-    cached_metamers / "vis_div_penalty_vertical_curie.pt", map_location="cpu"
-)
+met.load(cached_metamers / "vis_div_penalty_vertical_curie.pt", map_location="cpu")
 ```
+
 :::{admonition} How to run this synthesis manually
 :class: dropdown note
 
@@ -268,15 +264,14 @@ met.synthesize(1000, stop_criterion=1e-16)
 
 Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
 
-```{python}
+```{code-block} python
 po.set_seed(0)
 torch.use_deterministic_algorithms(True)
 ```
 :::
 
-
 ```{code-cell} ipython3
-create_metamer_figure(met_penalty);
+create_metamer_figure(met);
 ```
 
 ```{code-cell} ipython3
@@ -304,14 +299,15 @@ def penalty(x):
 ```
 
 ```{code-cell} ipython3
-met_penalty = po.Metamer(
+met = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.07
 )
 ```
 
 ```{code-cell} ipython3
-met_penalty.load(cached_metamers / "vis_div_penalty_low.pt", map_location="cpu")
+met.load(cached_metamers / "vis_div_penalty_low.pt", map_location="cpu")
 ```
+
 :::{admonition} How to run this synthesis manually
 :class: dropdown note
 
@@ -322,27 +318,24 @@ met.synthesize(3000, stop_criterion=1e-16)
 
 Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
 
-```{python}
+```{code-block} python
 po.set_seed(0)
 torch.use_deterministic_algorithms(True)
 ```
 :::
 
-
-
-
 ```{code-cell} ipython3
-create_metamer_figure(met_penalty);
+create_metamer_figure(met);
 ```
 
 ```{code-cell} ipython3
-met_penalty = po.Metamer(
+met = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.05
 )
 ```
 
 ```{code-cell} ipython3
-met_penalty.load(cached_metamers / "vis_div_penalty_low_curie.pt", map_location="cpu")
+met.load(cached_metamers / "vis_div_penalty_low_curie.pt", map_location="cpu")
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -356,14 +349,14 @@ met.synthesize(3000, stop_criterion=1e-16)
 
 Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
 
-```{python}
+```{code-block} python
 po.set_seed(0)
 torch.use_deterministic_algorithms(True)
 ```
 :::
 
 ```{code-cell} ipython3
-create_metamer_figure(met_penalty);
+create_metamer_figure(met);
 ```
 
 # Distance
@@ -413,7 +406,7 @@ met_penalty.synthesize(500, stop_criterion=1e-16)
 
 Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
 
-```{python}
+```{code-block} python
 po.set_seed(0)
 torch.use_deterministic_algorithms(True)
 ```
@@ -455,7 +448,7 @@ met_penalty.synthesize(500, stop_criterion=1e-16)
 
 Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
 
-```{python}
+```{code-block} python
 po.set_seed(0)
 torch.use_deterministic_algorithms(True)
 ```
