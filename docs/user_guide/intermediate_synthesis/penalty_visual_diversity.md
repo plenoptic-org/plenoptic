@@ -46,8 +46,16 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # so that relative sizes of axes created by po.plot.imshow and others look right
 plt.rcParams["figure.dpi"] = 72
 
+# We will not run synthesis in this notebook, instead loading cached results
 cached_metamers = po.data.fetch_data("visual_diversity_penalty.tar.gz")
 ```
+
+I think don't show the MSE heatmaps or the loss plots
+
+- Can find different looking metamers with different initializations
+- What adding penalty does is adds an additional constraint and so shrink the "good solution set" to somewhere else
+- This interacts with the initialization point! you could use two different initializations with any of these penalties
+  - show curie initialization for one of the steerpyr inits, which doesn't do much, compared to the dists one
 
 ## Metamer synthesis without custom model
 
@@ -97,16 +105,25 @@ met = po.Metamer(img, model, po.loss.l2_norm)
 met.load(cached_metamers / "vis_div_penalty_basic.pt", map_location="cpu")
 ```
 
+:::{admonition} How to run this synthesis manually
+:class: dropdown note
+
+<!-- TestVisualDiversityPenalty.test_basic -->
+```{code-block} python
+met.synthesize(1000, stop_criterion=1e-16)
+```
+
+Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
+
+```{python}
+po.set_seed(0)
+torch.use_deterministic_algorithms(True)
+```
+:::
+
 ```{code-cell} ipython3
 create_metamer_figure(met);
 ```
-
-I think don't show the MSE heatmaps or the loss plots
-
-- Can find different looking metamers with different initializations
-- What adding penalty does is adds an additional constraint and so shrink the "good solution set" to somewhere else
-- This interacts with the initialization point! you could use two different initializations with any of these penalties
-  - show curie initialization for one of the steerpyr inits, which doesn't do much, compared to the dists one
 
 ```{code-cell} ipython3
 curie = po.process.blur_downsample(po.data.curie())
@@ -119,6 +136,24 @@ po.plot.imshow(init_img, zoom=2);
 met = po.Metamer(img, model, po.loss.l2_norm)
 met.load(cached_metamers / "vis_div_penalty_basic_curie.pt", map_location="cpu")
 ```
+
+:::{admonition} How to run this synthesis manually
+:class: dropdown note
+
+<!-- TestVisualDiversityPenalty.test_basic_curie -->
+```{code-block} python
+met.setup(initial_image=init_img)
+met.synthesize(1000, stop_criterion=1e-16)
+```
+
+Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
+
+```{python}
+po.set_seed(0)
+torch.use_deterministic_algorithms(True)
+```
+:::
+
 
 ```{code-cell} ipython3
 create_metamer_figure(met);
@@ -156,15 +191,16 @@ def construct_mask(x, include):
     return spyr_power(mask).to(bool)
 ```
 
-Add a hidden cell which runs a brief test on this, comparing results against
-cached test files
-
 ```{code-cell} ipython3
 mask = construct_mask(img, "vertical")
 original_coeffs = spyr_power(img)
 ```
 
 ```{code-cell} ipython3
+:tags: [remove-cell]
+
+# Check that our mask is the same as the one in the tests, which is what generates the
+# saved metamers
 saved_mask = torch.load(
     po.data.fetch_data("spyr_mask.tar.gz") / "spyr_mask_vertical.pt", map_location="cpu"
 )
@@ -189,13 +225,30 @@ met_penalty = po.Metamer(
 met_penalty.load(cached_metamers / "vis_div_penalty_vertical.pt", map_location="cpu")
 ```
 
+:::{admonition} How to run this synthesis manually
+:class: dropdown note
+
+<!-- TestVisualDiversityPenalty.test_vertical -->
+```{code-block} python
+met.synthesize(1000, stop_criterion=1e-16)
+```
+
+Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
+
+```{python}
+po.set_seed(0)
+torch.use_deterministic_algorithms(True)
+```
+:::
+
+
 ```{code-cell} ipython3
 create_metamer_figure(met_penalty);
 ```
 
 ```{code-cell} ipython3
 met_penalty = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=1e-1
+    img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.1
 )
 ```
 
@@ -204,6 +257,23 @@ met_penalty.load(
     cached_metamers / "vis_div_penalty_vertical_curie.pt", map_location="cpu"
 )
 ```
+:::{admonition} How to run this synthesis manually
+:class: dropdown note
+
+<!-- TestVisualDiversityPenalty.test_vertical_curie -->
+```{code-block} python
+met.setup(initial_image=init_img)
+met.synthesize(1000, stop_criterion=1e-16)
+```
+
+Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
+
+```{python}
+po.set_seed(0)
+torch.use_deterministic_algorithms(True)
+```
+:::
+
 
 ```{code-cell} ipython3
 create_metamer_figure(met_penalty);
@@ -215,6 +285,10 @@ original_coeffs = spyr_power(img)
 ```
 
 ```{code-cell} ipython3
+:tags: [remove-cell]
+
+# Check that our mask is the same as the one in the tests, which is what generates the
+# saved metamers
 saved_mask = torch.load(
     po.data.fetch_data("spyr_mask.tar.gz") / "spyr_mask_low.pt", map_location="cpu"
 )
@@ -238,6 +312,24 @@ met_penalty = po.Metamer(
 ```{code-cell} ipython3
 met_penalty.load(cached_metamers / "vis_div_penalty_low.pt", map_location="cpu")
 ```
+:::{admonition} How to run this synthesis manually
+:class: dropdown note
+
+<!-- TestVisualDiversityPenalty.test_low -->
+```{code-block} python
+met.synthesize(3000, stop_criterion=1e-16)
+```
+
+Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
+
+```{python}
+po.set_seed(0)
+torch.use_deterministic_algorithms(True)
+```
+:::
+
+
+
 
 ```{code-cell} ipython3
 create_metamer_figure(met_penalty);
@@ -245,13 +337,30 @@ create_metamer_figure(met_penalty);
 
 ```{code-cell} ipython3
 met_penalty = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=5e-2
+    img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.05
 )
 ```
 
 ```{code-cell} ipython3
 met_penalty.load(cached_metamers / "vis_div_penalty_low_curie.pt", map_location="cpu")
 ```
+
+:::{admonition} How to run this synthesis manually
+:class: dropdown note
+
+<!-- TestVisualDiversityPenalty.test_low_curie -->
+```{code-block} python
+met.setup(initial_image=init_img)
+met.synthesize(3000, stop_criterion=1e-16)
+```
+
+Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
+
+```{python}
+po.set_seed(0)
+torch.use_deterministic_algorithms(True)
+```
+:::
 
 ```{code-cell} ipython3
 create_metamer_figure(met_penalty);
@@ -283,6 +392,33 @@ met_penalty = po.Metamer(
 met_penalty.load(cached_metamers / "vis_div_penalty_dists.pt", map_location="cpu")
 ```
 
+:::{admonition} How to run this synthesis manually
+:class: dropdown note
+
+<!-- TestVisualDiversityPenalty.test_dists -->
+```{code-block} python
+met = po.Metamer(img, lg_model, po.loss.l2_norm)
+met.synthesize(500, stop_criterion=1e-16)
+
+met_penalty = po.Metamer(
+    img,
+    lg_model,
+    po.loss.l2_norm,
+    penalty_function=penalty,
+    penalty_lambda=0.5,
+)
+met_penalty.setup(initial_image=met.metamer, optimizer_kwargs={"lr": 0.03})
+met_penalty.synthesize(500, stop_criterion=1e-16)
+```
+
+Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
+
+```{python}
+po.set_seed(0)
+torch.use_deterministic_algorithms(True)
+```
+:::
+
 ```{code-cell} ipython3
 create_metamer_figure(met_penalty);
 ```
@@ -296,6 +432,34 @@ met_penalty = po.Metamer(
 ```{code-cell} ipython3
 met_penalty.load(cached_metamers / "vis_div_penalty_dists_curie.pt", map_location="cpu")
 ```
+
+:::{admonition} How to run this synthesis manually
+:class: dropdown note
+
+<!-- TestVisualDiversityPenalty.test_dists_curie -->
+```{code-block} python
+met = po.Metamer(img, lg_model, po.loss.l2_norm)
+met.setup(initial_image=init_img)
+met.synthesize(500, stop_criterion=1e-16)
+
+met_penalty = po.Metamer(
+    img,
+    lg_model,
+    po.loss.l2_norm,
+    penalty_function=penalty,
+    penalty_lambda=0.5,
+)
+met_penalty.setup(initial_image=met.metamer, optimizer_kwargs={"lr": 0.03})
+met_penalty.synthesize(500, stop_criterion=1e-16)
+```
+
+Note that for exact reproducibility, we also need to specify the seed and to use deterministic algorithms (see [](reproduce-best-practices) for more details) before the initialization of the {class}`~plenoptic.Metamer` object:
+
+```{python}
+po.set_seed(0)
+torch.use_deterministic_algorithms(True)
+```
+:::
 
 ```{code-cell} ipython3
 create_metamer_figure(met_penalty);
