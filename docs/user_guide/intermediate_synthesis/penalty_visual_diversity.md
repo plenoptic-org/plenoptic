@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.19.5
+    jupytext_version: 1.17.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -25,10 +25,10 @@ Run it in your browser: **{binder}`penalty_visual_diversity.ipynb`**!
 
 [](how-to-penalty) showed the basics of working with custom penalty functions, but their flexibility allows for us to bias stimulus synthesis in a wide variety of different ways. In this notebook, we will show how to use the {class}`~plenoptic.process.SteerablePyramidFreq` to increase perceptual diversity among model metamers for the {class}`~plenoptic.models.LuminanceGainControl` model.
 
-:::{admonition} Seaborn
+:::{admonition} pyiqa
 :class: attention
 
-This notebook uses an additional package, [seaborn](https://seaborn.pydata.org/), to create heatmaps. Install it in your environment in order to run the notebook successfully.
+This notebook uses an additional package, [pyiqa](https://iqa-pytorch.readthedocs.io/), for their pytorch implementation of the DISTS image quality metric ([original publication](https://www.cns.nyu.edu/pub/lcv/ding20a-preprint.pdf)). Install it in your environment in order to run the notebook successfully.
 
 :::
 
@@ -55,6 +55,8 @@ plt.rcParams["figure.dpi"] = 72
 MAX_ITER = 100 if DEVICE.type == "cpu" else 2000
 # hard-code this...
 N_IMGS = 2
+
+cached_metamers = po.data.fetch_data("visual_diversity_penalty.tar.gz")
 ```
 
 ## Metamer synthesis without custom model
@@ -207,7 +209,7 @@ img = img.repeat(N_IMGS, 1, 1, 1)
 
 ```{code-cell} ipython3
 met = po.Metamer(img, model, po.loss.l2_norm)
-met.synthesize(MAX_ITER, stop_criterion=1e-16)
+met.load(cached_metamers / "vis_div_penalty_basic.pt", map_location="cpu")
 ```
 
 ```{code-cell} ipython3
@@ -230,8 +232,7 @@ po.plot.imshow(init_img);
 
 ```{code-cell} ipython3
 met = po.Metamer(img, model, po.loss.l2_norm)
-met.setup(initial_image=init_img)
-met.synthesize(MAX_ITER, stop_criterion=1e-16)
+met.load(cached_metamers / "vis_div_penalty_basic_curie.pt", map_location="cpu")
 ```
 
 ```{code-cell} ipython3
@@ -278,8 +279,16 @@ mask = construct_mask(img, "vertical")
 if mask.sum() == 0 or (~mask).sum() == 0:
     raise ValueError()
 original_coeffs = spyr_power(img)
+```
 
+```{code-cell} ipython3
+saved_mask = torch.load(
+    po.data.fetch_data("spyr_mask.tar.gz") / "spyr_mask_vertical.pt", map_location="cpu"
+)
+assert (saved_mask == mask).all()
+```
 
+```{code-cell} ipython3
 def penalty(x):
     penalty = spyr_power(x)
     penalty = mask * (penalty / original_coeffs)
@@ -294,7 +303,7 @@ met_penalty = po.Metamer(
 ```
 
 ```{code-cell} ipython3
-met_penalty.synthesize(1000, stop_criterion=1e-16, store_progress=True)
+met_penalty.load(cached_metamers / "vis_div_penalty_vertical.pt", map_location="cpu")
 ```
 
 ```{code-cell} ipython3
@@ -309,11 +318,12 @@ create_metamer_figure(met_penalty);
 met_penalty = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=1e-1
 )
-met_penalty.setup(initial_image=init_img)
 ```
 
 ```{code-cell} ipython3
-met_penalty.synthesize(1000, stop_criterion=1e-16, store_progress=True)
+met_penalty.load(
+    cached_metamers / "vis_div_penalty_vertical_curie.pt", map_location="cpu"
+)
 ```
 
 ```{code-cell} ipython3
@@ -329,8 +339,16 @@ mask = construct_mask(img, "low")
 if mask.sum() == 0 or (~mask).sum() == 0:
     raise ValueError()
 original_coeffs = spyr_power(img)
+```
 
+```{code-cell} ipython3
+saved_mask = torch.load(
+    po.data.fetch_data("spyr_mask.tar.gz") / "spyr_mask_low.pt", map_location="cpu"
+)
+assert (saved_mask == mask).all()
+```
 
+```{code-cell} ipython3
 def penalty(x):
     penalty = spyr_power(x)
     penalty = mask * (penalty / original_coeffs)
@@ -340,12 +358,12 @@ def penalty(x):
 
 ```{code-cell} ipython3
 met_penalty = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=5e-2
+    img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.07
 )
 ```
 
 ```{code-cell} ipython3
-met_penalty.synthesize(3000, stop_criterion=1e-16)
+met_penalty.load(cached_metamers / "vis_div_penalty_low.pt", map_location="cpu")
 ```
 
 ```{code-cell} ipython3
@@ -360,11 +378,10 @@ create_metamer_figure(met_penalty);
 met_penalty = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=5e-2
 )
-met_penalty.setup(initial_image=init_img)
 ```
 
 ```{code-cell} ipython3
-met_penalty.synthesize(3000, stop_criterion=1e-16, store_progress=True)
+met_penalty.load(cached_metamers / "vis_div_penalty_low_curie.pt", map_location="cpu")
 ```
 
 ```{code-cell} ipython3
@@ -392,14 +409,13 @@ def penalty(x):
 ```
 
 ```{code-cell} ipython3
-met = po.Metamer(img, model, po.loss.l2_norm)
-met.synthesize(500, stop_criterion=1e-16)
-
 met_penalty = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.5
 )
-met_penalty.setup(initial_image=met.metamer, optimizer_kwargs={"lr": 0.03})
-met_penalty.synthesize(500, stop_criterion=1e-16)
+```
+
+```{code-cell} ipython3
+met_penalty.load(cached_metamers / "vis_div_penalty_dists.pt", map_location="cpu")
 ```
 
 ```{code-cell} ipython3
@@ -407,15 +423,13 @@ create_metamer_figure(met_penalty);
 ```
 
 ```{code-cell} ipython3
-met = po.Metamer(img, model, po.loss.l2_norm)
-met.setup(initial_image=init_img)
-met.synthesize(500, stop_criterion=1e-16)
-
 met_penalty = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.5
 )
-met_penalty.setup(initial_image=met.metamer, optimizer_kwargs={"lr": 0.03})
-met_penalty.synthesize(500, stop_criterion=1e-16)
+```
+
+```{code-cell} ipython3
+met_penalty.load(cached_metamers / "vis_div_penalty_dists_curie.pt", map_location="cpu")
 ```
 
 ```{code-cell} ipython3
