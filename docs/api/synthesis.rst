@@ -15,3 +15,4 @@ Synthesis objects generate novel stimuli which allow researchers to better under
    ~MetamerCTF
    ~Eigendistortion
    ~MADCompetition
+   ~GenericSynthesis

@@ -193,6 +193,7 @@ NEW = [
     "plenoptic.io.LoadWarning",
     "plenoptic.data.macaque",
     "plenoptic.models.DeepNetFeatures",
+    "plenoptic.GenericSynthesis",
 ]
 
 UNCHANGED = [

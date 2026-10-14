@@ -7,6 +7,7 @@ __all__ = [
     "data",
     "metric",
     "plot",
+    "GenericSynthesis",
     "Metamer",
     "MetamerCTF",
     "Eigendistortion",
@@ -35,7 +36,13 @@ from . import (
     regularize,
     validate,
 )
-from ._synthesize import Eigendistortion, MADCompetition, Metamer, MetamerCTF
+from ._synthesize import (
+    Eigendistortion,
+    GenericSynthesis,
+    MADCompetition,
+    Metamer,
+    MetamerCTF,
+)
 from .loss import set_seed
 from .tensors import convert_float_to_int, load_images, to_numpy
 from .validate import remove_grad

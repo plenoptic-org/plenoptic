@@ -12,7 +12,7 @@ import numpy as np
 import torch
 
 from .. import tensors
-from .._synthesize import Eigendistortion, MADCompetition, Metamer
+from .._synthesize import Eigendistortion, GenericSynthesis, MADCompetition, Metamer
 from . import display
 from .metamer import _representation_error, metamer_representation_error
 
@@ -228,7 +228,7 @@ def synthesis_loss(
       >>> plt.plot(mad.losses)
       [<matplotlib.lines.Line2D ...>]
     """
-    if not isinstance(synthesis_object, (Metamer, MADCompetition)):
+    if not isinstance(synthesis_object, (Metamer, MADCompetition, GenericSynthesis)):
         raise TypeError(
             "synthesis_object must be a MADCompetition or Metamer object but got"
             f" {type(synthesis_object)}"
@@ -241,7 +241,7 @@ def synthesis_loss(
     if ax is None:
         ax = plt.gca()
 
-    if isinstance(synthesis_object, Metamer):
+    if isinstance(synthesis_object, (Metamer, GenericSynthesis)):
         if hasattr(ax, "__iter__"):
             raise ValueError("if synthesis_object is a Metamer, ax cannot be a list!")
         met_loss = (
@@ -380,6 +380,8 @@ def _get_synthesis_image(
             name = "metamer"
         elif isinstance(synthesis_object, MADCompetition):
             name = "mad_image"
+        elif isinstance(synthesis_object, GenericSynthesis):
+            name = "synthesized_image"
         try:
             image = progress[f"saved_{name}"]
         except KeyError:
@@ -464,6 +466,9 @@ def _get_synthesis_title(
         if isinstance(synthesis_object, Metamer):
             title_names = ["Metamer[{batch_idx}] [iteration={iter}]", "Target"]
             max_batch = synthesis_object.metamer.shape[0]
+        elif isinstance(synthesis_object, GenericSynthesis):
+            title_names = ["Synth[{batch_idx}] [iteration={iter}]", "Target"]
+            max_batch = synthesis_object.synthesized_image.shape[0]
         elif isinstance(synthesis_object, MADCompetition):
             title_names = ["MAD[{batch_idx}] [iteration={iter}]", "Reference"]
             max_batch = synthesis_object.mad_image.shape[0]
@@ -1009,7 +1014,7 @@ def _check_included_plots(
     ]
     if isinstance(synthesis_object, Metamer):
         allowed_vals.extend(["synthesis_loss", "metamer_representation_error"])
-    elif isinstance(synthesis_object, MADCompetition):
+    elif isinstance(synthesis_object, (MADCompetition, GenericSynthesis)):
         allowed_vals.extend(["synthesis_loss"])
     try:
         vals = to_check.keys()
@@ -1181,7 +1186,7 @@ def _get_default_included_plots(
     """
     if isinstance(synthesis_object, Metamer):
         return ["synthesis_imshow", "synthesis_loss", "metamer_representation_error"]
-    if isinstance(synthesis_object, MADCompetition):
+    if isinstance(synthesis_object, (MADCompetition, GenericSynthesis)):
         return ["synthesis_imshow", "synthesis_loss"]
     if isinstance(synthesis_object, Eigendistortion):
         return ["synthesis_imshow", "synthesis_histogram"]
