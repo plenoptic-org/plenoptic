@@ -63,7 +63,7 @@ REGISTRY = {
     "caltech256_burger.jpg": "a67da35a97a17816a6be9a006a5105e46e179a4e36dc8d8cd5651ae463460785",  # noqa: E501
     "spyr_power.pt": "c99bfc58368f9ed4a222dc02a37dd0a14f3a188e90f02d6413275ada0982fac3",  # noqa: E501
     "spyr_mask.tar.gz": "668e0de9206e17dcac3c7b0bb3a3b66b0fd395494fb78c28948dcf46046cc52a",  # noqa: E501
-    "visual_diversity_penalty.tar.gz": "37f2561d45d49bd85fe2e2cb4ca032f5e81ce1e9f6c8170cb86608c5e2e00db8",  # noqa: E501
+    "visual_diversity_penalty.tar.gz": "3f74bbfd0e804b925e185bea3a1fedd9098e87f6faefeee09421504f286cccd2",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"
@@ -114,7 +114,7 @@ REGISTRY_URLS = {
     "caltech256_burger.jpg": OSF_TEMPLATE.format("5dhac/?revision=1"),
     "spyr_power.pt": OSF_TEMPLATE.format("z2nv4/?revision=1"),
     "spyr_mask.tar.gz": OSF_TEMPLATE.format("623he/?revision=1"),
-    "visual_diversity_penalty.tar.gz": OSF_TEMPLATE.format("j53pc/?revision=6"),
+    "visual_diversity_penalty.tar.gz": OSF_TEMPLATE.format("j53pc/?revision=7"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch_data`

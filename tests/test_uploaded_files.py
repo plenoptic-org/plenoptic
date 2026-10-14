@@ -1190,7 +1190,7 @@ class TestTutorialNotebooks:
                 lg_model,
                 po.loss.l2_norm,
                 penalty_function=penalty,
-                penalty_lambda=0.05,
+                penalty_lambda=0.07,
             )
             met.synthesize(3000, stop_criterion=1e-16)
             met.save("uploaded_files/vis_div_penalty_low.pt")
@@ -1199,7 +1199,7 @@ class TestTutorialNotebooks:
                 lg_model,
                 po.loss.l2_norm,
                 penalty_function=penalty,
-                penalty_lambda=0.05,
+                penalty_lambda=0.07,
             )
             met_up.load(
                 vis_div_penalty / "vis_div_penalty_low.pt",
