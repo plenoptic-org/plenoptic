@@ -1684,3 +1684,71 @@ class TestMetamers:
         met.synthesize(2)
         assert repr(met) == str(met)
         assert re.match(expected_str, repr(met))
+
+
+class TestSynthesisTransfers:
+    @pytest.mark.parametrize("synthesis", ["metamer", "mad"])
+    @pytest.mark.parametrize(
+        "optimizer", [torch.optim.Adam, torch.optim.SGD, torch.optim.LBFGS]
+    )
+    @pytest.mark.parametrize("transfer", ["noop", "dtype", "device"])
+    @pytest.mark.parametrize("store_progress", [False, True])
+    def test_optimizer_continuation(
+        self, synthesis, optimizer, transfer, store_progress
+    ):
+        torch.manual_seed(0)
+        image = torch.linspace(0.2, 0.8, 64, device=DEVICE).reshape(1, 1, 8, 8)
+        if synthesis == "metamer":
+            synth = po.Metamer(image, po.models.Identity().eval())
+            attr = "metamer"
+        else:
+            synth = po.MADCompetition(image, po.metric.mse, po.metric.mse, "min", 1)
+            attr = "mad_image"
+        kwargs = {"lr": 0.1}
+        if optimizer is torch.optim.SGD:
+            kwargs["momentum"] = 0.9
+        if optimizer is torch.optim.LBFGS:
+            kwargs.update(max_iter=2, history_size=3)
+        synth.setup(
+            optimizer=optimizer,
+            optimizer_kwargs=kwargs,
+            scheduler=torch.optim.lr_scheduler.StepLR,
+            scheduler_kwargs={"step_size": 2, "gamma": 0.9},
+        )
+        synth.synthesize(3, stop_criterion=0, store_progress=store_progress)
+        state = copy.deepcopy(synth.optimizer.state_dict())
+        scheduler_state = copy.deepcopy(synth.scheduler.state_dict())
+        old_optimizer, old_scheduler = synth.optimizer, synth.scheduler
+        device = "cpu" if transfer == "device" else DEVICE
+        dtype = torch.float64 if transfer == "dtype" else image.dtype
+        reference = getattr(synth, attr).detach().to(device=device, dtype=dtype).clone()
+        reference.requires_grad_()
+        reference_optimizer = optimizer([reference])
+        reference_scheduler = torch.optim.lr_scheduler.StepLR(reference_optimizer, 2)
+        reference_optimizer.load_state_dict(state)
+        reference_scheduler.load_state_dict(scheduler_state)
+        synth.to(device=device, dtype=dtype)
+        assert synth.optimizer is old_optimizer
+        assert synth.scheduler is old_scheduler
+        assert synth.scheduler.optimizer is synth.optimizer
+        assert synth.optimizer.param_groups[0]["params"][0] is getattr(synth, attr)
+        for _ in range(3):
+
+            def closure():
+                reference_optimizer.zero_grad()
+                loss = synth.objective_function(reference)
+                loss.backward()
+                return loss
+
+            reference_optimizer.step(closure)
+            reference_scheduler.step()
+            synth.synthesize(1, stop_criterion=0, store_progress=store_progress)
+            torch.testing.assert_close(getattr(synth, attr), reference)
+            if store_progress:
+                saved = getattr(synth, "saved_" + attr)
+                assert saved.device.type == "cpu"
+                assert saved.dtype == dtype
+            assert (
+                synth.optimizer.param_groups[0]["lr"]
+                == reference_optimizer.param_groups[0]["lr"]
+            )
