@@ -639,7 +639,7 @@ class _Synthesis(abc.ABC):
 
         def move(a: torch.Tensor, k: str) -> torch.Tensor:
             # numpydoc ignore=RT01,ES01,PR01,GL08
-            move_device = None if k.startswith("saved_") else device
+            move_device = None if k.lstrip("_").startswith("saved_") else device
             if memory_format is not None and a.dim() == 4:
                 return a.to(
                     move_device,
@@ -659,7 +659,15 @@ class _Synthesis(abc.ABC):
                         attr = torch.nn.Parameter(attr)
                     if getattr(self, k).requires_grad:
                         attr = attr.requires_grad_()
-                    setattr(self, k, attr)
+                    original = getattr(self, k)
+                    if original.is_leaf and original.requires_grad:
+                        # Optimizers may cache references to their parameters, so
+                        # keep the trainable tensor itself when moving its data.
+                        original.data = attr.data
+                        if original.grad is not None:
+                            original.grad.data = move(original.grad.data, k)
+                    else:
+                        setattr(self, k, attr)
                 elif isinstance(attr, list):
                     setattr(self, k, [move(a, k) for a in attr])
                 elif attr is not None:
@@ -740,6 +748,15 @@ class _OptimizedSynthesis(_Synthesis):
         if penalty_lambda < 0:
             raise Exception("penalty_lambda must be non-negative!")
         self._penalty_lambda = penalty_lambda
+
+    def to(self, *args: Any, attrs: list[str] = [], **kwargs: Any):
+        """Move synthesis tensors and keep the active optimizer attached."""
+        # numpydoc ignore=ES01,PR01,PR02
+        super().to(*args, attrs=attrs, **kwargs)
+        if isinstance(self.optimizer, torch.optim.Optimizer):
+            # Use the optimizer's casting rules for nested state and special
+            # cases such as Adam's step counter. Preserve the scheduler's optimizer.
+            self.optimizer.load_state_dict(self.optimizer.state_dict())
 
     @abc.abstractproperty
     def image(self):
