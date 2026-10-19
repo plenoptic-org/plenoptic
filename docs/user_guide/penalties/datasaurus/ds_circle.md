@@ -347,7 +347,7 @@ def animate_datasaurus_metamer(
     # This will view the video if running in a jupyter notebook. If you are running
     # outside of a notebook (e.g., in ipython), first save it and then open it with
     # something that can view video files (e.g., your browser) by running:
-    # ani.save("ds_plenoptic_logo.mp4")
+    # ani.save("ds_circle.mp4")
     return ani
 
 
