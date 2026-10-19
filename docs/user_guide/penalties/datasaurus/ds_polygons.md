@@ -24,7 +24,6 @@ Run it in your browser: **{binder}`ds_polygons.ipynb`**!
 
 In this notebook, we will create a datasaurus metamer not present in the original set, encouraging the dots to group themselves into little regular polygons.
 
-This notebook is intentionally brief: most of the code is hidden (you can expand the cells if you would like to see more details), and we only explain the penalty. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
 
 ```{code-cell} ipython3
 :tags: [hide-input]

@@ -24,8 +24,6 @@ Run it in your browser: **{binder}`ds_away.ipynb`**!
 
 In this notebook, we will create a datasaurus metamer where we have no points near the center of the scatter plot.
 
-This notebook is intentionally brief: most of the code is hidden (you can expand the cells if you would like to see more details), and we only explain the penalty. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
-
 ```{code-cell} ipython3
 :tags: [hide-input]
 

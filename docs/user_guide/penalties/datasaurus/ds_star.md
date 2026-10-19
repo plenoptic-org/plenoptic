@@ -25,7 +25,6 @@ Run it in your browser: **{binder}`ds_star.ipynb`**!
 
 In this notebook, we will create a datasaurus metamer shaped like a star.
 
-This notebook is intentionally brief: most of the code is hidden (you can expand the cells if you would like to see more details), and we only explain the penalty. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
 
 The synthesis procedure for this example is slightly different than the others, because this penalty is difficult to meet. We proceed in two stages: we first use a reduced model (only matching the means) and a penalty to encourage a star shape, and then use the output of this synthesis to initialize a second {class}`~plenoptic.Metamer` object, which uses the full model and removes the star penalty. Read on for more details.
 

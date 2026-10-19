@@ -24,7 +24,6 @@ Run it in your browser: **{binder}`ds_vwidelines.ipynb`**!
 
 In this notebook, we will create a datasaurus metamer shaped like two  wide vertical lines.
 
-This notebook is intentionally brief: most of the code is hidden (you can expand the cells if you would like to see more details), and we only explain the penalty. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
 
 The penalty here is the most complex in this series of notebooks, so you're encouraged to read others first (especially [](ds_polygons.md), [](ds_oval.md), and one of [](ds_hlines.md), [](ds_vlines.md), [](ds_slantdown.md), [](ds_slantup.md), or [](ds_xshape.md)).
 
