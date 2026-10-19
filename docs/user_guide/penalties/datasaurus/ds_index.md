@@ -45,7 +45,7 @@ After this notebook, you should read [](ds-general-principles) and [the example 
 :hidden:
 
 general_principles.md
-examples.md
+ds_examples.md
 :::
 
 ## The Datasaurus dozen
