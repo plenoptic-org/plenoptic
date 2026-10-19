@@ -983,7 +983,13 @@ class TestTutorialNotebooks:
 
         @pytest.fixture(scope="class")
         @classmethod
-        def init_img(cls):
+        def init_img(cls, img):
+            po.set_seed(0)
+            return torch.rand_like(img)
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def init_img_curie(cls):
             po.set_seed(0)
             curie = po.process.blur_downsample(po.data.curie())
             curie = curie.to(torch.float64).to(DEVICE2)
@@ -1045,8 +1051,7 @@ class TestTutorialNotebooks:
                     error_prepend_str=error_str,
                 )
 
-        def test_basic(self, lg_model, img, vis_div_penalty):
-            po.set_seed(0)
+        def test_basic(self, lg_model, img, init_img, vis_div_penalty):
             torch.use_deterministic_algorithms(True)
             torch.save(
                 torch.random.get_rng_state(),
@@ -1054,6 +1059,7 @@ class TestTutorialNotebooks:
             )
             print(np.random.get_state())
             met = po.Metamer(img, lg_model, po.loss.l2_norm)
+            met.setup(initial_image=init_img)
             met.synthesize(1000, stop_criterion=1e-16)
             met.save("uploaded_files/vis_div_penalty_basic.pt")
             met_up = po.Metamer(img, lg_model, po.loss.l2_norm)
@@ -1064,7 +1070,7 @@ class TestTutorialNotebooks:
             )
             compare_metamers(met, met_up)
 
-        def test_basic_curie(self, lg_model, img, init_img, vis_div_penalty):
+        def test_basic_curie(self, lg_model, img, init_img_curie, vis_div_penalty):
             torch.use_deterministic_algorithms(True)
             torch.save(
                 torch.random.get_rng_state(),
@@ -1072,7 +1078,7 @@ class TestTutorialNotebooks:
             )
             print(np.random.get_state())
             met = po.Metamer(img, lg_model, po.loss.l2_norm)
-            met.setup(initial_image=init_img)
+            met.setup(initial_image=init_img_curie)
             met.synthesize(1000, stop_criterion=1e-16)
             met.save("uploaded_files/vis_div_penalty_basic_curie.pt")
             met_up = po.Metamer(img, lg_model, po.loss.l2_norm)
@@ -1083,8 +1089,7 @@ class TestTutorialNotebooks:
             )
             compare_metamers(met, met_up)
 
-        def test_vertical(self, lg_model, pyr, img, vis_div_penalty):
-            po.set_seed(0)
+        def test_vertical(self, lg_model, pyr, img, init_img, vis_div_penalty):
             torch.use_deterministic_algorithms(True)
             torch.save(
                 torch.random.get_rng_state(),
@@ -1108,6 +1113,7 @@ class TestTutorialNotebooks:
                 penalty_function=penalty,
                 penalty_lambda=0.1,
             )
+            met.setup(initial_image=init_img)
             met.synthesize(1000, stop_criterion=1e-16)
             met.save("uploaded_files/vis_div_penalty_vertical.pt")
             met_up = po.Metamer(
@@ -1124,7 +1130,9 @@ class TestTutorialNotebooks:
             )
             compare_metamers(met, met_up)
 
-        def test_vertical_curie(self, lg_model, pyr, img, init_img, vis_div_penalty):
+        def test_vertical_curie(
+            self, lg_model, pyr, img, init_img_curie, vis_div_penalty
+        ):
             torch.use_deterministic_algorithms(True)
             torch.save(
                 torch.random.get_rng_state(),
@@ -1148,7 +1156,7 @@ class TestTutorialNotebooks:
                 penalty_function=penalty,
                 penalty_lambda=0.1,
             )
-            met.setup(initial_image=init_img)
+            met.setup(initial_image=init_img_curie)
             met.synthesize(1000, stop_criterion=1e-16)
             met.save("uploaded_files/vis_div_penalty_vertical_curie.pt")
             met_up = po.Metamer(
@@ -1165,8 +1173,7 @@ class TestTutorialNotebooks:
             )
             compare_metamers(met, met_up)
 
-        def test_low(self, lg_model, pyr, img, vis_div_penalty):
-            po.set_seed(0)
+        def test_low(self, lg_model, pyr, img, init_img, vis_div_penalty):
             torch.use_deterministic_algorithms(True)
             torch.save(
                 torch.random.get_rng_state(),
@@ -1190,6 +1197,7 @@ class TestTutorialNotebooks:
                 penalty_function=penalty,
                 penalty_lambda=0.07,
             )
+            met.setup(initial_image=init_img)
             met.synthesize(3000, stop_criterion=1e-16)
             met.save("uploaded_files/vis_div_penalty_low.pt")
             met_up = po.Metamer(
@@ -1206,7 +1214,7 @@ class TestTutorialNotebooks:
             )
             compare_metamers(met, met_up)
 
-        def test_low_curie(self, lg_model, pyr, img, init_img, vis_div_penalty):
+        def test_low_curie(self, lg_model, pyr, img, init_img_curie, vis_div_penalty):
             torch.use_deterministic_algorithms(True)
             torch.save(
                 torch.random.get_rng_state(),
@@ -1230,7 +1238,7 @@ class TestTutorialNotebooks:
                 penalty_function=penalty,
                 penalty_lambda=0.05,
             )
-            met.setup(initial_image=init_img)
+            met.setup(initial_image=init_img_curie)
             met.synthesize(3000, stop_criterion=1e-16)
             met.save("uploaded_files/vis_div_penalty_low_curie.pt")
             met_up = po.Metamer(
@@ -1248,8 +1256,7 @@ class TestTutorialNotebooks:
             compare_metamers(met, met_up)
 
         @pytest.mark.filterwarnings("ignore:input_tensor range is.*:UserWarning")
-        def test_dists(self, lg_model, dists, img, vis_div_penalty):
-            po.set_seed(0)
+        def test_dists(self, lg_model, dists, img, init_img, vis_div_penalty):
             torch.use_deterministic_algorithms(True)
             torch.save(
                 torch.random.get_rng_state(),
@@ -1262,6 +1269,7 @@ class TestTutorialNotebooks:
                 return po.regularize.penalize_range(x) + torch.exp(-penalty)
 
             met = po.Metamer(img, lg_model, po.loss.l2_norm)
+            met.setup(initial_image=init_img)
             met.synthesize(500, stop_criterion=1e-16)
 
             met_penalty = po.Metamer(
@@ -1289,7 +1297,9 @@ class TestTutorialNotebooks:
             compare_metamers(met_penalty, met_up)
 
         @pytest.mark.filterwarnings("ignore:input_tensor range is.*:UserWarning")
-        def test_dists_curie(self, lg_model, dists, img, init_img, vis_div_penalty):
+        def test_dists_curie(
+            self, lg_model, dists, img, init_img_curie, vis_div_penalty
+        ):
             torch.use_deterministic_algorithms(True)
             torch.save(
                 torch.random.get_rng_state(),
@@ -1302,7 +1312,7 @@ class TestTutorialNotebooks:
                 return po.regularize.penalize_range(x) + torch.exp(-penalty)
 
             met = po.Metamer(img, lg_model, po.loss.l2_norm)
-            met.setup(initial_image=init_img)
+            met.setup(initial_image=init_img_curie)
             met.synthesize(500, stop_criterion=1e-16)
 
             met_penalty = po.Metamer(
