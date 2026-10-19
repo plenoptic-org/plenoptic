@@ -12,7 +12,7 @@ We thus haven't paid much attention to efficiency in the definitions of the pena
 
 :::
 
-The following notebooks are roughly ordered by complexity. The first one, [](ds_plenoptic_logo.md), does not use a penalty function beyond {func}`~plenoptic.regularize.penalize_range` and thus allows us to more easily visualize the effect of the optimizers and statistical redundancies in the model. The last one, [](ds_star.md), uses a penalty that is more difficult to match while also matching the target statistics and thus uses a two-stage synthesis method. The remaining notebooks only differ in which penalty they use and are broken into groups based on the type of computations their penalty functions perform.
+The following notebooks are roughly ordered by complexity. The first one, [plenoptic-logo](ds-plenoptic-logo), does not use a penalty function beyond {func}`~plenoptic.regularize.penalize_range` and thus allows us to more easily visualize the effect of the optimizers and statistical redundancies in the model. The last one, [](ds_star.md), uses a penalty that is more difficult to match while also matching the target statistics and thus uses a two-stage synthesis method. The remaining notebooks only differ in which penalty they use and are broken into groups based on the type of computations their penalty functions perform.
 
 Each of these notebooks is intentionally brief: most of the code is hidden, and we only explain the penalty. See [](datasaurus-index) for an overview of the datasaurus dozen dataset.
 
@@ -22,8 +22,8 @@ Each of these notebooks is intentionally brief: most of the code is hidden, and 
 :gutter: 1
 
 :::{grid-item-card}
-:link: ds_plenoptic_logo
-:link-type: doc
+:link: ds-plenoptic-logo
+:link-type: ref
 
 ```{eval-rst}
 .. plot:: scripts/datasaurus.py plenoptic_logo
@@ -221,8 +221,6 @@ Each of these notebooks is intentionally brief: most of the code is hidden, and 
 :::{toctree}
 :maxdepth: 1
 :hidden:
-
-ds_plenoptic_logo.md
 
 ds_circle.md
 ds_bullseye.md

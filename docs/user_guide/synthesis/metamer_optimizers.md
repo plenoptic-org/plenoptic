@@ -14,15 +14,22 @@ kernelspec:
 :::{admonition} Run this notebook yourself!
 :class: important
 
-Download the executed notebook: **{nb-download}`ds_plenoptic_logo.ipynb`**!
+Download the executed notebook: **{nb-download}`metamer_optimizers.ipynb`**!
 
-Run it in your browser: **{binder}`ds_plenoptic_logo.ipynb`**!
+Run it in your browser: **{binder}`metamer_optimizers.ipynb`**!
 
 :::
 
-# plenoptic logo
+(ds-plenoptic-logo)=
+# Visualizing the effect of optimizers and redundant statistics on metamer synthesis
 
-In this notebook, we will create a datasaurus metamer starting from the plenoptic logo. Unlike the other examples, we will not add a custom penalty to encourage a particular shape. Instead, we first show the metameric dataset that results when using the same set-up as the other notebooks in this series, and then demonstrate the effect of changing the optimizer and of the inclusion of the redundant statistics in the model. See [](datasaurus-index) for an overview of the datasaurus dozen dataset and these redundant statistics.
+This notebook uses a relatively simple example to visualize the effects of the following on metamer synthesis:
+- Choice of optimizer
+- The inclusion of redundant statistics in the model used for metamer synthesis.
+
+The example used here comes from the [Datasaurus dozen](datasaurus-index). Instead of an image, we are synthesizing a dataset consisting of 142 `(x, y)` points. Our model, whose output the synthesis procedure will match, measures eight simple descriptive statistics: the mean and standard deviation (for both x and y; $\bar{x},\bar{y}$ and $\sigma_x,\sigma_y$), correlation between x and y ($r$), linear regression line (with parameters $\beta_0,\beta_1$), and coefficient of determination ($R^2$) for that linear regression. See [](datasaurus-index) for an overview of the dataset and more details on the problem.
+
+In this notebook, we will create a datasaurus metamer starting from the plenoptic logo. We will then demonstrate the effect of changing the optimizer. Next, we look at the effects of removing the redundant statistics $\beta_0,\beta_1,R^2$ from the model (see [here](datasaurus-redundant-stats) for more details on how they're redundant). Finally, we look at the interaction of these two effects.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -196,7 +203,7 @@ class DatasaurusModel(torch.nn.Module):
         return axes
 ```
 
-For this example, the interesting thing is the initial shape of the dataset, the plenoptic logo. Setting the initial arrangement of dots is not something the original datasaurus dozen algorithm in {cite:alp}`Matejka2017-same-stats` was able to do! Our penalty is simply a constraint on the range, requiring all points to lie between 0 and 100. In the other notebooks in this series, this penalty will be combined with other functions to encourage different shapes.
+Compared to the other [datasaurus dozen examples](ds-examples), the interesting thing here is the initial shape of the dataset, the plenoptic logo: setting the initial arrangement of dots is not something the original datasaurus dozen algorithm in {cite:alp}`Matejka2017-same-stats` was able to do! Our penalty is simply a constraint on the range, requiring all points to lie between 0 and 100.
 
 (lbfgs-full-model)=
 
@@ -306,7 +313,7 @@ if os.environ.get("DATASAURUS_CHECK", False):
 
 ## Different optimizers
 
-In the above example, as in the other notebooks in this series, we use the {class}`torch.optim.LBFGS` optimizer. This [optimization algorithm](https://en.wikipedia.org/wiki/Limited-memory_BFGS) approximates the second derivative (the Hessian matrix) of the parameters in order to find the optimum solution, rather than just using the first derivative (the gradient). LBFGS thus requires more memory than gradient-only methods such as {class}`torch.optim.Adam`, and each iteration requires more time, but it often finds a better solution in fewer iterations, leading to a faster overall synthesis procedure.
+In the above example, as in the other [datasaurus example notebooks](ds-examples), we use the {class}`torch.optim.LBFGS` optimizer. This [optimization algorithm](https://en.wikipedia.org/wiki/Limited-memory_BFGS) approximates the second derivative (the Hessian matrix) of the parameters in order to find the optimum solution, rather than just using the first derivative (the gradient). LBFGS thus requires more memory than gradient-only methods such as {class}`torch.optim.Adam`, and each iteration requires more time, but it often finds a better solution in fewer iterations, leading to a faster overall synthesis procedure.
 
 :::{admonition} What optimizer should I use?
 :class: note
@@ -417,4 +424,6 @@ animate_datasaurus_metamer(met, model)
 
 With the custom loss and the same learning rate as before, we need fewer than 200 iterations to find a good solution, as opposed to the 6000 iterations we need with the standard {func}`~plenoptic.loss.mse` as the loss function.
 
-In this notebook, we've demonstrated the creation of a simple datasaurus metamer, and further investigating the effect of the optimizer and the model's redundant statistics. The rest of the notebooks in this series use the "standard setup" shown in the first example: {class}`~torch.optim.LBFGS` and the model including the redundant statistics. They focus on the definition of different penalty functions to intentionally shape the resulting metamer, instead of the unintended effects shown here. You are encouraged to try changing the problem in those notebooks, as done here, though note that you may end up in a situation where it is much harder to successfully find a model metamer!
+In this notebook, we've demonstrated the creation of a simple datasaurus metamer, and further investigating the effect of the optimizer and the model's redundant statistics.
+
+If you're interested in learning more about this dataset, check out [](datasaurus-index). The other notebooks linked there use the "standard setup" shown in the first example: {class}`~torch.optim.LBFGS` and the model including the redundant statistics. They focus on the definition of different penalty functions to intentionally shape the resulting metamer, instead of the unintended effects shown here. You are encouraged to try changing the problem in those notebooks, as done here, though note that you may end up in a situation where it is much harder to successfully find a model metamer!

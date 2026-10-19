@@ -30,7 +30,7 @@ These pages assume familiarity with the basics of using penalty function in meta
 
 :::
 
-This section demonstrates how penalty functions affect the model metamers plenoptic synthesizes using a simple but non-trivial (and fun) problem: recreating the datasets from the Datasaurus dozen. In one of these notebooks ([](ds_plenoptic_logo.md)), we also demonstrate how different optimizers and redundant statistics affect the synthesis process and resulting metamers. These examples additionally show how plenoptic can be used for a very different problem than most of our examples, which focus on human perception.
+This section demonstrates how penalty functions affect the model metamers plenoptic synthesizes using a simple but non-trivial (and fun) problem: recreating the datasets from the Datasaurus dozen. In one of these notebooks ([plenoptic-logo](ds-plenoptic-logo)), we also demonstrate how different optimizers and redundant statistics affect the synthesis process and resulting metamers. These examples additionally show how plenoptic can be used for a very different problem than most of our examples, which focus on human perception.
 
 In this notebook, we explain what the datasaurus dozen is, visualize the original datasets, implement a model to compute the relevant statistics, and demonstrate that these datasets are all metamers for that model. We will then demonstrate how plenoptic can be used to find new metameric datasets and visualize a new set synthesized by plenoptic's {class}`~plenoptic.Metamer` using the {attr}`~plenoptic.Metamer.penalty_function` argument to steer synthesis towards visually-interesting results.
 
@@ -379,7 +379,7 @@ Our `DatasaurusModel` contains redundant statistics: the slope and intercept of 
 - The intercept of that line [can be written as](https://en.wikipedia.org/wiki/Simple_linear_regression#Formulation_and_computation): $\beta_0=\bar{y}-\beta_1\bar{x}=\bar{y}-r(\frac{\sigma_y}{\sigma_x})\bar{x}$
 - For [linear least squares with an intercept and slope](https://en.wikipedia.org/wiki/Coefficient_of_determination#As_squared_correlation_coefficient), $R^2=r^2$, the squared Pearson correlation coefficient.
 
-Thus, matching $[\bar{x},\bar{y},\sigma_x,\sigma_y,r]$ also matches $[\beta_0,\beta_1,R^2]$. However, in practice, we find that including those redundant statistics in the model makes the optimization easier: it converges faster and results in a solution that better balances the metamer loss and penalty. See [](ds_plenoptic_logo.md) for a demonstration, and try it on other datasets for yourself! We have noticed that the reduced model finds good solutions for the simpler penalties such as [](ds_circle.md) and [](ds_away.md), and has difficulty for the more complex ones such as [](ds_slantup.md) and [](ds_vwidelines.md).
+Thus, matching $[\bar{x},\bar{y},\sigma_x,\sigma_y,r]$ also matches $[\beta_0,\beta_1,R^2]$. However, in practice, we find that including those redundant statistics in the model makes the optimization easier: it converges faster and results in a solution that better balances the metamer loss and penalty. See [plenoptic-logo](ds-plenoptic-logo) for a demonstration, and try it on other datasets for yourself! We have noticed that the reduced model finds good solutions for the simpler penalties such as [](ds_circle.md) and [](ds_away.md), and has difficulty for the more complex ones such as [](ds_slantup.md) and [](ds_vwidelines.md).
 
 See [](ps-mag-means) for a similar example and discussion for the {class}`~plenoptic.models.PortillaSimoncelli` model.
 
@@ -560,7 +560,7 @@ As in the above plots, the leftmost subplot corresponds to our target, the dino 
 
 - The plots are laid out in the same order as above, with the addition of three extra datasets (in the rightmost column).
 - The majority of these datasets start from randomly-distributed points between with x and y values between 0 and 1 and use {class}`torch.optim.LBFGS` to find a `DatasaurusModel` metamer for the dino dataset in 50 iterations with some custom penalty functions. The exceptions are:
-    - [](ds_plenoptic_logo.md), which starts from a points arranged into the plenoptic logo and uses no penalty function. The procedure outlined in {cite:alp}`Matejka2017-same-stats` does not allow for arbitrary initialization, and we wished to present an example that does so.
+    - [plenoptic-logo](ds-plenoptic-logo), which starts from a points arranged into the plenoptic logo and uses no penalty function. The procedure outlined in {cite:alp}`Matejka2017-same-stats` does not allow for arbitrary initialization, and we wished to present an example that does so.
     - [](ds_star.md) requires a more complex, two-stage synthesis procedure: first a star is synthesized with the same x and y mean as the dino dataset (no other statistics are considered). Then, the star constraint is removed and all of the `DatasaurusModel` statistics are matched.
 - We are not intending to exactly match the original datasaurus dozen, but to demonstrate how one can use plenoptic to create similar datasets.
 
