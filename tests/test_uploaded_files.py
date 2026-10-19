@@ -1098,11 +1098,11 @@ class TestTutorialNotebooks:
             print(np.random.get_state())
 
             mask = construct_mask(pyr(img), "vertical")
-            original_coeffs = spyr_power(pyr(img))
+            original_power = spyr_power(pyr(img))
 
             def penalty(x):
                 penalty = spyr_power(pyr(x))
-                penalty = mask * (penalty / original_coeffs)
+                penalty = mask * (penalty / original_power)
                 penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
                 return po.regularize.penalize_range(x) + penalty
 
@@ -1141,11 +1141,11 @@ class TestTutorialNotebooks:
             print(np.random.get_state())
 
             mask = construct_mask(pyr(img), "vertical")
-            original_coeffs = spyr_power(pyr(img))
+            original_power = spyr_power(pyr(img))
 
             def penalty(x):
                 penalty = spyr_power(pyr(x))
-                penalty = mask * (penalty / original_coeffs)
+                penalty = mask * (penalty / original_power)
                 penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
                 return po.regularize.penalize_range(x) + penalty
 
@@ -1182,11 +1182,11 @@ class TestTutorialNotebooks:
             print(np.random.get_state())
 
             mask = construct_mask(pyr(img), "low")
-            original_coeffs = spyr_power(pyr(img))
+            original_power = spyr_power(pyr(img))
 
             def penalty(x):
                 penalty = spyr_power(pyr(x))
-                penalty = mask * (penalty / original_coeffs)
+                penalty = mask * (penalty / original_power)
                 penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
                 return po.regularize.penalize_range(x) + penalty
 
@@ -1223,11 +1223,11 @@ class TestTutorialNotebooks:
             print(np.random.get_state())
 
             mask = construct_mask(pyr(img), "low")
-            original_coeffs = spyr_power(pyr(img))
+            original_power = spyr_power(pyr(img))
 
             def penalty(x):
                 penalty = spyr_power(pyr(x))
-                penalty = mask * (penalty / original_coeffs)
+                penalty = mask * (penalty / original_power)
                 penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
                 return po.regularize.penalize_range(x) + penalty
 

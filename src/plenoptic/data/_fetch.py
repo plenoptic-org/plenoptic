@@ -61,9 +61,9 @@ REGISTRY = {
     "ResNet50-layer4_macaque_metamer.pt": "c18a5278cb161248c47dba0d5ddbf581784b988f3222430879cf8e48bda03228",  # noqa: E501
     # Licensed CC-BY
     "caltech256_burger.jpg": "a67da35a97a17816a6be9a006a5105e46e179a4e36dc8d8cd5651ae463460785",  # noqa: E501
-    "spyr_power.pt": "c99bfc58368f9ed4a222dc02a37dd0a14f3a188e90f02d6413275ada0982fac3",  # noqa: E501
+    "spyr_power.pt": "3c1098fdd53fc9755ef21cfe2d3887a0ee012eb2d3c57bb736f0e747773c72a4",  # noqa: E501
     "spyr_mask.tar.gz": "668e0de9206e17dcac3c7b0bb3a3b66b0fd395494fb78c28948dcf46046cc52a",  # noqa: E501
-    "visual_diversity_penalty.tar.gz": "bb324475805fcbbbd03579d79ddf054c32d8640cabee75200baa1b8a34c10245",  # noqa: E501
+    "visual_diversity_penalty.tar.gz": "100c530f88cff327983fa68b7e70c44469966fc871eddf4dab248165eb18f22c",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"
@@ -112,9 +112,9 @@ REGISTRY_URLS = {
     "ResNet50-layer3_macaque_metamer.pt": OSF_TEMPLATE.format("bqt2s/?revision=7"),
     "ResNet50-layer4_macaque_metamer.pt": OSF_TEMPLATE.format("yvwjs/?revision=7"),
     "caltech256_burger.jpg": OSF_TEMPLATE.format("5dhac/?revision=1"),
-    "spyr_power.pt": OSF_TEMPLATE.format("z2nv4/?revision=1"),
+    "spyr_power.pt": OSF_TEMPLATE.format("z2nv4/?revision=2"),
     "spyr_mask.tar.gz": OSF_TEMPLATE.format("623he/?revision=1"),
-    "visual_diversity_penalty.tar.gz": OSF_TEMPLATE.format("j53pc/?revision=8"),
+    "visual_diversity_penalty.tar.gz": OSF_TEMPLATE.format("j53pc/?revision=9"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch_data`
