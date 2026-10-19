@@ -179,7 +179,7 @@ html_theme_options = {
         "api/**": [],
         "user_guide/penalties/datasaurus/ds_index": [],
     },
-    "show_nav_level": 1,
+    "show_nav_level": 2,
     "header_links_before_dropdown": 4,
     "navbar_align": "left",
     "navbar_start": ["navbar-logo", "version-switcher"],
