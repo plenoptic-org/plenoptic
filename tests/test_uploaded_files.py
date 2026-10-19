@@ -1007,7 +1007,7 @@ class TestTutorialNotebooks:
         @pytest.fixture(scope="class")
         @classmethod
         def pyr(cls, img):
-            pyr = po.process.SteerablePyramidFreq(img.shape[-2:])
+            pyr = po.process.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
             pyr.to(img.dtype).to(img.device)
             return pyr
 
