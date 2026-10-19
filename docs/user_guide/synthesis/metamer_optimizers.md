@@ -29,7 +29,7 @@ This notebook uses a relatively simple example to visualize the effects of the f
 
 The example used here comes from the [Datasaurus dozen](datasaurus-index). Instead of an image, we are synthesizing a dataset consisting of 142 `(x, y)` points. Our model, whose output the synthesis procedure will match, measures eight simple descriptive statistics: the mean and standard deviation (for both x and y; $\bar{x},\bar{y}$ and $\sigma_x,\sigma_y$), correlation between x and y ($r$), linear regression line (with parameters $\beta_0,\beta_1$), and coefficient of determination ($R^2$) for that linear regression. See [](datasaurus-index) for an overview of the dataset and more details on the problem.
 
-In this notebook, we will create a datasaurus metamer starting from the plenoptic logo. We will then demonstrate the effect of changing the optimizer. Next, we look at the effects of removing the redundant statistics $\beta_0,\beta_1,R^2$ from the model (see [here](datasaurus-redundant-stats) for more details on how they're redundant). Finally, we look at the interaction of these two effects.
+In this notebook, we will create a datasaurus metamer starting from the plenoptic logo. We will then demonstrate the effect of changing the optimizer. Next, we look at the effects of removing the redundant statistics $\beta_0,\beta_1,R^2$ from the model (see [here](datasaurus-redundant-stats) for more details on how they're redundant), with each of the optimizers examined before. Finally, we demonstrate how the use of a custom loss function can speed up successful synthesis.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
