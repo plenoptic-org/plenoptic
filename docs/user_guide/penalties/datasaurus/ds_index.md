@@ -395,8 +395,8 @@ paired_plot(data[idx], model, titles[idx], 2.5);
 
 from myst_nb import glue
 
-best_dataset = titles[1]
-worst_dataset = titles[-1]
+best_dataset = categories[1]
+worst_dataset = categories[-1]
 
 glue("best_dataset", best_dataset, display=False)
 glue("worst_dataset", worst_dataset, display=False)
