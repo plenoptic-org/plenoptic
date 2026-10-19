@@ -244,20 +244,22 @@ Note that we are not claiming that our choices here are "the best" in any way --
 ### Encourage different spectral energy
 
 ```{code-cell} ipython3
-pyr = po.process.SteerablePyramidFreq(img.shape[-2:])
+pyr = po.process.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
 pyr.to(img.dtype)
 
 
 def spyr_power(x):
     if not isinstance(x, dict):
         x = pyr(x)
-    power_list = torch.cat(
-        [v.abs().mean(dim=(-2, -1)).flatten(1, -1) for k, v in x.items()], 1
-    )
-    return power_list
+    # Compute the average power in each steerable pyramid band
+    power = [v.abs().mean(dim=(-2, -1)) for v in x.values()]
+    # concatenate into a single vector
+    power = torch.cat([p.flatten(1, -1) for p in power], 1)
+    return power
 
 
 def construct_mask(x, include):
+    # get dictionary of coefficients
     mask = pyr(x)
     if "low" in include:
         # zero out high frequencies, all orientations
@@ -270,21 +272,40 @@ def construct_mask(x, include):
                 mask[scale] = torch.zeros_like(mask[scale])
             else:
                 mask[scale][:, :, 1:] = 0
+    # compute to tensor and then a boolean
     return spyr_power(mask).to(bool)
 ```
 
 #### Different vertical power
 
 ```{code-cell} ipython3
+# Compute vertical mask
 mask = construct_mask(img, "vertical")
-original_coeffs = spyr_power(img)
+# Compute average power of original image, to normalize. this is useful because the
+# steerable pyramid coefficients have different magnitudes across scales and we want
+# each band to have approximately the same contribution
+original_power = spyr_power(img)
 
 
-def penalty(x):
+def steerpyr_penalty(x, mask, original_power):
+    # compute the average power in each band of our synthesized images
     penalty = spyr_power(x)
-    penalty = mask * (penalty / original_coeffs)
-    penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
+    # normalize that by the original power and use the mask to select only the bands we
+    # care about
+    penalty = mask * (penalty / original_power)
+    # Compute the average squared difference in power between the two synthesized images
+    penalty = torch.mean(penalty.diff(dim=0).pow(2))
+    # Convert this distance to a penalty by using torch.exp(-x), see how_to_penalty.md
+    # for discussion
+    penalty = torch.exp(-penalty)
+    # Add this to range penalty
     return po.regularize.penalize_range(x) + penalty
+
+
+# We don't want to compute the mask and original power in the penalty function itself,
+# since they are the same across all of synthesis
+def penalty(x):
+    return steerpyr_penalty(x, mask, original_power)
 ```
 
 ```{code-cell} ipython3
@@ -337,15 +358,13 @@ met.synthesize(1000, stop_criterion=1e-16)
 #### Different low frequency power
 
 ```{code-cell} ipython3
+# Compute low frequency mask
 mask = construct_mask(img, "low")
-original_coeffs = spyr_power(img)
 
 
+# This is the same as the vertical penalty, we're just using a different mask
 def penalty(x):
-    penalty = spyr_power(x)
-    penalty = mask * (penalty / original_coeffs)
-    penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
-    return po.regularize.penalize_range(x) + penalty
+    return steerpyr_penalty(x, mask, original_power)
 ```
 
 ```{code-cell} ipython3
