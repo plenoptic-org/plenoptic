@@ -304,7 +304,7 @@ def steerpyr_penalty(x, mask, original_power):
 
 # We don't want to compute the mask and original power in the penalty function itself,
 # since they are the same across all of synthesis
-def penalty(x):
+def vertical_penalty(x):
     return steerpyr_penalty(x, mask, original_power)
 ```
 
@@ -321,7 +321,7 @@ assert (saved_mask == mask).all()
 
 ```{code-cell} ipython3
 met = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.1
+    img, model, po.loss.l2_norm, penalty_function=vertical_penalty, penalty_lambda=0.1
 )
 met.load(cached_metamers / "vis_div_penalty_vertical.pt", map_location="cpu")
 create_metamer_figure(met);
@@ -339,7 +339,7 @@ met.synthesize(1000, stop_criterion=1e-16)
 
 ```{code-cell} ipython3
 met = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.1
+    img, model, po.loss.l2_norm, penalty_function=vertical_penalty, penalty_lambda=0.1
 )
 met.load(cached_metamers / "vis_div_penalty_vertical_curie.pt", map_location="cpu")
 create_metamer_figure(met);
@@ -363,7 +363,7 @@ mask = construct_mask(img, "low")
 
 
 # This is the same as the vertical penalty, we're just using a different mask
-def penalty(x):
+def low_penalty(x):
     return steerpyr_penalty(x, mask, original_power)
 ```
 
@@ -380,7 +380,7 @@ assert (saved_mask == mask).all()
 
 ```{code-cell} ipython3
 met = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.07
+    img, model, po.loss.l2_norm, penalty_function=low_penalty, penalty_lambda=0.07
 )
 met.load(cached_metamers / "vis_div_penalty_low.pt", map_location="cpu")
 create_metamer_figure(met);
@@ -398,7 +398,7 @@ met.synthesize(3000, stop_criterion=1e-16)
 
 ```{code-cell} ipython3
 met = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.05
+    img, model, po.loss.l2_norm, penalty_function=low_penalty, penalty_lambda=0.05
 )
 met.load(cached_metamers / "vis_div_penalty_low_curie.pt", map_location="cpu")
 create_metamer_figure(met);
@@ -436,13 +436,13 @@ def dists(x):
     return metric(x[:1], x[-1:])
 
 
-def penalty(x):
+def dists_penalty(x):
     return po.regularize.penalize_range(x) + torch.exp(-dists(x))
 ```
 
 ```{code-cell} ipython3
 met_penalty = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.5
+    img, model, po.loss.l2_norm, penalty_function=dists_penalty, penalty_lambda=0.5
 )
 met_penalty.load(cached_metamers / "vis_div_penalty_dists.pt", map_location="cpu")
 create_metamer_figure(met_penalty);
@@ -461,7 +461,7 @@ met_penalty = po.Metamer(
     img,
     lg_model,
     po.loss.l2_norm,
-    penalty_function=penalty,
+    penalty_function=dists_penalty,
     penalty_lambda=0.5,
 )
 met_penalty.setup(initial_image=met.metamer, optimizer_kwargs={"lr": 0.03})
@@ -471,7 +471,7 @@ met_penalty.synthesize(500, stop_criterion=1e-16)
 
 ```{code-cell} ipython3
 met_penalty = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=penalty, penalty_lambda=0.5
+    img, model, po.loss.l2_norm, penalty_function=dists_penalty, penalty_lambda=0.5
 )
 met_penalty.load(cached_metamers / "vis_div_penalty_dists_curie.pt", map_location="cpu")
 create_metamer_figure(met_penalty);
@@ -490,7 +490,7 @@ met_penalty = po.Metamer(
     img,
     lg_model,
     po.loss.l2_norm,
-    penalty_function=penalty,
+    penalty_function=dists_penalty,
     penalty_lambda=0.5,
 )
 met_penalty.setup(initial_image=met.metamer, optimizer_kwargs={"lr": 0.03})

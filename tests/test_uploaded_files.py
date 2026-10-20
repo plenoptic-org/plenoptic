@@ -1100,7 +1100,7 @@ class TestTutorialNotebooks:
             mask = construct_mask(pyr(img), "vertical")
             original_power = spyr_power(pyr(img))
 
-            def penalty(x):
+            def vertical_penalty(x):
                 penalty = spyr_power(pyr(x))
                 penalty = mask * (penalty / original_power)
                 penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
@@ -1110,7 +1110,7 @@ class TestTutorialNotebooks:
                 img,
                 lg_model,
                 po.loss.l2_norm,
-                penalty_function=penalty,
+                penalty_function=vertical_penalty,
                 penalty_lambda=0.1,
             )
             met.setup(initial_image=init_img)
@@ -1120,7 +1120,7 @@ class TestTutorialNotebooks:
                 img,
                 lg_model,
                 po.loss.l2_norm,
-                penalty_function=penalty,
+                penalty_function=vertical_penalty,
                 penalty_lambda=0.1,
             )
             met_up.load(
@@ -1143,7 +1143,7 @@ class TestTutorialNotebooks:
             mask = construct_mask(pyr(img), "vertical")
             original_power = spyr_power(pyr(img))
 
-            def penalty(x):
+            def vertical_penalty(x):
                 penalty = spyr_power(pyr(x))
                 penalty = mask * (penalty / original_power)
                 penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
@@ -1153,7 +1153,7 @@ class TestTutorialNotebooks:
                 img,
                 lg_model,
                 po.loss.l2_norm,
-                penalty_function=penalty,
+                penalty_function=vertical_penalty,
                 penalty_lambda=0.1,
             )
             met.setup(initial_image=init_img_curie)
@@ -1163,7 +1163,7 @@ class TestTutorialNotebooks:
                 img,
                 lg_model,
                 po.loss.l2_norm,
-                penalty_function=penalty,
+                penalty_function=vertical_penalty,
                 penalty_lambda=0.1,
             )
             met_up.load(
@@ -1184,7 +1184,7 @@ class TestTutorialNotebooks:
             mask = construct_mask(pyr(img), "low")
             original_power = spyr_power(pyr(img))
 
-            def penalty(x):
+            def low_penalty(x):
                 penalty = spyr_power(pyr(x))
                 penalty = mask * (penalty / original_power)
                 penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
@@ -1194,7 +1194,7 @@ class TestTutorialNotebooks:
                 img,
                 lg_model,
                 po.loss.l2_norm,
-                penalty_function=penalty,
+                penalty_function=low_penalty,
                 penalty_lambda=0.07,
             )
             met.setup(initial_image=init_img)
@@ -1204,7 +1204,7 @@ class TestTutorialNotebooks:
                 img,
                 lg_model,
                 po.loss.l2_norm,
-                penalty_function=penalty,
+                penalty_function=low_penalty,
                 penalty_lambda=0.07,
             )
             met_up.load(
@@ -1225,7 +1225,7 @@ class TestTutorialNotebooks:
             mask = construct_mask(pyr(img), "low")
             original_power = spyr_power(pyr(img))
 
-            def penalty(x):
+            def low_penalty(x):
                 penalty = spyr_power(pyr(x))
                 penalty = mask * (penalty / original_power)
                 penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
@@ -1235,7 +1235,7 @@ class TestTutorialNotebooks:
                 img,
                 lg_model,
                 po.loss.l2_norm,
-                penalty_function=penalty,
+                penalty_function=low_penalty,
                 penalty_lambda=0.05,
             )
             met.setup(initial_image=init_img_curie)
@@ -1245,7 +1245,7 @@ class TestTutorialNotebooks:
                 img,
                 lg_model,
                 po.loss.l2_norm,
-                penalty_function=penalty,
+                penalty_function=low_penalty,
                 penalty_lambda=0.05,
             )
             met_up.load(
@@ -1264,7 +1264,7 @@ class TestTutorialNotebooks:
             )
             print(np.random.get_state())
 
-            def penalty(x):
+            def dists_penalty(x):
                 penalty = dists(x[:1], x[1:])
                 return po.regularize.penalize_range(x) + torch.exp(-penalty)
 
@@ -1276,7 +1276,7 @@ class TestTutorialNotebooks:
                 img,
                 lg_model,
                 po.loss.l2_norm,
-                penalty_function=penalty,
+                penalty_function=dists_penalty,
                 penalty_lambda=0.5,
             )
             met_penalty.setup(initial_image=met.metamer, optimizer_kwargs={"lr": 0.03})
@@ -1286,7 +1286,7 @@ class TestTutorialNotebooks:
                 img,
                 lg_model,
                 po.loss.l2_norm,
-                penalty_function=penalty,
+                penalty_function=dists_penalty,
                 penalty_lambda=0.5,
             )
             met_up.load(
@@ -1307,7 +1307,7 @@ class TestTutorialNotebooks:
             )
             print(np.random.get_state())
 
-            def penalty(x):
+            def dists_penalty(x):
                 penalty = dists(x[:1], x[1:])
                 return po.regularize.penalize_range(x) + torch.exp(-penalty)
 
@@ -1319,7 +1319,7 @@ class TestTutorialNotebooks:
                 img,
                 lg_model,
                 po.loss.l2_norm,
-                penalty_function=penalty,
+                penalty_function=dists_penalty,
                 penalty_lambda=0.5,
             )
             met_penalty.setup(initial_image=met.metamer, optimizer_kwargs={"lr": 0.03})
@@ -1329,7 +1329,7 @@ class TestTutorialNotebooks:
                 img,
                 lg_model,
                 po.loss.l2_norm,
-                penalty_function=penalty,
+                penalty_function=dists_penalty,
                 penalty_lambda=0.5,
             )
             met_up.load(
