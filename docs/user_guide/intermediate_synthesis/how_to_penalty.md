@@ -193,6 +193,7 @@ The slope / derivative of the penalty function tells us where its gradient will 
 
 Now that we understand its behavior, we can pass this `custom_penalty` to the {class}`~plenoptic.Metamer` class at initialization and call the {meth}`~plenoptic.Metamer.synthesize` method in the same manner as before:
 
+(multi-stage-penalty)=
 :::{admonition} Multi-stage synthesis
 :class: dropdown note
 

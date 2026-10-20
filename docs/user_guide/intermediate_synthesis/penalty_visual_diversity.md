@@ -23,16 +23,7 @@ Run it in your browser: **{binder}`penalty_visual_diversity.ipynb`**!
 (penalty-visual-diversity)=
 # Using penalties to incentivize visual diversity
 
-[](how-to-penalty) showed the basics of working with custom penalty functions, but their flexibility allows for us to bias stimulus synthesis in a wide variety of different ways. In this notebook, we will show how to use the {class}`~plenoptic.process.SteerablePyramidFreq` to increase perceptual diversity among model metamers for the {class}`~plenoptic.models.LuminanceGainControl` model.
-
-:::{admonition} pyiqa
-:class: attention
-
-The last section of this notebook uses an additional package, [pyiqa](https://iqa-pytorch.readthedocs.io/), for their pytorch implementation of the DISTS image quality metric ([original publication](https://www.cns.nyu.edu/pub/lcv/ding20a-preprint.pdf)). Install it in your environment in order to run the full notebook successfully.
-
-You'll still be able to run the first several sections without it.
-
-:::
+[](how-to-penalty) showed the basics of working with custom penalty functions, but their flexibility allows for us to bias stimulus synthesis in a wide variety of different ways. In this notebook, we will show how they can be used to increase perceptual diversity among metamers for the {class}`~plenoptic.models.LuminanceGainControl` model. We will also demonstrate how changing the initial image used for synthesis affects the resulting metamers, and how these two effects interact.
 
 ```{code-cell} ipython3
 import matplotlib as mpl
@@ -61,28 +52,6 @@ If you wish to exactly reproduce our results, you will also need to do the follo
 
 See [](reproduce-best-practices) for more details.
 :::
-
-- for experiments, we often need to generate many metamers, and it is typical to generate multiple metamers with the same model+target for different repeats
-- often, synthesis initialized with different samples of noise (Feather, Portilla, Wallis, Freeman), often Gaussian uniform / white noise (Gatys just says white noise but torch style transfer tutorial uses randn (also checked their code), Broderick uses rand)
-- and so these repeats use independent samples of noise
-- here, we use LG model and demonstrate that this procedure leads to two metamers that are perceptually very similar (as pointed out by Wallis, Broderick)
-- one way of addressing this (as used by Broderick) is to use different initializations, which does succeed in this
-- here, present another way of doing so: using a custom penalty function to incentive the two metamers to be as different as possible, for some measure of "different"
-    - this can be combined with different initializations, as we show
-- we present two examples:
-    - encourage their spatial frequency content to be as different as possible in specific steerpyr bands
-    - use an image quality metric to be make them as different as possible
-- try other bands! try other metrics!
-- in both cases, transforming distance to penalty by using exp(-x), as in original example
-- when initializing with Curie, that metamer is generally darker, we often see a high-frequency ghost of her face, and we don't have the high frequencies present in the noise-initialized metamer
-- vertical penalty organizes the high frequencies in one of the metamers into vertical bands, whereas the other one looks a lot like the un-penalized metamer
-- low penalty makes one super dark while the other is much brighter, has these white splotches, and looks to have a 2 cycles / image sinusoid subtly overlaid
-    - only one where Curie-init'ed metamer isn't darker, though that may(?) change with different white noise initializations?
-- DISTS arranges noise into a glyph like pattern (may have to zoom into see), while other stays more or less untouched
-    - DISTS requires two-stage synthesis, more complex. only show how the second step is initialized here, original is like the un-penalized synthesis, see dropdown for details
-
-- What adding penalty does is adds an additional constraint and so shrink the "good solution set" to somewhere else
-- initializatnoi point is "start in different space", penalty is "shrink acceptable solution set"
 
 The following hidden cells defines a function we'll use to visualize our metamer synthesis results, expand it for more details.
 
@@ -128,7 +97,7 @@ po.remove_grad(model)
 model.to(torch.float64)
 ```
 
-Before we start writing custom penalties, let's see what the default behavior is. By default, {class}`~plenoptic.Metamer` uses {func}`plenoptic.regularize.penalize_range` as the penalty function (to keep the metamer image's pixel values between 0 and 1). This function does nothing to encourage multiple metamers to be different (or similar) to each other, so let's see how it behaves!
+Before we start writing custom penalties, let's see what the default behavior is. By default, {class}`~plenoptic.Metamer` uses {func}`plenoptic.regularize.penalize_range` as the penalty function (to keep the metamer image's pixel values between 0 and 1). This function does nothing to encourage multiple metamers to be different (or similar) to each other, so let's see how synthesis behaves when we use it!
 
 Below, we create our target image, `img`. We start with a picture of Einstein and downsample it by a factor of 2 (this makes the high-frequency patterns generated in much of the following examples more obvious). We then repeat it along the batch dimension. Because {class}`~plenoptic.models.LuminanceGainControl` (like the other models in plenoptic) operates on each batch dimension independently, this allows us to synthesize two independent metamer images simultaneously.
 
@@ -237,7 +206,7 @@ While this setting of the initialization to find visually different metamers wor
 
 ## Using {attr}`~plenoptic.Metamer.penalty_function` to find visually distinct metamers
 
-In this section, we will create custom penalty functions to encourage our two simultaneously-synthesized metamers to be more perceptually different from each other. The question is "what do we mean by 'perceptually different'?" Here, we'll show three examples from two different types of penalties. We will first show that we can use {class}`~plenoptic.process.SteerablePyramidFreq` to compute the average spectral energy in a range of orientation and spatial frequency bands and use these numbers to encourage the spatial frequency content to be different. We'll do this first for vertical orientations across all frequencies, and then for low frequencies across all orientations. Finally, we'll show that we can set up a penalty that maximizes an image quality metric, [DISTS](https://www.cns.nyu.edu/pub/lcv/ding20a-preprint.pdf), to encourage the two metamers to be as different as possible according to that metric. For each of these examples, we'll demonstrate the results with the default and Marie Curie initializations, as above, so we can see how the initialization interacts with the penalty function.
+In this section, we will create custom penalty functions to encourage our two simultaneously-synthesized metamers to be more perceptually different from each other. The question is "what do we mean by 'perceptually different'?" Here, we'll show three examples from two different types of penalties. We will first show that we can use {class}`~plenoptic.process.SteerablePyramidFreq` to compute the average spectral energy across orientation and spatial frequency bands and use these numbers to encourage the spatial frequency content to be different in some subset of the bands. We'll do this first for vertical orientations across all frequencies, and then for low frequencies across all orientations. Finally, we'll show that we can set up a penalty that maximizes an image quality metric, DISTS ({cite:alp}`Ding2020-image-qualit-asses`), to encourage the two metamers to be as different as possible according to that metric. For each of these examples, we'll demonstrate the results with the default and Marie Curie initializations, as above, so we can see how the initialization interacts with the penalty function.
 
 Note that we are not claiming that our choices here are "the best" in any way --- you are encouraged to try tweaking the spectral energy penalty, try out different image quality metrics, or develop your own completely novel penalties! If you find something interesting, please [let us know!](https://github.com/plenoptic-org/plenoptic/discussions/new?category=show-and-tell)
 
@@ -287,7 +256,7 @@ def construct_mask(x, include):
 Now let's use the above functions to define a penalty to encourage the vertically-oriented energy to be different between the two images. In the following:
 - we compute a mask to select only the vertical bands
 - we compute the squared difference in the mask-selected bands across the two images
-- we convert this difference (which we want to maximize) to a penalty (which we want to minimize) by passing this value to `torch.exp(-x)` (as covered in [Designing a well-behaved penalty function](penalty-well-behaved))
+- we convert this difference (a non-negative value we want to maximize) to a penalty (a value bounded between 0 and 1 that we want to minimize) by passing this value to `torch.exp(-x)` (as explained in [Designing a well-behaved penalty function](penalty-well-behaved))
 - we combine this penalty with the default range penalty
 
 ```{code-cell} ipython3
@@ -350,7 +319,11 @@ Okay, let's see what the effect of using this penalty is on the synthesized meta
 
 ```{code-cell} ipython3
 met = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=vertical_penalty, penalty_lambda=0.1
+    img,
+    model,
+    po.loss.l2_norm,
+    penalty_function=vertical_penalty,
+    penalty_lambda=0.1,
 )
 met.load(cached_metamers / "vis_div_penalty_vertical.pt", map_location="cpu")
 create_metamer_figure(met);
@@ -372,7 +345,11 @@ We can do the exact same thing while initializing with the image of Marie Curie:
 
 ```{code-cell} ipython3
 met = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=vertical_penalty, penalty_lambda=0.1
+    img,
+    model,
+    po.loss.l2_norm,
+    penalty_function=vertical_penalty,
+    penalty_lambda=0.1,
 )
 met.load(cached_metamers / "vis_div_penalty_vertical_curie.pt", map_location="cpu")
 create_metamer_figure(met);
@@ -392,12 +369,14 @@ Here, the two effects we've seen so far seem to both be present. The first metam
 
 #### Different low frequency energy
 
+We can do the same thing using a different mask which selects the low frequency bands across all orientations:
+
 ```{code-cell} ipython3
 # Compute low frequency mask
 mask = construct_mask(img, "low")
 
 
-# This is the same as the vertical penalty, we're just using a different mask
+# This is the same as vertical_penalty, we're just using a different mask
 def low_penalty(x):
     return steerpyr_penalty(x, mask, target_energy)
 ```
@@ -413,9 +392,15 @@ saved_mask = torch.load(
 assert (saved_mask == mask).all()
 ```
 
+Let's use this penalty to synthesize some metamers. For this synthesis, in order to successfully find metamers, we need to lower {attr}`~plenoptic.Metamer.penalty_lambda` slightly and run synthesis for a longer time:
+
 ```{code-cell} ipython3
 met = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=low_penalty, penalty_lambda=0.07
+    img,
+    model,
+    po.loss.l2_norm,
+    penalty_function=low_penalty,
+    penalty_lambda=0.07,
 )
 met.load(cached_metamers / "vis_div_penalty_low.pt", map_location="cpu")
 create_metamer_figure(met);
@@ -431,9 +416,17 @@ met.synthesize(3000, stop_criterion=1e-16)
 ```
 :::
 
+The above figure has the same layout as before, and we again see that the images in the bottom row are identical, so those in the top are all model metamers. Unlike the previous examples we've seen, neither of the resulting metamers look like those that result from the default settings. Instead, the results here are exploiting the fact that {class}`~plenoptic.models.LuminanceGainControl` is insensitive to the absolute pixel values and so the two metamers have very different apparent brightness levels (this information is captured in the residual lowpass of {class}`~plenoptic.process.SteerablePyramidFreq`, which is included in the mask used for this penalty). The first, brighter metamer also appears to have a faint two cycles per image horizontal grating on top of it (you may have to squint and move away from your screen to see it), though this is much less salient than the brightness difference.
+
+We can again use this same penalty when initializing metamer synthesis with the noise / Marie Curie pair. Successful metamer synthesis requires lowering {attr}`~plenoptic.Metamer.penalty_lambda` still further:
+
 ```{code-cell} ipython3
 met = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=low_penalty, penalty_lambda=0.05
+    img,
+    model,
+    po.loss.l2_norm,
+    penalty_function=low_penalty,
+    penalty_lambda=0.05,
 )
 met.load(cached_metamers / "vis_div_penalty_low_curie.pt", map_location="cpu")
 create_metamer_figure(met);
@@ -449,25 +442,49 @@ met.synthesize(3000, stop_criterion=1e-16)
 ```
 :::
 
+The resulting metamer pair looks similar to the noise-initialized one with the same penalty. However, comparing the darker image to the one from the earlier pair highlights an interesting feature: this synthesis setup still results in metamers whose high frequencies are largely inherited from their initialization, unlike those resulting from `vertical_penalty`: the darker metamer in this pair still appears to have the faint outline of Marie Curie's face, as we've seen in the other Curie-initialized metamers in this notebook, while the darker metamer in the noise-initialized pair has the salt-and-pepper high frequency pattern seen in the other noise-initialized metamers.
+
+In this example, since neither the {class}`~plenoptic.models.LuminanceGainControl` model nor `low_penalty` are sensitive to high frequencies, the patterns in those frequencies are still largely due to their initialization.
 
 ### Maximize an image quality metric
 
 :::{admonition} pyiqa
 :class: attention
 
-`pyiqa` must be installed in your environment to run the rest of this notebook.
+[pyiqa](https://iqa-pytorch.readthedocs.io/en/latest/) must be installed in your environment to run the rest of this notebook: run `pip install pyiqa` (or the equivalent) in your virtual environment.
 
 :::
+
+In the previous section, we created our penalty by looking at the model metamers and reasoning through visual properties we thought could be used to separate them.
+
+An alternative approach is to look for existing functions which take in pairs of images and return a measure of their perceptual distance, i.e., how different humans consider them to be. One source for these functions is the field of Image Quality Assessment (IQA), which (among other things) develops [Full-Reference methods](https://en.wikipedia.org/wiki/Image_quality#Objective_methods) that meet this description.
+
+Several of the metrics included in plenoptic's {ref}`metrics-api` module (e.g., {func}`plenoptic.metric.ssim`) come from this field, but we can also make use of the separate package [pyiqa](https://iqa-pytorch.readthedocs.io/en/latest/), which contains plenoptic-compatible pytorch implementations of a variety of IQA methods!
+
+:::{warning}
+
+IQA is largely concerned with whether image capturing, processing, storage, etc. methods (such as compression) leads to perceptually noticeable distortions in the resulting image. Their methods have thus largely been developed with the assumption that one of the two images being compared is a "clean" / unaltered image and the other is some distorted version of the clean image.
+
+There is thus a chance that such functions will lead to nonsensical results on two completely unrelated images (as is common in plenoptic), so be careful!
+
+:::
+
+Here, we'll make use of DISTS ({cite:alp}`Ding2020-image-qualit-asses`), a full-reference IQA model which combines aspect of texture and structure similarity. We grab the metric object from pyiqa and then create a penalty function making use of it.
 
 ```{code-cell} ipython3
 import pyiqa
 
+# after this call, metric is a torch Module (similar to plenoptic's models), and so we
+# treat it as such. See pyiqa documentation for more details.
 metric = pyiqa.create_metric("dists", device=img.device, as_loss=True)
 po.remove_grad(metric)
 metric.to(img.dtype)
 
 
 def dists(x):
+    # the metric object accepts two 4d tensors; this is equivalent to
+    # metric(x[0].unsqueeze(0), x[-1].unsqueeze(0)), to ensure that we convert one
+    # tensor of shape (2, c, h, w) to two tensors of shape (1, c, h, w)
     return metric(x[:1], x[-1:])
 
 
@@ -475,9 +492,17 @@ def dists_penalty(x):
     return po.regularize.penalize_range(x) + torch.exp(-dists(x))
 ```
 
+Note that, as with our earlier penalty, we use the same `torch.exp(-x)` trick to convert a distance (a non-negative value we wish to maximize) into a penalty (a value bounded between 0 and 1 that we wish to minimize).
+
+This metamer synthesis is slightly more difficult and requires a [multi-stage synthesis](multi-stage-penalty), where we first synthesize the metamer pair without a custom penalty and then use that as a starting point for a second synthesis using `dists_penalty` (expand the dropdown below to see this all written out).
+
 ```{code-cell} ipython3
 met_penalty = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=dists_penalty, penalty_lambda=0.5
+    img,
+    model,
+    po.loss.l2_norm,
+    penalty_function=dists_penalty,
+    penalty_lambda=0.5,
 )
 met_penalty.load(cached_metamers / "vis_div_penalty_dists.pt", map_location="cpu")
 create_metamer_figure(met_penalty);
@@ -504,9 +529,17 @@ met_penalty.synthesize(500, stop_criterion=1e-16)
 ```
 :::
 
+The above figure has the same layout as before, and we again see that the images in the bottom row are identical, so those in the top are all model metamers. The first metamer looks the same as the ones resulting from default behavior, but the high frequencies in the second metamer have been organized into some sort of pattern, with longer straight and curved contours visible.
+
+We can use this same penalty when we initialize metamer synthesis from the noise/Curie-initialized pair, which uses the same multi-stage procedure as the noise-initialized pair:
+
 ```{code-cell} ipython3
 met_penalty = po.Metamer(
-    img, model, po.loss.l2_norm, penalty_function=dists_penalty, penalty_lambda=0.5
+    img,
+    model,
+    po.loss.l2_norm,
+    penalty_function=dists_penalty,
+    penalty_lambda=0.5,
 )
 met_penalty.load(cached_metamers / "vis_div_penalty_dists_curie.pt", map_location="cpu")
 create_metamer_figure(met_penalty);
@@ -532,3 +565,9 @@ met_penalty.setup(initial_image=met.metamer, optimizer_kwargs={"lr": 0.03})
 met_penalty.synthesize(500, stop_criterion=1e-16)
 ```
 :::
+
+Initialization has a much smaller effect on the appearance of this metamer pair than in our previous examples: the second metamer appears to be darker than in the noise-initialized pair, and if I refer back to original image of Marie Curie's face, I can convince myself that some of the curved contours around Einstein's face are the result of this initialization, but the effect is much less obvious.
+
+## Conclusion
+
+In this notebook, we've walked through how we can write custom penalty functions or make use of existing IQA methods in order to incentive pairs of metamers to be more visually distinctive from each other. We have also shown how a similar goal can be achieved by changing synthesis initialization, and how these two factors interact.
