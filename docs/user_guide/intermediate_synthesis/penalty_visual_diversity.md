@@ -175,9 +175,9 @@ print(f"MSE between Einstein image and noise: {img_diff}")
 Okay, with all that out of the way, let's initialize our {class}`~plenoptic.Metamer` object using our target image and model. We will also set the loss function to {func}`plenoptic.loss.l2_norm` (rather than the default, {func}`plenoptic.loss.mse`), which improves the quality of our resulting metamer. We then load in and visualize the results of this synthesis:
 
 ```{code-cell} ipython3
-met = po.Metamer(img, model, po.loss.l2_norm)
-met.load(cached_metamers / "vis_div_penalty_basic.pt", map_location="cpu")
-create_metamer_figure(met);
+met_basic = po.Metamer(img, model, po.loss.l2_norm)
+met_basic.load(cached_metamers / "vis_div_penalty_basic.pt", map_location="cpu")
+create_metamer_figure(met_basic);
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -185,8 +185,8 @@ create_metamer_figure(met);
 
 <!-- TestVisualDiversityPenalty.test_basic -->
 ```{code-block} python
-met.setup(initial_image=init_img)
-met.synthesize(1000, stop_criterion=1e-16)
+met_basic.setup(initial_image=init_img)
+met_basic.synthesize(1000, stop_criterion=1e-16)
 ```
 :::
 
@@ -195,7 +195,7 @@ In the above figure, we can see the target image in the first column, followed b
 However, those two metamers look really perceptually similar! Again, they're not actually that similar on a pixel-by-pixel basis, as we can clarify by computing the mean-squared error between them:
 
 ```{code-cell} ipython3
-met_diff = po.loss.mse(met.metamer[0], met.metamer[1])
+met_diff = po.loss.mse(met_basic.metamer[0], met_basic.metamer[1])
 print(f"MSE between metamers: {met_diff}")
 ```
 
@@ -216,9 +216,9 @@ po.plot.imshow(init_img_curie, zoom=2);
 By changing where metamer synthesis starts, we affect where it ends up. That's because metamer synthesis is a high-dimensional non-convex optimization problem, the solutions of which are often dependent upon their initialization. There is (likely) a huge set of potential metamers for any given model, and so we're hoping that by choosing two starting points which appear very different, that our final metamers will also appear more distinct. As above, we initialize the {class}`~plenoptic.Metamer` object with the same target image, model, and loss, and then load and visualize our cached results:
 
 ```{code-cell} ipython3
-met = po.Metamer(img, model, po.loss.l2_norm)
-met.load(cached_metamers / "vis_div_penalty_basic_curie.pt", map_location="cpu")
-create_metamer_figure(met);
+met_curie = po.Metamer(img, model, po.loss.l2_norm)
+met_curie.load(cached_metamers / "vis_div_penalty_basic_curie.pt", map_location="cpu")
+create_metamer_figure(met_curie);
 ```
 
 :::{admonition} How to run this synthesis manually
@@ -226,8 +226,8 @@ create_metamer_figure(met);
 
 <!-- TestVisualDiversityPenalty.test_basic_curie -->
 ```{code-block} python
-met.setup(initial_image=init_img_curie)
-met.synthesize(1000, stop_criterion=1e-16)
+met_curie.setup(initial_image=init_img_curie)
+met_curie.synthesize(1000, stop_criterion=1e-16)
 ```
 :::
 
@@ -235,27 +235,33 @@ The figure above has the same layout as before. As before, we can see that all t
 
 While this setting of the initialization to find visually different metamers works, let's see what we can accomplish if we choose the {attr}`~plenoptic.Metamer.penalty_function` to find more visually distinct metamers. Doing so is akin to shrinking the space of possible metamer images, and can be done in tandem with setting the initial image.
 
-## Using penalty_function to find visually distinct metamers
+## Using {attr}`~plenoptic.Metamer.penalty_function` to find visually distinct metamers
 
 In this section, we will create custom penalty functions to encourage our two simultaneously-synthesized metamers to be more perceptually different from each other. The question is "what do we mean by 'perceptually different'?" Here, we'll show three examples from two different types of penalties. We will first show that we can use {class}`~plenoptic.process.SteerablePyramidFreq` to compute the average spectral energy in a range of orientation and spatial frequency bands and use these numbers to encourage the spatial frequency content to be different. We'll do this first for vertical orientations across all frequencies, and then for low frequencies across all orientations. Finally, we'll show that we can set up a penalty that maximizes an image quality metric, [DISTS](https://www.cns.nyu.edu/pub/lcv/ding20a-preprint.pdf), to encourage the two metamers to be as different as possible according to that metric. For each of these examples, we'll demonstrate the results with the default and Marie Curie initializations, as above, so we can see how the initialization interacts with the penalty function.
 
 Note that we are not claiming that our choices here are "the best" in any way --- you are encouraged to try tweaking the spectral energy penalty, try out different image quality metrics, or develop your own completely novel penalties! If you find something interesting, please [let us know!](https://github.com/plenoptic-org/plenoptic/discussions/new?category=show-and-tell)
 
-### Encourage different spectral energy
+### Encourage different energy spectral density
+
+Looking at the metamers synthesized from the white noise initialization at the top of this notebook, we can see that both are dominated by high frequencies present in the initial images. This suggests that one effective way to make them appear different from each other would be to encourage their [energy spectral density](https://en.wikipedia.org/wiki/Spectral_density#Energy_spectral_density) to differ, so that their spatial frequency content is as different as possible.
+
+To do so, we will write two helper functions:
+- `spyr_energy` uses {class}`~plenoptic.process.SteerablePyramidFreq` to compute the average energy in different spatial frequency / orientation bands, represented as a tensor of shape `(batch, bands)`.
+- `construct_mask` returns a boolean mask tensor of the same shape; its `True` values define the bands we will use to compute the penalty value. It accepts a string determining what mask to use, and currently only accepts `"low"` or `"vertical"`, the two examples shown here. Feel free to modify it to accept other values!
 
 ```{code-cell} ipython3
 pyr = po.process.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
 pyr.to(img.dtype)
 
 
-def spyr_power(x):
+def spyr_energy(x):
     if not isinstance(x, dict):
         x = pyr(x)
-    # Compute the average power in each steerable pyramid band
-    power = [v.abs().mean(dim=(-2, -1)) for v in x.values()]
+    # Compute the average energy in each steerable pyramid band
+    energy = [v.abs().mean(dim=(-2, -1)) for v in x.values()]
     # concatenate into a single vector
-    power = torch.cat([p.flatten(1, -1) for p in power], 1)
-    return power
+    energy = torch.cat([p.flatten(1, -1) for p in energy], 1)
+    return energy
 
 
 def construct_mask(x, include):
@@ -273,40 +279,61 @@ def construct_mask(x, include):
             else:
                 mask[scale][:, :, 1:] = 0
     # compute to tensor and then a boolean
-    return spyr_power(mask).to(bool)
+    return spyr_energy(mask).to(bool)
 ```
 
-#### Different vertical power
+#### Different vertical energy
+
+Now let's use the above functions to define a penalty to encourage the vertically-oriented energy to be different between the two images. In the following:
+- we compute a mask to select only the vertical bands
+- we compute the squared difference in the mask-selected bands across the two images
+- we convert this difference (which we want to maximize) to a penalty (which we want to minimize) by passing this value to `torch.exp(-x)` (as covered in [Designing a well-behaved penalty function](penalty-well-behaved))
+- we combine this penalty with the default range penalty
 
 ```{code-cell} ipython3
 # Compute vertical mask
 mask = construct_mask(img, "vertical")
-# Compute average power of original image, to normalize. this is useful because the
+# Compute average energy of target image, to normalize. this is useful because the
 # steerable pyramid coefficients have different magnitudes across scales and we want
 # each band to have approximately the same contribution
-original_power = spyr_power(img)
+target_energy = spyr_energy(img)
 
 
-def steerpyr_penalty(x, mask, original_power):
-    # compute the average power in each band of our synthesized images
-    penalty = spyr_power(x)
-    # normalize that by the original power and use the mask to select only the bands we
+def steerpyr_penalty(x, mask, target_energy):
+    # compute the average energy in each band of our synthesized images
+    penalty = spyr_energy(x)
+    # normalize that by the target energy and use the mask to select only the bands we
     # care about
-    penalty = mask * (penalty / original_power)
-    # Compute the average squared difference in power between the two synthesized images
+    penalty = mask * (penalty / target_energy)
+    # Compute the average squared difference in energy between the two synthesized
+    # images
     penalty = torch.mean(penalty.diff(dim=0).pow(2))
-    # Convert this distance to a penalty by using torch.exp(-x), see how_to_penalty.md
-    # for discussion
+    # Convert this distance to a penalty by using torch.exp(-x)
     penalty = torch.exp(-penalty)
     # Add this to range penalty
     return po.regularize.penalize_range(x) + penalty
 
 
-# We don't want to compute the mask and original power in the penalty function itself,
+# We don't want to compute the mask and target energy in the penalty function itself,
 # since they are the same across all of synthesis
 def vertical_penalty(x):
-    return steerpyr_penalty(x, mask, original_power)
+    return steerpyr_penalty(x, mask, target_energy)
 ```
+
+There are a couple of tricks in the above code to note:
+- We normalize the metamers' spectral energy by that of the target image (`target_energy`). This is because the magnitude of the steerable pyramid coefficients vary across spatial frequency bands, and we want each to have roughly the same impact on the penalty.
+- We care about efficiency, so we compute `mask` and `target_energy` in advance. That way, when `vertical_penalty` is called on each iteration of synthesis, it needs to compute as little as possible.
+
+We now have a penalty function which accepts a single tensor and returns a scalar. We can see that it is encouraging proper behavior by comparing its values on the two sets of metamers we have already computed:
+
+```{code-cell} ipython3
+basic_penalty = vertical_penalty(met_basic.metamer).item()
+print(f"Penalty on noise-init metamer pair: {basic_penalty}")
+curie_penalty = vertical_penalty(met_curie.metamer).item()
+print(f"Penalty on noise/curie-init metamer pair: {curie_penalty}")
+```
+
+As we can see, it returns a higher value for the pair whose images were both initialized by noise than the other. While two images initialized with noise will have very different mean-squared error, they will have roughly comparable spectral energy, which is quite different from that of natural images --- that's the rationale for this penalty!
 
 ```{code-cell} ipython3
 :tags: [remove-cell]
@@ -318,6 +345,8 @@ saved_mask = torch.load(
 )
 assert (saved_mask == mask).all()
 ```
+
+Okay, let's see what the effect of using this penalty is on the synthesized metamers. The call to {meth}`~plenoptic.Metamer.setup` and {meth}`~plenoptic.Metamer.synthesize` are the same as in our default behavior, the only difference is that we set {attr}`~plenoptic.Metamer.penalty_function` and {attr}`~plenoptic.Metamer.penalty_lambda` in the initialization:
 
 ```{code-cell} ipython3
 met = po.Metamer(
@@ -337,6 +366,10 @@ met.synthesize(1000, stop_criterion=1e-16)
 ```
 :::
 
+The figure above has the same layout as before, and we can see that all three images in the bottom row are identical, and thus the three images in the top row are all metamers. These two metamers look quite different, both from each other and from the previous ones we've synthesized. Here, the high frequencies in the second metamer appear more pronounced than in the first, and are concentrated vertically, while the high frequencies appear slightly muted in the first metamer.
+
+We can do the exact same thing while initializing with the image of Marie Curie:
+
 ```{code-cell} ipython3
 met = po.Metamer(
     img, model, po.loss.l2_norm, penalty_function=vertical_penalty, penalty_lambda=0.1
@@ -355,7 +388,9 @@ met.synthesize(1000, stop_criterion=1e-16)
 ```
 :::
 
-#### Different low frequency power
+Here, the two effects we've seen so far seem to both be present. The first metamer looks like the "vertical" metamer initializing with noise, while the second looks like the Curie-initialized metamer with the default penalty. As mentioned above, this Curie-intialized metamer already has fairly distinct spectral energy from the noise-initialized one, and exaggerating the vertical power in the first metamer has increased this effect.
+
+#### Different low frequency energy
 
 ```{code-cell} ipython3
 # Compute low frequency mask
@@ -364,7 +399,7 @@ mask = construct_mask(img, "low")
 
 # This is the same as the vertical penalty, we're just using a different mask
 def low_penalty(x):
-    return steerpyr_penalty(x, mask, original_power)
+    return steerpyr_penalty(x, mask, target_energy)
 ```
 
 ```{code-cell} ipython3

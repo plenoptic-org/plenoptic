@@ -1058,17 +1058,17 @@ class TestTutorialNotebooks:
                 "uploaded_files/torch_rng_state_vis_div_penalty_basic.pt",
             )
             print(np.random.get_state())
-            met = po.Metamer(img, lg_model, po.loss.l2_norm)
-            met.setup(initial_image=init_img)
-            met.synthesize(1000, stop_criterion=1e-16)
-            met.save("uploaded_files/vis_div_penalty_basic.pt")
+            met_basic = po.Metamer(img, lg_model, po.loss.l2_norm)
+            met_basic.setup(initial_image=init_img)
+            met_basic.synthesize(1000, stop_criterion=1e-16)
+            met_basic.save("uploaded_files/vis_div_penalty_basic.pt")
             met_up = po.Metamer(img, lg_model, po.loss.l2_norm)
             met_up.load(
                 vis_div_penalty / "vis_div_penalty_basic.pt",
                 tensor_equality_atol=1e-7,
                 map_location=DEVICE2,
             )
-            compare_metamers(met, met_up)
+            compare_metamers(met_basic, met_up)
 
         def test_basic_curie(self, lg_model, img, init_img_curie, vis_div_penalty):
             torch.use_deterministic_algorithms(True)
@@ -1077,17 +1077,17 @@ class TestTutorialNotebooks:
                 "uploaded_files/torch_rng_state_vis_div_penalty_basic_curie.pt",
             )
             print(np.random.get_state())
-            met = po.Metamer(img, lg_model, po.loss.l2_norm)
-            met.setup(initial_image=init_img_curie)
-            met.synthesize(1000, stop_criterion=1e-16)
-            met.save("uploaded_files/vis_div_penalty_basic_curie.pt")
+            met_curie = po.Metamer(img, lg_model, po.loss.l2_norm)
+            met_curie.setup(initial_image=init_img_curie)
+            met_curie.synthesize(1000, stop_criterion=1e-16)
+            met_curie.save("uploaded_files/vis_div_penalty_basic_curie.pt")
             met_up = po.Metamer(img, lg_model, po.loss.l2_norm)
             met_up.load(
                 vis_div_penalty / "vis_div_penalty_basic_curie.pt",
                 tensor_equality_atol=1e-7,
                 map_location=DEVICE2,
             )
-            compare_metamers(met, met_up)
+            compare_metamers(met_curie, met_up)
 
         def test_vertical(self, lg_model, pyr, img, init_img, vis_div_penalty):
             torch.use_deterministic_algorithms(True)
