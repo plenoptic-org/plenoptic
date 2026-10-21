@@ -496,6 +496,10 @@ Note that, as with our earlier penalty, we use the same `torch.exp(-x)` trick to
 
 This metamer synthesis is slightly more difficult and requires a [multi-stage synthesis](multi-stage-penalty), where we first synthesize the metamer pair without a custom penalty and then use that as a starting point for a second synthesis using `dists_penalty` (expand the dropdown below to see this all written out).
 
+:::{seealso}
+See [the datasaurus dozen star example](ds-star) for a different use of multi-stage synthesis.
+:::
+
 ```{code-cell} ipython3
 met_penalty = po.Metamer(
     img,
