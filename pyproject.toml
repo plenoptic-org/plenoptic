@@ -55,6 +55,7 @@ docs = [
      "sphobjinv",
      "sphinx-togglebutton",
      "pyiqa>=0.1.16",
+     "altair>=6.2.2",
 ]
 
 test = [
@@ -85,6 +86,7 @@ nb = [
     "jupytext",
     "myst-nb",
     "pyiqa>=0.1.16",
+    "altair>=6.2.2",
 ]
 
 [project.urls]
