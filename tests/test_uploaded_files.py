@@ -1023,7 +1023,9 @@ class TestTutorialNotebooks:
                 power.append(spyr_power(pyr(torch.rand_like(img))))
             power = torch.cat(power)
             torch.save(power, "uploaded_files/spyr_power.pt")
-            saved_power = torch.load(po.data.fetch_data("spyr_power.pt"))
+            saved_power = torch.load(
+                po.data.fetch_data("spyr_power.pt"), map_location=img.device
+            )
             error_str = "spyr_power has different {error_type}! Update the OSF version."
             _check_tensor_equality(
                 power, saved_power, "Test", "OSF", error_prepend_str=error_str
@@ -1038,7 +1040,8 @@ class TestTutorialNotebooks:
                 mask = construct_mask(pyr(img), include)
                 torch.save(mask, f"uploaded_files/spyr_mask_{include}.pt")
                 saved_mask = torch.load(
-                    po.data.fetch_data("spyr_mask.tar.gz") / f"spyr_mask_{include}.pt"
+                    po.data.fetch_data("spyr_mask.tar.gz") / f"spyr_mask_{include}.pt",
+                    map_location=img.device,
                 )
                 error_str = (
                     "spyr_mask has different {error_type}!Update the OSF version."
