@@ -960,7 +960,6 @@ def pyrshow(
         If ``batch_idx`` or ``channel_idx`` takes an illegal value.
     """
     pyr_coeffvis = {}
-    is_complex = False
     for k, v in pyr_coeffs.items():
         if isinstance(k, str):
             ims = [v]
@@ -970,8 +969,6 @@ def pyrshow(
             keys = [(k, i) for i in range(len(ims))]
         for key, im in zip(keys, ims):
             im = to_numpy(im)
-            if np.iscomplex(im).any():
-                is_complex = True
             try:
                 # this removes only the first (batch) dimension
                 im = im[batch_idx : batch_idx + 1].squeeze(0)
@@ -988,7 +985,6 @@ def pyrshow(
 
     return pt.pyrshow(
         pyr_coeffvis,
-        is_complex=is_complex,
         vrange=vrange,
         zoom=zoom,
         cmap=cmap,
