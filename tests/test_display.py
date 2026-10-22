@@ -905,8 +905,8 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
     # need to figure out which plotting function to call
     axes_idx = {"synthesis_imshow": 0}
     expectation = does_not_raise()
+    as_rgb = synthesis_object.image.shape[1] > 1
     if isinstance(synthesis_object, po.Metamer):
-        as_rgb = synthesis_object.image.shape[1] > 1
         plot_kwargs["metamer_representation_error_kwargs"] = {"as_rgb": as_rgb}
         included_plots.extend(["metamer_representation_error", "synthesis_loss"])
         axes_idx["metamer_representation_error"] = 8
@@ -940,10 +940,14 @@ def template_test_synthesis_custom_fig(synthesis_object, func, fig_creation, tmp
             )
         elif fig_creation.endswith("preplot"):
             po.plot.imshow(
-                torch.rand_like(synthesis_object.image), ax=axes.flatten()[1]
+                torch.rand_like(synthesis_object.image),
+                ax=axes.flatten()[1],
+                as_rgb=as_rgb,
             )
             po.plot.imshow(
-                torch.rand_like(synthesis_object.image), ax=axes.flatten()[4]
+                torch.rand_like(synthesis_object.image),
+                ax=axes.flatten()[4],
+                as_rgb=as_rgb,
             )
         if func == "animate":
             # animate closes the matplotlib figure itself, so don't need to do it here
