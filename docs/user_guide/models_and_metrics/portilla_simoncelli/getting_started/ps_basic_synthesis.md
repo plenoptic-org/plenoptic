@@ -124,6 +124,7 @@ This plot will be also useful when investigating metamer synthesis progress, so 
 
 When the model representation of two images match, the model considers the two images identical and we say that those two images are model metamers. Synthesizing a novel image that matches the representation of some arbitrary input is the goal of the {class}`~plenoptic.Metamer` class, as described in the next section.
 
+(ps-basic-synthesis)=
 ## Synthesizing Portilla-Simoncelli Texture Model Metamers
 
 Synthesizing Portilla-Simoncelli model metamers require some additional options compared to the [basic Metamer usage](metamer-nb). This section will demonstrate how to synthesize a model metamer for this wicker basket texture:
