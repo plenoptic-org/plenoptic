@@ -1,5 +1,5 @@
 ---
-title: 'Plenoptic: a python library for model-based synthesis of perceptual stimuli
+title: Plenoptic: a python library for model-based synthesis of perceptual stimuli
 tags:
   - Python
   - PyTorch
