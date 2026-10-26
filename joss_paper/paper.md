@@ -20,7 +20,8 @@ authors:
     affiliation: 2
   - name: Hanna Dettki
     orcid: 0009-0006-7237-6121
-  - name: Wolf De Wulf
+  - given-names: Wolf
+    surname: De Wulf
     orcid: 0000-0002-0219-3120
     affiliation: 3
   - name: Lyndon R. Duong
@@ -44,7 +45,8 @@ authors:
   - name: Erica Shook
     orcid: 0009-0004-3657-7562
     affiliation: 8
-  - name: Sarah Jo Venditto
+  - given-names: Sarah Jo
+    surname: Venditto
     orcid: 0000-0003-4681-0538
     affiliation: 1
   - name: Guillaume Viejo
@@ -57,7 +59,8 @@ authors:
   - name: Xinyuan Zhao
     equal-contrib: true
     affiliation: 10
-  - name: Raffles Xingqi Zhu
+  - given-names: Raffles Xingqi
+    surname: Zhu
     orcid: 0009-0006-1930-8912
   - name: Eero P. Simoncelli
     orcid: 000-0002-1206-527X
