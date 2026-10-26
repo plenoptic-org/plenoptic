@@ -1,5 +1,5 @@
 ---
-title: Plenoptic: a python library for model-based synthesis of perceptual stimuli
+title: 'Plenoptic: a python library for model-based synthesis of perceptual stimuli'
 tags:
   - Python
   - PyTorch
@@ -11,7 +11,7 @@ authors:
     orcid: 0000-0002-8999-9003
     affiliation: 1
     corresponding: true
-  - names: Edoardo Balzani
+  - name: Edoardo Balzani
     orcid: 0000-0002-3702-5856
     affiliation: 1
   - name: Kathryn Bonnen
@@ -59,11 +59,12 @@ authors:
   - name: Xinyuan Zhao
     equal-contrib: true
     affiliation: 10
+    orcid: 0000-0003-1770-631X
   - given-names: Raffles Xingqi
     surname: Zhu
     orcid: 0009-0006-1930-8912
   - name: Eero P. Simoncelli
-    orcid: 000-0002-1206-527X
+    orcid: 0000-0002-1206-527X
     affiliation: "1, 10"
 affiliations:
  - name: Center for Computational Neuroscience, Flatiron Institute, New York, NY, USA
@@ -127,9 +128,10 @@ Finally, the [lucent](https://github.com/greentfrapp/lucent) package is a PyTorc
 The primary goal for plenoptic was to make the included synthesis methods as broadly applicable as possible. All of these methods require computing the gradient of the model with respect to its input and using this information in some way to update an input. When these methods were developed, that largely required manually computing the derivatives for each model. However, the development and proliferation of automatic differentiation in software packages such as PyTorch simplifies this process: it allowed us to set up the problem and have the package compute the derivatives as needed. Thus, plenoptic must be built on top of one of these libraries, and we wanted to use one in python, which is the most commonly-used open source language within the neuroscience community. At the time plenoptic's development started, the primary python choices were PyTorch or TensorFlow (jax did not exist at the time). We chose PyTorch as we found its syntax more "pythonic" and easier to read and write.
 
 In order to make our synthesis objects as broadly applicable as possible, we sought to design the synthesis methods as objects which:
+
 - Are model-agnostic: any model that is callable, accepts and returns a tensor, and can be differentiated by PyTorch, will work with plenoptic's synthesis methods.
 - Are flexible: two of the synthesis methods (model metamers and MAD Competition) are iterative optimization procedures. For these, the user is able to specify the loss function, an optional penalty (which is included in the objective function as a way of e.g., encouraging all pixel values to lie between 0 and 1 for images), the optimizer, and the scheduler. Our documentation explains what properties are required for these, and are compatible with existing PyTorch objects (e.g., any optimizer in `torch.optim`).
-- Reuse PyTorch conventions where possible: all models included in plenoptic inherit PyTorch's `torch.nn.Module` class (commonly used for models and their components) and thus behave as PyTorch-familiar users expect. However, PyTorch does not have any built-in "optimization problem" objects, and so we have written our own classes. They do match the `torch.nn.Module` conventions where it makes sense: they have `.to`, `.load`, and `.save` methods with similar call signatures.
+- Reuse PyTorch conventions where possible: all models included in plenoptic inherit PyTorch's `torch.nn.Module` class (commonly used for models and their components) and thus behave as PyTorch-familiar users expect. However, PyTorch does not have any built-in objects that represent optimization problems, and so we have written our own classes. They do match the `torch.nn.Module` conventions where it makes sense: they have `to`, `load`, and `save` methods with similar call signatures.
 - Are consistent with each other: the synthesis methods all operate in slightly different ways, but their methods and method signatures are as consistent as possible. For example, both model metamers and MAD Competition are iterative optimization procedures, while eigendistortion is not. Thus, while all three corresponding objects have `synthesize` methods, `Metamer` and `MADCompetition` additionally have `setup` methods, which allow users to set the optimizer, scheduler, and optimization initialization tensor; `Eigendistortion` has no such method.
 
 Plenoptic's primary focus is on the synthesis methods, but we include a variety of models and image quality metrics. These are included both because they are useful for demonstrating how to use the included synthesis methods, and also because they are useful in and of themselves for perceptual research. To that end, these objects and functions are stand-alone (can be used independently of plenoptic's synthesis methods) and are designed to meet the above desiderata as well.
@@ -149,16 +151,18 @@ Plenoptic's primary focus is on the synthesis methods, but we include a variety 
 The majority of plenoptic has been written without the use of generative AI tools. The exceptions are in the implementation of penalty functions in [PR 411](https://github.com/plenoptic-org/plenoptic/pull/411) and the addition of support for color images to the Portilla-Simoncelli model in the (currently unmerged) [PR 482](https://github.com/plenoptic-org/plenoptic/pull/482), both by Daniel Herrera-Esposito, whose disclosures follow.
 
 For PR 411:
+
 1. Tool verification: GPT-5.2, used for the code.
 2. Scope of assistance: Code autocomplete.
 3. I affirm reviewed, modified, and validated all AI-generated content while making primary architectural and design decisions.
 
 For PR 482:
+
 1. Tool verification: Codex 0.156.0 with GPT-5.6-Sol, used for the code.
 2. Scope of assistance: Code generation
 3. I affirm reviewed, modified, and validated all AI-generated content while making primary architectural and design decisions.
 
-In addition to the author, the above contributions were reviewed by William F. Broderick.
+In addition to the PR author, the above contributions were reviewed by William F. Broderick.
 
 # Acknowledgments
 <!-- Acknowledgement of any financial support. -->
