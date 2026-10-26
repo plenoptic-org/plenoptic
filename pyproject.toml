@@ -21,7 +21,7 @@ keywords = ['neuroscience', 'pytorch', 'visual information processing', 'machine
 dependencies = [
     "numpy>=1.1",
     "torch>=1.8,!=1.12.0",
-    "pyrtools @ git+https://github.com/LabForComputationalVision/pyrtools.git@fix_imshow_set_ax",
+    "pyrtools >= 1.1.1",
     "scipy>=1.0",
     "matplotlib>=3.3",
     "tqdm>=4.29",
