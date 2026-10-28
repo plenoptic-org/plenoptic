@@ -48,7 +48,7 @@ cached_metamers = po.data.fetch_data("visual_diversity_penalty.tar.gz")
 :::{admonition} This notebook retrieves cached synthesis results / Reproducibility
 :class: warning dropdown
 
-Instead of performing synthesis in this notebook, we have cached the result of most of these syntheses online and download them for display.
+Instead of performing synthesis for all examples in this notebook, we have cached the result of most of these syntheses online and download them for display.
 
 This notebook contains collapsible admonitions which contain the steps necessary to run synthesis yourself after each call to {func}`~plenoptic.Metamer.load`. If you have a GPU available, the only synthesis calls that take longer than a minute are those which use DISTS, in the final section (if you do not have a GPU, they will all take longer).
 
@@ -64,7 +64,7 @@ The following hidden cells defines a function we'll use to visualize our metamer
 ```{code-cell} ipython3
 :tags: [hide-input]
 
-def create_metamer_figure(met):
+def create_metamer_figure(met, titles=None):
     n_cols = len(met.image) + 1
     zoom = 256 // met.image.shape[-1]
     fig = plt.figure(figsize=(5.2 * n_cols, 10.4))
@@ -116,8 +116,8 @@ init_img = torch.rand_like(img)
 title = [
     "Target image",
     "Initial metamer",
-    "Model Representation of target image",
-    "Model Representation of initial metamer",
+    "Representation of target",
+    "Representation of initial metamer",
 ]
 po.plot.imshow(
     [img, init_img, model(img), model(init_img)], col_wrap=2, zoom=2, title=title
@@ -125,6 +125,10 @@ po.plot.imshow(
 ```
 
 The above figure shows the target image in the first column, followed by the noise sample we'll use to initialize synthesis. The second row shows the model representation of both images. Over the course of {class}`~plenoptic.Metamer` synthesis, plenoptic will update the pixels of the top right image so as to make the two bottom images match.
+
+By comparing the top and bottom images in the left column, we can understand our model a little better. The model representation looks like a modified version of the input:
+- It looks blurred, as our model has thrown away the highest frequencies.
+- It looks "grayer": since our model only cares about contrast, not luminance, it throws away absolute pixel value and only captures how those pixels change over a small distance.
 
 We will now pass `img` and `model` <!-- skip-lint --> along with the loss function {func}`plenoptic.loss.l2_norm` (rather than the default, plenoptic.loss.mse; using {func}`~plenoptic.loss.l2_norm` improves the quality of our resulting metamer) to initialize our {class}`~plenoptic.Metamer` object, call {meth}`~plenoptic.Metamer.setup` to set the initial image, and call {meth}`~plenoptic.Metamer.synthesize`:
 
@@ -135,7 +139,7 @@ simple_met.synthesize(1000, stop_criterion=1e-16)
 create_metamer_figure(simple_met);
 ```
 
-The above figure is set up like the previous one, and we can see now that the two images in the bottom row are identical. Thus, metamer synthesis has succeeded and we've found two new metamers. The metamer looks like the target image of Einstein, except with lots of high frequency noise added and, if you look carefully, the finer details (e.g., in his hair) removed. Additionally, the image looks a little brighter (that is, the average pixel values are a little higher).
+The above figure is set up like the previous one, and we can see now that the two images in the bottom row are identical. Thus, metamer synthesis has succeeded and we've synthesized a model metamer. The metamer looks like the target image of Einstein, except with lots of high frequency noise added and, if you look carefully, the finer details (e.g., in his hair) removed. Additionally, the image looks a little brighter (that is, the average pixel values are a little higher).
 
 ### Synthesizing two metamers simultaneously
 
@@ -151,7 +155,9 @@ test_imgs = test_imgs.to(torch.float64)
 rep = model(test_imgs)
 print(f"Input shape: {test_imgs.shape}")
 print(f"Output shape: {rep.shape}")
+# Check that the batch 0 of the joint output is the same as the output on the 0th image
 assert (rep[0] == model(test_imgs[0])).all()
+# and for index 1 as well
 assert (rep[1] == model(test_imgs[1])).all()
 ```
 
@@ -201,19 +207,14 @@ met_basic.synthesize(1000, stop_criterion=1e-16)
 
 In the above figure, we can see the target image in the first column, followed by the two independent metamer images. The second row shows the model representation of each image in the top row, and you can see that they're all identical -- that is, metamer synthesis has succeeded and we've found two new metamers. The metamers both look like the target image of Einstein, except with lots of high frequency noise added and, if you look carefully, the finer details (e.g., in his hair) removed. Additionally, the image looks a little brighter (that is, the average pixel values are a little higher).
 
-A little farther up, I just demonstrated that the fact that two images of this resolution look similar to humans is no guarantee that they are *actually* similar, so let's compute the mean-squared error between all the outputs:
+A little farther up, I just demonstrated that the fact that two images of this resolution look similar to humans is no guarantee that they are *actually* similar, so let's compute the mean-squared error between all the model representations:
 
 ```{code-cell} ipython3
-# tensor[:1] returns the first element in the first dimension but preserves the number
-# of dimensions, so they remain 4d, equivalent to like tensor[0].unsqueeze(0)
-rep_diff = po.loss.mse(model(met_basic.image[:1]), model(met_basic.metamer[:1]))
+rep_diff = po.loss.mse(model(met_basic.image[0]), model(met_basic.metamer[0]))
 print(f"MSE between target and metamer[0] representations: {rep_diff}")
-# similarly, tensor[1:] returns the second through final elements and, since these
-# tensors only have two elements in the first dimensions, this is the same as
-# tensor[1].unsqueeze(0)
-rep_diff = po.loss.mse(model(met_basic.image[:1]), model(met_basic.metamer[1:]))
+rep_diff = po.loss.mse(model(met_basic.image[0]), model(met_basic.metamer[1]))
 print(f"MSE between target and metamer[1] representations: {rep_diff}")
-rep_diff = po.loss.mse(model(met_basic.metamer[:1]), model(met_basic.metamer[1:]))
+rep_diff = po.loss.mse(model(met_basic.metamer[0]), model(met_basic.metamer[1]))
 print(f"MSE between metamer[0] and metamer[1] representations: {rep_diff}")
 ```
 
@@ -243,12 +244,6 @@ print(f"MSE between metamers: {met_diff}")
 That's less than 10% smaller than the MSE between the target Einstein image and one of those samples of noise. But they do look really similar! This leads to the question: do all metamers for this model look like this? Or is this a result of our optimization procedure and the choices we made?
 
 ## Changing the initialization point
-
-:::{seealso}
-
-See [](adversarial-examples-metamer) for a very different use of the effect of penalty functions and initialization on {class}`~plenoptic.Metamer` synthesis, in order to synthesize an adversarial example for the ResNet50 deep neural network.
-
-:::
 
 One simple way to try to find more visually-diverse metamers is to change the image used to initialize the synthesis procedure, as done by {cite:alp}`Broderick2025-foveat-metam`. In plenoptic, we can do that by creating an appropriately-shaped tensor and passing it to {func}`plenoptic.Metamer.setup` (as seen in the dropdown below). Let's create an initial image tensor that contains one sample of white noise and a picture of Marie Curie:
 
@@ -282,9 +277,13 @@ The figure above has the same layout as before. As before, we can see that all t
 
 While this setting of the initialization to find visually different metamers works, let's see what we can accomplish if we choose the {attr}`~plenoptic.Metamer.penalty_function` to find more visually distinct metamers. Doing so is akin to shrinking the space of possible metamer images, and can be done in tandem with setting the initial image.
 
+:::{seealso}
+See [](adversarial-examples-metamer) for a very different use of the effect of penalty functions and initialization on {class}`~plenoptic.Metamer` synthesis, in order to synthesize an adversarial example for the ResNet50 deep neural network.
+:::
+
 ## Using {attr}`~plenoptic.Metamer.penalty_function` to find visually distinct metamers
 
-In this section, we will create custom penalty functions to encourage our two simultaneously-synthesized metamers to be more perceptually different from each other. The important question is "what do we mean by 'perceptually different'?" Here, we'll show three examples from two different types of penalties. First, we will construct a penalty which encourages the metamers to have different spectral energy densities, taking advantage of the fact that spectral energy is a low-level image property which human perception is very sensitive to. Second, we will develop a penalty which makes use of a metric from the field of [Image Quality Assessment](https://en.wikipedia.org/wiki/Image_quality), DISTS ({cite:alp}`Ding2020-image-qualit-asses`), which was developed to predict human ratings of image quality on image distortion databases containing texture and non-texture images.
+In this section, we will create custom penalty functions to encourage our two simultaneously-synthesized metamers to be more perceptually different from each other. The question we must ask ourselves is thus "what do we mean by 'perceptually different'?" Here, we'll show three examples from two different types of penalties. First, we will construct a penalty which encourages the metamers to have different spectral energy densities, taking advantage of the fact that spectral energy is a low-level image property which human perception is very sensitive to. Second, we will develop a penalty which makes use of a metric from the field of [Image Quality Assessment](https://en.wikipedia.org/wiki/Image_quality), DISTS ({cite:alp}`Ding2020-image-qualit-asses`), which was developed to predict human ratings of image quality on image distortion databases containing texture and non-texture images.
 
 For both types of penalties, we are taking advantage of pre-existing knowledge of the human visual system to construct penalties which we believe will encourage pairs to metamers to "look different". The first penalty takes advantage of the basic fact that human visual perception is sensitive to spectral energy, while the second exploits the knowledge encoded within a published image quality metric.
 
@@ -310,6 +309,9 @@ pyr.to(img.dtype)
 
 
 def spyr_energy(x):
+    # after this, x is a dictionary whose keys specify the scale and whose values are
+    # tensors of shape (batch, channel, orientation, height, width) containing the
+    # coefficients at that scale (note that the height/width changes across scales).
     if not isinstance(x, dict):
         x = pyr(x)
     # Compute the average energy in each steerable pyramid band, averaging over height
@@ -323,10 +325,8 @@ def spyr_energy(x):
 
 
 def construct_mask(x, include):
-    # get dictionary of coefficients. mask is a dictionary whose keys specify the scale
-    # and whose values are tensors of shape (batch, channel, orientation, height, width)
-    # containing the coefficients at that scale (note that the height/width changes
-    # across scales).
+    # get dictionary of coefficients. after this, mask will be a dictionary like x
+    # described in spyr_energy above
     mask = pyr(x)
     if "low" in include:
         # zero out high frequencies, all orientations
@@ -416,7 +416,7 @@ saved_mask = torch.load(
 assert (saved_mask == mask).all()
 ```
 
-Okay, let's see what the effect of using this penalty is on the synthesized metamers. The call to {meth}`~plenoptic.Metamer.setup` and {meth}`~plenoptic.Metamer.synthesize` are the same as in our default behavior, the only difference is that we set {attr}`~plenoptic.Metamer.penalty_function` and {attr}`~plenoptic.Metamer.penalty_lambda` in the initialization:
+Okay, let's see what the effect of using this penalty is on the synthesized metamers. The call to {meth}`~plenoptic.Metamer.setup` and {meth}`~plenoptic.Metamer.synthesize` are the same as in our earlier examples, the only difference is that we set {attr}`~plenoptic.Metamer.penalty_function` and {attr}`~plenoptic.Metamer.penalty_lambda` in the initialization:
 
 ```{code-cell} ipython3
 met = po.Metamer(
@@ -676,3 +676,5 @@ Initialization has a much smaller effect on the appearance of this metamer pair 
 ## Conclusion
 
 In this notebook, we've walked through how we can write custom penalty functions or make use of existing IQA methods in order to incentive pairs of metamers to be more visually distinctive from each other. We have also shown how a similar goal can be achieved by changing synthesis initialization, and how these two factors interact.
+
+We started with the goal of synthesizing pairs of images that are more visually distinct, and then took advantage of existing knowledge of the human visual system in order to construct penalties which focused on specific perceptually-relevant image properties that were ignored by the model. When constructing penalties for your own {class}`~plenoptic.Metamer` synthesis problems, you should similarly think specifically about which properties that your model is ignoring you would like to manipulate, and come up with a function that encodes these properties. Then: experiment!
