@@ -87,6 +87,8 @@ def create_metamer_figure(met):
 
 ## Metamer synthesis without custom penalty
 
+### Synthesizing a single metamer
+
 Throughout this notebook, we'll use the {class}`~plenoptic.models.LuminanceGainControl` model, which convolves its input with a center-surround filter, applies gain control / divisive normalization, and then rectifies the output. Thus, the model is sensitive only to mid-range frequencies and is insensitive to absolute pixel values.
 
 ```{code-cell} ipython3
@@ -97,15 +99,46 @@ po.remove_grad(model)
 model.to(torch.float64)
 ```
 
-Before we start writing custom penalties, let's see what the default behavior is. By default, {class}`~plenoptic.Metamer` uses {func}`plenoptic.regularize.penalize_range` as the penalty function (to keep the metamer image's pixel values between 0 and 1). This function does nothing to encourage multiple metamers to be different (or similar) to each other, so let's see how synthesis behaves when we use it!
+Before we start writing custom penalties, let's see what the default behavior is. By default, {class}`~plenoptic.Metamer` uses {func}`plenoptic.regularize.penalize_range` as the penalty function (to keep the metamer image's pixel values between 0 and 1). let's start by synthesizing a single {class}`~plenoptic.models.LuminanceGainControl` metamer with this default behavior and then move on to synthesizing two such metamers simultaneously.
 
-Below, we create our target image, `img`. We start with a picture of Einstein and downsample it by a factor of 2 (this makes the high-frequency patterns generated in much of the following examples more obvious). We then repeat it along the batch dimension. Because {class}`~plenoptic.models.LuminanceGainControl` (like the other models in plenoptic) operates on each batch dimension independently, this allows us to synthesize two independent metamer images simultaneously.
+Below, we create our target image, `img`. We start with a picture of Einstein and downsample it by a factor of 2 (this makes the high-frequency patterns generated in much of the following examples more obvious). We will also create a sample of uniform noise with the same shape as `img` to use to initialize synthesis. Note that this is the default behavior in plenoptic; we're doing it explicitly here so that we can visualize and examine this tensor separately.
 
 ```{code-cell} ipython3
 img = po.data.einstein().to(torch.float64)
 img = po.process.blur_downsample(img)
-img = img.repeat(2, 1, 1, 1)
+init_img = torch.rand_like(img)
+title = [
+    "Target image",
+    "Initial metamer",
+    "Model Representation of target image",
+    "Model Representation of initial metamer",
+]
+po.plot.imshow(
+    [img, init_img, model(img), model(init_img)], col_wrap=2, zoom=2, title=title
+);
+```
 
+The above figure shows the target image in the first column, followed by the noise sample we'll use to initialize synthesis. The second row shows the model representation of both images. Over the course of {class}`~plenoptic.Metamer` synthesis, plenoptic will update the pixels of the top right image so as to make the two bottom images match.
+
+We will now pass `img` and `model` <!-- skip-lint --> along with the loss function {func}`plenoptic.loss.l2_norm` (rather than the default, plenoptic.loss.mse; using {func}`~plenoptic.loss.l2_norm` improves the quality of our resulting metamer) to initialize our {class}`~plenoptic.Metamer` object, call {meth}`~plenoptic.Metamer.setup` to set the initial image, and call {meth}`~plenoptic.Metamer.synthesize`:
+
+```{code-cell} ipython3
+simple_met = po.Metamer(img, model, po.loss.l2_norm)
+simple_met.setup(initial_image=init_img)
+simple_met.synthesize(1000, stop_criterion=1e-16)
+create_metamer_figure(simple_met);
+```
+
+The above figure is set up like the previous one, and we can see now that the two images in the bottom row are identical. Thus, metamer synthesis has succeeded and we've found two new metamers. The metamer looks like the target image of Einstein, except with lots of high frequency noise added and, if you look carefully, the finer details (e.g., in his hair) removed. Additionally, the image looks a little brighter (that is, the average pixel values are a little higher).
+
+### Synthesizing two metamers simultaneously
+
+Now that we understand what one metamer looks like, let's see what happens when we synthesize two of them.
+Our default penalty, {func}`~plenoptic.regularize.penalize_range` does nothing to encourage multiple metamers to be different (or similar) to each other, so let's see how synthesis behaves when we use it!
+
+We could synthesize two metamers sequentially, initializing with different patches of white noise. For this example, we will synthesize both metamers simultaneously, taking advantage of the fact that {class}`~plenoptic.models.LuminanceGainControl` (like the other models in plenoptic) operates on each element in the batch dimension independently:
+
+```{code-cell} ipython3
 # Test that our model independently operates on these images
 test_imgs = torch.cat([po.data.einstein(), po.data.curie()])
 test_imgs = test_imgs.to(torch.float64)
@@ -116,9 +149,10 @@ assert (rep[0] == model(test_imgs[0])).all()
 assert (rep[1] == model(test_imgs[1])).all()
 ```
 
-By default, {class}`~plenoptic.Metamer` initializes synthesis with independent samples of white noise. For this notebook, we'll create this initialization image explicitly so we can visualize it, but note that this is the same as the default behavior.
+Let's {meth}`~torch.Tensor.repeat` our image along the batch dimension so we have two identical copies. We will then create a new initialization tensor, two independent samples of uniform noise:
 
 ```{code-cell} ipython3
+img = img.repeat(2, 1, 1, 1)
 po.set_seed(0)
 init_img = torch.rand_like(img)
 title = [
@@ -141,7 +175,7 @@ img_diff = po.loss.mse(init_img[0], img[0])
 print(f"MSE between Einstein image and noise: {img_diff}")
 ```
 
-Okay, with all that out of the way, let's initialize our {class}`~plenoptic.Metamer` object using our target image and model. We will also set the loss function to {func}`plenoptic.loss.l2_norm` (rather than the default, {func}`plenoptic.loss.mse`), which improves the quality of our resulting metamer. We then load in and visualize the results of this synthesis:
+Okay, with all that out of the way, let's initialize our {class}`~plenoptic.Metamer` object as before. Note everything is the same here, except that the shape of `img` has changed. We then load in and visualize the results of this synthesis:
 
 ```{code-cell} ipython3
 met_basic = po.Metamer(img, model, po.loss.l2_norm)
@@ -161,20 +195,52 @@ met_basic.synthesize(1000, stop_criterion=1e-16)
 
 In the above figure, we can see the target image in the first column, followed by the two independent metamer images. The second row shows the model representation of each image in the top row, and you can see that they're all identical -- that is, metamer synthesis has succeeded and we've found two new metamers. The metamers both look like the target image of Einstein, except with lots of high frequency noise added and, if you look carefully, the finer details (e.g., in his hair) removed. Additionally, the image looks a little brighter (that is, the average pixel values are a little higher).
 
-However, those two metamers look really perceptually similar! Again, they're not actually that similar on a pixel-by-pixel basis, as we can clarify by computing the mean-squared error between them:
+A little farther up, I just demonstrated that the fact that two images of this resolution look similar to humans is no guarantee that they are *actually* similar, so let's compute the mean-squared error between all the outputs:
+
+```{code-cell} ipython3
+# tensor[:1] returns the first element in the first dimension but preserves the number
+# of dimensions, so they remain 4d, equivalent to like tensor[0].unsqueeze(0)
+rep_diff = po.loss.mse(model(met_basic.image[:1]), model(met_basic.metamer[:1]))
+print(f"MSE between target and metamer[0] representations: {rep_diff}")
+# similarly, tensor[1:] returns the second through final elements and, since these
+# tensors only have two elements in the first dimensions, this is the same as
+# tensor[1].unsqueeze(0)
+rep_diff = po.loss.mse(model(met_basic.image[:1]), model(met_basic.metamer[1:]))
+print(f"MSE between target and metamer[1] representations: {rep_diff}")
+rep_diff = po.loss.mse(model(met_basic.metamer[:1]), model(met_basic.metamer[1:]))
+print(f"MSE between metamer[0] and metamer[1] representations: {rep_diff}")
+```
+
+You can see that these are all really small numbers! However, we have no point of comparison --- are these small enough to consider these images metamers? Let's compute the mean-squared error between the representations of some other images for comparison:
+
+```{code-cell} ipython3
+rep_diff = po.loss.mse(model(met_basic.image[:1]), model(init_img[:1]))
+print(f"MSE between target and initial[0] representations: {rep_diff}")
+nat_img = po.process.blur_downsample(po.data.curie().to(torch.float64))
+rep_diff = po.loss.mse(model(met_basic.image[:1]), model(nat_img))
+print(f"MSE between representations of two different natural images: {rep_diff}")
+```
+
+We can see that the MSE between the representation of the target and our metamers is several orders of magnitude smaller than that between two different natural images or a natural image and a sample of noise. Thus, we'll conclude they are metamers. Note that we're not going to compute the MSEs between the representations for the rest of these notebooks, but if you compute them yourselves, you'll see that they are similarly small.
+
+:::{seealso}
+In your own experiments, the question of whether model outputs are close enough for the synthesized image(s) to be considered metamers is one that you should give careful thought to. See [](feather-synthesis-success) and [](good-enough) for more discussion of what this means in practice.
+:::
+
+Okay, now that we're convinced these are metamers, scroll back up and look at those two metamers again --- they look really perceptually similar! Again, they're not actually that similar on a pixel-by-pixel basis, as we can clarify by computing the mean-squared error between them:
 
 ```{code-cell} ipython3
 met_diff = po.loss.mse(met_basic.metamer[0], met_basic.metamer[1])
 print(f"MSE between metamers: {met_diff}")
 ```
 
-But they do look really similar. This leads to the question: do all metamers for this model look like this? Or is this a result of our optimization procedure and the choices we made?
+That's less than 10% smaller than the MSE between the target Einstein image and one of those samples of noise. But they do look really similar! This leads to the question: do all metamers for this model look like this? Or is this a result of our optimization procedure and the choices we made?
 
 ## Changing the initialization point
 
-:::seealso
+:::{seealso}
 
-See [](adversarial-examples-metamer) for a very different exploration of the effect of penalty functions and initialization on {class}`~plenoptic.Metamer` synthesis, in order to synthesize an adversarial example for the ResNet50 deep neural network.
+See [](adversarial-examples-metamer) for a very different use of the effect of penalty functions and initialization on {class}`~plenoptic.Metamer` synthesis, in order to synthesize an adversarial example for the ResNet50 deep neural network.
 
 :::
 
