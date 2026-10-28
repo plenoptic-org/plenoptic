@@ -25,6 +25,12 @@ Run it in your browser: **{binder}`penalty_visual_diversity.ipynb`**!
 
 [](how-to-penalty) showed the basics of working with custom penalty functions, but their flexibility allows for us to bias stimulus synthesis in a wide variety of different ways. In this notebook, we will show how they can be used to increase perceptual diversity among metamers for the {class}`~plenoptic.models.LuminanceGainControl` model. We will also demonstrate how changing the initial image used for synthesis affects the resulting metamers, and how these two effects interact.
 
+:::{seealso}
+
+The authors of plenoptic presented a poster which talked about this idea (among others) at the [Cognitive Computational Neuroscience 2026](https://2026.ccneuro.org/) conference. See {cite:alp}`Broderick2026-biasing-optim` (poster available [here](https://dx.doi.org/10.17605/OSF.IO/R7JPS)) for more details.
+
+:::
+
 ```{code-cell} ipython3
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -136,7 +142,7 @@ The above figure is set up like the previous one, and we can see now that the tw
 Now that we understand what one metamer looks like, let's see what happens when we synthesize two of them.
 Our default penalty, {func}`~plenoptic.regularize.penalize_range` does nothing to encourage multiple metamers to be different (or similar) to each other, so let's see how synthesis behaves when we use it!
 
-We could synthesize two metamers sequentially, initializing with different patches of white noise. For this example, we will synthesize both metamers simultaneously, taking advantage of the fact that {class}`~plenoptic.models.LuminanceGainControl` (like the other models in plenoptic) operates on each element in the batch dimension independently:
+We could synthesize two metamers sequentially, initializing with different patches of white noise. In this notebook, we will synthesize both metamers simultaneously, taking advantage of the fact that {class}`~plenoptic.models.LuminanceGainControl` (like the other models in plenoptic) operates on each element in the batch dimension independently:
 
 ```{code-cell} ipython3
 # Test that our model independently operates on these images
@@ -278,7 +284,9 @@ While this setting of the initialization to find visually different metamers wor
 
 ## Using {attr}`~plenoptic.Metamer.penalty_function` to find visually distinct metamers
 
-In this section, we will create custom penalty functions to encourage our two simultaneously-synthesized metamers to be more perceptually different from each other. The question is "what do we mean by 'perceptually different'?" Here, we'll show three examples from two different types of penalties. We will first show that we can use {class}`~plenoptic.process.SteerablePyramidFreq` to compute the average spectral energy across orientation and spatial frequency bands and use these numbers to encourage the spatial frequency content to be different in some subset of the bands. We'll do this first for vertical orientations across all frequencies, and then for low frequencies across all orientations. Finally, we'll show that we can set up a penalty that maximizes an image quality metric, DISTS ({cite:alp}`Ding2020-image-qualit-asses`), to encourage the two metamers to be as different as possible according to that metric. For each of these examples, we'll demonstrate the results with the default and Marie Curie initializations, as above, so we can see how the initialization interacts with the penalty function.
+In this section, we will create custom penalty functions to encourage our two simultaneously-synthesized metamers to be more perceptually different from each other. The important question is "what do we mean by 'perceptually different'?" Here, we'll show three examples from two different types of penalties. First, we will construct a penalty which encourages the metamers to have different spectral energy densities, taking advantage of the fact that spectral energy is a low-level image property which human perception is very sensitive to. Second, we will develop a penalty which makes use of a metric from the field of [Image Quality Assessment](https://en.wikipedia.org/wiki/Image_quality), DISTS ({cite:alp}`Ding2020-image-qualit-asses`), which was developed to predict human ratings of image quality on image distortion databases containing texture and non-texture images.
+
+For both types of penalties, we are taking advantage of pre-existing knowledge of the human visual system to construct penalties which we believe will encourage pairs to metamers to "look different". The first penalty takes advantage of the basic fact that human visual perception is sensitive to spectral energy, while the second exploits the knowledge encoded within a published image quality metric.
 
 Note that we are not claiming that our choices here are "the best" in any way --- you are encouraged to try tweaking the spectral energy penalty, try out different image quality metrics, or develop your own completely novel penalties! If you find something interesting, please [let us know!](https://github.com/plenoptic-org/plenoptic/discussions/new?category=show-and-tell)
 
@@ -290,6 +298,12 @@ To do so, we will write two helper functions:
 - `spyr_energy` uses {class}`~plenoptic.process.SteerablePyramidFreq` to compute the average energy in different spatial frequency / orientation bands, represented as a tensor of shape `(batch, bands)`.
 - `construct_mask` returns a boolean mask tensor of the same shape; its `True` values define the bands we will use to compute the penalty value. It accepts a string determining what mask to use, and currently only accepts `"low"` or `"vertical"`, the two examples shown here. Feel free to modify it to accept other values!
 
+:::{seealso}
+
+See {class}`~plenoptic.process.SteerablePyramidFreq` or [](ps-steer-pyr) to learn more about the steerable pyramid.
+
+:::
+
 ```{code-cell} ipython3
 pyr = po.process.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
 pyr.to(img.dtype)
@@ -298,15 +312,21 @@ pyr.to(img.dtype)
 def spyr_energy(x):
     if not isinstance(x, dict):
         x = pyr(x)
-    # Compute the average energy in each steerable pyramid band
+    # Compute the average energy in each steerable pyramid band, averaging over height
+    # and width.
     energy = [v.abs().mean(dim=(-2, -1)) for v in x.values()]
-    # concatenate into a single vector
+    # concatenate into a single vector, of shape (batch, scales * orientations + 2),
+    # where the two extra elements are the residuals. Our input images are grayscale and
+    # thus our coefficients have only a single channel, which we flatten.
     energy = torch.cat([p.flatten(1, -1) for p in energy], 1)
     return energy
 
 
 def construct_mask(x, include):
-    # get dictionary of coefficients
+    # get dictionary of coefficients. mask is a dictionary whose keys specify the scale
+    # and whose values are tensors of shape (batch, channel, orientation, height, width)
+    # containing the coefficients at that scale (note that the height/width changes
+    # across scales).
     mask = pyr(x)
     if "low" in include:
         # zero out high frequencies, all orientations
@@ -316,11 +336,20 @@ def construct_mask(x, include):
         # zero out all non-vertical orientations, all frequencies
         for scale in mask:
             if scale in ["residual_highpass", "residual_lowpass"]:
+                # zero out residuals entirely.
                 mask[scale] = torch.zeros_like(mask[scale])
             else:
+                # for non-residuals, values are tensors of shape (batch, channel,
+                # orientation, height, width). The vertical orientation is the first
+                # element in that dimension, so we are setting the values for all other
+                # orientations in the coefficient tensor to 0.
                 mask[scale][:, :, 1:] = 0
-    # compute to tensor and then a boolean
-    return spyr_energy(mask).to(bool)
+    # After this, mask is a tensor of shape (batch, bands) where the excluded bands are
+    # zero and the included bands have non-zero values
+    mask = spyr_energy(mask)
+    # We then convert this tensor to boolean, so that the included bands are True and
+    # the excluded False.
+    return mask.to(bool)
 ```
 
 #### Different vertical energy
@@ -330,6 +359,10 @@ Now let's use the above functions to define a penalty to encourage the verticall
 - we compute the squared difference in the mask-selected bands across the two images
 - we convert this difference (a non-negative value we want to maximize) to a penalty (a value bounded between 0 and 1 that we want to minimize) by passing this value to `torch.exp(-x)` (as explained in [Designing a well-behaved penalty function](penalty-well-behaved))
 - we combine this penalty with the default range penalty
+
+There are two tricks in the following code worth noting:
+- We normalize the metamers' spectral energy by that of the target image (`target_energy`). This is because the magnitude of the steerable pyramid coefficients vary across spatial frequency bands, and we want each to have roughly the same impact on the penalty.
+- We care about efficiency, so we compute `mask` and `target_energy` in advance. That way, when `vertical_penalty` is called on each iteration of synthesis, it needs to compute as little as possible.
 
 ```{code-cell} ipython3
 # Compute vertical mask
@@ -360,10 +393,6 @@ def steerpyr_penalty(x, mask, target_energy):
 def vertical_penalty(x):
     return steerpyr_penalty(x, mask, target_energy)
 ```
-
-There are a couple of tricks in the above code to note:
-- We normalize the metamers' spectral energy by that of the target image (`target_energy`). This is because the magnitude of the steerable pyramid coefficients vary across spatial frequency bands, and we want each to have roughly the same impact on the penalty.
-- We care about efficiency, so we compute `mask` and `target_energy` in advance. That way, when `vertical_penalty` is called on each iteration of synthesis, it needs to compute as little as possible.
 
 We now have a penalty function which accepts a single tensor and returns a scalar. We can see that it is encouraging proper behavior by comparing its values on the two sets of metamers we have already computed:
 
