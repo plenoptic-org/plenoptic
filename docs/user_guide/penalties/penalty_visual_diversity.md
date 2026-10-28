@@ -172,6 +172,12 @@ But they do look really similar. This leads to the question: do all metamers for
 
 ## Changing the initialization point
 
+:::seealso
+
+See [](adversarial-examples-metamer) for a very different exploration of the effect of penalty functions and initialization on {class}`~plenoptic.Metamer` synthesis, in order to synthesize an adversarial example for the ResNet50 deep neural network.
+
+:::
+
 One simple way to try to find more visually-diverse metamers is to change the image used to initialize the synthesis procedure, as done by {cite:alp}`Broderick2025-foveat-metam`. In plenoptic, we can do that by creating an appropriately-shaped tensor and passing it to {func}`plenoptic.Metamer.setup` (as seen in the dropdown below). Let's create an initial image tensor that contains one sample of white noise and a picture of Marie Curie:
 
 ```{code-cell} ipython3
