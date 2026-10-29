@@ -12,9 +12,12 @@ import functools
 import itertools
 import os
 from collections import OrderedDict
+from contextlib import nullcontext as does_not_raise
+from typing import Literal
 
 import einops
 import numpy as np
+import pyiqa
 import pytest
 import torch
 import torchvision
@@ -26,6 +29,7 @@ from plenoptic.tensors import _check_tensor_equality
 
 def compare_eigendistortions(eig, eig_up, rtol=1e-5, atol=1e-7):
     for k in ["_representation_flat", "eigendistortions"]:
+        error_str = f"{k} has different {{error_type}}! Update the OSF version."
         _check_tensor_equality(
             getattr(eig, k),
             getattr(eig_up, k),
@@ -33,7 +37,7 @@ def compare_eigendistortions(eig, eig_up, rtol=1e-5, atol=1e-7):
             "OSF",
             rtol,
             atol,
-            f"{k} has different {{error_type}}! Update the OSF version.",
+            error_prepend_str=error_str,
         )
 
 
@@ -45,11 +49,12 @@ def compare_metamers(met, met_up, rtol=1e-5, atol=1e-7):
         "OSF",
         rtol,
         atol,
-        "metamer has different {error_type}! Update the OSF version.",
+        error_prepend_str="metamer has different {error_type}! Update the OSF version.",
     )
 
 
 def compare_mad(mad, mad_up, rtol=1e-5, atol=1e-7):
+    error_str = "mad_image has different {error_type}! Update the OSF version."
     _check_tensor_equality(
         mad.mad_image,
         mad_up.mad_image,
@@ -57,7 +62,7 @@ def compare_mad(mad, mad_up, rtol=1e-5, atol=1e-7):
         "OSF",
         rtol,
         atol,
-        "mad_image has different {error_type}! Update the OSF version.",
+        error_prepend_str=error_str,
     )
 
 
@@ -293,6 +298,32 @@ class ColorModel(torch.nn.Module):
 
     def forward(self, x):
         return self.conv(x)
+
+
+def spyr_power(x: dict) -> torch.Tensor:
+    """Compute power in each steerable pyramid band."""
+    power_list = torch.cat(
+        [v.abs().mean(dim=(-2, -1)).flatten(1, -1) for k, v in x.items()], 1
+    )
+    return power_list
+
+
+def construct_mask(mask: dict, include: Literal["low", "vertical"]) -> torch.Tensor:
+    """Construct mask for use with penalty."""
+    if "low" in include:
+        # zero out high frequencies, all orientations
+        for scale in ["residual_highpass", 0, 1, 2]:
+            mask[scale] = torch.zeros_like(mask[scale])
+    elif "vertical" in include:
+        # zero out all non-vertical orientations, all frequencies
+        for scale in mask:
+            if scale in ["residual_highpass", "residual_lowpass"]:
+                mask[scale] = torch.zeros_like(mask[scale])
+            else:
+                mask[scale][:, :, 1:] = 0
+    else:
+        raise ValueError(f"Don't know what to do with {include=}")
+    return spyr_power(mask).to(bool)
 
 
 @pytest.mark.order(1)
@@ -932,6 +963,385 @@ class TestTutorialNotebooks:
                     map_location=DEVICE2,
                 )
             compare_metamers(met, met_up)
+
+    class TestVisualDiversityPenalty:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def lg_model(cls):
+            model = po.models.LuminanceGainControl(
+                31, pretrained=True, pad_mode="circular", cache_filt=True
+            ).eval()
+            po.remove_grad(model)
+            model.to(DEVICE2).to(torch.float64)
+            return model
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def img(cls):
+            img = po.data.einstein().to(DEVICE2).to(torch.float64)
+            img = po.process.blur_downsample(img)
+            return img.repeat(2, 1, 1, 1)
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def init_img(cls, img):
+            po.set_seed(0)
+            return torch.rand_like(img)
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def init_img_curie(cls):
+            po.set_seed(0)
+            curie = po.process.blur_downsample(po.data.curie())
+            curie = curie.to(torch.float64).to(DEVICE2)
+            white_noise = torch.rand_like(curie)
+            return torch.cat([white_noise, curie])
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def dists(cls, img):
+            metric = pyiqa.create_metric("dists", device=img.device, as_loss=True)
+            po.remove_grad(metric)
+            metric.to(img.dtype)
+            return metric
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def pyr(cls, img):
+            pyr = po.process.SteerablePyramidFreq(img.shape[-2:], is_complex=True)
+            pyr.to(img.dtype).to(img.device)
+            return pyr
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def vis_div_penalty(cls):
+            return po.data.fetch_data("visual_diversity_penalty.tar.gz")
+
+        def test_spyr_power(self, pyr, img):
+            po.set_seed(0)
+            power = []
+            for i in range(10):
+                power.append(spyr_power(pyr(torch.rand_like(img))))
+            power = torch.cat(power)
+            torch.save(power, "uploaded_files/spyr_power.pt")
+            saved_power = torch.load(
+                po.data.fetch_data("spyr_power.pt"), map_location=img.device
+            )
+            error_str = "spyr_power has different {error_type}! Update the OSF version."
+            _check_tensor_equality(
+                power, saved_power, "Test", "OSF", error_prepend_str=error_str
+            )
+
+        @pytest.mark.parametrize("include", ["low", "vertical", "illegal"])
+        def test_spyr_mask(self, pyr, img, include):
+            expectation = does_not_raise()
+            if include == "illegal":
+                expectation = pytest.raises(ValueError, match="Don't know what to do")
+            with expectation:
+                mask = construct_mask(pyr(img), include)
+                torch.save(mask, f"uploaded_files/spyr_mask_{include}.pt")
+                saved_mask = torch.load(
+                    po.data.fetch_data("spyr_mask.tar.gz") / f"spyr_mask_{include}.pt",
+                    map_location=img.device,
+                )
+                error_str = (
+                    "spyr_mask has different {error_type}!Update the OSF version."
+                )
+                _check_tensor_equality(
+                    mask,
+                    saved_mask,
+                    "Test",
+                    "OSF",
+                    error_prepend_str=error_str,
+                )
+
+        def test_basic(self, lg_model, img, init_img, vis_div_penalty):
+            torch.use_deterministic_algorithms(True)
+            torch.save(
+                torch.random.get_rng_state(),
+                "uploaded_files/torch_rng_state_vis_div_penalty_basic.pt",
+            )
+            print(np.random.get_state())
+            met_basic = po.Metamer(img, lg_model, po.loss.l2_norm)
+            met_basic.setup(initial_image=init_img)
+            met_basic.synthesize(1000, stop_criterion=1e-16)
+            met_basic.save("uploaded_files/vis_div_penalty_basic.pt")
+            met_up = po.Metamer(img, lg_model, po.loss.l2_norm)
+            met_up.load(
+                vis_div_penalty / "vis_div_penalty_basic.pt",
+                tensor_equality_atol=1e-7,
+                map_location=DEVICE2,
+            )
+            compare_metamers(met_basic, met_up)
+
+        def test_basic_curie(self, lg_model, img, init_img_curie, vis_div_penalty):
+            torch.use_deterministic_algorithms(True)
+            torch.save(
+                torch.random.get_rng_state(),
+                "uploaded_files/torch_rng_state_vis_div_penalty_basic_curie.pt",
+            )
+            print(np.random.get_state())
+            met_curie = po.Metamer(img, lg_model, po.loss.l2_norm)
+            met_curie.setup(initial_image=init_img_curie)
+            met_curie.synthesize(1000, stop_criterion=1e-16)
+            met_curie.save("uploaded_files/vis_div_penalty_basic_curie.pt")
+            met_up = po.Metamer(img, lg_model, po.loss.l2_norm)
+            met_up.load(
+                vis_div_penalty / "vis_div_penalty_basic_curie.pt",
+                tensor_equality_atol=1e-7,
+                map_location=DEVICE2,
+            )
+            compare_metamers(met_curie, met_up)
+
+        def test_vertical(self, lg_model, pyr, img, init_img, vis_div_penalty):
+            torch.use_deterministic_algorithms(True)
+            torch.save(
+                torch.random.get_rng_state(),
+                "uploaded_files/torch_rng_state_vis_div_penalty_vertical.pt",
+            )
+            print(np.random.get_state())
+
+            mask = construct_mask(pyr(img), "vertical")
+            original_power = spyr_power(pyr(img))
+
+            def vertical_penalty(x):
+                penalty = spyr_power(pyr(x))
+                penalty = mask * (penalty / original_power)
+                penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
+                return po.regularize.penalize_range(x) + penalty
+
+            met = po.Metamer(
+                img,
+                lg_model,
+                po.loss.l2_norm,
+                penalty_function=vertical_penalty,
+                penalty_lambda=0.1,
+            )
+            met.setup(initial_image=init_img)
+            met.synthesize(1000, stop_criterion=1e-16)
+            met.save("uploaded_files/vis_div_penalty_vertical.pt")
+            met_up = po.Metamer(
+                img,
+                lg_model,
+                po.loss.l2_norm,
+                penalty_function=vertical_penalty,
+                penalty_lambda=0.1,
+            )
+            met_up.load(
+                vis_div_penalty / "vis_div_penalty_vertical.pt",
+                tensor_equality_atol=1e-7,
+                map_location=DEVICE2,
+            )
+            compare_metamers(met, met_up)
+
+        def test_vertical_curie(
+            self, lg_model, pyr, img, init_img_curie, vis_div_penalty
+        ):
+            torch.use_deterministic_algorithms(True)
+            torch.save(
+                torch.random.get_rng_state(),
+                "uploaded_files/torch_rng_state_vis_div_penalty_vertical_curie.pt",
+            )
+            print(np.random.get_state())
+
+            mask = construct_mask(pyr(img), "vertical")
+            original_power = spyr_power(pyr(img))
+
+            def vertical_penalty(x):
+                penalty = spyr_power(pyr(x))
+                penalty = mask * (penalty / original_power)
+                penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
+                return po.regularize.penalize_range(x) + penalty
+
+            met = po.Metamer(
+                img,
+                lg_model,
+                po.loss.l2_norm,
+                penalty_function=vertical_penalty,
+                penalty_lambda=0.1,
+            )
+            met.setup(initial_image=init_img_curie)
+            met.synthesize(1000, stop_criterion=1e-16)
+            met.save("uploaded_files/vis_div_penalty_vertical_curie.pt")
+            met_up = po.Metamer(
+                img,
+                lg_model,
+                po.loss.l2_norm,
+                penalty_function=vertical_penalty,
+                penalty_lambda=0.1,
+            )
+            met_up.load(
+                vis_div_penalty / "vis_div_penalty_vertical_curie.pt",
+                tensor_equality_atol=1e-7,
+                map_location=DEVICE2,
+            )
+            compare_metamers(met, met_up)
+
+        def test_low(self, lg_model, pyr, img, init_img, vis_div_penalty):
+            torch.use_deterministic_algorithms(True)
+            torch.save(
+                torch.random.get_rng_state(),
+                "uploaded_files/torch_rng_state_vis_div_penalty_low.pt",
+            )
+            print(np.random.get_state())
+
+            mask = construct_mask(pyr(img), "low")
+            original_power = spyr_power(pyr(img))
+
+            def low_penalty(x):
+                penalty = spyr_power(pyr(x))
+                penalty = mask * (penalty / original_power)
+                penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
+                return po.regularize.penalize_range(x) + penalty
+
+            met = po.Metamer(
+                img,
+                lg_model,
+                po.loss.l2_norm,
+                penalty_function=low_penalty,
+                penalty_lambda=0.07,
+            )
+            met.setup(initial_image=init_img)
+            met.synthesize(3000, stop_criterion=1e-16)
+            met.save("uploaded_files/vis_div_penalty_low.pt")
+            met_up = po.Metamer(
+                img,
+                lg_model,
+                po.loss.l2_norm,
+                penalty_function=low_penalty,
+                penalty_lambda=0.07,
+            )
+            met_up.load(
+                vis_div_penalty / "vis_div_penalty_low.pt",
+                tensor_equality_atol=1e-7,
+                map_location=DEVICE2,
+            )
+            compare_metamers(met, met_up)
+
+        def test_low_curie(self, lg_model, pyr, img, init_img_curie, vis_div_penalty):
+            torch.use_deterministic_algorithms(True)
+            torch.save(
+                torch.random.get_rng_state(),
+                "uploaded_files/torch_rng_state_vis_div_penalty_low_curie.pt",
+            )
+            print(np.random.get_state())
+
+            mask = construct_mask(pyr(img), "low")
+            original_power = spyr_power(pyr(img))
+
+            def low_penalty(x):
+                penalty = spyr_power(pyr(x))
+                penalty = mask * (penalty / original_power)
+                penalty = torch.exp(-torch.mean(penalty.diff(dim=0).pow(2)))
+                return po.regularize.penalize_range(x) + penalty
+
+            met = po.Metamer(
+                img,
+                lg_model,
+                po.loss.l2_norm,
+                penalty_function=low_penalty,
+                penalty_lambda=0.05,
+            )
+            met.setup(initial_image=init_img_curie)
+            met.synthesize(3000, stop_criterion=1e-16)
+            met.save("uploaded_files/vis_div_penalty_low_curie.pt")
+            met_up = po.Metamer(
+                img,
+                lg_model,
+                po.loss.l2_norm,
+                penalty_function=low_penalty,
+                penalty_lambda=0.05,
+            )
+            met_up.load(
+                vis_div_penalty / "vis_div_penalty_low_curie.pt",
+                tensor_equality_atol=1e-7,
+                map_location=DEVICE2,
+            )
+            compare_metamers(met, met_up)
+
+        @pytest.mark.filterwarnings("ignore:input_tensor range is.*:UserWarning")
+        def test_dists(self, lg_model, dists, img, init_img, vis_div_penalty):
+            torch.use_deterministic_algorithms(True)
+            torch.save(
+                torch.random.get_rng_state(),
+                "uploaded_files/torch_rng_state_vis_div_penalty_dists.pt",
+            )
+            print(np.random.get_state())
+
+            def dists_penalty(x):
+                penalty = dists(x[:1], x[1:])
+                return po.regularize.penalize_range(x) + torch.exp(-penalty)
+
+            met = po.Metamer(img, lg_model, po.loss.l2_norm)
+            met.setup(initial_image=init_img)
+            met.synthesize(500, stop_criterion=1e-16)
+
+            met_penalty = po.Metamer(
+                img,
+                lg_model,
+                po.loss.l2_norm,
+                penalty_function=dists_penalty,
+                penalty_lambda=0.5,
+            )
+            met_penalty.setup(initial_image=met.metamer, optimizer_kwargs={"lr": 0.03})
+            met_penalty.synthesize(500, stop_criterion=1e-16)
+            met_penalty.save("uploaded_files/vis_div_penalty_dists.pt")
+            met_up = po.Metamer(
+                img,
+                lg_model,
+                po.loss.l2_norm,
+                penalty_function=dists_penalty,
+                penalty_lambda=0.5,
+            )
+            met_up.load(
+                vis_div_penalty / "vis_div_penalty_dists.pt",
+                tensor_equality_atol=1e-7,
+                map_location=DEVICE2,
+            )
+            compare_metamers(met_penalty, met_up)
+
+        @pytest.mark.filterwarnings("ignore:input_tensor range is.*:UserWarning")
+        def test_dists_curie(
+            self, lg_model, dists, img, init_img_curie, vis_div_penalty
+        ):
+            torch.use_deterministic_algorithms(True)
+            torch.save(
+                torch.random.get_rng_state(),
+                "uploaded_files/torch_rng_state_vis_div_penalty_dists_curie.pt",
+            )
+            print(np.random.get_state())
+
+            def dists_penalty(x):
+                penalty = dists(x[:1], x[1:])
+                return po.regularize.penalize_range(x) + torch.exp(-penalty)
+
+            met = po.Metamer(img, lg_model, po.loss.l2_norm)
+            met.setup(initial_image=init_img_curie)
+            met.synthesize(500, stop_criterion=1e-16)
+
+            met_penalty = po.Metamer(
+                img,
+                lg_model,
+                po.loss.l2_norm,
+                penalty_function=dists_penalty,
+                penalty_lambda=0.5,
+            )
+            met_penalty.setup(initial_image=met.metamer, optimizer_kwargs={"lr": 0.03})
+            met_penalty.synthesize(500, stop_criterion=1e-16)
+            met_penalty.save("uploaded_files/vis_div_penalty_dists_curie.pt")
+            met_up = po.Metamer(
+                img,
+                lg_model,
+                po.loss.l2_norm,
+                penalty_function=dists_penalty,
+                penalty_lambda=0.5,
+            )
+            met_up.load(
+                vis_div_penalty / "vis_div_penalty_dists_curie.pt",
+                tensor_equality_atol=1e-7,
+                map_location=DEVICE2,
+            )
+            compare_metamers(met_penalty, met_up)
 
     # None of these take long to run, so we do it with cpu instead of DEVICE/DEVICE2
     # (which will be GPU for our tests)
