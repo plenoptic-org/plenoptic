@@ -203,6 +203,7 @@ In this case, you can pick any of the `"layerN"` used in Feather et al., 2023. Y
 
 ```python
 from torchvision.models import feature_extraction
+
 # this function returns two lists, the first for training mode, the second for eval mode
 feature_extraction.get_graph_node_names(deepnet)[1]
 ```
