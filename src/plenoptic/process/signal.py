@@ -491,7 +491,9 @@ def modulate_phase(x: Tensor, phase_factor: float = 2.0) -> Tensor:
     """
     try:
         angle = torch.atan2(x.imag, x.real)
-    except RuntimeError:
+    # in torch 2.15.0 they switched this error to TypeError instead for some reason
+    # (https://github.com/pytorch/pytorch/releases/tag/v2.15.0)
+    except (RuntimeError, TypeError):
         # then x is not complex-valued
         raise TypeError("x must be a complex-valued tensor!")
     amp = x.abs()

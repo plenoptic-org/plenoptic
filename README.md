@@ -139,7 +139,7 @@ guide](https://docs.plenoptic.org/docs/branch/main/reference/citation.html) for 
 details, including citations for the different synthesis methods and
 computational moels included in plenoptic.
 
-## Related packages
+## Related packages and projects
 
 If you are curious about `plenoptic`, these other packages may also be of interest:
 
@@ -149,14 +149,31 @@ If you are curious about `plenoptic`, these other packages may also be of intere
   methods (see
   [documentation](https://docs.plenoptic.org/docs/branch/main/reference/models.html)
   for more details).
-- [pyrtools](https://pyrtools.readthedocs.io/en/latest/): a python package for
-  multi-scale image processing. Includes `numpy` implementations of several of
-  the image pyramids and image-processing tools found in `plenoptic`.
 - [lucent](https://github.com/greentfrapp/lucent): pytorch adaptation of the
   [lucid](https://github.com/tensorflow/lucid) TensorFlow library, which
   contains a variety of tools for research in neural network interpretability.
   Similar to `plenoptic`, contains methods for synthesizing images to better
   understand how models process visual information.
+
+The following are developed or maintained by the developers of plenoptic:
+
+- [pyrtools](https://pyrtools.readthedocs.io/en/latest/): a python package for
+  multi-scale image processing. Includes `numpy` implementations of several of
+  the image pyramids and image-processing tools found in `plenoptic`.
+- [fenestration](https://fenestration.plenoptic.org/en/latest/): a python
+  package for generating plenoptic-compatible foveated pooling windows, as used
+  to generate model metamers in [Freeman and Simoncelli,
+  2011](https://www.cns.nyu.edu/pub/eero/freeman10-reprint.pdf) and [Broderick
+  et al., 2026](https://elifesciences.org/reviewed-preprints/90554).
+- [plenoptic-experiments](https://github.com/plenoptic-org/plenoptic-experiments):
+  github repo containing scripts for performing experiments to help the
+  development of plenoptic. While these are under-documented, users may find it
+  useful to see how plenoptic's developers experiment in order to find the
+  optimization hyperparameters that lead to the best metamers and most efficient
+  synthesis procedures.
+- [plenoptic-migrate](https://github.com/plenoptic-org/plenoptic-migrate): a
+  small python package / command-line tool to help users migrate from plenoptic
+  1.x to 2.0.
 
 ## Support
 

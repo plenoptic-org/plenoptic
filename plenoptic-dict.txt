@@ -1,3 +1,6 @@
 plenpotic->plenoptic
+plenotic->plenoptic
 plentopic->plenoptic
 plenopitc->plenoptic
+correaltion->correlation
+approximtaely->approximately
