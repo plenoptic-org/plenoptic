@@ -126,46 +126,46 @@ def imshow(
         the minimum and maximum value of the colormap, respectively. If a list
         by the corresponding 2-tuple. If a string:
 
-        * ``'auto0'``: all images have same vmin/vmax, which have the same absolute
+        * ``"auto0"``: all images have same vmin/vmax, which have the same absolute
           value, and come from the minimum or maximum across all
           images, whichever has the larger absolute value
 
-        * ``'auto/auto1'``: all images have same vmin/vmax, which are the
+        * ``"auto/auto1"``: all images have same vmin/vmax, which are the
           minimum/maximum values across all images
 
-        * ``'auto2'``: all images have same vmin/vmax, which are the mean (across
+        * ``"auto2"``: all images have same vmin/vmax, which are the mean (across
           all images) minus/ plus 2 std dev (across all images)
 
-        * ``'auto3'``: all images have same vmin/vmax, chosen so as to map the
+        * ``"auto3"``: all images have same vmin/vmax, chosen so as to map the
           10th/90th percentile values to the 10th/90th percentile of
           the display intensity range. For example: vmin is the 10th
           percentile image value minus 1/8 times the difference
           between the 90th and 10th percentile
 
-        * ``'autoNrow'``: where ``N`` is an integer. each row of the figure
+        * ``"autoNrow"``: where ``N`` is an integer. each row of the figure
           has the same vmin/vmax, which are
           computed using the corresponding ``"autoN"`` method described above.
 
-        * ``'autoNcol'``: where ``N`` is an integer. each column of the figure has the
+        * ``"autoNcol"``: where ``N`` is an integer. each column of the figure has the
           same vmin/vmax, which are computed using the corresponding ``"autoN"``
           method described above.
 
-        * ``'autoNcolcomplex'``: where ``N`` is an integer. Same as ``'autoNcol'``,
+        * ``"autoNcolcomplex"``: where ``N`` is an integer. Same as ``"autoNcol"``,
           but the vmin/vmax are computed jointly across the real and imaginary parts
           in each column.
 
-        * ``'indep0'``: each image has an independent vmin/vmax, which have the
+        * ``"indep0"``: each image has an independent vmin/vmax, which have the
           same absolute value, which comes from either their
           minimum or maximum value, whichever has the larger
           absolute value.
 
-        * ``'indep1'``: each image has an independent vmin/vmax, which are their
+        * ``"indep1"``: each image has an independent vmin/vmax, which are their
           minimum/maximum values.
 
-        * ``'indep2'``: each image has an independent vmin/vmax, which is their
+        * ``"indep2"``: each image has an independent vmin/vmax, which is their
           mean minus/plus 2 std dev.
 
-        * ``'indep3'``: each image has an independent vmin/vmax, chosen so that
+        * ``"indep3"``: each image has an independent vmin/vmax, chosen so that
           the 10th/90th percentile values map to the 10th/90th
           percentile intensities.
 
@@ -653,46 +653,46 @@ def animshow(
         of 2-tuples, must have one per image, and each image's vmin/vmax is specified
         by the corresponding 2-tuple. If a string:
 
-        * ``'auto0'``: all images have same vmin/vmax, which have the same absolute
+        * ``"auto0"``: all images have same vmin/vmax, which have the same absolute
           value, and come from the minimum or maximum across all
           images, whichever has the larger absolute value
 
-        * ``'auto/auto1'``: all images have same vmin/vmax, which are the
+        * ``"auto/auto1"``: all images have same vmin/vmax, which are the
           minimum/maximum values across all images
 
-        * ``'auto2'``: all images have same vmin/vmax, which are the mean (across
+        * ``"auto2"``: all images have same vmin/vmax, which are the mean (across
           all images) minus/ plus 2 std dev (across all images)
 
-        * ``'auto3'``: all images have same vmin/vmax, chosen so as to map the
+        * ``"auto3"``: all images have same vmin/vmax, chosen so as to map the
           10th/90th percentile values to the 10th/90th percentile of
           the display intensity range. For example: vmin is the 10th
           percentile image value minus 1/8 times the difference
           between the 90th and 10th percentile
 
-        * ``'autoNrow'``: where ``N`` is an integer. each row of the figure
+        * ``"autoNrow"``: where ``N`` is an integer. each row of the figure
           has the same vmin/vmax, which are
           computed using the corresponding ``"autoN"`` method described above.
 
-        * ``'autoNcol'``: where ``N`` is an integer. each column of the figure has the
+        * ``"autoNcol"``: where ``N`` is an integer. each column of the figure has the
           same vmin/vmax, which are computed using the corresponding ``"autoN"``
           method described above.
 
-        * ``'autoNcolcomplex'``: where ``N`` is an integer. Same as ``'autoNcol'``,
+        * ``"autoNcolcomplex"``: where ``N`` is an integer. Same as ``"autoNcol"``,
           but the vmin/vmax are computed jointly across the real and imaginary parts
           in each column.
 
-        * ``'indep0'``: each image has an independent vmin/vmax, which have the
+        * ``"indep0"``: each image has an independent vmin/vmax, which have the
           same absolute value, which comes from either their
           minimum or maximum value, whichever has the larger
           absolute value.
 
-        * ``'indep1'``: each image has an independent vmin/vmax, which are their
+        * ``"indep1"``: each image has an independent vmin/vmax, which are their
           minimum/maximum values.
 
-        * ``'indep2'``: each image has an independent vmin/vmax, which is their
+        * ``"indep2"``: each image has an independent vmin/vmax, which is their
           mean minus/plus 2 std dev.
 
-        * ``'indep3'``: each image has an independent vmin/vmax, chosen so that
+        * ``"indep3"``: each image has an independent vmin/vmax, chosen so that
           the 10th/90th percentile values map to the 10th/90th
           percentile intensities.
 
@@ -928,51 +928,51 @@ def pyrshow(
         of 2-tuples, must have one per image, and each image's vmin/vmax is specified
         by the corresponding 2-tuple. If a string:
 
-        * ``'auto0'``: all images have same vmin/vmax, which have the same absolute
+        * ``"auto0"``: all images have same vmin/vmax, which have the same absolute
           value, and come from the minimum or maximum across all
           images, whichever has the larger absolute value
 
-        * ``'auto/auto1'``: all images have same vmin/vmax, which are the
+        * ``"auto/auto1"``: all images have same vmin/vmax, which are the
           minimum/maximum values across all images
 
-        * ``'auto2'``: all images have same vmin/vmax, which are the mean (across
+        * ``"auto2"``: all images have same vmin/vmax, which are the mean (across
           all images) minus/ plus 2 std dev (across all images)
 
-        * ``'auto3'``: all images have same vmin/vmax, chosen so as to map the
+        * ``"auto3"``: all images have same vmin/vmax, chosen so as to map the
           10th/90th percentile values to the 10th/90th percentile of
           the display intensity range. For example: vmin is the 10th
           percentile image value minus 1/8 times the difference
           between the 90th and 10th percentile
 
-        * ``'autoNrow'``: where ``N`` is an integer. each row of the figure
+        * ``"autoNrow"``: where ``N`` is an integer. each row of the figure
           has the same vmin/vmax, which are
           computed using the corresponding ``"autoN"`` method described above.
 
-        * ``'autoNcol'``: where ``N`` is an integer. each column of the figure has the
+        * ``"autoNcol"``: where ``N`` is an integer. each column of the figure has the
           same vmin/vmax, which are computed using the corresponding ``"autoN"``
           method described above.
 
-        * ``'autoNcolcomplex'``: where ``N`` is an integer. Same as ``'autoNcol'``,
+        * ``"autoNcolcomplex"``: where ``N`` is an integer. Same as ``"autoNcol"``,
           but the vmin/vmax are computed across the real and imaginary parts in each
           column. Note: Is not compatible with ``show_residuals=True``. Plot the
           residuals separately.
 
-        * ``'autoNpyr'``: where ``N`` is an integer. Same as ``'autoNrow'`` except
+        * ``"autoNpyr"``: where ``N`` is an integer. Same as ``"autoNrow"`` except
           the lowpass and highpass residuals vmin/vmax are computed independently,
-          as ``'indepN'``.
+          as ``"indepN"``.
 
-        * ``'indep0'``: each image has an independent vmin/vmax, which have the
+        * ``"indep0"``: each image has an independent vmin/vmax, which have the
           same absolute value, which comes from either their
           minimum or maximum value, whichever has the larger
           absolute value.
 
-        * ``'indep1'``: each image has an independent vmin/vmax, which are their
+        * ``"indep1"``: each image has an independent vmin/vmax, which are their
           minimum/maximum values.
 
-        * ``'indep2'``: each image has an independent vmin/vmax, which is their
+        * ``"indep2"``: each image has an independent vmin/vmax, which is their
           mean minus/plus 2 std dev.
 
-        * ``'indep3'``: each image has an independent vmin/vmax, chosen so that
+        * ``"indep3"``: each image has an independent vmin/vmax, chosen so that
           the 10th/90th percentile values map to the 10th/90th
           percentile intensities.
     zoom
