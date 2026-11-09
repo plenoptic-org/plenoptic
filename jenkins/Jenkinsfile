@@ -79,7 +79,8 @@ catchError {
               "ISSUE_NUM=${env.BRANCH_NAME.replace('PR-', '')}"
             ]) {
               sh 'python3.12 -m venv --system-site-packages $HOME'
-              sh '''#!/bin/bash -ex
+              try {
+                sh '''#!/bin/bash -ex
                 # make sure we have the git tags, since we need that to correctly version plenoptic
                 git fetch --tags
                 source $HOME/bin/activate
@@ -90,7 +91,10 @@ catchError {
                 # issue with cache creation in containers: https://github.com/pytorch/pytorch/issues/140765
                 TORCHINDUCTOR_CACHE_DIR=/tmp/torchinductor RUN_NB=1 NB_EXECUTION_MODE=force DATASAURUS_CHECK=1 make -C docs html O="-j 1"
                 mv docs/_build/ $HOME/built-docs/
-             '''
+                '''
+              } finally {
+                archiveArtifacts artifacts: "docs/_build/*", fingerprint: true
+              }
              lock('plenoptic_publish') {
                 def scm = scmGit(branches: [[name: 'refs/heads/main']], userRemoteConfigs: [[credentialsId: 'github-jenkins', url: 'https://github.com/plenoptic-org/plenoptic-documentation.git']])
                 dir(path: 'docs') {
