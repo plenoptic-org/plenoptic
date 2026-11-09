@@ -130,7 +130,7 @@ By comparing the top and bottom images in the left column, we can understand our
 - It looks blurred, as our model has thrown away the highest frequencies.
 - It looks "grayer": since our model only cares about contrast, not luminance, it throws away absolute pixel value and only captures how those pixels change over a small distance.
 
-We will now pass `img` and `model` <!-- skip-lint --> along with the loss function {func}`plenoptic.loss.l2_norm` (rather than the default, plenoptic.loss.mse; using {func}`~plenoptic.loss.l2_norm` improves the quality of our resulting metamer) to initialize our {class}`~plenoptic.Metamer` object, call {meth}`~plenoptic.Metamer.setup` to set the initial image, and call {meth}`~plenoptic.Metamer.synthesize`:
+We will now pass `img` and `model` <!-- skip-lint --> along with the loss function {func}`plenoptic.loss.l2_norm` (rather than the default, {func}`plenoptic.loss.mse`; using {func}`~plenoptic.loss.l2_norm` improves the quality of our resulting metamer) to initialize our {class}`~plenoptic.Metamer` object, call {meth}`~plenoptic.Metamer.setup` to set the initial image, and call {meth}`~plenoptic.Metamer.synthesize`:
 
 ```{code-cell} ipython3
 simple_met = po.Metamer(img, model, po.loss.l2_norm)
