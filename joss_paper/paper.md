@@ -143,7 +143,7 @@ The above plotting methods are all intended for (and tested on) images, represen
 <!-- - bringing in interns to work on package -->
 <!-- - reproducible materials: much of documentation shows how to use plenoptic to do something interesting, is reproducible -->
 
-Plenoptic has been used in several published studies, pre-prints, and PhD theses: @Broderick2026-foveat-metam, @olianezhad2025visual, @feather2025discriminating, @parthasarathy2024layerwise, @mahncke2025visibility, @meyer2026transformation, @maruya2025phantom, @Yerxa-phd, @Woo2023-dynam-patter. <!-- codespell:ignore theses -->
+Plenoptic has been used in several published studies, pre-prints, and PhD theses: @Woo2023-dynam-patter, @parthasarathy2024layerwise, @olianezhad2025visual, @feather2025discriminating, @mahncke2025visibility, @maruya2025phantom, @meyer2026transformation, @Yerxa-phd, @Broderick2026-foveat-metam, @azeglio2026multi. <!-- codespell:ignore theses -->
 
 The developers of plenoptic take part in a variety of outreach methods. In addition to presenting at relevant conferences [@Duong2023-plenop,@Broderick2025-plenop,@Broderick2026-plenop,@Broderick2026-biasing-optim] the developers reach users by teaching at summer schools ([Cold Spring Harbor Labs, Computational Neuroscience: Vision](https://meetings.cshl.edu/courses.aspx?course=c-visi) course, 2024 and 2026) and running workshops ([at VSS 2025](https://web.archive.org/web/20260317095307/https://www.visionsciences.org/2025-plenoptic-satellite/)). The goal is to present users with an opportunity to interact more directly with the developers and to try out the package directly with live-coding and exercises.
 
