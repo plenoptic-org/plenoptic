@@ -68,7 +68,7 @@ catchError {
         }
       },
       docs: {
-        runPod(gpus: 1) {
+        runPod(gpus: 1, gpuType: 'v100') {
           stage('docs') {
             withEnv([
               "HOME=$WORKSPACE",
