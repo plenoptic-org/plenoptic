@@ -413,4 +413,6 @@ Remember from the [beginning of the notebook](how-to-penalty) that our objective
 
 ## Concluding thoughts
 
-When trying out a new penalty function, you are encouraged to first ensure it complies to best practices, and then try out different values for {attr}`~plenoptic.Metamer.penalty_lambda` to find which one allows you to minimize both the penalty *and* the metamer loss.
+When trying out a new penalty function, you are encouraged to first ensure it complies to best practices, and then try out different values for {attr}`~plenoptic.Metamer.penalty_lambda` to find which one allows you to minimize both the penalty *and* the metamer (or MAD Competition) loss.
+
+For an example of what a more complex penalty can do, see [](penalty-visual-diversity).
