@@ -602,6 +602,41 @@ class TestMetamers:
                 raise ValueError("Didn't set scheduler to None!")
 
     @pytest.mark.parametrize(
+        "model",
+        ["frontend.OnOff.nograd.ctf"],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("coarse_to_fine", [True, False])
+    @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
+    def test_load_scheduler_req_args(self, curie_img, model, coarse_to_fine, tmp_path):
+        # some schedulers require arguments on initialization
+        if coarse_to_fine:
+            met = po.MetamerCTF(curie_img, model)
+        else:
+            met = po.Metamer(curie_img, model)
+        scheduler = torch.optim.lr_scheduler.StepLR
+        scheduler_kwargs = {"step_size": 100}
+        met.setup(scheduler=scheduler, scheduler_kwargs=scheduler_kwargs)
+        met.synthesize(max_iter=5)
+        met.save(tmp_path / "test_metamer_load_scheduler.pt")
+
+        if coarse_to_fine:
+            met = po.MetamerCTF(curie_img, model)
+        else:
+            met = po.Metamer(curie_img, model)
+        met.load(tmp_path / "test_metamer_load_scheduler.pt")
+        met.setup(scheduler=scheduler)
+        met.synthesize(max_iter=5)
+        if not isinstance(met.scheduler, scheduler):
+            raise ValueError("Didn't properly set scheduler!")
+        for k, v in scheduler_kwargs.items():
+            if met.scheduler.state_dict()[k] != v:
+                raise ValueError("Didn't properly set scheduler kwargs!")
+
+    @pytest.mark.parametrize(
         "model", ["frontend.LinearNonlinear.nograd"], indirect=True
     )
     def test_load_tol(self, einstein_img, model, tmp_path):
