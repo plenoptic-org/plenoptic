@@ -21,7 +21,7 @@ keywords = ['neuroscience', 'pytorch', 'visual information processing', 'machine
 dependencies = [
     "numpy>=1.1",
     "torch>=1.8,!=1.12.0",
-    "pyrtools>=1.0.11",
+    "pyrtools >= 1.1.1",
     "scipy>=1.0",
     "matplotlib>=3.3",
     "tqdm>=4.29",
@@ -54,6 +54,7 @@ docs = [
      "jupytext",
      "sphobjinv",
      "sphinx-togglebutton",
+     "altair>=6.2.2",
 ]
 
 test = [
@@ -82,6 +83,7 @@ nb = [
     "torchvision>=0.3",
     "jupytext",
     "myst-nb",
+    "altair>=6.2.2",
 ]
 
 [project.urls]
