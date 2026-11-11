@@ -666,6 +666,38 @@ class TestMAD:
             elif mad.scheduler is not None:
                 raise ValueError("Didn't set scheduler to None!")
 
+    @pytest.mark.filterwarnings("ignore:You will need to call setup:UserWarning")
+    def test_load_scheduler_req_args(self, curie_img, tmp_path):
+        # some schedulers require arguments on initialization
+        mad = po.MADCompetition(
+            curie_img,
+            po.metric.mse,
+            po.loss.l2_norm,
+            "min",
+            metric_tradeoff_lambda=1,
+        )
+        scheduler = torch.optim.lr_scheduler.StepLR
+        scheduler_kwargs = {"step_size": 100, "gamma": 0.5}
+        mad.setup(scheduler=scheduler, scheduler_kwargs=scheduler_kwargs)
+        mad.synthesize(max_iter=5)
+        mad.save(tmp_path / "test_mad_load_scheduler.pt")
+
+        mad = po.MADCompetition(
+            curie_img,
+            po.metric.mse,
+            po.loss.l2_norm,
+            "min",
+            metric_tradeoff_lambda=1,
+        )
+        mad.load(tmp_path / "test_mad_load_scheduler.pt")
+        mad.setup(scheduler=scheduler)
+        mad.synthesize(max_iter=5)
+        if not isinstance(mad.scheduler, scheduler):
+            raise ValueError("Didn't properly set scheduler!")
+        for k, v in scheduler_kwargs.items():
+            if mad.scheduler.state_dict()[k] != v:
+                raise ValueError("Didn't properly set scheduler kwargs!")
+
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     def test_load_tol(self, einstein_img, tmp_path):
         mad = po.MADCompetition(
