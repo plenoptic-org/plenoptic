@@ -30,7 +30,7 @@ def __dir__() -> list[str]:
 
 
 def synthesis_loss(
-    synthesis_object: Metamer | MADCompetition,
+    synthesis_object: Metamer | MADCompetition | GenericSynthesis,
     iteration: int | None = None,
     plot_penalties: bool = False,
     ax: list[mpl.axes.Axes] | mpl.axes.Axes | None = None,
@@ -244,11 +244,15 @@ def synthesis_loss(
     if isinstance(synthesis_object, (Metamer, GenericSynthesis)):
         if hasattr(ax, "__iter__"):
             raise ValueError("if synthesis_object is a Metamer, ax cannot be a list!")
-        met_loss = (
+        synth_loss = (
             synthesis_object.losses
             - synthesis_object.penalty_lambda * synthesis_object.penalties
         )
-        ax.plot(met_loss, label="metamer loss", **kwargs)
+        if isinstance(synthesis_object, Metamer):
+            label = "metamer"
+        elif isinstance(synthesis_object, GenericSynthesis):
+            label = "synthesis"
+        ax.plot(synth_loss, label=f"{label} loss", **kwargs)
         ax.scatter(
             progress["iteration"],
             progress["losses"]
@@ -295,7 +299,7 @@ def synthesis_loss(
 
 
 def _get_synthesis_image(
-    synthesis_object: Metamer | MADCompetition | Eigendistortion,
+    synthesis_object: Metamer | MADCompetition | Eigendistortion | GenericSynthesis,
     batch_idx: int | None = None,
     iteration: int | None = None,
     return_ref_image: bool = False,
@@ -402,7 +406,7 @@ def _get_synthesis_image(
 
 
 def _get_synthesis_title(
-    synthesis_object: Metamer | MADCompetition | Eigendistortion,
+    synthesis_object: Metamer | MADCompetition | Eigendistortion | GenericSynthesis,
     batch_idx: int | None = None,
     iteration: int | None = None,
     return_ref_image: bool = False,
@@ -496,7 +500,7 @@ def _get_synthesis_title(
 
 
 def synthesis_histogram(
-    synthesis_object: Metamer | MADCompetition | Eigendistortion,
+    synthesis_object: Metamer | MADCompetition | Eigendistortion | GenericSynthesis,
     batch_idx: int | None = None,
     channel_idx: int | None = None,
     iteration: int | None = None,
@@ -659,8 +663,11 @@ def synthesis_histogram(
       >>> po.plot.synthesis_histogram(eig)
       <Axes: ... 'Histogram of tensor values'...>
     """
-    # For eigendistortion, we don't plot histogram against the reference image
-    return_ref_image = not isinstance(synthesis_object, Eigendistortion)
+    # For eigendistortion and GenericSynthesis, we don't plot histogram against the
+    # reference image
+    return_ref_image = not isinstance(
+        synthesis_object, (Eigendistortion, GenericSynthesis)
+    )
     titles = _get_synthesis_title(
         synthesis_object, batch_idx, iteration, return_ref_image
     )
@@ -702,7 +709,7 @@ def _synth_as_rgb(image: torch.Tensor, channel_idx: int | None) -> bool:
 
 
 def synthesis_imshow(
-    synthesis_object: Metamer | MADCompetition | Eigendistortion,
+    synthesis_object: Metamer | MADCompetition | Eigendistortion | GenericSynthesis,
     batch_idx: int = 0,
     channel_idx: int | None = None,
     distortion_scale: float = 5.0,
@@ -981,7 +988,7 @@ def _check_plot_consistency(
 def _check_included_plots(
     to_check: list[str] | dict[str, float],
     to_check_name: str,
-    synthesis_object: Metamer | MADCompetition | Eigendistortion,
+    synthesis_object: Metamer | MADCompetition | Eigendistortion | GenericSynthesis,
 ):
     """
     Check whether the user wanted us to create plots that we can't.
@@ -1030,7 +1037,7 @@ def _check_included_plots(
 
 def _setup_synthesis_fig(
     included_plots: list[str],
-    synthesis_object: Metamer | MADCompetition | Eigendistortion,
+    synthesis_object: Metamer | MADCompetition | Eigendistortion | GenericSynthesis,
     fig: mpl.figure.Figure | None = None,
     axes_idx: dict[str, int] = {},
     figsize: tuple[float, float] | None = None,
@@ -1160,7 +1167,7 @@ def _setup_synthesis_fig(
 
 
 def _get_default_included_plots(
-    synthesis_object: Metamer | MADCompetition | Eigendistortion,
+    synthesis_object: Metamer | MADCompetition | Eigendistortion | GenericSynthesis,
 ) -> list[str]:
     """
     Return value for ``included_plots``, based on ``synthesis_object`` class.
@@ -1193,7 +1200,7 @@ def _get_default_included_plots(
 
 
 def _synthesis_status(
-    synthesis_object: Metamer | MADCompetition | Eigendistortion,
+    synthesis_object: Metamer | MADCompetition | Eigendistortion | GenericSynthesis,
     batch_idx: int = 0,
     channel_idx: int | None = None,
     iteration: int | None = None,
@@ -1330,7 +1337,7 @@ def _synthesis_status(
 
 
 def synthesis_status(
-    synthesis_object: Metamer | MADCompetition | Eigendistortion,
+    synthesis_object: Metamer | MADCompetition | Eigendistortion | GenericSynthesis,
     batch_idx: int = 0,
     channel_idx: int | None = None,
     iteration: int | None = None,
@@ -1672,7 +1679,7 @@ def _get_rescale_ylim(
 
 
 def synthesis_animate(
-    synthesis_object: Metamer | MADCompetition,
+    synthesis_object: Metamer | MADCompetition | GenericSynthesis,
     framerate: int = 10,
     batch_idx: int = 0,
     channel_idx: int | None = None,
@@ -2031,26 +2038,30 @@ def synthesis_animate(
 
     .. image:: animate-example-10.gif
     """
-    if not isinstance(synthesis_object, (Metamer, MADCompetition)):
+    if not isinstance(synthesis_object, (Metamer, MADCompetition, GenericSynthesis)):
         raise TypeError(
-            "synthesis_object must be a MADCompetition or Metamer object but got"
-            f" {type(synthesis_object)}"
+            "synthesis_object must be a MADCompetition, Metamer, or GenericSynthesis"
+            f" object but got {type(synthesis_object)}"
         )
     if not synthesis_object.store_progress:
         raise ValueError("When synthesis_object.store_progress=False, cannot animate!")
     # rescale_ylim only relevant for metamer_representation_error plot
     if isinstance(synthesis_object, Metamer):
         rescale_ylim_interval = _get_rescale_ylim(synthesis_object, rescale_ylim)
-    if isinstance(synthesis_object, Metamer):
-        saved_synth = synthesis_object.saved_metamer
-        # this plot shows the metamer loss, which requires subtracting the penalty off
+    if isinstance(synthesis_object, (Metamer, GenericSynthesis)):
+        if isinstance(synthesis_object, Metamer):
+            saved_synth = synthesis_object.saved_metamer
+            video_name = "saved metamer"
+        elif isinstance(synthesis_object, GenericSynthesis):
+            saved_synth = synthesis_object.saved_synthesized_image
+            video_name = "saved synthesized image"
+        # this plot shows the synthesis loss, which requires subtracting the penalty off
         # of the objective function
-        met_loss = (
+        synth_loss = (
             synthesis_object.losses
             - synthesis_object.penalty_lambda * synthesis_object.penalties
         )
-        losses = [met_loss]
-        video_name = "saved metamer"
+        losses = [synth_loss]
     elif isinstance(synthesis_object, MADCompetition):
         saved_synth = synthesis_object.saved_mad_image
         losses = [
