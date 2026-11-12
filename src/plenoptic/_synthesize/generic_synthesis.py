@@ -162,8 +162,7 @@ class GenericSynthesis(_OptimizedSynthesis):
         self._saved_metamer = []
         self._store_progress = None
         self._synthesized_image = None
-        # WHAT DO ABOUT CACHED IMAGE?
-        self._image = None
+        self._saved_synthesized_image = []
 
     def setup(
         self,
@@ -219,11 +218,6 @@ class GenericSynthesis(_OptimizedSynthesis):
         ValueError
             If the loaded object had a scheduler, but the ``scheduler`` arg is
             a different type.
-
-        Warns
-        -----
-        UserWarning
-            If ``initial_image`` is a different shape than ``self.image``.
 
         Examples
         --------
@@ -286,7 +280,6 @@ class GenericSynthesis(_OptimizedSynthesis):
                     " before synthesize()!"
                 )
 
-        self._image = synth_image.clone().detach()
         validate_input(synth_image)
         validate_penalty(
             self._penalty_function,
@@ -410,7 +403,15 @@ class GenericSynthesis(_OptimizedSynthesis):
             # iterations and will be correct across calls to `synthesize`
             self._store(len(self._losses))
 
-            loss = self._optimizer_step(pbar)
+            try:
+                loss = self._optimizer_step(pbar)
+            except Exception as e:
+                err_msg = (
+                    "RuntimeError occurred, is a model involved in your"
+                    " loss function and did you forget to call to call"
+                    " po.remove_grad on it?"
+                )
+                raise RuntimeError(err_msg) from e
 
             if not np.isfinite(loss):
                 raise ValueError("Found a NaN in loss during optimization.")
@@ -866,6 +867,13 @@ class GenericSynthesis(_OptimizedSynthesis):
         file_path :
             The path to save the metamer object to.
 
+        Raises
+        ------
+        RuntimeError
+            If this object was just initialized. :meth:`setup` must be called
+            before saving, in order to initialize the :attr:`synthesized_image`
+            attribute.
+
         See Also
         --------
         load
@@ -881,15 +889,14 @@ class GenericSynthesis(_OptimizedSynthesis):
         >>> met.synthesize(max_iter=5, store_progress=True)
         >>> met.save("metamers.pt")
         """
-        raise NotImplementedError(
-            "Unsure how to handle this! don't have cached tensors"
-        )
+        if self._synthesized_image is None:
+            raise RuntimeError(
+                "Cannot save just-initialized GenericSynthesis "
+                "object! Call setup() first."
+            )
         save_io_attrs = [
-            (
-                "_loss_function",
-                ("_target_representation", "2 * _target_representation"),
-            ),
-            ("_penalty_function", ("_image",)),
+            ("_loss_function", ("_synthesized_image",)),
+            ("_penalty_function", ("_synthesized_image",)),
         ]
         save_state_dict_attrs = ["_optimizer", "_scheduler"]
         super().save(file_path, save_io_attrs, save_state_dict_attrs)
@@ -1138,15 +1145,12 @@ class GenericSynthesis(_OptimizedSynthesis):
         ...     po.data.fetch_data("example_metamer_gaussian.pt"), raise_on_checks=False
         ... )
         """
-        raise NotImplementedError(
-            "Unsure how to handle this! don't have cached tensors"
-        )
         check_attributes = [
             "_penalty_lambda",
         ]
         check_io_attrs = [
-            ("_loss_function", ("_image")),
-            ("_penalty_function", ("_image",)),
+            ("_loss_function", ("_synthesized_image",)),
+            ("_penalty_function", ("_synthesized_image",)),
         ]
         super().load(
             file_path,
@@ -1271,7 +1275,25 @@ class GenericSynthesis(_OptimizedSynthesis):
         return super().penalties(self.synthesized_image)
 
     @property
-    def image(self) -> torch.Tensor:
-        """Target image of metamer optimization."""
-        # numpydoc ignore=RT01,ES01,EX01
-        return self._image
+    def losses(self) -> torch.Tensor:
+        """
+        Optimization loss over iterations.
+
+        Will have ``length=num_iter+1``, where ``num_iter`` is the number of
+        iterations of synthesis run so far.
+
+        This tensor always lives on the CPU.
+        """  # numpydoc ignore=RT01
+        return super().losses(self.synthesized_image.dtype)
+
+    @property
+    def gradient_norm(self) -> torch.Tensor:
+        """Optimization gradient's L2 norm over iterations."""
+        # numpydoc ignore=RT01,ES01
+        return super().gradient_norm(self.synthesized_image.dtype)
+
+    @property
+    def pixel_change_norm(self) -> torch.Tensor:
+        """L2 norm change in pixel values over iterations."""
+        # numpydoc ignore=RT01,ES01
+        return super().pixel_change_norm(self.synthesized_image.dtype)

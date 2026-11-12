@@ -1468,3 +1468,27 @@ class MADCompetition(_OptimizedSynthesis):
         This tensor always lives on the CPU.
         """  # numpydoc ignore=RT01
         return super().penalties(self.mad_image)
+
+    @property
+    def losses(self) -> torch.Tensor:
+        """
+        Optimization loss over iterations.
+
+        Will have ``length=num_iter+1``, where ``num_iter`` is the number of
+        iterations of synthesis run so far.
+
+        This tensor always lives on the CPU.
+        """  # numpydoc ignore=RT01
+        return super().losses(self.mad_image.dtype)
+
+    @property
+    def gradient_norm(self) -> torch.Tensor:
+        """Optimization gradient's L2 norm over iterations."""
+        # numpydoc ignore=RT01,ES01
+        return super().gradient_norm(self.mad_image.dtype)
+
+    @property
+    def pixel_change_norm(self) -> torch.Tensor:
+        """L2 norm change in pixel values over iterations."""
+        # numpydoc ignore=RT01,ES01
+        return super().pixel_change_norm(self.mad_image.dtype)

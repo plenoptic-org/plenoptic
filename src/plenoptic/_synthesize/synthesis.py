@@ -741,13 +741,6 @@ class _OptimizedSynthesis(_Synthesis):
             raise Exception("penalty_lambda must be non-negative!")
         self._penalty_lambda = penalty_lambda
 
-    @abc.abstractproperty
-    def image(self):
-        r"""The important image."""  # numpydoc ignore=ES01
-        # This is needed so we can check the dtype of something for the penalty and
-        # losses attributes.
-        pass
-
     @abc.abstractmethod
     def setup(self):
         r"""Initialize relevant attributes."""  # numpydoc ignore=ES01
@@ -1191,8 +1184,8 @@ class _OptimizedSynthesis(_Synthesis):
         # numpydoc ignore=RT01,ES01
         return self._penalty_lambda
 
-    @property
-    def losses(self) -> torch.Tensor:
+    @abc.abstractmethod
+    def losses(self, dtype: torch.dtype) -> torch.Tensor:
         """
         Optimization loss over iterations.
 
@@ -1200,7 +1193,17 @@ class _OptimizedSynthesis(_Synthesis):
         iterations of synthesis run so far.
 
         This tensor always lives on the CPU.
-        """  # numpydoc ignore=RT01
+
+        Parameters
+        ----------
+        dtype
+            The dtype to use for the returned tensor.
+
+        Returns
+        -------
+        losses
+            The loss over synthesis iterations.
+        """
         current_loss = self._current_loss
         # this will happen if we haven't run synthesize() yet or got
         # interrupted
@@ -1216,7 +1219,7 @@ class _OptimizedSynthesis(_Synthesis):
                 # this will happen if setup() has not been called and so we can't
                 # compute loss because synthesis hasn't been initialized.
                 return torch.empty(0)
-        return torch.as_tensor([*self._losses, current_loss], dtype=self.image.dtype)
+        return torch.as_tensor([*self._losses, current_loss], dtype=dtype)
 
     @abc.abstractmethod
     def penalties(self, synth_attr: torch.Tensor) -> torch.Tensor:
@@ -1253,20 +1256,52 @@ class _OptimizedSynthesis(_Synthesis):
                     current_penalty = self.penalty_function(synth_attr).item()
         return torch.as_tensor(
             [*self._penalties, current_penalty],
-            dtype=self.image.dtype,
+            dtype=synth_attr.dtype,
         )
 
-    @property
-    def gradient_norm(self) -> torch.Tensor:
-        """Optimization gradient's L2 norm over iterations."""
-        # numpydoc ignore=RT01,ES01
-        return torch.as_tensor(self._gradient_norm, dtype=self.image.dtype)
+    @abc.abstractmethod
+    def gradient_norm(self, dtype: torch.dtype) -> torch.Tensor:
+        """
+        Optimization gradient's L2 norm over iterations.
 
-    @property
-    def pixel_change_norm(self) -> torch.Tensor:
-        """L2 norm change in pixel values over iterations."""
-        # numpydoc ignore=RT01,ES01
-        return torch.as_tensor(self._pixel_change_norm, dtype=self.image.dtype)
+        Will have ``length=num_iter+1``, where ``num_iter`` is the number of
+        iterations of synthesis run so far.
+
+        This tensor always lives on the CPU.
+
+        Parameters
+        ----------
+        dtype
+            The dtype to use for the returned tensor.
+
+        Returns
+        -------
+        gradient_norm
+            The norm of the gradient over synthesis iterations.
+        """
+        return torch.as_tensor(self._gradient_norm, dtype=dtype)
+
+    @abc.abstractmethod
+    def pixel_change_norm(self, dtype: torch.dtype) -> torch.Tensor:
+        """
+        L2 norm change in pixel values over iterations.
+
+        Will have ``length=num_iter+1``, where ``num_iter`` is the number of
+        iterations of synthesis run so far.
+
+        This tensor always lives on the CPU.
+
+        Parameters
+        ----------
+        dtype
+            The dtype to use for the returned tensor.
+
+        Returns
+        -------
+        pixel_change_norm
+            The norm of the pixel change over synthesis iterations.
+        """
+        return torch.as_tensor(self._pixel_change_norm, dtype=dtype)
 
     @property
     def store_progress(self) -> bool | int:
