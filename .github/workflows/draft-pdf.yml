@@ -1,0 +1,34 @@
+name: joss
+on:
+  push:
+    branches:
+      - joss
+  pull_request:
+    branches:
+      - joss
+
+permissions: {}
+
+jobs:
+  paper:
+    runs-on: ubuntu-latest
+    name: Paper Draft
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Build draft PDF
+        uses: openjournals/openjournals-draft-action@85a18372e48f551d8af9ddb7a747de685fbbb01c # v1.0
+        with:
+          journal: joss
+          # This should be the path to the paper within your repo.
+          paper-path: joss_paper/paper.md
+      - name: Upload
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: paper
+          # This is the output path where Pandoc will write the compiled
+          # PDF. Note, this should be the same directory as the input
+          # paper.md
+          path: joss_paper/paper.pdf
