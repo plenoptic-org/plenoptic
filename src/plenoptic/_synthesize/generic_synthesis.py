@@ -163,6 +163,8 @@ class GenericSynthesis(_OptimizedSynthesis):
         self._store_progress = None
         self._synthesized_image = None
         self._saved_synthesized_image = []
+        self._device = None
+        self._dtype = None
 
     def setup(
         self,
@@ -268,6 +270,10 @@ class GenericSynthesis(_OptimizedSynthesis):
         if self._synthesized_image is None:
             validate_input(initial_image)
             synth_image = initial_image.clone().detach()
+            if self._device is not None:
+                synth_image = synth_image.to(self._device)
+            if self._dtype is not None:
+                synth_image = synth_image.to(self._dtype)
             synth_image.requires_grad_()
             self._synthesized_image = synth_image
         else:
@@ -968,6 +974,17 @@ class GenericSynthesis(_OptimizedSynthesis):
             self._loss_function = self._loss_function.to(*args, **kwargs)
         except AttributeError:
             warnings.warn("Unable to call loss_function.to(), so we leave it as is.")
+        for arg in [*args, *kwargs.values()]:
+            if isinstance(arg, torch.dtype):
+                self._dtype = arg
+            elif isinstance(arg, torch.device):
+                self._device = arg
+            else:
+                try:
+                    torch.device(arg)
+                    self._device = arg
+                except RuntimeError:
+                    pass
 
     def load(
         self,
