@@ -86,7 +86,7 @@ def _find_zoom(
 
 def imshow(
     image: torch.Tensor | list[torch.Tensor],
-    vrange: tuple[float, float] | str = "indep1",
+    vrange: tuple[float, float] | list[tuple[float, float]] | str = "indep1",
     zoom: float | None = None,
     title: str | list[str] | None = "",
     col_wrap: int | None = None,
@@ -123,36 +123,51 @@ def imshow(
            ``vmin``, ``vmax`` args in :external:func:`matplotlib.pyplot.imshow`).
 
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
-        the minimum and maximum value of the colormap, respectively. If a
-        string:
+        the minimum and maximum value of the colormap, respectively. If a list
+        by the corresponding 2-tuple. If a string:
 
-        * ``"auto0"``: All images have same vmin/vmax, which have the same
-          absolute value, and come from the minimum or maximum across all
-          images, whichever has the larger absolute value.
+        * ``"auto0"``: all images have same vmin/vmax, which have the same absolute
+          value, and come from the minimum or maximum across all
+          images, whichever has the larger absolute value
 
-        * ``"auto1"``: All images have same vmin/vmax, which are the
-          minimum/maximum values across all images.
+        * ``"auto/auto1"``: all images have same vmin/vmax, which are the
+          minimum/maximum values across all images
 
-        * ``"auto2"``: All images have same vmin/vmax, which are the mean (across
-          all images) minus/ plus 2 std dev (across all images).
+        * ``"auto2"``: all images have same vmin/vmax, which are the mean (across
+          all images) minus/ plus 2 std dev (across all images)
 
-        * ``"auto3"``: All images have same vmin/vmax, chosen so as to map the 10th/90th
-          percentile values to the 10th/90th percentile of the display intensity range.
-          For example: vmin is the 10th percentile image value minus 1/8 times the
-          difference between the 90th and 10th percentile.
+        * ``"auto3"``: all images have same vmin/vmax, chosen so as to map the
+          10th/90th percentile values to the 10th/90th percentile of
+          the display intensity range. For example: vmin is the 10th
+          percentile image value minus 1/8 times the difference
+          between the 90th and 10th percentile
 
-        * ``"indep0"``: Each image has an independent vmin/vmax, which have the same
-          absolute value, which comes from either their minimum or maximum value,
-          whichever has the larger absolute value.
+        * ``"autoNrow"``: where ``N`` is an integer. each row of the figure
+          has the same vmin/vmax, which are
+          computed using the corresponding ``"autoN"`` method described above.
 
-        * ``"indep1"``: Each image has an independent vmin/vmax, which are their
+        * ``"autoNcol"``: where ``N`` is an integer. each column of the figure has the
+          same vmin/vmax, which are computed using the corresponding ``"autoN"``
+          method described above.
+
+        * ``"autoNcolcomplex"``: where ``N`` is an integer. Same as ``"autoNcol"``,
+          but the vmin/vmax are computed jointly across the real and imaginary parts
+          in each column.
+
+        * ``"indep0"``: each image has an independent vmin/vmax, which have the
+          same absolute value, which comes from either their
+          minimum or maximum value, whichever has the larger
+          absolute value.
+
+        * ``"indep1"``: each image has an independent vmin/vmax, which are their
           minimum/maximum values.
 
-        * ``"indep2"``: Each image has an independent vmin/vmax, which is their
+        * ``"indep2"``: each image has an independent vmin/vmax, which is their
           mean minus/plus 2 std dev.
 
-        * ``"indep3"``: Each image has an independent vmin/vmax, chosen so that the
-          10th/90th percentile values map to the 10th/90th percentile intensities.
+        * ``"indep3"``: each image has an independent vmin/vmax, chosen so that
+          the 10th/90th percentile values map to the 10th/90th
+          percentile intensities.
 
     zoom
         Ratio of display pixels to image pixels. If greater than 1, must be an
@@ -330,6 +345,38 @@ def imshow(
 
       >>> po.plot.imshow(einsteins_scaled, vrange="indep1")
       <PyrFigure size ... with 2 Axes>
+
+    If you are plotting multiple rows and columns of images, you can set the rows to
+    have the same range using ``"autoNrow"``. ``"autoN"`` specifies the method of
+    computing the range and images in each row have this value.
+
+    .. plot::
+        :context: close-figs
+
+        >>> einstein_curie_scaled = torch.cat(
+        ...     [einstein, curie, einstein * 2, curie * 2]
+        ... )
+        >>> po.plot.imshow(einstein_curie_scaled, vrange="auto1row", col_wrap=2)
+        <PyrFigure size ... with 2 Axes>
+
+    Similarly, you can set the columns to have the same range using ``"autoNcol"``.
+
+    .. plot::
+        :context: close-figs
+
+        >>> po.plot.imshow(einstein_curie_scaled, vrange="auto1col", col_wrap=2)
+        <PyrFigure size ... with 2 Axes>
+
+    You can also specify each image's range explicitly by passing a list of 2-tuples,
+    one for each image.
+
+    .. plot::
+        :context: close-figs
+
+        >>> einstein_curie = torch.cat([einstein, curie, einstein, curie])
+        >>> vrange_list = [(0, 1), (0, 2), (0, 3), (0, 4)]
+        >>> po.plot.imshow(einstein_curie, vrange=vrange_list, col_wrap=2)
+        <PyrFigure size ... with 2 Axes>
 
     The ``zoom`` argument allows users to set the ratio of display to image pixels,
     increasing or decreasing the size of the resulting plot:
@@ -594,7 +641,7 @@ def animshow(
     video: torch.Tensor | list[torch.Tensor],
     framerate: float = 2.0,
     repeat: bool = False,
-    vrange: tuple[float, float] | str = "indep1",
+    vrange: tuple[float, float] | list[tuple[float, float]] | str = "indep1",
     zoom: float | None = None,
     title: str | list[str] | None = "",
     col_wrap: int | None = None,
@@ -627,45 +674,59 @@ def animshow(
         Temporal resolution of the video, in Hz (frames per second).
     repeat
         Whether to loop the animation or just play it once.
-    vrange
-
+    vrange : ``tuple`` or ``list`` or ``str``
         .. attention::
-           This argument only affects behavior for grayscale images. RGB
-           images will always be displayed with vrange [0, 1] (for floats) or
-           [0, 255] (for ints), because of how matplotlib handles them (see
-           :external:func:`matplotlib.pyplot.imshow`).
+           this only affects the behavior for grayscale images. RGB images
+           will always be displayed with vrange [0, 1] (for floats) or [0, 255]
+           (for ints), because of how matplotlib handles them.
 
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
-        the minimum and maximum value of the colormap, respectively. If a
-        string:
+        the minimum and maximum value of the colormap, respectively. If a list
+        of 2-tuples, must have one per image, and each image's vmin/vmax is specified
+        by the corresponding 2-tuple. If a string:
 
-        * ``"auto0"``: All images have same vmin/vmax, which have the same
-          absolute value, and come from the minimum or maximum across all
-          images, whichever has the larger absolute value.
+        * ``"auto0"``: all images have same vmin/vmax, which have the same absolute
+          value, and come from the minimum or maximum across all
+          images, whichever has the larger absolute value
 
-        * ``"auto1"``: All images have same vmin/vmax, which are the
-          minimum/maximum values across all images.
+        * ``"auto/auto1"``: all images have same vmin/vmax, which are the
+          minimum/maximum values across all images
 
-        * ``"auto2"``: All images have same vmin/vmax, which are the mean (across
-          all images) minus/ plus 2 std dev (across all images).
+        * ``"auto2"``: all images have same vmin/vmax, which are the mean (across
+          all images) minus/ plus 2 std dev (across all images)
 
-        * ``"auto3"``: All images have same vmin/vmax, chosen so as to map the 10th/90th
-          percentile values to the 10th/90th percentile of the display intensity range.
-          For example: vmin is the 10th percentile image value minus 1/8 times the
-          difference between the 90th and 10th percentile.
+        * ``"auto3"``: all images have same vmin/vmax, chosen so as to map the
+          10th/90th percentile values to the 10th/90th percentile of
+          the display intensity range. For example: vmin is the 10th
+          percentile image value minus 1/8 times the difference
+          between the 90th and 10th percentile
 
-        * ``"indep0"``: Each image has an independent vmin/vmax, which have the same
-          absolute value, which comes from either their minimum or maximum value,
-          whichever has the larger absolute value.
+        * ``"autoNrow"``: where ``N`` is an integer. each row of the figure
+          has the same vmin/vmax, which are
+          computed using the corresponding ``"autoN"`` method described above.
 
-        * ``"indep1"``: Each image has an independent vmin/vmax, which are their
+        * ``"autoNcol"``: where ``N`` is an integer. each column of the figure has the
+          same vmin/vmax, which are computed using the corresponding ``"autoN"``
+          method described above.
+
+        * ``"autoNcolcomplex"``: where ``N`` is an integer. Same as ``"autoNcol"``,
+          but the vmin/vmax are computed jointly across the real and imaginary parts
+          in each column.
+
+        * ``"indep0"``: each image has an independent vmin/vmax, which have the
+          same absolute value, which comes from either their
+          minimum or maximum value, whichever has the larger
+          absolute value.
+
+        * ``"indep1"``: each image has an independent vmin/vmax, which are their
           minimum/maximum values.
 
-        * ``"indep2"``: Each image has an independent vmin/vmax, which is their
+        * ``"indep2"``: each image has an independent vmin/vmax, which is their
           mean minus/plus 2 std dev.
 
-        * ``"indep3"``: Each image has an independent vmin/vmax, chosen so that the
-          10th/90th percentile values map to the 10th/90th percentile intensities.
+        * ``"indep3"``: each image has an independent vmin/vmax, chosen so that
+          the 10th/90th percentile values map to the 10th/90th
+          percentile intensities.
 
     zoom
         Ratio of display pixels to image pixels. If greater than 1, must be an
@@ -790,6 +851,28 @@ def animshow(
       generally hold in notebooks as well, but will fail if, e.g., you plot an image
       that's 2000 pixels wide on an monitor 1000 pixels wide; the browser handles the
       rescaling in a way we can't control.
+
+    Examples
+    --------
+    Animate a single grayscale video. Here we add noise to the Einstein image to
+    create a video of 20 frames and set vrange to [0,1].
+
+    .. plot::
+      :context: reset
+
+        >>> import plenoptic as po
+        >>> import torch
+        >>> einstein_noisy = po.data.einstein()
+        >>> images = torch.tensor(einstein_noisy)
+        >>> for ii in range(20):
+        ...     einstein_noisy = einstein_noisy + torch.randn_like(einstein_noisy) * 0.1
+        ...     images = torch.hstack([images, einstein_noisy])
+        >>> images = images.unsqueeze(0)  # Add batch dimension
+        >>> ani = po.plot.animshow(images, vrange=(0, 1))
+        >>> # Save the video (here we're saving it as a .gif)
+        >>> ani.save("noisy_einstein.gif")
+
+    .. image:: noisy_einstein.gif
     """
     if not isinstance(video, list):
         video = [video]
@@ -867,7 +950,7 @@ def animshow(
 
 def pyrshow(
     pyr_coeffs: dict,
-    vrange: tuple[float, float] | str = "indep1",
+    vrange: tuple[float, float] | list[tuple[float, float]] | str = "auto1pyr",
     zoom: float = 1,
     show_residuals: bool = True,
     cmap: mpl.colors.Colormap | None = None,
@@ -895,37 +978,57 @@ def pyrshow(
         method.
     vrange
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
-        the minimum and maximum value of the colormap, respectively. If a
-        string:
+        the minimum and maximum value of the colormap, respectively. If a list
+        of 2-tuples, must have one per image, and each image's vmin/vmax is specified
+        by the corresponding 2-tuple. If a string:
 
-        * ``"auto0"``: All images have same vmin/vmax, which have the same
-          absolute value, and come from the minimum or maximum across all
-          images, whichever has the larger absolute value.
+        * ``"auto0"``: all images have same vmin/vmax, which have the same absolute
+          value, and come from the minimum or maximum across all
+          images, whichever has the larger absolute value
 
-        * ``"auto1"``: All images have same vmin/vmax, which are the
-          minimum/maximum values across all images.
+        * ``"auto/auto1"``: all images have same vmin/vmax, which are the
+          minimum/maximum values across all images
 
-        * ``"auto2"``: All images have same vmin/vmax, which are the mean (across
-          all images) minus/ plus 2 std dev (across all images).
+        * ``"auto2"``: all images have same vmin/vmax, which are the mean (across
+          all images) minus/ plus 2 std dev (across all images)
 
-        * ``"auto3"``: All images have same vmin/vmax, chosen so as to map the 10th/90th
-          percentile values to the 10th/90th percentile of the display intensity range.
-          For example: vmin is the 10th percentile image value minus 1/8 times the
-          difference between the 90th and 10th percentile.
+        * ``"auto3"``: all images have same vmin/vmax, chosen so as to map the
+          10th/90th percentile values to the 10th/90th percentile of
+          the display intensity range. For example: vmin is the 10th
+          percentile image value minus 1/8 times the difference
+          between the 90th and 10th percentile
 
-        * ``"indep0"``: Each image has an independent vmin/vmax, which have the same
-          absolute value, which comes from either their minimum or maximum value,
-          whichever has the larger absolute value.
+        * ``"autoNrow"``: where ``N`` is an integer. each row of the figure
+          has the same vmin/vmax, which are
+          computed using the corresponding ``"autoN"`` method described above.
 
-        * ``"indep1"``: Each image has an independent vmin/vmax, which are their
+        * ``"autoNcol"``: where ``N`` is an integer. each column of the figure has the
+          same vmin/vmax, which are computed using the corresponding ``"autoN"``
+          method described above.
+
+        * ``"autoNcolcomplex"``: where ``N`` is an integer. Same as ``"autoNcol"``,
+          but the vmin/vmax are computed across the real and imaginary parts in each
+          column. Note: Is not compatible with ``show_residuals=True``. Plot the
+          residuals separately.
+
+        * ``"autoNpyr"``: where ``N`` is an integer. Same as ``"autoNrow"`` except
+          the lowpass and highpass residuals vmin/vmax are computed independently,
+          as ``"indepN"``.
+
+        * ``"indep0"``: each image has an independent vmin/vmax, which have the
+          same absolute value, which comes from either their
+          minimum or maximum value, whichever has the larger
+          absolute value.
+
+        * ``"indep1"``: each image has an independent vmin/vmax, which are their
           minimum/maximum values.
 
-        * ``"indep2"``: Each image has an independent vmin/vmax, which is their
+        * ``"indep2"``: each image has an independent vmin/vmax, which is their
           mean minus/plus 2 std dev.
 
-        * ``"indep3"``: Each image has an independent vmin/vmax, chosen so that the
-          10th/90th percentile values map to the 10th/90th percentile intensities.
-
+        * ``"indep3"``: each image has an independent vmin/vmax, chosen so that
+          the 10th/90th percentile values map to the 10th/90th
+          percentile intensities.
     zoom
         Ratio of display pixels to image pixels. if greater than 1, must be an
         integer. If less than 1, must be ``1/d`` where ``d`` is a a divisor of the
@@ -958,6 +1061,41 @@ def pyrshow(
     ------
     TypeError
         If ``batch_idx`` or ``channel_idx`` takes an illegal value.
+
+    Examples
+    --------
+    Plot the steerable pyramid coefficients of a single image:
+
+    .. plot::
+        :context: close-figs
+
+        >>> import plenoptic as po
+        >>> einstein = po.data.einstein()
+        >>> spyr = po.process.SteerablePyramidFreq(
+        ...     einstein.shape[-2:], height=3, order=2
+        ... )
+        >>> coeffs = spyr(einstein)
+        >>> po.plot.pyrshow(coeffs, vrange="auto1pyr")
+        <PyrFigure size ... with 1 Axes>
+
+    Note that here we are using vrange "auto1pyr", which computes the
+    vmin/vmax independently for each scale but uses the same vrange across
+    orientations. The highpass and low pass residual's vranges are computed
+    independently.
+
+    Plot the coefficients of a complex steerable pyramid:
+
+    .. plot::
+       :context: close-figs
+
+        >>> spyr = po.process.SteerablePyramidFreq(
+        ...     einstein.shape[-2:], height=3, order=2, is_complex=True
+        ... )
+        >>> coeffs = spyr(einstein)
+        >>> po.plot.pyrshow(coeffs)
+        <PyrFigure size ... with 1 Axes>
+
+    Note that the images alternate between real and imaginary parts.
     """
     pyr_coeffvis = {}
     for k, v in pyr_coeffs.items():
