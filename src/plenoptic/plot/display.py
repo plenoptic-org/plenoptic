@@ -346,6 +346,38 @@ def imshow(
       >>> po.plot.imshow(einsteins_scaled, vrange="indep1")
       <PyrFigure size ... with 2 Axes>
 
+    If you are plotting multiple rows and columns of images, you can set the rows to
+    have the same range using ``"autoNrow"``. ``"autoN"`` specifies the method of
+    computing the range and images in each row have this value.
+
+    .. plot::
+        :context: close-figs
+
+        >>> einstein_curie_scaled = torch.cat(
+        ...     [einstein, curie, einstein * 2, curie * 2]
+        ... )
+        >>> po.plot.imshow(einstein_curie_scaled, vrange="auto1row", col_wrap=2)
+        <PyrFigure size ... with 2 Axes>
+
+    Similarly, you can set the columns to have the same range using ``"autoNcol"``.
+
+    .. plot::
+        :context: close-figs
+
+        >>> po.plot.imshow(einstein_curie_scaled, vrange="auto1col", col_wrap=2)
+        <PyrFigure size ... with 2 Axes>
+
+    You can also specify each image's range explicitly by passing a list of 2-tuples,
+    one for each image.
+
+    .. plot::
+        :context: close-figs
+
+        >>> einstein_curie = torch.cat([einstein, curie, einstein, curie])
+        >>> vrange_list = [(0, 1), (0, 2), (0, 3), (0, 4)]
+        >>> po.plot.imshow(einstein_curie, vrange=vrange_list, col_wrap=2)
+        <PyrFigure size ... with 2 Axes>
+
     The ``zoom`` argument allows users to set the ratio of display to image pixels,
     increasing or decreasing the size of the resulting plot:
 
@@ -819,6 +851,31 @@ def animshow(
       generally hold in notebooks as well, but will fail if, e.g., you plot an image
       that's 2000 pixels wide on an monitor 1000 pixels wide; the browser handles the
       rescaling in a way we can't control.
+
+    Examples
+    --------
+    Animate a single grayscale video. Here we add noise to the Einstein image to
+    create a video of 20 frames and set vrange to [0,1].
+
+    .. plot::
+        :context: close-figs
+
+    >>> import plenoptic as po
+    >>> import matplotlib.pyplot as plt
+    >>> plt.rcParams["animation.html"] = "html5"
+    >>> # use single-threaded ffmpeg for animation writer
+    >>> plt.rcParams["animation.writer"] = "ffmpeg"
+    >>> plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
+
+    >>> einstein_noisy = po.data.einstein()
+    >>> images = torch.tensor(einstein_noisy)
+
+    >>> for ii in range(20):
+    >>>    einstein_noisy = einstein_noisy + torch.randn_like(einstein) * .1
+    >>>    images = torch.hstack([images,einstein_noisy])
+    >>> images = images.unsqueeze(0)  # Add batch dimension
+    >>> po.plot.animshow(images, vrange=(0, 1))
+    <PyrFigure size ... with 1 Axes>
     """
     if not isinstance(video, list):
         video = [video]
@@ -896,7 +953,7 @@ def animshow(
 
 def pyrshow(
     pyr_coeffs: dict,
-    vrange: tuple[float, float] | list[tuple[float, float]] | str = "indep1",
+    vrange: tuple[float, float] | list[tuple[float, float]] | str = "auto1pyr",
     zoom: float = 1,
     show_residuals: bool = True,
     cmap: mpl.colors.Colormap | None = None,
@@ -1007,6 +1064,41 @@ def pyrshow(
     ------
     TypeError
         If ``batch_idx`` or ``channel_idx`` takes an illegal value.
+
+    Examples
+    --------
+    Plot the steerable pyramid coefficients of a single image:
+
+    .. plot::
+        :context: close-figs
+
+        >>> import plenoptic as po
+        >>> einstein = po.data.einstein()
+        >>> spyr = po.process.SteerablePyramidFreq(
+        ...     einstein.shape[-2:], height=3, order=2
+        ... )
+        >>> coeffs = spyr(einstein)
+        >>> po.plot.pyrshow(coeffs)
+        <PyrFigure size ... with 1 Axes>
+
+    Note that here we are using vrange "auto1pyr", which computes the
+    vmin/vmax independently for each scale but uses the same vrange across
+    orientations. The highpass and low pass residual's vranges are computed
+    independently.
+
+    Plot the coefficients of a complex steerable pyramid:
+
+    .. plot::
+       :context: close-figs
+
+        >>> spyr = po.process.SteerablePyramidFreq(
+        ...     einstein.shape[-2:], height=3, order=2, is_complex=True
+        ... )
+        >>> coeffs = spyr(einstein)
+        >>> po.plot.pyrshow(coeffs)
+        <PyrFigure size ... with 1 Axes>
+
+    Note that the images alternate between real and imaginary parts.
     """
     pyr_coeffvis = {}
     for k, v in pyr_coeffs.items():
