@@ -25,8 +25,16 @@ Run it in your browser: **{binder}`ds_star.ipynb`**!
 
 In this notebook, we will create a datasaurus metamer shaped like a star.
 
-
 The synthesis procedure for this example is slightly different than the others, because this penalty is difficult to meet. We proceed in two stages: we first use a reduced model (only matching the means) and a penalty to encourage a star shape, and then use the output of this synthesis to initialize a second {class}`~plenoptic.Metamer` object, which uses the full model and removes the star penalty. Read on for more details.
+
+:::{admonition} Initialization vs. Penalties
+:class: seealso
+
+We also could've manually created a star pattern and used that to initialize the metamer synthesis, as in [the plenoptic logo example](ds-plenoptic-logo).
+
+See [](penalty-visual-diversity) for a discussion of the effects of initialization vs. penalties on the resulting model metamers.
+
+:::
 
 ```{code-cell} ipython3
 :tags: [hide-input]
