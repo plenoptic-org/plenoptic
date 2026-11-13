@@ -1078,7 +1078,7 @@ def pyrshow(
         ...     einstein.shape[-2:], height=3, order=2
         ... )
         >>> coeffs = spyr(einstein)
-        >>> po.plot.pyrshow(coeffs)
+        >>> po.plot.pyrshow(coeffs, vrange="auto1pyr")
         <PyrFigure size ... with 1 Axes>
 
     Note that here we are using vrange "auto1pyr", which computes the
