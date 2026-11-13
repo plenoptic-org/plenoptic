@@ -865,7 +865,7 @@ def animshow(
         >>> einstein_noisy = po.data.einstein()
         >>> images = torch.tensor(einstein_noisy)
         >>> for ii in range(20):
-        ...     einstein_noisy = einstein_noisy + torch.randn_like(einstein) * 0.1
+        ...     einstein_noisy = einstein_noisy + torch.randn_like(einstein_noisy) * 0.1
         ...     images = torch.hstack([images, einstein_noisy])
         >>> images = images.unsqueeze(0)  # Add batch dimension
         >>> ani = po.plot.animshow(images, vrange=(0, 1))
