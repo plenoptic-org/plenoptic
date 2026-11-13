@@ -858,24 +858,21 @@ def animshow(
     create a video of 20 frames and set vrange to [0,1].
 
     .. plot::
-        :context: close-figs
+      :context: reset
 
-    >>> import plenoptic as po
-    >>> import matplotlib.pyplot as plt
-    >>> plt.rcParams["animation.html"] = "html5"
-    >>> # use single-threaded ffmpeg for animation writer
-    >>> plt.rcParams["animation.writer"] = "ffmpeg"
-    >>> plt.rcParams["animation.ffmpeg_args"] = ["-threads", "1"]
+        >>> import plenoptic as po
+        >>> import torch
+        >>> einstein_noisy = po.data.einstein()
+        >>> images = torch.tensor(einstein_noisy)
+        >>> for ii in range(20):
+        ...     einstein_noisy = einstein_noisy + torch.randn_like(einstein) * 0.1
+        ...     images = torch.hstack([images, einstein_noisy])
+        >>> images = images.unsqueeze(0)  # Add batch dimension
+        >>> ani = po.plot.animshow(images, vrange=(0, 1))
+        >>> # Save the video (here we're saving it as a .gif)
+        >>> ani.save("noisy_einstein.gif")
 
-    >>> einstein_noisy = po.data.einstein()
-    >>> images = torch.tensor(einstein_noisy)
-
-    >>> for ii in range(20):
-    >>>    einstein_noisy = einstein_noisy + torch.randn_like(einstein) * .1
-    >>>    images = torch.hstack([images,einstein_noisy])
-    >>> images = images.unsqueeze(0)  # Add batch dimension
-    >>> po.plot.animshow(images, vrange=(0, 1))
-    <PyrFigure size ... with 1 Axes>
+    .. image:: noisy_einstein.gif
     """
     if not isinstance(video, list):
         video = [video]
