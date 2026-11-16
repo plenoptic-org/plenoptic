@@ -56,6 +56,12 @@ class DeepNetFeatures(torch.nn.Module):
         Pre-processing transform to apply to image before passing to model. If
         ``None``, will not apply any transform. Intended use case is for e.g., the
         ImageNet color normalization step.
+    postproc
+        Post-processing transform to apply to model output. If ``None``, will not
+        apply any transform. Must accept the output of the
+        :external+torchvision:doc:`torchvision feature extractor <feature_extraction>`,
+        which will be a dictionary whose keys are the values from ``return_nodes``
+        and whose values are tensors. See Examples section for examples.
 
     Raises
     ------
@@ -217,6 +223,45 @@ class DeepNetFeatures(torch.nn.Module):
        :context: close-figs
 
        >>> fig, axes = model.plot_representation(model(img))
+
+    Set ``postproc`` to perform post-processing on channel output. This can be used to,
+    e.g., pick the activity of a specific channel in the output layer:
+
+    >>> channel_n = 440
+    >>> def select_channel(x):
+    ...     return {k: v[:, channel_n] for k, v in x.items()}
+    >>> model = po.models.DeepNetFeatures(
+    ...     tv_model, "layer2", norm, postproc=select_channel
+    ... )
+    >>> model(img).shape
+    torch.Size([1, 784])
+
+    Or to compute the gram matrices of each of the included layers:
+
+    >>> import einops
+    >>> def gram(x):
+    ...     return {
+    ...         k: einops.einsum(v, v, "b c1 h w, b c2 h w -> b c1 c2")
+    ...         for k, v in x.items()
+    ...     }
+    >>> model = po.models.DeepNetFeatures(tv_model, "layer2", norm, postproc=gram)
+    >>> model(img).shape
+    torch.Size([1, 262144])
+    >>> model.convert_to_dict(model(img))["layer2"].shape
+    torch.Size([1, 512, 512])
+
+    If you construct ``postproc`` as in the above examples, to iterate through the
+    input dictionary, they will work for multiple layers as well:
+
+    >>> model = po.models.DeepNetFeatures(
+    ...     tv_model, ["layer2", "layer4"], norm, postproc=gram
+    ... )
+    >>> model(img).shape
+    torch.Size([1, 4456448])
+    >>> for k, v in model.convert_to_dict(model(img)).items():
+    ...     print(k, v.shape)
+    layer2 torch.Size([1, 512, 512])
+    layer4 torch.Size([1, 2048, 2048])
     """
 
     def __init__(
@@ -224,9 +269,17 @@ class DeepNetFeatures(torch.nn.Module):
         model: torch.nn.Module,
         return_nodes: str | list[str] | dict[str, str],
         transform: torch.nn.Module | Callable[[Tensor], Tensor] | None = None,
+        postproc: torch.nn.Module | Callable[[Tensor], Tensor] | None = None,
     ):
         super().__init__()
-        self.transform = transform
+        if transform is None:
+            self.transform = torch.nn.Identity()
+        else:
+            self.transform = transform
+        if postproc is None:
+            self.postproc = torch.nn.Identity()
+        else:
+            self.postproc = postproc
         if isinstance(return_nodes, str):
             return_nodes = [return_nodes]
         if feature_extraction is None:
@@ -298,10 +351,10 @@ class DeepNetFeatures(torch.nn.Module):
         >>> model(img).shape
         torch.Size([1, 401408])
         """
-        if self.transform is not None:
-            x = self.transform(x)
-        original_out = self.extractor(x)
-        return self.convert_to_tensor(original_out)
+        x = self.transform(x)
+        x = self.extractor(x)
+        x = self.postproc(x)
+        return self.convert_to_tensor(x)
 
     def convert_to_tensor(
         self, representation_dict: OrderedDict[str, Tensor]
