@@ -1,9 +1,9 @@
 """
-Model metamers.
+Generic synthesis object.
 
-Model metamers are images whose pixel values differ but whose model outputs are
-identical. They allow researchers to better understand the information which have no
-effect on a model's output, also known as their invariances.
+This generic synthesis object allows for users to use plenoptic's machinery to perform
+synthesis for other objective functions than our built-ins. This allows for more
+flexibility, obviously, at the expense of some of the niceties.
 """  # numpydoc ignore=EX01
 
 import warnings
