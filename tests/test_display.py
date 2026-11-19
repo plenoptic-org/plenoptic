@@ -1185,12 +1185,15 @@ class TestMADDisplay:
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("plot_penalties", [True, False])
+    @pytest.mark.parametrize("logscale_y", [True, False, None])
     @pytest.mark.parametrize("axes", [None, "axis", "list", "list-fail"])
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     @pytest.mark.filterwarnings(
         "ignore:SSIM was designed for grayscale images:UserWarning"
     )
-    def test_synthesis_loss(self, synthesized_mad, iteration, plot_penalties, axes):
+    def test_synthesis_loss(
+        self, synthesized_mad, iteration, plot_penalties, logscale_y, axes
+    ):
         expectation = does_not_raise()
         if isinstance(axes, str):
             if axes == "list":
@@ -1204,7 +1207,17 @@ class TestMADDisplay:
                 n_axes = 1
             fig, axes = plt.subplots(1, n_axes)
         with expectation:
-            po.plot.synthesis_loss(synthesized_mad, iteration, plot_penalties, axes)
+            axes_dict = po.plot.synthesis_loss(
+                synthesized_mad, iteration, plot_penalties, logscale_y, axes
+            )
+            if logscale_y is None:
+                logscale_y = False
+            for ax in axes_dict.values():
+                yscale = ax.get_yscale()
+                if logscale_y:
+                    assert yscale == "log"
+                else:
+                    assert yscale == "linear"
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
@@ -1680,9 +1693,10 @@ class TestMetamerDisplay:
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("plot_penalties", [True, False])
+    @pytest.mark.parametrize("logscale_y", [True, False, None])
     @pytest.mark.parametrize("axes", [None, "axis", "list"])
     def test_synthesis_loss(
-        self, synthesized_met_nostore, iteration, plot_penalties, axes
+        self, synthesized_met_nostore, iteration, plot_penalties, logscale_y, axes
     ):
         expectation = does_not_raise()
         if isinstance(axes, str):
@@ -1695,9 +1709,16 @@ class TestMetamerDisplay:
                 n_axes = 1
             fig, axes = plt.subplots(1, n_axes)
         with expectation:
-            po.plot.synthesis_loss(
-                synthesized_met_nostore, iteration, plot_penalties, axes
+            axes_dict = po.plot.synthesis_loss(
+                synthesized_met_nostore, iteration, plot_penalties, logscale_y, axes
             )
+            if logscale_y is None:
+                logscale_y = True
+            yscale = axes_dict["loss"].get_yscale()
+            if logscale_y:
+                assert yscale == "log"
+            else:
+                assert yscale == "linear"
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
