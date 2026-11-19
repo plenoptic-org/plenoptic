@@ -246,7 +246,9 @@ def synthesis_loss(
       >>> # MADCompetition. Here we explicitly specify the scale:
       >>> fig, axes = plt.subplots(1, 3, figsize=(9, 3))
       >>> po.plot.synthesis_loss(met, logscale_y=False, ax=axes[0])
+      {'loss': <Axes: ... ylabel='Loss'>}
       >>> po.plot.synthesis_loss(mad, logscale_y=True, ax=axes[1:])
+      {'reference_metric_loss': <Axes: ...>, 'optimized_metric_loss': <Axes: ...>}
     """
     if not isinstance(synthesis_object, (Metamer, MADCompetition)):
         raise TypeError(
