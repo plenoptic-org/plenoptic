@@ -33,6 +33,7 @@ def synthesis_loss(
     synthesis_object: Metamer | MADCompetition,
     iteration: int | None = None,
     plot_penalties: bool = False,
+    logscale_y: None | bool = None,
     ax: list[mpl.axes.Axes] | mpl.axes.Axes | None = None,
     **kwargs: Any,
 ) -> dict[str, mpl.axes.Axes]:
@@ -46,19 +47,22 @@ def synthesis_loss(
        :class:`~plenoptic.Metamer` is different: we now plot the metamer loss, not the
        objective function value (see below for details).
 
+    .. versionchanged:: 2.1.3
+       Adds ``logscale_y`` argument.
+
     The behavior of this function is slightly different depending on the type of
     ``synthesis_object``:
 
-    - :class:`~plenoptic.Metamer`: creates a single axis object whose y-axis is
-      log-scaled and shows the metamer loss and, if ``plot_penalties=True``,
-      :attr:`~plenoptic.Metamer.penalties`. Returned dictionary has key ``"loss"``.
+    - :class:`~plenoptic.Metamer`: creates a single axis object which shows the metamer
+      loss and, if ``plot_penalties=True``, :attr:`~plenoptic.Metamer.penalties`.
+      Returned dictionary has key ``"loss"``.
 
     - :class:`~plenoptic.MADCompetition`: creates multiple axes objects, one each for
       :attr:`~plenoptic.MADCompetition.reference_metric_loss`,
       :attr:`~plenoptic.MADCompetition.optimized_metric_loss`, and (if
-      ``plot_penalties=True``) :attr:`~plenoptic.MADCompetition.penalties`. The y-axis
-      is linearly-scaled for all plots. Returned dictionary has keys
-      ``"reference_metric_loss"``, ``"optimized_metric_loss"``, and ``"penalties"``.
+      ``plot_penalties=True``) :attr:`~plenoptic.MADCompetition.penalties`. Returned
+      dictionary has keys ``"reference_metric_loss"``, ``"optimized_metric_loss"``,
+      and ``"penalties"``.
 
     In all cases, plots a red dot at ``iteration``, to highlight the loss there. If
     ``iteration=None``, then the dot will be at the final iteration.
@@ -80,6 +84,10 @@ def synthesis_loss(
     plot_penalties
         Whether to plot the output of the penalty function as well. See above
         for behavior.
+    logscale_y
+        Whether the y-axis should be log-scaled. If ``None``, behavior depends on
+        ``synthesis_object`` type: ``Metamer`` will log-scale, ``MADCompetition`` will
+        not.
     ax
         Pre-existing axes for plot. If ``None``, we call
         :func:`matplotlib.pyplot.gca()`. If ``synthesis_object`` is
@@ -227,6 +235,18 @@ def synthesis_loss(
 
       >>> plt.plot(mad.losses)
       [<matplotlib.lines.Line2D ...>]
+
+    The scale of the y-axis (linear or log) depends on the type of ``synthesis_object``
+    unless specified explicitly with ``logscale_y``:
+
+    .. plot::
+      :context: close-figs
+
+      >>> # Note that y-axis was log-scaled above for metamer, linearly-scaled for
+      >>> # MADCompetition. Here we explicitly specify the scale:
+      >>> fig, axes = plt.subplots(1, 3, figsize=(9, 3))
+      >>> po.plot.synthesis_loss(met, logscale_y=False, ax=axes[0])
+      >>> po.plot.synthesis_loss(mad, logscale_y=True, ax=axes[1:])
     """
     if not isinstance(synthesis_object, (Metamer, MADCompetition)):
         raise TypeError(
@@ -240,6 +260,16 @@ def synthesis_loss(
 
     if ax is None:
         ax = plt.gca()
+
+    if logscale_y is None:
+        if isinstance(synthesis_object, Metamer):
+            logscale_y = True
+        elif isinstance(synthesis_object, MADCompetition):
+            logscale_y = False
+
+    ax_set_kwargs = {"xlabel": "Synthesis iteration"}
+    if logscale_y:
+        ax_set_kwargs["yscale"] = "log"
 
     if isinstance(synthesis_object, Metamer):
         if hasattr(ax, "__iter__"):
@@ -255,7 +285,7 @@ def synthesis_loss(
             - synthesis_object.penalty_lambda * progress["penalties"],
             c="r",
         )
-        ax.set(xlabel="Synthesis iteration", ylabel="Loss", yscale="log")
+        ax.set(ylabel="Loss", **ax_set_kwargs)
         if plot_penalties:
             ax.plot(synthesis_object.penalties, label="penalty", **kwargs)
             ax.legend()
@@ -287,9 +317,7 @@ def synthesis_loss(
         for ax_, loss, name in zip(ax, losses, names):
             ax_.plot(loss, **kwargs)
             ax_.scatter(progress["iteration"], progress[name], c="r")
-            ax_.set(
-                xlabel="Synthesis iteration", ylabel=name.capitalize().replace("_", " ")
-            )
+            ax_.set(ylabel=name.capitalize().replace("_", " "), **ax_set_kwargs)
             axes_dict[name] = ax_
     return axes_dict
 
