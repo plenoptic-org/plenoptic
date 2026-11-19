@@ -1395,6 +1395,24 @@ class TestMADDisplay:
                 synthesized_mad_store_progress, process_image=process_image
             )
 
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    def test_synthesis_plot_kwargs(self, synthesized_mad):
+        kwargs = {
+            "synthesis_imshow_kwargs": {"title": "IMPORTANT TITLE"},
+            "synthesis_loss_kwargs": {"logscale_y": True},
+        }
+        fig = po.plot.synthesis_status(synthesized_mad, **kwargs)
+        assert fig.axes[0].get_title().startswith("IMPORTANT TITLE")
+        # fig.axes[1] is empty
+        empty_ax = fig.axes[1]
+        for artists in ["images", "collections", "lines", "artists"]:
+            assert len(getattr(empty_ax, artists)) == 0
+        for ax in fig.axes[2:]:
+            assert ax.get_yscale() == "log"
+
 
 class TestMetamerDisplay:
     @pytest.fixture(scope="class", params=["rgb", "grayscale"])
@@ -1920,6 +1938,15 @@ class TestMetamerDisplay:
                 synthesized_met_store_progress, process_image=process_image
             )
 
+    def test_synthesis_plot_kwargs(self, synthesized_met):
+        kwargs = {
+            "synthesis_imshow_kwargs": {"title": "IMPORTANT TITLE"},
+            "synthesis_loss_kwargs": {"logscale_y": False},
+        }
+        fig = po.plot.synthesis_status(synthesized_met, **kwargs)
+        assert fig.axes[0].get_title().startswith("IMPORTANT TITLE")
+        assert fig.axes[1].get_yscale() == "linear"
+
 
 class TestEigendistortionDisplay:
     @pytest.fixture(
@@ -2224,3 +2251,15 @@ class TestEigendistortionDisplay:
             po.plot.synthesis_status(
                 synthesized_eig, included_plots=["synthesis_imshow"], **kwargs
             )
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    def test_synthesis_plot_kwargs(self, synthesized_eig):
+        kwargs = {
+            "synthesis_imshow_kwargs": {"title": "IMPORTANT TITLE"},
+            "synthesis_histogram_kwargs": {"xlim": (-1, 1)},
+        }
+        fig = po.plot.synthesis_status(synthesized_eig, **kwargs)
+        assert fig.axes[0].get_title().startswith("IMPORTANT TITLE")
+        assert fig.axes[1].get_xlim() == (-1, 1)
