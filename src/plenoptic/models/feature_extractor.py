@@ -262,6 +262,32 @@ class DeepNetFeatures(torch.nn.Module):
     ...     print(k, v.shape)
     layer2 torch.Size([1, 512, 512])
     layer4 torch.Size([1, 2048, 2048])
+
+    The above shows how to use ``postproc`` to perform the same computation on all
+    layers, but you can also construct it to return multiple postprocessing per
+    layer or different steps per layer:
+
+    >>> def postproc(x):
+    ...     return {
+    ...         "layer2_gram": einops.einsum(
+    ...             x["layer2"], x["layer2"], "b c1 h w, b c2 h w -> b c1 c2"
+    ...         ),
+    ...         "layer2": x["layer2"],
+    ...         "layer4_squared": x["layer4"].pow(2),
+    ...     }
+    >>> model = po.models.DeepNetFeatures(
+    ...     tv_model, ["layer2", "layer4"], norm, postproc=postproc
+    ... )
+    >>> model(img).shape
+    torch.Size([1, 763904])
+    >>> for k, v in model.convert_to_dict(model(img)).items():
+    ...     print(k, v.shape)
+    layer2_gram torch.Size([1, 512, 512])
+    layer2 torch.Size([1, 512, 28, 28])
+    layer4_squared torch.Size([1, 2048, 7, 7])
+
+    Note that if you write ``postproc`` like the above, you'll need to make sure that
+    the keys you reference exist and that you're not skipping any layers!
     """
 
     def __init__(
