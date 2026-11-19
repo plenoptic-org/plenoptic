@@ -1185,12 +1185,15 @@ class TestMADDisplay:
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("plot_penalties", [True, False])
+    @pytest.mark.parametrize("logscale_y", [True, False, None])
     @pytest.mark.parametrize("axes", [None, "axis", "list", "list-fail"])
     @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
     @pytest.mark.filterwarnings(
         "ignore:SSIM was designed for grayscale images:UserWarning"
     )
-    def test_synthesis_loss(self, synthesized_mad, iteration, plot_penalties, axes):
+    def test_synthesis_loss(
+        self, synthesized_mad, iteration, plot_penalties, logscale_y, axes
+    ):
         expectation = does_not_raise()
         if isinstance(axes, str):
             if axes == "list":
@@ -1204,7 +1207,17 @@ class TestMADDisplay:
                 n_axes = 1
             fig, axes = plt.subplots(1, n_axes)
         with expectation:
-            po.plot.synthesis_loss(synthesized_mad, iteration, plot_penalties, axes)
+            axes_dict = po.plot.synthesis_loss(
+                synthesized_mad, iteration, plot_penalties, logscale_y, axes
+            )
+            if logscale_y is None:
+                logscale_y = False
+            for ax in axes_dict.values():
+                yscale = ax.get_yscale()
+                if logscale_y:
+                    assert yscale == "log"
+                else:
+                    assert yscale == "linear"
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
@@ -1381,6 +1394,24 @@ class TestMADDisplay:
             po.plot.synthesis_animate(
                 synthesized_mad_store_progress, process_image=process_image
             )
+
+    @pytest.mark.filterwarnings("ignore:Image range falls outside:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:SSIM was designed for grayscale images:UserWarning"
+    )
+    def test_synthesis_plot_kwargs(self, synthesized_mad):
+        kwargs = {
+            "synthesis_imshow_kwargs": {"title": "IMPORTANT TITLE"},
+            "synthesis_loss_kwargs": {"logscale_y": True},
+        }
+        fig = po.plot.synthesis_status(synthesized_mad, **kwargs)
+        assert fig.axes[0].get_title().startswith("IMPORTANT TITLE")
+        # fig.axes[1] is empty
+        empty_ax = fig.axes[1]
+        for artists in ["images", "collections", "lines", "artists"]:
+            assert len(getattr(empty_ax, artists)) == 0
+        for ax in fig.axes[2:]:
+            assert ax.get_yscale() == "log"
 
 
 class TestMetamerDisplay:
@@ -1680,9 +1711,10 @@ class TestMetamerDisplay:
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("plot_penalties", [True, False])
+    @pytest.mark.parametrize("logscale_y", [True, False, None])
     @pytest.mark.parametrize("axes", [None, "axis", "list"])
     def test_synthesis_loss(
-        self, synthesized_met_nostore, iteration, plot_penalties, axes
+        self, synthesized_met_nostore, iteration, plot_penalties, logscale_y, axes
     ):
         expectation = does_not_raise()
         if isinstance(axes, str):
@@ -1695,9 +1727,16 @@ class TestMetamerDisplay:
                 n_axes = 1
             fig, axes = plt.subplots(1, n_axes)
         with expectation:
-            po.plot.synthesis_loss(
-                synthesized_met_nostore, iteration, plot_penalties, axes
+            axes_dict = po.plot.synthesis_loss(
+                synthesized_met_nostore, iteration, plot_penalties, logscale_y, axes
             )
+            if logscale_y is None:
+                logscale_y = True
+            yscale = axes_dict["loss"].get_yscale()
+            if logscale_y:
+                assert yscale == "log"
+            else:
+                assert yscale == "linear"
 
     @pytest.mark.parametrize("iteration", [None, 2, -2])
     @pytest.mark.parametrize("axes", [None, "axis"])
@@ -1898,6 +1937,15 @@ class TestMetamerDisplay:
             po.plot.synthesis_animate(
                 synthesized_met_store_progress, process_image=process_image
             )
+
+    def test_synthesis_plot_kwargs(self, synthesized_met):
+        kwargs = {
+            "synthesis_imshow_kwargs": {"title": "IMPORTANT TITLE"},
+            "synthesis_loss_kwargs": {"logscale_y": False},
+        }
+        fig = po.plot.synthesis_status(synthesized_met, **kwargs)
+        assert fig.axes[0].get_title().startswith("IMPORTANT TITLE")
+        assert fig.axes[1].get_yscale() == "linear"
 
 
 class TestEigendistortionDisplay:
@@ -2203,3 +2251,15 @@ class TestEigendistortionDisplay:
             po.plot.synthesis_status(
                 synthesized_eig, included_plots=["synthesis_imshow"], **kwargs
             )
+
+    @pytest.mark.parametrize(
+        "synthesized_eig", ["OnOff-power-2", "Color-power-2"], indirect=True
+    )
+    def test_synthesis_plot_kwargs(self, synthesized_eig):
+        kwargs = {
+            "synthesis_imshow_kwargs": {"title": "IMPORTANT TITLE"},
+            "synthesis_histogram_kwargs": {"xlim": (-1, 1)},
+        }
+        fig = po.plot.synthesis_status(synthesized_eig, **kwargs)
+        assert fig.axes[0].get_title().startswith("IMPORTANT TITLE")
+        assert fig.axes[1].get_xlim() == (-1, 1)
