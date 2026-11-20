@@ -160,6 +160,10 @@ class MADCompetition(_OptimizedSynthesis):
       >>> example_figure(mad)
       <Figure size ...>
 
+    Note that both :attr:`loss_function` and :attr:`penalty_function` can be
+    :class:`torch.nn.Module` objects, in which case we can move them between devices
+    and dtypes. See :meth:`to` for more.
+
     Change the contribution of the penalty to the objective function.
     :attr:`penalty_lambda` must be a non-negative scalar.
 
