@@ -1749,7 +1749,7 @@ class TestMetamers:
                 # (the name assigned here)
                 ps_loss = po.loss.portilla_simoncelli_loss_factory(model, einstein_img)
                 kwargs["loss_function"] = ps_loss
-                loss_str = "loss"
+                loss_str = r"PortillaSimoncelliLoss\(\)"
         elif isinstance(model, po.models.Gaussian):
             model_str = r"Gaussian\(\)"
         met = po.Metamer(einstein_img, model, **kwargs)
