@@ -335,7 +335,7 @@ def groupwise_relative_l2_norm_factory(
 
     Returns
     -------
-    loss_func
+    groupwise_l2_loss
         A callable to use as your loss function for metamer synthesis.
 
     Raises
@@ -424,10 +424,17 @@ def groupwise_relative_l2_norm_factory(
     weights = _groupwise_l2_norm_weights(model, image, reweighting_dict)
     weights = model.convert_to_tensor(weights)
 
-    def loss(x: Tensor, y: Tensor) -> Tensor:  # numpydoc ignore=GL08
-        return l2_norm(weights * x, weights * y)
+    class GroupwiseL2Loss(torch.nn.Module):
+        # numpydoc ignore=GL08
+        def __init__(self):
+            super().__init__()
+            self.register_buffer("weights", weights)
 
-    return loss
+        def forward(self, x: Tensor, y: Tensor) -> Tensor:
+            # numpydoc ignore=GL08
+            return l2_norm(self.weights * x, self.weights * y)
+
+    return GroupwiseL2Loss()
 
 
 def portilla_simoncelli_loss_factory(
@@ -470,7 +477,7 @@ def portilla_simoncelli_loss_factory(
 
     Returns
     -------
-    loss_func
+    portilla_simoncelli_loss
         A callable to use as your loss function for ``PortillaSimoncelli`` metamer
         synthesis.
 
@@ -594,7 +601,14 @@ def portilla_simoncelli_loss_factory(
         weights[k] *= reweighting_dict.get(k, 1)
     weights = model.convert_to_tensor(weights)
 
-    def loss(x: Tensor, y: Tensor) -> Tensor:  # numpydoc ignore=GL08
-        return l2_norm(weights * x, weights * y)
+    class PortillaSimoncelliLoss(torch.nn.Module):
+        # numpydoc ignore=GL08
+        def __init__(self):
+            super().__init__()
+            self.register_buffer("weights", weights)
 
-    return loss
+        def forward(self, x: Tensor, y: Tensor) -> Tensor:
+            # numpydoc ignore=GL08
+            return l2_norm(self.weights * x, self.weights * y)
+
+    return PortillaSimoncelliLoss()

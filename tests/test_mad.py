@@ -834,6 +834,65 @@ class TestMAD:
         mad.synthesize(max_iter=5)
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
+    @pytest.mark.parametrize("metric", [po.metric.mse, ModuleMetric, NonModuleMetric])
+    @pytest.mark.parametrize("to_type", ["dtype", "device"])
+    @pytest.mark.parametrize("penalty_type", ["func", "Module"])
+    def test_to_module(self, curie_img, metric, to_type, penalty_type):
+        gauss = po.models.Gaussian(31).eval()
+        po.remove_grad(gauss)
+        penalty_target = gauss(po.data.einstein())
+        if penalty_type == "Module":
+
+            class Penalty(torch.nn.Module):
+                def __init__(self):
+                    super().__init__()
+                    self.model = gauss
+                    self.penalty_target = penalty_target
+
+                def forward(self, x):
+                    return po.loss.mse(self.model(x), self.penalty_target)
+
+            penalty = Penalty()
+            expectation = does_not_raise()
+        elif penalty_type == "func":
+
+            def penalty(x):
+                return po.loss.mse(gauss(x), penalty_target)
+
+            if to_type == "dtype":
+                failure = "expected scalar type Double"
+            elif to_type == "device":
+                failure = r"Input type (torch.cuda.FloatTensor)"
+            expectation = pytest.raises(RuntimeError, match=failure)
+        # if metric is not the po.metric.mse function above, initialize it here,
+        # otherwise we can get a weird state-dependence
+        if not inspect.isfunction(metric):
+            metric = metric()
+        mad = po.MADCompetition(
+            curie_img,
+            metric,
+            po.loss.l2_norm,
+            "min",
+            metric_tradeoff_lambda=1,
+            penalty_function=penalty,
+        )
+        mad.synthesize(max_iter=5)
+        if to_type == "dtype":
+            mad.to(torch.float64)
+            assert mad.initial_image.dtype == torch.float64
+            assert mad.image.dtype == torch.float64
+            assert mad.mad_image.dtype == torch.float64
+        # can only run this one if we're on a device with CPU and GPU.
+        elif to_type == "device":
+            mad.to("cpu")
+        # initial_image doesn't get used anywhere after init, so check it like
+        # this
+        mad.initial_image - mad.image
+        mad.mad_image - mad.image
+        with expectation:
+            mad.synthesize(max_iter=5)
+
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
     def test_map_location(self, curie_img, tmp_path):
         mad = po.MADCompetition(
             curie_img,

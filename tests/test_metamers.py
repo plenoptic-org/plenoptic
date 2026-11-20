@@ -1100,7 +1100,6 @@ class TestMetamers:
         indirect=True,
     )
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
-    @pytest.mark.filterwarnings("ignore:Unable to call model.to:UserWarning")
     @pytest.mark.filterwarnings(
         "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
     )
@@ -1124,6 +1123,81 @@ class TestMetamers:
             met.to(torch.float32)
         elif to_type == "device" and DEVICE.type != "cpu":
             met.to(DEVICE)
+
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "frontend.OnOff.nograd",
+            "frontend.OnOff.nograd.ctf",
+        ],
+        indirect=True,
+    )
+    @pytest.mark.parametrize("to_type", ["dtype", "device"])
+    @pytest.mark.filterwarnings(
+        "ignore:Validating whether model can work with coarse-to-fine:UserWarning"
+    )
+    @pytest.mark.parametrize("penalty_type", ["func", "Module"])
+    def test_to_module(self, curie_img, model, to_type, penalty_type):
+        gauss = po.models.Gaussian(31).eval()
+        po.remove_grad(gauss)
+        penalty_target = gauss(po.data.einstein())
+        if penalty_type == "Module":
+
+            class Penalty(torch.nn.Module):
+                def __init__(self):
+                    super().__init__()
+                    self.model = gauss
+                    self.penalty_target = penalty_target
+
+                def forward(self, x):
+                    return po.loss.mse(self.model(x), self.penalty_target)
+
+            penalty = Penalty()
+            expectation = does_not_raise()
+        elif penalty_type == "func":
+
+            def penalty(x):
+                return po.loss.mse(gauss(x), penalty_target)
+
+            if to_type == "dtype":
+                failure = "expected scalar type Double"
+            elif to_type == "device":
+                failure = r"Input type (torch.cuda.FloatTensor)"
+            expectation = pytest.raises(RuntimeError, match=failure)
+        if hasattr(model, "scales"):
+            met = po.MetamerCTF(curie_img, model, penalty_function=penalty)
+        else:
+            met = po.Metamer(curie_img, model, penalty_function=penalty)
+        met.synthesize(max_iter=5)
+        if to_type == "dtype":
+            met.to(torch.float64)
+            assert met.image.dtype == torch.float64
+            assert met.metamer.dtype == torch.float64
+        # can only run this one if we're on a device with CPU and GPU.
+        elif to_type == "device":
+            met.to("cpu")
+        met.metamer - met.image
+        with expectation:
+            met.synthesize(max_iter=5)
+        # reset so we don't mess up further tests
+        if to_type == "dtype":
+            met.to(torch.float32)
+        elif to_type == "device":
+            met.to(DEVICE)
+
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
+    @pytest.mark.parametrize("loss", ["ps", "groupwise"])
+    def test_to_loss_factory(self, loss):
+        img = po.data.reptile_skin()
+        model = po.models.PortillaSimoncelli(img.shape[-2:])
+        if loss == "ps":
+            loss = po.loss.portilla_simoncelli_loss_factory(model, img)
+        elif loss == "groupwise":
+            loss = po.loss.groupwise_relative_l2_norm_factory(model, img)
+        met = po.Metamer(img, model, loss_function=loss)
+        met.to(DEVICE)
+        met.synthesize(5)
 
     # this determines whether we mix across channels or treat them separately,
     # both of which are supported

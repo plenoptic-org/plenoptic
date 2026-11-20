@@ -160,6 +160,10 @@ class MADCompetition(_OptimizedSynthesis):
       >>> example_figure(mad)
       <Figure size ...>
 
+    Note that both :attr:`loss_function` and :attr:`penalty_function` can be
+    :class:`torch.nn.Module` objects, in which case we can move them between devices
+    and dtypes. See :meth:`to` for more.
+
     Change the contribution of the penalty to the objective function.
     :attr:`penalty_lambda` must be a non-negative scalar.
 
@@ -1061,6 +1065,51 @@ class MADCompetition(_OptimizedSynthesis):
         torch.float64
         >>> mad.optimized_metric(mad.image, torch.rand_like(mad.image)).dtype
         torch.float64
+
+        If :attr:`loss_function` and/or :attr:`penalty_function` have ``to`` methods
+        (most likely, that means they are :class:`torch.nn.Module` objects), they will
+        also be moved over. Below, we construct a (somewhat contrived) example where our
+        penalty encourages our metamer to be similar to a different image in terms of
+        ResNet50 layer2 activations:
+
+        >>> gauss = po.models.Gaussian(31).eval()
+        >>> po.remove_grad(gauss)
+        >>> penalty_target = gauss(po.data.curie())
+        >>> def penalty(x):
+        ...     return po.loss.mse(gauss(x), penalty_target)
+        >>> img = po.data.einstein()
+        >>> mad = po.MADCompetition(
+        ...     img, dissimilarity, po.metric.mse, "max", penalty_function=penalty
+        ... )
+        >>> mad.penalty_function(mad.image)
+        tensor(0.0976)
+        >>> # With functions, we have to manually move any related torch modules.
+        >>> mad.to(torch.float64)
+        >>> mad.penalty_function(mad.image)
+        Traceback (most recent call last):
+        RuntimeError: expected scalar type Double but found Float
+        >>> gauss.to(torch.float64)
+        Gaussian()
+        >>> mad.penalty_function(mad.image)
+        tensor(0.0976, dtype=torch.float64)
+        >>> # But with a Module, mad.to method will handle this for us
+        >>> class Penalty(torch.nn.Module):
+        ...     def __init__(self):
+        ...         super().__init__()
+        ...         self.model = po.models.Gaussian(31).eval()
+        ...         po.remove_grad(self.model)
+        ...         self.penalty_target = self.model(po.data.curie())
+        ...
+        ...     def forward(self, x):
+        ...         return po.loss.mse(self.model(x), self.penalty_target)
+        >>> mad = po.MADCompetition(
+        ...     img, dissimilarity, po.metric.mse, "max", penalty_function=Penalty()
+        ... )
+        >>> mad.penalty_function(mad.image)
+        tensor(0.0976)
+        >>> mad.to(torch.float64)
+        >>> mad.penalty_function(mad.image)
+        tensor(0.0976, dtype=torch.float64)
         """  # numpydoc ignore=PR01,PR02
         attrs = ["_initial_image", "_image", "_mad_image", "_saved_mad_image"]
         super().to(*args, attrs=attrs, **kwargs)
@@ -1070,6 +1119,8 @@ class MADCompetition(_OptimizedSynthesis):
             self.reference_metric.to(*args, **kwargs)
         with contextlib.suppress(AttributeError):
             self.optimized_metric.to(*args, **kwargs)
+        with contextlib.suppress(AttributeError):
+            self._penalty_function = self._penalty_function.to(*args, **kwargs)
 
     def load(
         self,
