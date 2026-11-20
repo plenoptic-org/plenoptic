@@ -1187,7 +1187,7 @@ class TestMetamers:
             met.to(DEVICE)
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
-    @pytest.mark.parametrize("loss", ["ps", "groupwise"], indirect=True)
+    @pytest.mark.parametrize("loss", ["ps", "groupwise"])
     def test_to_loss_factory(self, loss):
         img = po.data.reptile_skin()
         model = po.models.PortillaSimoncelli(img.shape[-2:])
