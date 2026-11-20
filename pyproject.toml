@@ -54,6 +54,7 @@ docs = [
      "jupytext",
      "sphobjinv",
      "sphinx-togglebutton",
+     "pyiqa>=0.1.16",
      "altair>=6.2.2",
 ]
 
@@ -65,6 +66,7 @@ test = [
     'pytest-order',
     "torchvision",
     "timm",
+    "pyiqa>=0.1.16",
 ]
 
 lint = [
@@ -83,6 +85,7 @@ nb = [
     "torchvision>=0.3",
     "jupytext",
     "myst-nb",
+    "pyiqa>=0.1.16",
     "altair>=6.2.2",
 ]
 

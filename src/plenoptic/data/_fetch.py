@@ -66,6 +66,9 @@ REGISTRY = {
     # https://www.openintro.org/data/index.php?data=datasaurus
     "datasaurus.tar.gz": "f27b0254bc1d070deac5a8ed1c3924331d125e9c389524c23563ae45f2d1be28",  # noqa: E501
     "datasaurus_metamers.tar.gz": "30fefb3d61e30cc0d8ccdf7a3497a7ba87e67c9d80e3bfa2fce92e1c0bff82ec",  # noqa: E501
+    "spyr_power.pt": "3c1098fdd53fc9755ef21cfe2d3887a0ee012eb2d3c57bb736f0e747773c72a4",  # noqa: E501
+    "spyr_mask.tar.gz": "668e0de9206e17dcac3c7b0bb3a3b66b0fd395494fb78c28948dcf46046cc52a",  # noqa: E501
+    "visual_diversity_penalty.tar.gz": "0dd1734e204488cc8d7194a77cfc500ae2d19115c022cc4c1890f54d56ff932f",  # noqa: E501
 }
 
 OSF_TEMPLATE = "https://osf.io/download/{}"
@@ -116,6 +119,9 @@ REGISTRY_URLS = {
     "caltech256_burger.jpg": OSF_TEMPLATE.format("5dhac/?revision=1"),
     "datasaurus.tar.gz": OSF_TEMPLATE.format("xfb6q/?revision=2"),
     "datasaurus_metamers.tar.gz": OSF_TEMPLATE.format("q7bnu/?revision=16"),
+    "spyr_power.pt": OSF_TEMPLATE.format("z2nv4/?revision=2"),
+    "spyr_mask.tar.gz": OSF_TEMPLATE.format("623he/?revision=1"),
+    "visual_diversity_penalty.tar.gz": OSF_TEMPLATE.format("j53pc/?revision=11"),
 }
 
 #: List of files that can be downloaded using :func:`~plenoptic.data.fetch_data`

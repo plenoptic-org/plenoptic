@@ -964,7 +964,13 @@ class _OptimizedSynthesis(_Synthesis):
                         f"\nUser-specified: {_get_name(scheduler)}."
                     )
                 state_dict = self.scheduler[1]
-                self._scheduler = scheduler(optimizer)
+                sched_params = inspect.signature(scheduler).parameters
+                init_dict = {
+                    k: v
+                    for k, v in state_dict.items()
+                    if k in sched_params and sched_params[k].default is inspect._empty
+                }
+                self._scheduler = scheduler(optimizer, **init_dict)
                 self._scheduler.load_state_dict(state_dict)
         else:
             if scheduler_kwargs is None:
