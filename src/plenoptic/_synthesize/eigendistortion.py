@@ -622,6 +622,10 @@ class Eigendistortion(_Synthesis):
         r"""
         Move and/or cast the parameters and buffers.
 
+        .. versionchanged:: 2.1.3
+           No longer warns when unable to call model.to, to match
+           :class:`~plenoptic.MADCompetition` behavior.
+
         This can be called as
 
         .. code:: python
