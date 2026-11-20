@@ -160,9 +160,9 @@ class MADCompetition(_OptimizedSynthesis):
       >>> example_figure(mad)
       <Figure size ...>
 
-    Note that both :attr:`loss_function` and :attr:`penalty_function` can be
-    :class:`torch.nn.Module` objects, in which case we can move them between devices
-    and dtypes. See :meth:`to` for more.
+    Note that :attr:`optimized_metric`, :attr:`reference_metric`, and
+    :attr:`penalty_function` can be :class:`torch.nn.Module` objects, in which
+    case we can move them between devices and dtypes. See :meth:`to` for more.
 
     Change the contribution of the penalty to the objective function.
     :attr:`penalty_lambda` must be a non-negative scalar.
@@ -1066,11 +1066,14 @@ class MADCompetition(_OptimizedSynthesis):
         >>> mad.optimized_metric(mad.image, torch.rand_like(mad.image)).dtype
         torch.float64
 
-        If :attr:`loss_function` and/or :attr:`penalty_function` have ``to`` methods
-        (most likely, that means they are :class:`torch.nn.Module` objects), they will
-        also be moved over. Below, we construct a (somewhat contrived) example where our
-        penalty encourages our metamer to be similar to a different image in terms of
-        ResNet50 layer2 activations:
+        If :attr:`optimized_metric`, :attr:`reference_metric`, and/or
+        :attr:`penalty_function` have ``to`` methods (most likely, that means
+        they are :class:`torch.nn.Module` objects), they will also be moved
+        over. Below, we construct a (somewhat contrived) example where our
+        penalty uses :class:`~plenoptic.models.Gaussian` to encourage the MAD
+        image to have similar low frequency information to a different image,
+        and demonstrate the difference between the functional and object-based
+        versions:
 
         >>> gauss = po.models.Gaussian(31).eval()
         >>> po.remove_grad(gauss)
