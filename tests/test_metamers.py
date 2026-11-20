@@ -1186,6 +1186,15 @@ class TestMetamers:
         elif to_type == "device":
             met.to(DEVICE)
 
+    @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
+    def test_to_ps_loss_factory(self):
+        img = po.data.reptile_skin()
+        model = po.models.PortillaSimoncelli(img.shape[-2:])
+        loss = po.loss.portilla_simoncelli_loss_factory(model, img)
+        met = po.Metamer(img, model, loss_function=loss)
+        met.to(DEVICE)
+        met.synthesize(5)
+
     # this determines whether we mix across channels or treat them separately,
     # both of which are supported
     @pytest.mark.parametrize("model", ["ColorModel", "naive.Identity"], indirect=True)
