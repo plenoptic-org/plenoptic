@@ -6,6 +6,7 @@ noticeable to an image, given a constrained pixel budget. They allow researchers
 which features drive a model's response and which have no effect.
 """
 
+import contextlib
 import warnings
 from typing import Any, Literal
 
@@ -687,10 +688,8 @@ class Eigendistortion(_Synthesis):
         super().to(*args, attrs=attrs, **kwargs)
         # try to call .to() on model. this should work, but it might fail if e.g., this
         # a custom model that doesn't inherit torch.nn.Module
-        try:
+        with contextlib.suppress(AttributeError):
             self._model = self._model.to(*args, **kwargs)
-        except AttributeError:
-            warnings.warn("Unable to call model.to(), so we leave it as is.")
         # we need _representation_flat and _image_flat to be connected in the
         # computation graph for the autograd calls to work, so we reinitialize
         # it here

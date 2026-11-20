@@ -390,7 +390,6 @@ class TestEigendistortionSynthesis:
         "model", ["naive.Identity", "NonModule", "frontend.OnOff.nograd"], indirect=True
     )
     @pytest.mark.parametrize("to_type", ["dtype", "device"])
-    @pytest.mark.filterwarnings("ignore:Unable to call model.to:UserWarning")
     def test_to(self, curie_img, model, to_type):
         ed = po.Eigendistortion(curie_img, model)
         ed.synthesize(max_iter=5, method="power")

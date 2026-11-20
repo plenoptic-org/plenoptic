@@ -1083,7 +1083,7 @@ class MADCompetition(_OptimizedSynthesis):
         >>> mad.to(torch.float64)
         >>> mad.penalty_function(mad.image)
         Traceback (most recent call last):
-        RuntimeError: Input type (torch.FloatTensor) and weight type (torch.Double...
+        RuntimeError: expected scalar type Double but found Float
         >>> gauss.to(torch.float64)
         Gaussian()
         >>> mad.penalty_function(mad.image)
