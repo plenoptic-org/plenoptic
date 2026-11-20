@@ -6,6 +6,7 @@ identical. They allow researchers to better understand the information which hav
 effect on a model's output, also known as their invariances.
 """  # numpydoc ignore=EX01
 
+import contextlib
 import warnings
 from collections import OrderedDict
 from collections.abc import Callable
@@ -138,6 +139,10 @@ class Metamer(_OptimizedSynthesis):
       >>> met.synthesize(50)
       >>> example_figure(met)
       <Figure size ...>
+
+    Note that both :attr:`loss_function` and :attr:`penalty_function` can be
+    :class:`torch.nn.Module` objects, in which case we can move them between devices
+    and dtypes. See :meth:`to` for more.
 
     Change the contribution of the penalty to the objective function.
     :attr:`penalty_lambda` must be a non-negative scalar.
@@ -989,15 +994,78 @@ class Metamer(_OptimizedSynthesis):
         torch.float64
         >>> met.model(met.image).dtype
         torch.float64
+
+        If :attr:`loss_function` and/or :attr:`penalty_function` have ``to`` methods
+        (most likely, that means they are :class:`torch.nn.Module` objects), they will
+        also be moved over. Below, we construct a (somewhat contrived) example where our
+        penalty encourages our metamer to be similar to a different image in terms of
+        ResNet50 layer2 activations:
+
+        >>> import torchvision
+        >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        >>> tv_model = torchvision.models.resnet50(weights=weights).eval()
+        >>> tv_transform = weights.transforms()
+        >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
+        >>> deepnet = po.models.DeepNetFeatures(tv_model, "layer2", norm).eval()
+        >>> po.remove_grad(deepnet)
+        >>> penalty_target = deepnet(po.data.curie(as_gray=False))
+        >>> def penalty(x):
+        ...     # need to ensure that the input has 3 channels
+        ...     return po.loss.mse(deepnet(x.repeat(1, 3, 1, 1)), penalty_target)
+        >>> img = po.data.einstein()
+        >>> model = po.models.Gaussian(30).eval()
+        >>> po.remove_grad(model)
+        >>> met = po.Metamer(img, model, penalty_function=penalty)
+        >>> met.penalty_function(met.image)
+        tensor(0.0369)
+        >>> # With functions, we have to manually move any related torch modules.
+        >>> met.to(torch.float64)
+        >>> met.penalty_function(met.image)
+        Traceback (most recent call last):
+        RuntimeError: expected scalar type Double but found Float
+        >>> deepnet.to(torch.float64)
+        DeepNetFeatures(...)
+        >>> met.penalty_function(met.image)
+        tensor(0.0369, dtype=torch.float64)
+        >>> # But with a Module, metamer to method will handle this for us
+        >>> class Penalty(torch.nn.Module):
+        ...     def __init__(self):
+        ...         super().__init__()
+        ...         weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        ...         tv_model = torchvision.models.resnet50(weights=weights).eval()
+        ...         tv_transform = weights.transforms()
+        ...         norm = torchvision.transforms.Normalize(
+        ...             tv_transform.mean, tv_transform.std
+        ...         )
+        ...         deepnet = po.models.DeepNetFeatures(tv_model, "layer2", norm).eval()
+        ...         po.remove_grad(deepnet)
+        ...         self.deepnet = deepnet
+        ...         self.penalty_target = deepnet(po.data.curie(as_gray=False))
+        ...
+        ...     def forward(self, x):
+        ...         return po.loss.mse(
+        ...             self.deepnet(x.repeat(1, 3, 1, 1)), self.penalty_target
+        ...         )
+        >>> img = po.data.einstein()
+        >>> model = po.models.Gaussian(30).eval()
+        >>> po.remove_grad(model)
+        >>> met = po.Metamer(img, model, penalty_function=Penalty())
+        >>> met.penalty_function(met.image)
+        tensor(0.0369)
+        >>> met.to(torch.float64)
+        >>> met.penalty_function(met.image)
+        tensor(0.0369, dtype=torch.float64)
         """  # numpydoc ignore=PR01,PR02
         attrs = ["_image", "_target_representation", "_metamer", "_saved_metamer"]
         super().to(*args, attrs=attrs, **kwargs)
         # try to call .to() on model. this should work, but it might fail if e.g., this
         # a custom model that doesn't inherit torch.nn.Module
-        try:
+        with contextlib.suppress(AttributeError):
             self._model = self._model.to(*args, **kwargs)
-        except AttributeError:
-            warnings.warn("Unable to call model.to(), so we leave it as is.")
+        with contextlib.suppress(AttributeError):
+            self._loss_function = self._loss_function.to(*args, **kwargs)
+        with contextlib.suppress(AttributeError):
+            self._penalty_function = self._penalty_function.to(*args, **kwargs)
 
     def load(
         self,
@@ -2036,6 +2104,65 @@ class MetamerCTF(Metamer):
         torch.float64
         >>> met.model(met.image).dtype
         torch.float64
+
+        If :attr:`loss_function` and/or :attr:`penalty_function` have ``to`` methods
+        (most likely, that means they are :class:`torch.nn.Module` objects), they will
+        also be moved over. Below, we construct a (somewhat contrived) example where our
+        penalty encourages our metamer to be similar to a different image in terms of
+        ResNet50 layer2 activations:
+
+        >>> import torchvision
+        >>> weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        >>> tv_model = torchvision.models.resnet50(weights=weights).eval()
+        >>> tv_transform = weights.transforms()
+        >>> norm = torchvision.transforms.Normalize(tv_transform.mean, tv_transform.std)
+        >>> deepnet = po.models.DeepNetFeatures(tv_model, "layer2", norm).eval()
+        >>> po.remove_grad(deepnet)
+        >>> penalty_target = deepnet(po.data.curie(as_gray=False))
+        >>> def penalty(x):
+        ...     # need to ensure that the input has 3 channels
+        ...     return po.loss.mse(deepnet(x.repeat(1, 3, 1, 1)), penalty_target)
+        >>> img = po.data.reptile_skin()
+        >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
+        >>> met = po.MetamerCTF(img, model, penalty_function=penalty)
+        >>> met.penalty_function(met.image)
+        tensor(0.0426)
+        >>> # With functions, we have to manually move any related torch modules.
+        >>> met.to(torch.float64)
+        >>> met.penalty_function(met.image)
+        Traceback (most recent call last):
+        RuntimeError: expected scalar type Double but found Float
+        >>> deepnet.to(torch.float64)
+        DeepNetFeatures(...)
+        >>> met.penalty_function(met.image)
+        tensor(0.0426, dtype=torch.float64)
+        >>> # But with a Module, metamer to method will handle this for us
+        >>> class Penalty(torch.nn.Module):
+        ...     def __init__(self):
+        ...         super().__init__()
+        ...         weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V1
+        ...         tv_model = torchvision.models.resnet50(weights=weights).eval()
+        ...         tv_transform = weights.transforms()
+        ...         norm = torchvision.transforms.Normalize(
+        ...             tv_transform.mean, tv_transform.std
+        ...         )
+        ...         deepnet = po.models.DeepNetFeatures(tv_model, "layer2", norm).eval()
+        ...         po.remove_grad(deepnet)
+        ...         self.deepnet = deepnet
+        ...         self.penalty_target = deepnet(po.data.curie(as_gray=False))
+        ...
+        ...     def forward(self, x):
+        ...         return po.loss.mse(
+        ...             self.deepnet(x.repeat(1, 3, 1, 1)), self.penalty_target
+        ...         )
+        >>> img = po.data.reptile_skin()
+        >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
+        >>> met = po.MetamerCTF(img, model, penalty_function=Penalty())
+        >>> met.penalty_function(met.image)
+        tensor(0.0426)
+        >>> met.to(torch.float64)
+        >>> met.penalty_function(met.image)
+        tensor(0.0426, dtype=torch.float64)
         """  # numpydoc ignore=PR01,PR02
         super().to(*args, **kwargs)
         # if synthesize has been called at least once and we have not finished moving
