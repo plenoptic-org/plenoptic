@@ -123,8 +123,8 @@ def imshow(
            ``vmin``, ``vmax`` args in :external:func:`matplotlib.pyplot.imshow`).
 
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
-        the minimum and maximum value of the colormap, respectively. If a list
-        by the corresponding 2-tuple. If a string:
+        the minimum and maximum value of the colormap, respectively. If a list,
+        must contain a 2-tuple specifying the values for each image. If a string:
 
         * ``"auto0"``: all images have same vmin/vmax, which have the same absolute
           value, and come from the minimum or maximum across all
@@ -348,7 +348,7 @@ def imshow(
 
     If you are plotting multiple rows and columns of images, you can set the rows to
     have the same range using ``"autoNrow"``. ``"autoN"`` specifies the method of
-    computing the range and images in each row have this value.
+    computing the range. Note the different ranges in the two rows below:
 
     .. plot::
         :context: close-figs
@@ -357,18 +357,21 @@ def imshow(
         ...     [einstein, curie, einstein * 2, curie * 2]
         ... )
         >>> po.plot.imshow(einstein_curie_scaled, vrange="auto1row", col_wrap=2)
-        <PyrFigure size ... with 2 Axes>
+        <PyrFigure size ... with 4 Axes>
 
-    Similarly, you can set the columns to have the same range using ``"autoNcol"``.
+    Similarly, you can set the columns to have the same range using ``"autoNcol"``:
 
     .. plot::
         :context: close-figs
 
         >>> po.plot.imshow(einstein_curie_scaled, vrange="auto1col", col_wrap=2)
-        <PyrFigure size ... with 2 Axes>
+        <PyrFigure size ... with 4 Axes>
+
+    See the Examples Section in :func:`~plenoptic.plot.pyrshow` for an example using
+    ``"autoNcolcomplex"`` to plot complex images with the same vmin/vmax across columns.
 
     You can also specify each image's range explicitly by passing a list of 2-tuples,
-    one for each image.
+    one for each image:
 
     .. plot::
         :context: close-figs
@@ -376,7 +379,7 @@ def imshow(
         >>> einstein_curie = torch.cat([einstein, curie, einstein, curie])
         >>> vrange_list = [(0, 1), (0, 2), (0, 3), (0, 4)]
         >>> po.plot.imshow(einstein_curie, vrange=vrange_list, col_wrap=2)
-        <PyrFigure size ... with 2 Axes>
+        <PyrFigure size ... with 4 Axes>
 
     The ``zoom`` argument allows users to set the ratio of display to image pixels,
     increasing or decreasing the size of the resulting plot:
@@ -676,9 +679,10 @@ def animshow(
         Whether to loop the animation or just play it once.
     vrange : ``tuple`` or ``list`` or ``str``
         .. attention::
-           this only affects the behavior for grayscale images. RGB images
-           will always be displayed with vrange [0, 1] (for floats) or [0, 255]
-           (for ints), because of how matplotlib handles them.
+           This argument only affects behavior for grayscale images. RGB
+           images will always be displayed with vrange [0, 1] (for floats) or
+           [0, 255] (for ints), because of how matplotlib handles them (see
+           :external:func:`matplotlib.pyplot.imshow`).
 
         If a 2-tuple, specifies the image values vmin/vmax that are mapped to
         the minimum and maximum value of the colormap, respectively. If a list
@@ -855,24 +859,29 @@ def animshow(
     Examples
     --------
     Animate a single grayscale video. Here we add noise to the Einstein image to
-    create a video of 20 frames and set vrange to [0,1].
+    create a video of 20 frames and set vrange to [0,1]. Note the shape of ``video``
+    must be 5d: ``(batch, channel, frames, height, width)``.
 
     .. plot::
       :context: reset
 
         >>> import plenoptic as po
         >>> import torch
-        >>> einstein_noisy = po.data.einstein()
-        >>> images = torch.tensor(einstein_noisy)
-        >>> for ii in range(20):
-        ...     einstein_noisy = einstein_noisy + torch.randn_like(einstein_noisy) * 0.1
-        ...     images = torch.hstack([images, einstein_noisy])
-        >>> images = images.unsqueeze(0)  # Add batch dimension
+        >>> n_frames = 20
+        >>> # create a tensor with 20 identical einstein images
+        >>> images = po.data.einstein().repeat(1, 1, n_frames, 1, 1)
+        >>> # create the noise strength vector
+        >>> noise = torch.linspace(0, 1, n_frames).reshape(1, 1, n_frames, 1, 1)
+        >>> # add the einstein image to the noise
+        >>> images = images + noise * torch.rand_like(images)
         >>> ani = po.plot.animshow(images, vrange=(0, 1))
         >>> # Save the video (here we're saving it as a .gif)
         >>> ani.save("noisy_einstein.gif")
 
     .. image:: noisy_einstein.gif
+
+    Most of the other arguments behave the same as :func:`plenoptic.plot.imshow`,
+    see that docstring for examples.
     """
     if not isinstance(video, list):
         video = [video]
@@ -982,6 +991,11 @@ def pyrshow(
         of 2-tuples, must have one per image, and each image's vmin/vmax is specified
         by the corresponding 2-tuple. If a string:
 
+        * ``"autoNpyr"``: where ``N`` is an integer. Each scale (row) have the same
+          vmin/vmax, which are computed using the corresponding ``"autoN"`` method
+          described above. The lowpass and highpass residuals vmin/vmax are computed
+          independently, as ``"indepN"``.
+
         * ``"auto0"``: all images have same vmin/vmax, which have the same absolute
           value, and come from the minimum or maximum across all
           images, whichever has the larger absolute value
@@ -1010,10 +1024,6 @@ def pyrshow(
           but the vmin/vmax are computed across the real and imaginary parts in each
           column. Note: Is not compatible with ``show_residuals=True``. Plot the
           residuals separately.
-
-        * ``"autoNpyr"``: where ``N`` is an integer. Same as ``"autoNrow"`` except
-          the lowpass and highpass residuals vmin/vmax are computed independently,
-          as ``"indepN"``.
 
         * ``"indep0"``: each image has an independent vmin/vmax, which have the
           same absolute value, which comes from either their
@@ -1076,12 +1086,30 @@ def pyrshow(
         ... )
         >>> coeffs = spyr(einstein)
         >>> po.plot.pyrshow(coeffs, vrange="auto1pyr")
-        <PyrFigure size ... with 1 Axes>
+        <PyrFigure size ... with 11 Axes>
 
-    Note that here we are using vrange "auto1pyr", which computes the
+    Note that here we are using vrange ``"auto1pyr"``, which computes the
     vmin/vmax independently for each scale but uses the same vrange across
     orientations. The highpass and low pass residual's vranges are computed
     independently.
+
+    Note that plotting with ``'vrange = autoNrow'`` and ``'show_residuals=False'``
+    gives the same result as ``"autoNpyr"`` just without the residuals:
+
+    .. plot::
+       :context: close-figs
+
+       >>> po.plot.pyrshow(coeffs, vrange="auto1row", show_residuals=False)
+       <PyrFigure size ... with 9 Axes>
+
+    and we can plot the residuals separately using ``"imshow"``:
+
+    .. plot::
+       :context: close-figs
+
+        >>> residuals = [coeffs["residual_highpass"], coeffs["residual_lowpass"]]
+        >>> po.plot.imshow(residuals)
+        <PyrFigure size ... with 2 Axes>
 
     Plot the coefficients of a complex steerable pyramid:
 
@@ -1093,9 +1121,33 @@ def pyrshow(
         ... )
         >>> coeffs = spyr(einstein)
         >>> po.plot.pyrshow(coeffs)
-        <PyrFigure size ... with 1 Axes>
+        <PyrFigure size ... with 20 Axes>
 
     Note that the images alternate between real and imaginary parts.
+
+    We can also plot such that the vmin/vmax are the same across orientations
+    but computed independently for the real and imaginary parts using vrange
+    ``"autoNcolcomplex"``:
+
+    .. plot::
+       :context: close-figs
+
+        >>> spyr = po.process.SteerablePyramidFreq(
+        ...     einstein.shape[-2:], height=3, order=2, is_complex=True
+        ... )
+        >>> coeffs = spyr(einstein)
+        >>> po.plot.pyrshow(coeffs, vrange="auto1colcomplex", show_residuals=False)
+        <PyrFigure size ... with 20 Axes>
+
+    Note that to use ``"autoNcolcomplex"`` you must set ``show_residuals=False``.
+    You can the plot the residuals separately using ``"imshow"``:
+
+    .. plot::
+       :context: close-figs
+
+        >>> residuals = [coeffs["residual_highpass"], coeffs["residual_lowpass"]]
+        >>> po.plot.imshow(residuals)
+        <PyrFigure size ... with 2 Axes>
     """
     pyr_coeffvis = {}
     for k, v in pyr_coeffs.items():
