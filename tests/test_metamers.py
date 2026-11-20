@@ -1187,10 +1187,14 @@ class TestMetamers:
             met.to(DEVICE)
 
     @pytest.mark.skipif(DEVICE.type == "cpu", reason="Only makes sense to test on cuda")
-    def test_to_ps_loss_factory(self):
+    @pytest.mark.parametrize("loss", ["ps", "groupwise"], indirect=True)
+    def test_to_loss_factory(self, loss):
         img = po.data.reptile_skin()
         model = po.models.PortillaSimoncelli(img.shape[-2:])
-        loss = po.loss.portilla_simoncelli_loss_factory(model, img)
+        if loss == "ps":
+            loss = po.loss.portilla_simoncelli_loss_factory(model, img)
+        elif loss == "groupwise":
+            loss = po.loss.groupwise_relative_l2_norm_factory(model, img)
         met = po.Metamer(img, model, loss_function=loss)
         met.to(DEVICE)
         met.synthesize(5)
