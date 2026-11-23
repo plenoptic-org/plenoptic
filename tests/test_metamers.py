@@ -1139,16 +1139,16 @@ class TestMetamers:
     )
     @pytest.mark.parametrize("penalty_type", ["func", "Module"])
     def test_to_module(self, curie_img, model, to_type, penalty_type):
-        gauss = po.models.Gaussian(31).eval()
+        gauss = po.models.Gaussian(31).eval().to(DEVICE)
         po.remove_grad(gauss)
-        penalty_target = gauss(po.data.einstein())
+        penalty_target = gauss(po.data.einstein().to(DEVICE))
         if penalty_type == "Module":
 
             class Penalty(torch.nn.Module):
                 def __init__(self):
                     super().__init__()
                     self.model = gauss
-                    self.penalty_target = penalty_target
+                    self.register_buffer("penalty_target", penalty_target)
 
                 def forward(self, x):
                     return po.loss.mse(self.model(x), self.penalty_target)
@@ -1161,9 +1161,11 @@ class TestMetamers:
                 return po.loss.mse(gauss(x), penalty_target)
 
             if to_type == "dtype":
-                failure = "expected scalar type Double"
+                # this error message would be different on CPU, but we only test
+                # on GPU
+                failure = r"Input type \(torch.cuda.DoubleTensor\)"
             elif to_type == "device":
-                failure = r"Input type (torch.cuda.FloatTensor)"
+                failure = r"Input type \(torch.FloatTensor\)"
             expectation = pytest.raises(RuntimeError, match=failure)
         if hasattr(model, "scales"):
             met = po.MetamerCTF(curie_img, model, penalty_function=penalty)
