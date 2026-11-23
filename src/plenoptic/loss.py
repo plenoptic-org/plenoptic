@@ -300,8 +300,8 @@ def groupwise_relative_l2_norm_factory(
     r"""
     Create loss function that computes groupwise relative L2 norm for synthesis.
 
-    This loss factory returns a callable which should make optimization easier when
-    used as the ``loss_function`` when initializing
+    This loss factory returns a callable :class:`torch.nn.Module` which should make
+    optimization easier when used as the ``loss_function`` when initializing
     :class:`~plenoptic.Metamer` for synthesizing metamers. The
     resulting loss function will normalize each group within the representation by the
     L2 norm of that group on ``image``, which should be the target image for that
@@ -445,12 +445,12 @@ def portilla_simoncelli_loss_factory(
     """
     Create the loss function required for ``PortillaSimoncelli`` metamer synthesis.
 
-    This loss factory returns a callable which should be used as the ``loss_function``
-    when initializing :class:`~plenoptic.Metamer` for synthesizing
-    metamers with the
-    :class:`~plenoptic.models.PortillaSimoncelli` model. It
-    zeroes the model's representation of the images' min/max pixel values and increases
-    the weight on the variance of the highpass residuals before computing the L2-norm.
+    This loss factory returns a callable :class:`torch.nn.Module` which should be used
+    as the ``loss_function`` when initializing :class:`~plenoptic.Metamer` for
+    synthesizing metamers with the :class:`~plenoptic.models.PortillaSimoncelli` model.
+    It zeroes the model's representation of the images' min/max pixel values and
+    increases the weight on the variance of the highpass residuals before computing the
+    L2-norm.
 
     The optional ``reweighting_dict`` argument allows users to tweak the weights. If not
     ``None``, keys should be a subset of those found in the output of
