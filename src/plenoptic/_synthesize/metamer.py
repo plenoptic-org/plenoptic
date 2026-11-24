@@ -1032,7 +1032,7 @@ class Metamer(_OptimizedSynthesis):
         ...         super().__init__()
         ...         self.model = po.models.Gaussian(31).eval()
         ...         po.remove_grad(self.model)
-        ...         self.penalty_target = self.model(po.data.curie())
+        ...         self.register_buffer("penalty_target", self.model(po.data.curie()))
         ...
         ...     def forward(self, x):
         ...         return po.loss.mse(self.model(x), self.penalty_target)
@@ -2127,7 +2127,7 @@ class MetamerCTF(Metamer):
         ...         super().__init__()
         ...         self.model = po.models.Gaussian(31).eval()
         ...         po.remove_grad(self.model)
-        ...         self.penalty_target = self.model(po.data.curie())
+        ...         self.register_buffer("penalty_target", self.model(po.data.curie()))
         ...
         ...     def forward(self, x):
         ...         return po.loss.mse(self.model(x), self.penalty_target)
