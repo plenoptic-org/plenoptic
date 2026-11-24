@@ -40,3 +40,4 @@ The following functions operate as penalties.
    :toctree: generated
 
    ~penalize_range
+   ~Penalties
