@@ -6,6 +6,7 @@ identical. They allow researchers to better understand the information which hav
 effect on a model's output, also known as their invariances.
 """  # numpydoc ignore=EX01
 
+import contextlib
 import warnings
 from collections import OrderedDict
 from collections.abc import Callable
@@ -138,6 +139,10 @@ class Metamer(_OptimizedSynthesis):
       >>> met.synthesize(50)
       >>> example_figure(met)
       <Figure size ...>
+
+    Note that both :attr:`loss_function` and :attr:`penalty_function` can be
+    :class:`torch.nn.Module` objects, in which case we can move them between devices
+    and dtypes. See :meth:`to` for more.
 
     Change the contribution of the penalty to the objective function.
     :attr:`penalty_lambda` must be a non-negative scalar.
@@ -935,6 +940,10 @@ class Metamer(_OptimizedSynthesis):
         r"""
         Move and/or cast the parameters and buffers.
 
+        .. versionchanged:: 2.1.3
+           No longer warns when unable to call model.to, to match
+           :class:`~plenoptic.MADCompetition` behavior.
+
         This can be called as
 
         .. code:: python
@@ -989,15 +998,64 @@ class Metamer(_OptimizedSynthesis):
         torch.float64
         >>> met.model(met.image).dtype
         torch.float64
+
+        If :attr:`loss_function` and/or :attr:`penalty_function` have ``to`` methods
+        (most likely, that means they are :class:`torch.nn.Module` objects), they will
+        also be moved over. Below, we construct a (somewhat contrived) example where our
+        penalty uses :class:`~plenoptic.models.Gaussian` to encourage the metamer to
+        have similar low frequency information to a different image, and demonstrate the
+        difference between the functional and object-based versions:
+
+        >>> gauss = po.models.Gaussian(31).eval()
+        >>> po.remove_grad(gauss)
+        >>> penalty_target = gauss(po.data.curie())
+        >>> def penalty(x):
+        ...     return po.loss.mse(gauss(x), penalty_target)
+        >>> img = po.data.einstein()
+        >>> model = po.models.LuminanceGainControl(31, pretrained=True).eval()
+        >>> po.remove_grad(model)
+        >>> met = po.Metamer(img, model, penalty_function=penalty)
+        >>> met.penalty_function(met.image)
+        tensor(0.0976)
+        >>> # With functions, we have to manually move any related torch modules.
+        >>> met.to(torch.float64)
+        >>> met.penalty_function(met.image)
+        Traceback (most recent call last):
+        RuntimeError: expected scalar type Double but found Float
+        >>> gauss.to(torch.float64)
+        Gaussian()
+        >>> met.penalty_function(met.image)
+        tensor(0.0976, dtype=torch.float64)
+        >>> # But with a Module, met.to method will handle this for us
+        >>> class Penalty(torch.nn.Module):
+        ...     def __init__(self):
+        ...         super().__init__()
+        ...         self.model = po.models.Gaussian(31).eval()
+        ...         po.remove_grad(self.model)
+        ...         self.register_buffer("penalty_target", self.model(po.data.curie()))
+        ...
+        ...     def forward(self, x):
+        ...         return po.loss.mse(self.model(x), self.penalty_target)
+        >>> img = po.data.einstein()
+        >>> model = po.models.LuminanceGainControl(31, pretrained=True).eval()
+        >>> po.remove_grad(model)
+        >>> met = po.Metamer(img, model, penalty_function=Penalty())
+        >>> met.penalty_function(met.image)
+        tensor(0.0976)
+        >>> met.to(torch.float64)
+        >>> met.penalty_function(met.image)
+        tensor(0.0976, dtype=torch.float64)
         """  # numpydoc ignore=PR01,PR02
         attrs = ["_image", "_target_representation", "_metamer", "_saved_metamer"]
         super().to(*args, attrs=attrs, **kwargs)
         # try to call .to() on model. this should work, but it might fail if e.g., this
         # a custom model that doesn't inherit torch.nn.Module
-        try:
+        with contextlib.suppress(AttributeError):
             self._model = self._model.to(*args, **kwargs)
-        except AttributeError:
-            warnings.warn("Unable to call model.to(), so we leave it as is.")
+        with contextlib.suppress(AttributeError):
+            self._loss_function = self._loss_function.to(*args, **kwargs)
+        with contextlib.suppress(AttributeError):
+            self._penalty_function = self._penalty_function.to(*args, **kwargs)
 
     def load(
         self,
@@ -2036,6 +2094,51 @@ class MetamerCTF(Metamer):
         torch.float64
         >>> met.model(met.image).dtype
         torch.float64
+
+        If :attr:`loss_function` and/or :attr:`penalty_function` have ``to`` methods
+        (most likely, that means they are :class:`torch.nn.Module` objects), they will
+        also be moved over. Below, we construct a (somewhat contrived) example where our
+        penalty uses :class:`~plenoptic.models.Gaussian` to encourage the metamer to
+        have similar low frequency information to a different image, and demonstrate the
+        difference between the functional and object-based versions:
+
+        >>> gauss = po.models.Gaussian(31).eval()
+        >>> po.remove_grad(gauss)
+        >>> penalty_target = gauss(po.data.curie())
+        >>> def penalty(x):
+        ...     return po.loss.mse(gauss(x), penalty_target)
+        >>> img = po.data.reptile_skin()
+        >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
+        >>> met = po.MetamerCTF(img, model, penalty_function=penalty)
+        >>> met.penalty_function(met.image)
+        tensor(0.0995)
+        >>> # With functions, we have to manually move any related torch modules.
+        >>> met.to(torch.float64)
+        >>> met.penalty_function(met.image)
+        Traceback (most recent call last):
+        RuntimeError: expected scalar type Double but found Float
+        >>> gauss.to(torch.float64)
+        Gaussian()
+        >>> met.penalty_function(met.image)
+        tensor(0.0995, dtype=torch.float64)
+        >>> # But with a Module, met.to method will handle this for us
+        >>> class Penalty(torch.nn.Module):
+        ...     def __init__(self):
+        ...         super().__init__()
+        ...         self.model = po.models.Gaussian(31).eval()
+        ...         po.remove_grad(self.model)
+        ...         self.register_buffer("penalty_target", self.model(po.data.curie()))
+        ...
+        ...     def forward(self, x):
+        ...         return po.loss.mse(self.model(x), self.penalty_target)
+        >>> img = po.data.reptile_skin()
+        >>> model = po.models.PortillaSimoncelli(img.shape[-2:])
+        >>> met = po.MetamerCTF(img, model, penalty_function=Penalty())
+        >>> met.penalty_function(met.image)
+        tensor(0.0995)
+        >>> met.to(torch.float64)
+        >>> met.penalty_function(met.image)
+        tensor(0.0995, dtype=torch.float64)
         """  # numpydoc ignore=PR01,PR02
         super().to(*args, **kwargs)
         # if synthesize has been called at least once and we have not finished moving
