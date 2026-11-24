@@ -162,8 +162,9 @@ class Metamer(_OptimizedSynthesis):
         image: Tensor,
         model: torch.nn.Module,
         loss_function: Callable[[Tensor, Tensor], Tensor] = loss.mse,
-        penalty_function: Callable[[Tensor], Tensor] = regularize.penalize_range,
-        penalty_lambda: float = 0.1,
+        penalty_function: list[Callable[[Tensor], Tensor]]
+        | Callable[[Tensor], Tensor] = regularize.penalize_range,
+        penalty_lambda: float | list[float] | Tensor = 0.1,
     ):
         super().__init__(
             penalty_function=penalty_function, penalty_lambda=penalty_lambda
@@ -175,7 +176,13 @@ class Metamer(_OptimizedSynthesis):
             image_dtype=image.dtype,
             device=image.device,
         )
-        validate_penalty(penalty_function, image.shape, image.dtype, image.device)
+        validate_penalty(
+            self.penalty_function,
+            self.penalty_lambda,
+            image.shape,
+            image.dtype,
+            image.device,
+        )
         self._model = model
         self._image = image
         self._image_shape = image.shape
@@ -990,7 +997,13 @@ class Metamer(_OptimizedSynthesis):
         >>> met.model(met.image).dtype
         torch.float64
         """  # numpydoc ignore=PR01,PR02
-        attrs = ["_image", "_target_representation", "_metamer", "_saved_metamer"]
+        attrs = [
+            "_image",
+            "_target_representation",
+            "_metamer",
+            "_saved_metamer",
+            "_penalty_lambda",
+        ]
         super().to(*args, attrs=attrs, **kwargs)
         # try to call .to() on model. this should work, but it might fail if e.g., this
         # a custom model that doesn't inherit torch.nn.Module

@@ -206,7 +206,13 @@ class MADCompetition(_OptimizedSynthesis):
             image_dtype=image.dtype,
             device=image.device,
         )
-        validate_penalty(penalty_function, image.shape, image.dtype, image.device)
+        validate_penalty(
+            self.penalty_function,
+            self.penalty_lambda,
+            image.shape,
+            image.dtype,
+            image.device,
+        )
         self._optimized_metric = optimized_metric
         self._reference_metric = reference_metric
         self._image = image.detach()
@@ -1062,7 +1068,13 @@ class MADCompetition(_OptimizedSynthesis):
         >>> mad.optimized_metric(mad.image, torch.rand_like(mad.image)).dtype
         torch.float64
         """  # numpydoc ignore=PR01,PR02
-        attrs = ["_initial_image", "_image", "_mad_image", "_saved_mad_image"]
+        attrs = [
+            "_initial_image",
+            "_image",
+            "_mad_image",
+            "_saved_mad_image",
+            "_penalty_lambda",
+        ]
         super().to(*args, attrs=attrs, **kwargs)
         # if the metrics are Modules, then we should pass them as well. If
         # they're functions then nothing needs to be done.

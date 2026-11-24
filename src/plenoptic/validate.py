@@ -447,6 +447,7 @@ def validate_metric(
 
 def validate_penalty(
     penalty_function: torch.nn.Module | Callable[[Tensor], Tensor],
+    penalty_lambda: None | Tensor = None,
     image_shape: tuple[int, int, int, int] | None = None,
     image_dtype: torch.dtype = torch.float32,
     device: str | torch.device = "cpu",
@@ -485,6 +486,9 @@ def validate_penalty(
     ----------
     penalty_function
         The penalty function to validate.
+    penalty_lambda
+        Lambda that will be used with this penalty function. If ``None``, we use
+        a single scalar.
     image_shape
         Some models (e.g., the steerable pyramid) can only accept inputs of a
         certain shape. If that's the case for ``model``, use this to
@@ -527,6 +531,8 @@ def validate_penalty(
     """
     if image_shape is None:
         image_shape = (1, 1, 16, 16)
+    if penalty_lambda is None:
+        penalty_lambda = torch.as_tensor(1)
     # avoiding calling torch.rand, because that offsets the seed, breaking
     # reproducibility
     test_img = torch.ones(
@@ -554,9 +560,9 @@ def validate_penalty(
             "penalty_function does not return a torch.Tensor object -- are you sure"
             " all computations are performed using torch?"
         )
-    if penalty.numel() != 1:
+    if penalty.numel() != penalty_lambda.numel():
         raise ValueError(
-            "penalty_function should return a scalar value but"
+            "penalty_function should return a scalar value per penalty_lambda but"
             + f" output had shape {penalty.shape}"
         )
     test_img.requires_grad_()

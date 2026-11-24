@@ -736,10 +736,12 @@ class _OptimizedSynthesis(_Synthesis):
         self._optimizer = None
         self._current_loss = None
         self._current_penalty = None
+        if not isinstance(penalty_function, regularize.Penalties):
+            penalty_function = regularize.Penalties(penalty_function)
         self._penalty_function = penalty_function
         if penalty_lambda < 0:
             raise Exception("penalty_lambda must be non-negative!")
-        self._penalty_lambda = penalty_lambda
+        self._penalty_lambda = torch.as_tensor(penalty_lambda)
 
     @abc.abstractproperty
     def image(self):
